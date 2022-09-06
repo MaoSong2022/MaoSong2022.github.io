@@ -54,7 +54,9 @@ double Sqrt(double x){
 }
 ```
 
-二分法求解$\sqrt{x}$的复杂度为$\mathcal{O}(\log\frac{b-a}{\epsilon})$, 其中$[a,b]$是根所在的区间，上述代码中设置为$[0,x]$, $\epsilon$是根的精度，上述代码中设置为$10^{-7}$. 实际上，当$\epsilon$非常小时，二分法会非常慢。我们以计算$\sqrt{5}$为例，每次循环打印迭代次数和误差$|\sqrt{5}-mid|$,得到结果如下：
+二分法求解$\sqrt{x}$的复杂度为$\mathcal{O}(\log\frac{b-a}{\epsilon})$, 其中$[a,b]$是根所在的区间，上述代码中设置为$[0,x]$，$\epsilon$是根的精度，上述代码中设置为$10^{-7}$. 
+
+实际上，当$\epsilon$非常小时，二分法会非常慢。我们以计算$\sqrt{5}$为例，每次循环打印迭代次数和误差$\vert\sqrt{5}-mid\vert$,得到结果如下：
 
 ```
 ...
@@ -77,11 +79,15 @@ iter: 26, error: 4.77316e-08
 
 Newton法主要是求解以下方程的解：
 $$
+\begin{equation}
 f(x)=0
+\end{equation}
 $$
 其中$f$是二阶连续可微的，且存在唯一$x^*$使得$f(x^*)=0$，则给定初识点$x^0$,Newton法的迭代格式如下：
 $$
+\begin{equation}
 x^{k+1}=x^k-\frac{f(x^k)}{f'(x^k)}
+\end{equation}
 $$
 其中$f'(x^k)$是$f$在$x^k$处的导数，在求根问题中，我们的目标函数是$f(x)=x^2-a$,$f'(x)=2x$,因此我们可以实现Newton法如下：
 
@@ -118,7 +124,9 @@ iter: 10, error: 0
 
 事实上，我们要介绍的Quake算法和求根公式关系并不是很大，而是因为在游戏中经常需要对向量进行归一化，即给定$\vec{x}$, 我们需要计算
 $$
+\begin{equation}
 \hat{x} = \frac{\vec{x}}{\|\vec{x}\|_2}
+\end{equation}
 $$
 假设$\vec{x}=(x_1,x_2,x_3)$, 则$\|\vec{x}\|_2=\sqrt{x_1^2+x_2^2+x_3^2}$, 这里就需要求平方根了，而Quake算法就是用来求$\frac{1}{\sqrt{x}}$的。
 
@@ -143,7 +151,9 @@ float Q_rsqrt(float number){
 
 我们首先来看代码的第11行和第12行，这里其实就是我们前面提到的Newton法，由Quake算法的介绍我们可以给出目标函数$f(x)=\frac{1}{x^2}-a$, 因此Newton法迭代格式为：
 $$
+\begin{equation}
 x^{k+1} = x^k-\frac{(x^k)^{-2}-a}{-2(x^k)^{-3}}=x^k *\frac{3-a(x^k)^{2}}{2}
+\end{equation}
 $$
 因此，代码的11行和12行实际上就是(4)式的实现。而由6-10行产生的$y$实际上就是$\frac{1}{\sqrt{a}}$的一个估计。我们接下来详细介绍这一部分，为此，我们需要了解计算机内部浮点数的存储格式。
 
@@ -161,15 +171,21 @@ $$
 
 用一个比较简单的例子来说明：比如$x=6.3025$, 我们首先将其转换为二进制表示：
 $$
+\begin{equation}
 x=6.3025=110.0100110101110000101_{(2)}
+\end{equation}
 $$
 接下来，我们将二进制表示为表示为标准格式：
 $$
+\begin{equation}
 x=+2^{129-127}(1+0.57562494277954101563)
+\end{equation}
 $$
 那么$s=0_{(2)}$, $e+127=129=10000001_{(2)}$, $f=0.57562494277954101563=0.10010011010111000010100_{(2)}$. 因此$x$可以表示为：
 $$
+\begin{equation}
 0\ 10000001\ 10010011010111000010100_{(2)}
+\end{equation}
 $$
 
 ### Quake's initial guess
@@ -178,32 +194,44 @@ $$
 
 首先，我们可以简化一下：
 $$
+\begin{equation}
 \log_2 y=\log_2(\frac{1}{\sqrt{x}})\Leftrightarrow \log_2y=-\frac{1}{2}\log_2x
+\end{equation}
 $$
 结合浮点数表示$x=2^{e}(1+f)$我们有：
 $$
+\begin{equation}
 \log_2x = \log_2(2^{e}(1+f))=e+\log_2(1+f)
+\end{equation}
 $$
 进一步地，因为$f\in[0,1)$,我们可以用一阶泰勒展开近似：$\log_2(1+f)\approx f+\sigma$,其中$\sigma$是一个控制误差的常数，
 $$
+\begin{equation}
 \log_2x \approx e + f + \sigma
+\end{equation}
 $$
 另一方面，我们将$x$的浮点数表示为一个整数的形式,记作$I_x$：
 $$
+\begin{equation}
 \begin{aligned}
 I_x &= 0*2^{31} + (e+127)*2^{23} + f*2^{23} \\
 &=2^{23}(e+127+f)\\
 &=2^{23}(e+f+\sigma+127-\sigma)\\
 &\approx 2^{23}\log_2x + 2^{23}(127-\sigma)
 \end{aligned}
+\end{equation}
 $$
 我们同理可以得到$y$的浮点数表示的整数形式，记作$I_y$,将$I_x,I_y$带入到(8)式中，我们就得到：
 $$
+\begin{equation}
 \frac{I_y}{2^{23}}-(127-\sigma) \approx -\frac{1}{2}\left(\frac{I_x}{2^{23}}-(127-\sigma)\right)
+\end{equation}
 $$
 即：
 $$
+\begin{equation}
 I_y\approx \frac{3}{2}*2^{23}*(127-\sigma)-\frac{1}{2}I_x
+\end{equation}
 $$
 写成代码就是第9行：
 
@@ -213,7 +241,9 @@ i = 0x5f3759df - ( i >> 1 );
 
 这里魔数的含义就是：
 $$
+\begin{equation}
 \text{0x5f3759df}=\frac{3}{2}*2^{23}*(127-\sigma)
+\end{equation}
 $$
 由此还可以计算出$\sigma\approx 0.0450466$.
 
@@ -234,7 +264,9 @@ $$
 
 我们还有一个问题没有回答，为什么$\sigma\approx 0.0450466$? 这其实是经过分析得到的结果，首先$\sigma$的定义是控制下式
 $$
+\begin{equation}
 \log_2(1+x)\approx x + \sigma， x\in[0,1)
+\end{equation}
 $$
 误差的常数。首先我们来看$\sigma=0$时的情况：
 
@@ -242,13 +274,17 @@ $$
 
 可以看到当$x=0$和$x=1$时，我们用$x$估计$\log_2(1+x)$的误差为$0$，最大误差出现在$\alpha:=\frac{1}{\ln2}-1$处，为
 $$
+\begin{equation}
 \tau = \frac{-1+\ln2+\ln\ln2}{\ln2}\approx 0.0860713320559342
+\end{equation}
 $$
 因此，我们知道$\sigma$的最优取值应该在区间$[0,\tau]$内，即直线$x+\sigma$与$\log_2(1+x)$在区间$[0,1]$内应该始终有交点。接下来，为了选取最优的$\sigma$，我们介绍一种比较通俗的做法。
 
 由于给定一个$\sigma$，我们都能计算出误差$\epsilon(x):=|\log_2(1+x)-(x+\sigma)|$的最大值，因此方法一的思想为选取令最大误差尽可能小的$\sigma$.注意到$\epsilon(x)$的最大值出现在$x=0$和$x=\alpha$处，$\epsilon(0)=\sigma$, $\epsilon(\alpha)=\tau-\sigma$.为了最小化最大的误差，我们令$\sigma=\tau-\sigma$,就得到了
 $$
+\begin{equation}
 \sigma = \frac{1}{2}\tau=\approx 0.0430356660279671
+\end{equation}
 $$
 还有其他的计算方法，我们不再介绍。有兴趣的读者可以参考[3]。代码中实际使用的$\sigma$可能采用了其他的优化方式。
 
