@@ -2,6 +2,7 @@
 title: Square Root
 date: 2022-09-06
 description: From square root to Quake's algorithm
+math: true
 categories: [learning notes]
 tags: [math, leetcode, algorithm]
 ---
