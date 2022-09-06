@@ -3,6 +3,7 @@ title: Square Root
 date: 2022-09-06
 description: From square root to Quake's algorithm
 math: true
+img_path: /assets/images/
 categories: [learning notes]
 tags: [math, leetcode, algorithm]
 ---
@@ -265,7 +266,7 @@ $$
 
 误差的常数。首先我们来看$\sigma=0$时的情况：
 
-![](../assets/images/Root-finding-logx_and_x.png)
+![](Root-finding-logx_and_x.png)
 
 可以看到当$x=0$和$x=1$时，我们用$x$估计$\log_2(1+x)$的误差为$0$，最大误差出现在$\alpha:=\frac{1}{\ln2}-1$处，为
 
@@ -275,7 +276,8 @@ $$
 
 因此，我们知道$\sigma$的最优取值应该在区间$[0,\tau]$内，即直线$x+\sigma$与$\log_2(1+x)$在区间$[0,1]$内应该始终有交点。接下来，为了选取最优的$\sigma$，我们介绍一种比较通俗的做法。
 
-由于给定一个$\sigma$，我们都能计算出误差$\epsilon(x):=|\log_2(1+x)-(x+\sigma)|$的最大值，因此方法一的思想为选取令最大误差尽可能小的$\sigma$.注意到$\epsilon(x)$的最大值出现在$x=0$和 $x=\alpha$处，$\epsilon(0)=\sigma$, $\epsilon(\alpha)=\tau-\sigma$.为了最小化最大的误差，我们令 $\sigma=\tau-\sigma$,就得到了
+由于给定一个 $\sigma$ ，我们都能计算出误差 $\epsilon(x):=|\log_2(1+x)-(x+\sigma)|$ 的最大值，因此方法一的思想为选取令最大误差尽可能小的 $\sigma$ .
+注意到 $\epsilon(x)$ 的最大值出现在 $x=0$ 和 $x=\alpha$ 处，$\epsilon(0)=\sigma$ , $\epsilon(\alpha)=\tau-\sigma$ .为了最小化最大的误差，我们令 $\sigma=\tau-\sigma$ ,就得到了
 
 $$
 \sigma = \frac{1}{2}\tau=\approx 0.0430356660279671
