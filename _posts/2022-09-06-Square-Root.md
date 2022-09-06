@@ -78,18 +78,10 @@ iter: 26, error: 4.77316e-08
 ## Newton method
 
 Newton法主要是求解以下方程的解：
-$$
-\begin{equation}
-f(x)=0
-\end{equation}
-$$
-其中$f$是二阶连续可微的，且存在唯一$x^*$使得$f(x^*)=0$，则给定初识点$x^0$,Newton法的迭代格式如下：
-$$
-\begin{equation}
-x^{k+1}=x^k-\frac{f(x^k)}{f'(x^k)}
-\end{equation}
-$$
-其中$f'(x^k)$是$f$在$x^k$处的导数，在求根问题中，我们的目标函数是$f(x)=x^2-a$,$f'(x)=2x$,因此我们可以实现Newton法如下：
+$$ f(x)=0 $$
+其中$f$是二阶连续可微的，且存在唯一 $x^\*$ 使得 $f(x^\*)=0$ ，则给定初识点 $x^0$ ,Newton法的迭代格式如下：
+$$ x^{k+1}=x^k-\frac{f(x^k)}{f'(x^k)} $$
+其中 $f'(x^k)$ 是 $f$ 在 $x^k$ 处的导数，在求根问题中，我们的目标函数是 $f(x)=x^2-a$ , $f'(x)=2x$ ,因此我们可以实现Newton法如下：
 
 ```c++
 double Newton_root_finding(double a, double x0){
