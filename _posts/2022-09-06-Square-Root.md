@@ -237,7 +237,7 @@ $$
 $$
 误差的常数。首先我们来看$\sigma=0$时的情况：
 
-![](../assets/images/logx_and_x.png)
+![](../assets/images/Root-finding-logx_and_x.png)
 
 可以看到当$x=0$和$x=1$时，我们用$x$估计$\log_2(1+x)$的误差为$0$，最大误差出现在$\alpha:=\frac{1}{\ln2}-1$处，为
 $$
