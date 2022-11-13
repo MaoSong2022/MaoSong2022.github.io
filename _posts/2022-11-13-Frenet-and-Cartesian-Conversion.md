@@ -244,6 +244,7 @@ l &= (\vec{x}-\vec{r})^TN_r\\
 \end{aligned}\tag{30} $$
 
 Frenet到Cartesian的转换总结如下：
+
 $$ \begin{aligned}
 x &= s- l\sin(\theta_r)\\
 y &= s + l\cos(\theta_r)\\
