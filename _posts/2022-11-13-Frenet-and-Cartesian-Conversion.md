@@ -33,16 +33,22 @@ Frenet坐标系的理论基础是Frenet-Serret公式。在微分几何中，Fren
 ![A Space Curve](frenet.png)
 
 图中，$T$称为单位切向量（unit tangent vector），表示沿曲线运动方向的单位向量；$N$称为单位法向量（unit normal vector），表示当前曲线运动平面内垂直于$T$的单位向量，$N$是$T$关于曲线长度参数的导数归一化之后的向量；$B$是副单位法向量，它是$T$和$N$的外积（cross product）：$B=T\times N$。由三者的定义我们知道它们互相正交：
+
+
 $$
 N^TT=N^TB=T^TB=0\label{tangent_property}\\
 $$
 假设$\vec{r}(t)$是欧式空间里随时间$t$变化的的非退化曲线，这里非退化可以理解为曲线具有非零曲率。令$s(t)$表示时刻$t$的累积曲线长度，其定义如下：
+
+
 $$
 s(t) = \int_0^t\|\vec{r}'(\sigma)\|d\sigma\\
 $$
 在这里我们假设了$\vec{r}'(\sigma)\neq0$， 因此$s(t)$是一个严格单调递增的函数。从而我们可以将$t$表示为$s$的函数，即$\vec{r}(s)=\vec{r}(s(t))$.
 
 在非退化的曲线$\vec{r}(s)$上，我们可以将 Frenet-Serret公式表述为以下形式：
+
+
 $$
 \begin{aligned}
 \frac{dT}{ds}&=\kappa N\\
@@ -51,6 +57,8 @@ $$
 \end{aligned}\\
 $$
 其中，$\kappa$是曲线的曲率，$\tau$是曲线的挠率。令$\frac{dT}{ds}=T'$, $\frac{dN}{ds}=N'$, $\frac{dB}{ds}=B'$, 则Frenet-Serret公式可以表示为矩阵形式：
+
+
 $$
 \begin{bmatrix}
 T'\\
@@ -69,6 +77,8 @@ $$
 可以看到，系数矩阵是反对称矩阵。
 
 在自动驾驶领域中，我们一般假设车辆在平面内运动，即$\tau=0$，这样Frenet-Serret公式$(\ref{Frenet-Serret formula})$可以简化为：
+
+
 $$
 \begin{bmatrix}
 T'\\
@@ -86,6 +96,8 @@ $$
 # 几何概念
 
 接下来我们介绍两种坐标系之间的转换，为此，我们需要给定参考线(reference line)和轨迹$\tau$上的一个点$\vec{x}$的相关信息。我们假设参考线的参数方程为：
+
+
 $$
 \tau:[0,s_f]\to\mathbb{R}^2,\tau(s)=(x(s),y(s))\\
 $$
@@ -94,14 +106,20 @@ $$
 ![](frenet-cartesian-coordinate.svg)
 
 其中$\theta_x,T_x,N_r$是轨迹在点$\vec{x}$处的航向角(yaw)，速度方向和法向；$\theta_r,T_r,N_r$是点$\vec{x}$在参考线上投影点$\vec{r}$处的航向角(yaw)，速度方向和法向。给定$\vec{r}=(x(s),y(x))$，我们可以通过下式得到$\theta_r$:
+
+
 $$
 \theta_r = \arctan\frac{y’(s)}{x’(s)}\in[-\frac{\pi}{2},\frac{\pi}{2}]\\
 $$
 并且：
+
+
 $$
 T_r=(\sin\theta_r,\cos\theta_r), N_r=(-\cos\theta_r,\sin\theta_r)\label{def_T_r}\\
 $$
 同理，我们有
+
+
 $$
 T_x=(\sin\theta_x,\cos\theta_x), N_x=(-\cos\theta_x,\sin\theta_x)\label{def_T_x}\\
 $$
@@ -110,15 +128,21 @@ $$
 > 不同的planner使用的Frenet坐标系表示量不一样，如Apollo使用的就是$(s,l,\dot{s},l',\ddot{s},l'')$, 这样表示的原因是车辆是nonholonomic model，横纵向不可能分开运动，因此使用$l',l''$来体现这一约束。
 
 根据物理学定律，我们有以下基本关系式：
+
+
 $$
 \frac{d\vec{x}}{dt}=vT_x, \frac{d\vec{r}}{dt}=\dot{s}T_r,\frac{ds}{dt}=\dot{s},\dot{v}=\frac{dv}{dt}=a,\frac{d\theta}{ds}=\kappa\label{basic_rules}\\
 $$
 
 由曲率定义，我们有
+
+
 $$
 \dot{\theta_r}=\frac{d\theta_r}{dt}=\frac{d\theta_r}{ds}\frac{ds}{dt}=\kappa_r\dot{s}\\
 $$
 同理，我们有
+
+
 $$
 \dot{\theta_x}=\frac{d\theta_x}{dt}=\frac{d\theta_x}{ds_x}\frac{ds_x}{dt}=\kappa_xv\\
 $$
@@ -130,18 +154,24 @@ $$
 给定点$\vec{x}$的Cartesian坐标$\vec{x}=(x,y)$，我们需要找到$\vec{x}$在frenet坐标系下的坐标$(s,l)$.
 
 我们可以遍历参考线上的点，找到与点$\vec{x}$最近的点$\vec{r}=(s,0)$，即
+
+
 $$
 \vec{r}=proj_\tau(\vec{x})\label{def_of_r}
 $$
 
 
 不妨假设点$\vec{r}$在Cartesian坐标系下的坐标为$\vec{r}=(x(s),y(s))$.则$(\ref{def_of_r})$等价于以下优化问题：
+
+
 $$
 s=\arg\min_{s\in[0,s_f]}\sqrt{(x-x(s))^2+(y-y(s))^2}\label{def_of_s}
 $$
 
 
 由$\vec{r}$的定义我们知道，
+
+
 $$
 [s,l]^T= \vec{x}-proj_\tau(\vec{x})=\vec{x}-\vec{r}\label{projection_vector}
 $$
@@ -149,6 +179,8 @@ $$
 
 
 由投影的定义$(\ref{def_of_r})$我们有：
+
+
 $$
 \begin{aligned}
 &proj_\tau(\vec{x})=\vec{x}-\vec{r}=lN_r\\
@@ -170,18 +202,24 @@ $$
 > 由以上假设1， 2可以认为$1-\kappa_r l>0$.由假设3可以认为$|\theta_x-\theta_r|<\frac{\pi}{2}$.
 
 由式$(\ref{def_of_l})$，我们可以得到
+
+
 $$
 \dot{l}=\left[\dot{\vec{x}}-\dot{\vec{r}}\right]^TN_r + (\vec{x}-\vec{r})^T\dot{N_r}\label{unknown_def_dot_l}
 $$
 
 
 由式$(\ref{simplfied_frenet_formula})$以及链式法则可知：
+
+
 $$
 \dot{N_r}=\frac{dN_r}{dt}=\frac{dN_r}{ds}\frac{ds}{dt}=-\kappa_r\dot{s}T_r
 $$
 
 
 由定义$(\ref{basic_rules})$我们可以得到：
+
+
 $$
 \dot{\vec{x}}-\dot{\vec{r}}=vT_x-\dot{s}T_r\label{eq19}
 $$
@@ -189,18 +227,24 @@ $$
 
 
 将$\eqref{simplfied_frenet_formula}$和$\eqref{eq19}$代入到$\eqref{unknown_def_dot_l}$式中，并注意到$T_r,N_r$的正交性质$\eqref{tangent_property}$，我们得到：
+
+
 $$
 \dot{l}=[vT_x-\dot{s}T_r]^TN_r + lN_r^T(-\kappa_r\dot{s}T_r)=vT_x^TN_r\label{eq20}
 $$
 
 
 将$\eqref{def_T_r}$和$\eqref{def_T_x}$带入到$\eqref{eq20}$式我们有：
+
+
 $$
 \dot{l}=v\sin(\theta_x-\theta_r)\label{def_of_dot_l}
 $$
 
 
 而由$(\ref{def_of_l})$和$\eqref{basic_rules}$可知
+
+
 $$
 \begin{aligned}
 \dot{\vec{x}}&=\frac{d\vec{x}}{dt}=\frac{d}{dt}(\vec{r}+lN_r)\\
@@ -213,12 +257,16 @@ $$
 
 
 由于$T_x$是一个单位向量，我们有
+
+
 $$
 v = \sqrt{v^2T_x^TT_x}=\sqrt{[\dot{s}(1-\kappa_rl)]^2+(\dot{l})^2}\label{def of v}
 $$
 
 
 将$(\ref{def_of_dot_l})$代入到$(\ref{def of v})$得到：
+
+
 $$
 \begin{aligned}
 v &=\sqrt{[\dot{s}(1-\kappa_rl)]^2+v^2\sin^2(\theta_x-\theta_r)}\\
@@ -236,30 +284,40 @@ $$
 由前述内容，我们已经得到了$s,l,\dot{s},\dot{l}$.接下来我们求$\ddot{s}$, $\ddot{l}$:
 
 由$(\ref{def_of_dot_l})$我们有：
+
+
 $$
 \ddot{l}=\frac{d\dot{l}}{dt}=\dot{v}\sin(\theta_x-\theta_r)+v\cos(\theta_x-\theta_r)(\dot{\theta_x}-\dot{\theta_r})\label{eq25}
 $$
 
 
 将$\eqref{basic_rules}$带入到$\eqref{eq25}$中，有：
+
+
 $$
 \ddot{l} = a\sin(\theta_x-\theta_r) + v\cos(\theta_x-\theta_r)(\kappa_xv-\kappa_r\dot{s})\label{def_dotdot_l}
 $$
 
 
 由$(\ref{def of s})$,我们有
+
+
 $$
 \ddot{s} =\frac{\frac{d}{dt}[v\cos(\theta_x-\theta_r)](1-\kappa_rl)-v\cos(\theta_x-\theta_r)\frac{d}{dt}(1-\kappa_rl)}{(1-\kappa_rl)^2}\label{eq27}
 $$
 
 
 而由$\eqref{basic_rules}$，我们有
+
+
 $$
 \frac{d}{dt}[v\cos(\theta_x-\theta_r)]=a\cos(\theta_x-\theta_r) + v\sin(\theta_x-\theta_r)(\kappa_r\dot{s}-\kappa_xv), \frac{d}{dt}(1-\kappa_rl)=-(\dot{\kappa_r}l+\kappa_r\dot{l})\label{eq28}
 $$
 
 
 将$\eqref{eq28}$带入到$\eqref{eq27}$,我们有：
+
+
 $$
 \begin{aligned}
 \ddot{s}&=\frac{(1-\kappa_rl)[a\cos(\theta_x-\theta_r) + v\sin(\theta_x-\theta_r)(\kappa_r\dot{s}-\kappa_xv)]+v\cos(\theta_x-\theta_r)(\dot{\kappa_r}l+\kappa_r\dot{l})}{(1-\kappa_rl)^2}\\
@@ -278,6 +336,7 @@ $$
 
 Cartesian到Frenet的转换为$(\ref{def_of_s})$, $(\ref{def_of_l})$, $\eqref{def_of_dot_l}$, $\eqref{def of s}$, $\eqref{def_dotdot_l}$, $\eqref{def_ddot_l}$，总结如下：
 
+
 $$
 \begin{align}
 s&=\arg\min_{s\in[0,s_f]}\sqrt{(x-x(s))^2+(y-y(s))^2}\\
@@ -291,6 +350,8 @@ $$
 
 
 Frenet到Cartesian的转换总结如下：
+
+
 $$
 \begin{align}
 x &= s- l\sin(\theta_r)\\
@@ -306,6 +367,8 @@ $a$和$\kappa_x$可以联立$(46)$和$(47)$式求解线性方程组得到。
 
 
 > Remark: 注意到如下关系式，我们可以比较容易就能获取到$\dot{l}$与$l'$, $\ddot{l}$与$l''$之间的转换关系：
+>
+> 
 > $$
 > \begin{align}
 > l' &= \frac{dl}{ds} = \frac{dl}{dt}\frac{dt}{ds} = \frac{\dot{l}}{\dot{s}}\\
