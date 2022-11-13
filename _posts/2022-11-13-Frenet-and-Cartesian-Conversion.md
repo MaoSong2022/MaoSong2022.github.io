@@ -197,29 +197,29 @@ v &=\sqrt{[\dot{s}(1-\kappa_rl)]^2+v^2\sin^2(\theta_x-\theta_r)}\\
 
 
 
-由$(21)$和$(24)$我们就得到了速度信息。
+由 $(21)$ 和 $(24)$ 我们就得到了速度信息。
 
 ## $(x,y,\theta_x,v，a,\kappa_x)$到$(s,l,\dot{s},\dot{l},\ddot{s},\ddot{l})$
 
 由前述内容，我们已经得到了$s,l,\dot{s},\dot{l}$ .接下来我们求$\ddot{s}$, $\ddot{l}$:
 
-由$(21)$我们有：
+由 $(21)$ 我们有：
 
 $$ \ddot{l}=\frac{d\dot{l}}{dt}=\dot{v}\sin(\theta_x-\theta_r)+v\cos(\theta_x-\theta_r)(\dot{\theta_x}-\dot{\theta_r})\tag{25} $$
 
-将$(10)$带入到$(25)$中，有：
+将 $(10)$ 带入到 $(25)$ 中，有：
 
 $$ \ddot{l} = a\sin(\theta_x-\theta_r) + v\cos(\theta_x-\theta_r)(\kappa_xv-\kappa_r\dot{s})\tag{26} $$
 
-由$(14)$,我们有
+由 $(14)$ ,我们有
 
 $$ \ddot{s} =\frac{\frac{d}{dt}[v\cos(\theta_x-\theta_r)](1-\kappa_rl)-v\cos(\theta_x-\theta_r)\frac{d}{dt}(1-\kappa_rl)}{(1-\kappa_rl)^2}\tag{27} $$
 
-而由$(10)$，我们有
+而由 $(10)$，我们有
 
 $$\frac{d}{dt}[v\cos(\theta_x-\theta_r)]=a\cos(\theta_x-\theta_r) + v\sin(\theta_x-\theta_r)(\kappa_r\dot{s}-\kappa_xv), \frac{d}{dt}(1-\kappa_rl)=-(\dot{\kappa_r}l+\kappa_r\dot{l})\tag{28} $$
 
-将$(28)$带入到$(27)$, 我们有：
+将 $(28)$ 带入到 $(27)$, 我们有：
 
 $$ \begin{aligned}
 \ddot{s}&=\frac{(1-\kappa_rl)[a\cos(\theta_x-\theta_r) + v\sin(\theta_x-\theta_r)(\kappa_r\dot{s}-\kappa_xv)]+v\cos(\theta_x-\theta_r)(\dot{\kappa_r}l+\kappa_r\dot{l})}{(1-\kappa_rl)^2}\\
@@ -232,7 +232,7 @@ $$ \begin{aligned}
 
 # 总结
 
-Cartesian到Frenet的转换为$(14)$, $(16)$, $(20)$, $(24)$, $(26)$, $(29)$，总结如下：
+Cartesian到Frenet的转换为 $(14)$, $(16)$, $(20)$, $(24)$, $(26)$, $(29)$, 总结如下：
 
 $$ \begin{aligned}
 s&=\arg\min_{s\in[0,s_f]}\sqrt{(x-x(s))^2+(y-y(s))^2}\\
@@ -251,7 +251,7 @@ y &= s + l\cos(\theta_r)\\
 v_x &= \sqrt{[\dot{s}(1-\kappa_rl)]^2+(\dot{l})^2}
 \end{aligned}\tag{31} $$
 
-$a$和$\kappa_x$可以联立$\ddot{s}$和$\ddot{l}$式求解线性方程组得到。
+$a$和$\kappa_x$可以联立 $\ddot{s}$ 和 $\ddot{l}$ 求解线性方程组得到。
 
 
 
