@@ -68,7 +68,7 @@ B
 
 可以看到，系数矩阵是反对称矩阵。
 
-在自动驾驶领域中，我们一般假设车辆在平面内运动，即$\tau=0$，这样Frenet-Serret公式$(\ref{Frenet-Serret formula})$可以简化为：
+在自动驾驶领域中，我们一般假设车辆在平面内运动，即$\tau=0$，这样Frenet-Serret公式$(4)$可以简化为：
 
 $$ \begin{bmatrix}
 T'\\
@@ -107,7 +107,7 @@ $$ T_x=(\sin\theta_x,\cos\theta_x), N_x=(-\cos\theta_x,\sin\theta_x)\tag{9} $$
 
 根据物理学定律，我们有以下基本关系式：
 
-$$ \frac{d\vec{x}}{dt}=vT_x, \frac{d\vec{r}}{dt}=\dot{s}T_r,\frac{ds}{dt}=\dot{s},\dot{v}=\frac{dv}{dt}=a,\frac{d\theta}{ds}=\kappa\tag}{10} $$
+$$ \frac{d\vec{x}}{dt}=vT_x, \frac{d\vec{r}}{dt}=\dot{s}T_r,\frac{ds}{dt}=\dot{s},\dot{v}=\frac{dv}{dt}=a,\frac{d\theta}{ds}=\kappa\tag{10} $$
 
 由曲率定义，我们有
 
@@ -127,7 +127,7 @@ $$ \dot{\theta_x}=\frac{d\theta_x}{dt}=\frac{d\theta_x}{ds_x}\frac{ds_x}{dt}=\ka
 
 $$ \vec{r}=proj_\tau(\vec{x})\tag{13} $$
 
-不妨假设点$\vec{r}$在Cartesian坐标系下的坐标为$\vec{r}=(x(s),y(s))$.则$(\ref{def_of_r})$等价于以下优化问题：
+不妨假设点$\vec{r}$在Cartesian坐标系下的坐标为$\vec{r}=(x(s),y(s))$.则$(13)$等价于以下优化问题：
 
 $$ s=\arg\min_{s\in[0,s_f]}\sqrt{(x-x(s))^2+(y-y(s))^2}\tag{14} $$
 
@@ -135,14 +135,14 @@ $$ s=\arg\min_{s\in[0,s_f]}\sqrt{(x-x(s))^2+(y-y(s))^2}\tag{14} $$
 
 $$ [s,l]^T= \vec{x}-proj_\tau(\vec{x})=\vec{x}-\vec{r}\tag{15} $$
 
-由投影的定义$(\ref{def_of_r})$我们有：
+由投影的定义$(13)$我们有：
 
 $$ \begin{aligned}
 &proj_\tau(\vec{x})=\vec{x}-\vec{r}=lN_r\\
 \Rightarrow& l = (\vec{x}-\vec{r})^TN_r
 \end{aligned}\tag{16} $$
 
-因此，由$(\ref{def_of_s})$和$(\ref{def_of_l})$可以得到$(s,l)$.
+因此，由$(14)$和$(16)$可以得到$(s,l)$.
 
 ## $(x,y,\theta_x,v)$到$(s,l,\dot{s},\dot{l})$
 
@@ -154,28 +154,27 @@ $$ \begin{aligned}
 >
 > 由以上假设1， 2可以认为$1-\kappa_r l>0$.由假设3可以认为 $\vert\theta_x-\theta_r\vert<\pi/2$ .
 
-由式$(\ref{def_of_l})$，我们可以得到
-
+由式$(16)$，我们可以得到
 
 $$ \dot{l}=\left[\dot{\vec{x}}-\dot{\vec{r}}\right]^TN_r + (\vec{x}-\vec{r})^T\dot{N_r}\tag{17} $$
 
-由式$(\ref{simplfied_frenet_formula})$以及链式法则可知：
+由式$(5)$以及链式法则可知：
 
 $$ \dot{N_r}=\frac{dN_r}{dt}=\frac{dN_r}{ds}\frac{ds}{dt}=-\kappa_r\dot{s}T_r\tag{18} $$
 
-由定义$(\ref{basic_rules})$我们可以得到：
+由定义$(10)$我们可以得到：
 
 $$ \dot{\vec{x}}-\dot{\vec{r}}=vT_x-\dot{s}T_r\tag{19} $$
 
-将$\eqref{simplfied_frenet_formula}$和$\eqref{eq19}$代入到$\eqref{unknown_def_dot_l}$式中，并注意到$T_r,N_r$的正交性质$\eqref{tangent_property}$，我们得到：
+将$(5)$和$(19)$代入到$(17)$式中，并注意到$T_r,N_r$的正交性质$(1)$，我们得到：
 
 $$ \dot{l}=[vT_x-\dot{s}T_r]^TN_r + lN_r^T(-\kappa_r\dot{s}T_r)=vT_x^TN_r\tag{20} $$
 
-将$\eqref{def_T_r}$和$\eqref{def_T_x}$带入到$\eqref{eq20}$式我们有：
+将$(8)$和$(9)$带入到$(20)$式我们有：
 
 $$ \dot{l}=v\sin(\theta_x-\theta_r)\tag{21} $$
 
-而由$(\ref{def_of_l})$和$\eqref{basic_rules}$可知
+而由$(16)$和$(10)$可知
 
 $$ \begin{aligned}
 \dot{\vec{x}}&=\frac{d\vec{x}}{dt}=\frac{d}{dt}(\vec{r}+lN_r)\\
@@ -188,7 +187,7 @@ $$ \begin{aligned}
 
 $$ v = \sqrt{v^2T_x^TT_x}=\sqrt{[\dot{s}(1-\kappa_rl)]^2+(\dot{l})^2}\tag{23} $$
 
-将$(\ref{def_of_dot_l})$代入到$(\ref{def of v})$得到：
+将$(20)$代入到$(23)$得到：
 
 $$ \begin{aligned}
 v &=\sqrt{[\dot{s}(1-\kappa_rl)]^2+v^2\sin^2(\theta_x-\theta_r)}\\
