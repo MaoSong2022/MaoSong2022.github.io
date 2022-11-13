@@ -34,7 +34,7 @@ Frenet坐标系的理论基础是Frenet-Serret公式。在微分几何中，Fren
 
 图中，$T$称为单位切向量（unit tangent vector），表示沿曲线运动方向的单位向量；$N$称为单位法向量（unit normal vector），表示当前曲线运动平面内垂直于$T$的单位向量，$N$ 是$T$关于曲线长度参数的导数归一化之后的向量；$B$ 是副单位法向量，它是 $T$ 和 $N$ 的外积（cross product）：$B=T\times N$。由三者的定义我们知道它们互相正交：
 
-$$ N^TT=N^TB=T^TB=0\label{tangent_property} $$
+$$ N^TT=N^TB=T^TB=0\tag{1} $$
 
 假设$\vec{r}(t)$是欧式空间里随时间$t$变化的的非退化曲线，这里非退化可以理解为曲线具有非零曲率。令$s(t)$表示时刻$t$的累积曲线长度，其定义如下：
 
