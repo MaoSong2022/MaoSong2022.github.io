@@ -35,9 +35,11 @@ Frenet坐标系的理论基础是Frenet-Serret公式。在微分几何中，Fren
 图中，$T$称为单位切向量（unit tangent vector），表示沿曲线运动方向的单位向量；$N$称为单位法向量（unit normal vector），表示当前曲线运动平面内垂直于$T$的单位向量，$N$ 是$T$关于曲线长度参数的导数归一化之后的向量；$B$ 是副单位法向量，它是 $T$ 和 $N$ 的外积（cross product）：$B=T\times N$。由三者的定义我们知道它们互相正交：
 
 $$N^TT=N^TB=T^TB=0\label{tangent_property}$$
+
 假设$\vec{r}(t)$是欧式空间里随时间$t$变化的的非退化曲线，这里非退化可以理解为曲线具有非零曲率。令$s(t)$表示时刻$t$的累积曲线长度，其定义如下：
 
 $$s(t) = \int_0^t\|\vec{r}'(\sigma)\|d\sigma$$
+
 在这里我们假设了$\vec{r}'(\sigma)\neq0$， 因此$s(t)$是一个严格单调递增的函数。从而我们可以将$t$表示为$s$的函数，即$\vec{r}(s)=\vec{r}(s(t))$.
 
 在非退化的曲线$\vec{r}(s)$上，我们可以将 Frenet-Serret公式表述为以下形式：
@@ -47,6 +49,7 @@ $$\begin{aligned}
 \frac{dN}{ds}&=-\kappa T+\tau B\\
 \frac{dB}{ds}&=-\tau N
 \end{aligned}$$
+
 其中，$\kappa$是曲线的曲率，$\tau$是曲线的挠率。令$\frac{dT}{ds}=T'$, $\frac{dN}{ds}=N'$, $\frac{dB}{ds}=B'$, 则Frenet-Serret公式可以表示为矩阵形式：
 
 $$\begin{bmatrix}
@@ -83,6 +86,7 @@ N\\
 接下来我们介绍两种坐标系之间的转换，为此，我们需要给定参考线(reference line)和轨迹$\tau$上的一个点$\vec{x}$的相关信息。我们假设参考线的参数方程为：
 
 $$\tau:[0,s_f]\to\mathbb{R}^2,\tau(s)=(x(s),y(s))$$
+
 为了简便起见，我们将关于$t$的导数写为$\cdot$，如$\dot{l}=\frac{dl}{dt}$, 将关于$s$的导数写为$'$, 如$l'=\frac{dl}{ds}$.我们的公式推导基于下图：
 
 ![](frenet-cartesian-coordinate.svg)
@@ -90,13 +94,14 @@ $$\tau:[0,s_f]\to\mathbb{R}^2,\tau(s)=(x(s),y(s))$$
 其中$\theta_x,T_x,N_r$是轨迹在点$\vec{x}$处的航向角(yaw)，速度方向和法向；$\theta_r,T_r,N_r$是点$\vec{x}$在参考线上投影点$\vec{r}$处的航向角(yaw)，速度方向和法向。给定$\vec{r}=(x(s),y(x))$，我们可以通过下式得到$\theta_r$:
 
 $$\theta_r = \arctan\frac{y’(s)}{x’(s)}\in[-\frac{\pi}{2},\frac{\pi}{2}]$$
+
 并且：
 
 $$T_r=(\sin\theta_r,\cos\theta_r), N_r=(-\cos\theta_r,\sin\theta_r)\label{def_T_r}$$
+
 同理，我们有
 
 $$T_x=(\sin\theta_x,\cos\theta_x), N_x=(-\cos\theta_x,\sin\theta_x)\label{def_T_x}$$
-
 
 > 不同的planner使用的Frenet坐标系表示量不一样，如Apollo使用的就是$(s,l,\dot{s},l',\ddot{s},l'')$, 这样表示的原因是车辆是nonholonomic model，横纵向不可能分开运动，因此使用$l',l''$来体现这一约束。
 
@@ -107,6 +112,7 @@ $$\frac{d\vec{x}}{dt}=vT_x, \frac{d\vec{r}}{dt}=\dot{s}T_r,\frac{ds}{dt}=\dot{s}
 由曲率定义，我们有
 
 $$\dot{\theta_r}=\frac{d\theta_r}{dt}=\frac{d\theta_r}{ds}\frac{ds}{dt}=\kappa_r\dot{s}$$
+
 同理，我们有
 
 $$\dot{\theta_x}=\frac{d\theta_x}{dt}=\frac{d\theta_x}{ds_x}\frac{ds_x}{dt}=\kappa_xv$$
@@ -178,7 +184,6 @@ $$\begin{aligned}
 &\Rightarrow vT_x=\dot{s}(1-l\kappa_r)T_r+\dot{l}N_r
 \end{aligned}\label{def_of_dot_x}$$
 
-
 由于$T_x$是一个单位向量，我们有
 
 $$v = \sqrt{v^2T_x^TT_x}=\sqrt{[\dot{s}(1-\kappa_rl)]^2+(\dot{l})^2}\label{def of v}$$
@@ -200,17 +205,23 @@ v &=\sqrt{[\dot{s}(1-\kappa_rl)]^2+v^2\sin^2(\theta_x-\theta_r)}\\
 由前述内容，我们已经得到了$s,l,\dot{s},\dot{l}$.接下来我们求$\ddot{s}$, $\ddot{l}$:
 
 由$(\ref{def_of_dot_l})$我们有：
-$$\ddot{l}=\frac{d\dot{l}}{dt}=\dot{v}\sin(\theta_x-\theta_r)+v\cos(\theta_x-\theta_r)(\dot{\theta_x}-\dot{\theta_r})\label{eq25}$$
-将$\eqref{basic_rules}$带入到$\eqref{eq25}$中，有：
 
+$$\ddot{l}=\frac{d\dot{l}}{dt}=\dot{v}\sin(\theta_x-\theta_r)+v\cos(\theta_x-\theta_r)(\dot{\theta_x}-\dot{\theta_r})\label{eq25}$$
+
+将$\eqref{basic_rules}$带入到$\eqref{eq25}$中，有：
 
 $$\ddot{l} = a\sin(\theta_x-\theta_r) + v\cos(\theta_x-\theta_r)(\kappa_xv-\kappa_r\dot{s})\label{def_dotdot_l}$$
 
 由$(\ref{def of s})$,我们有
+
 $$\ddot{s} =\frac{\frac{d}{dt}[v\cos(\theta_x-\theta_r)](1-\kappa_rl)-v\cos(\theta_x-\theta_r)\frac{d}{dt}(1-\kappa_rl)}{(1-\kappa_rl)^2}\label{eq27}$$
+
 而由$\eqref{basic_rules}$，我们有
+
 $$\frac{d}{dt}[v\cos(\theta_x-\theta_r)]=a\cos(\theta_x-\theta_r) + v\sin(\theta_x-\theta_r)(\kappa_r\dot{s}-\kappa_xv), \frac{d}{dt}(1-\kappa_rl)=-(\dot{\kappa_r}l+\kappa_r\dot{l})\label{eq28}$$
+
 将$\eqref{eq28}$带入到$\eqref{eq27}$,我们有：
+
 $$\begin{aligned}
 \ddot{s}&=\frac{(1-\kappa_rl)[a\cos(\theta_x-\theta_r) + v\sin(\theta_x-\theta_r)(\kappa_r\dot{s}-\kappa_xv)]+v\cos(\theta_x-\theta_r)(\dot{\kappa_r}l+\kappa_r\dot{l})}{(1-\kappa_rl)^2}\\
 &=\frac{a\cos(\theta_x-\theta_r)+\dot{l}(\kappa_r\dot{s}-\kappa_xv)+\dot{s}(\dot{\kappa_r}l+\kappa_r\dot{l})}{1-\kappa_rl}
@@ -224,6 +235,7 @@ $$\begin{aligned}
 # 总结
 
 Cartesian到Frenet的转换为$(\ref{def_of_s})$, $(\ref{def_of_l})$, $\eqref{def_of_dot_l}$, $\eqref{def of s}$, $\eqref{def_dotdot_l}$, $\eqref{def_ddot_l}$，总结如下：
+
 $$\begin{align}
 s&=\arg\min_{s\in[0,s_f]}\sqrt{(x-x(s))^2+(y-y(s))^2}\\
 l &= (\vec{x}-\vec{r})^TN_r\\
@@ -239,17 +251,16 @@ y &= s + l\cos(\theta_r)\\
 \theta_x &= \arctan\frac{\dot{s}}{\dot{l}(1-\kappa_rl)}+\theta_r\in[-\pi,\pi]\\
 v_x &= \sqrt{[\dot{s}(1-\kappa_rl)]^2+(\dot{l})^2}
 \end{align}$$
+
 $a$和$\kappa_x$可以联立$(46)$和$(47)$式求解线性方程组得到。
 
 
 
 > Remark: 注意到如下关系式，我们可以比较容易就能获取到$\dot{l}$与$l'$, $\ddot{l}$与$l''$之间的转换关系：
-> $$
-> \begin{align}
+> $$\begin{align}
 > l' &= \frac{dl}{ds} = \frac{dl}{dt}\frac{dt}{ds} = \frac{\dot{l}}{\dot{s}}\\
 > l''&= \frac{dl'}{ds} = \frac{dl'}{dt}\frac{dt}{ds}=\frac{1}{\dot{s}}\frac{d}{dt}\left(\frac{\dot{l}}{\dot{s}}\right)=\frac{\ddot{l}\dot{s}-\ddot{s}\dot{l}}{(\dot{s})^3}
-> \end{align}
-> $$
+> \end{align}$$
 
 # 参考文献
 
