@@ -246,8 +246,8 @@ l &= (\vec{x}-\vec{r})^TN_r\\
 Frenet到Cartesian的转换总结如下：
 
 $$ \begin{aligned}
-x &= s- l\sin(\theta_r)\\
-y &= s + l\cos(\theta_r)\\
+x &= x(s)- l\sin(\theta_r)\\
+y &= y(s) + l\cos(\theta_r)\\
 \theta_x &= \arctan\frac{\dot{s}}{\dot{l}(1-\kappa_rl)}+\theta_r\in[-\pi,\pi]\\
 v_x &= \sqrt{[\dot{s}(1-\kappa_rl)]^2+(\dot{l})^2}
 \end{aligned}\tag{31} $$
