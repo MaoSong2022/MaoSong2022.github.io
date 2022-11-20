@@ -55,10 +55,8 @@ if (FLAGS_use_navigation_mode) {
 
 这里`planning_base_`是一个指向`PlnningBase`类的多态指针，我们在后面分析这个类。
 
-```
 > 我们仅关注`OnLanePlanning` mode，因此后面我们默认讨论该模式
 {: .prompt-info }
-```
 
 决定好planner之后，函数调用了`planning_base`对象的初始化方法
 
