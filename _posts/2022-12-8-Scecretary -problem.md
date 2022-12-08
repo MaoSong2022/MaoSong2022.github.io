@@ -100,9 +100,11 @@ sort A, using P as sort keys
 这里我们给`P[i]`随机赋值$1$到$n^3$之间的一个数，选择这个范围是为了让数组`P`的元素尽可能唯一。我们有如下结果
 > 引理： 由算法`PERMUTE-BY_SORTING(A)`产生的数组`P`中，所有元素都唯一（即$P[i]\neq P[j]$,  $i\neq j$）的概率至少为$1-\frac{1}{n}$.
 > 证明：我们记$X_i$为事件“数组P第i个元素是唯一的”的指示变量，那么”所有元素都唯一“这个事件的指示变量$X$可以记为：
+> 
 > $$ X=X_1\cap X_2\cap\cdots\cap X_n $$
 > 
 > 因此，我们有：
+> 
 $$ \begin{aligned} Pr\{X\} &=Pr\{X_1\cap X_2\cap\cdots\cap X_n\}\\ &= Pr\{X_1\}Pr\{X_2\mid X_1\}\cdots Pr\{X_n\mid X_{n-1}\cap\cdots\cap X_{1}\}\\ &=\frac{n^3}{n^3}\frac{n^3-1}{n^3}\cdots\frac{n^3-(n-1)}{n^3}\\ &\geq \frac{n^3-n}{n^3}\frac{n^3-n}{n^3}\cdots\frac{n^3-n}{n^3}\\ &=\left(1-\frac{1}{n^2}\right)^{n-1}\geq1-\frac{n-1}{n^3}\\&\geq 1-\frac{1}{n} \end{aligned} $$
 
 > 这里我们利用了不等式$(1-a)(1-b)>(1-a-b)$, $a,b\geq0$. 
