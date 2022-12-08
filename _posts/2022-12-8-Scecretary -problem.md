@@ -91,9 +91,11 @@ sort A, using P as sort keys
 这里我们给`P[i]`随机赋值$1$到$n^3$之间的一个数，选择这个范围是为了让数组`P`的元素尽可能唯一。我们有如下结果
 > 引理： 由算法`PERMUTE-BY_SORTING(A)`产生的数组`P`中，所有元素都唯一（即$P[i]\neq P[j]$,  $i\neq j$）的概率至少为$1-\frac{1}{n}$.
 > 证明：我们记$X_i$为事件“数组P第i个元素是唯一的”的指示变量，那么”所有元素都唯一“这个事件的指示变量$X$可以记为：
+> 
 > $$ X=X_1\cap X_2\cap\cdots\cap X_n $$
 因此，我们有：
 $$ \begin{aligned} Pr\{X\} &=Pr\{X_1\cap X_2\cap\cdots\cap X_n\}\\ &= Pr\{X_1\}Pr\{X_2\mid X_1\}\cdots Pr\{X_n\mid X_{n-1}\cap\cdots\cap X_{1}\}\\ &=\frac{n^3}{n^3}\frac{n^3-1}{n^3}\cdots\frac{n^3-(n-1)}{n^3}\\ &\geq \frac{n^3-n}{n^3}\frac{n^3-n}{n^3}\cdots\frac{n^3-n}{n^3}\\ &=\left(1-\frac{1}{n^2}\right)^{n-1}\geq1-\frac{n-1}{n^3}\\&\geq 1-\frac{1}{n} \end{aligned} $$
+
 这里我们利用了不等式$(1-a)(1-b)>(1-a-b)$, $a,b\geq0$. 
 
 > 如果确实出现了元素重复的情况，我们可以重新调用一次`PERMUTE-BY-SORTING`.
@@ -138,26 +140,42 @@ return n
 
 现在我们需要确定`k`的值，使得雇佣最好的候选人的概率尽可能高。
 我们首先固定`k`， 然后令
+
 $$ M(j)=\max_{1\leq i\leq j} \mathrm{score}(i) $$
+
 表示前`k`位候选人中的最高分数。
 我们令$S$表示“我们成功雇佣最优秀的候选人”这个事件，令$S_i$表示“第i位候选人是最优秀的，且我们成功雇佣第i位候选人”这个事件。显然，当$i\neq j$时，$S_i\cap S_j=\emptyset$. 因此：
+
 $$ Pr\{S\} = \sum_{i=1}^nPr\{S_i\}=\sum_{i=k+1}^nPr\{S_i\} $$
+
 这里第二个等式是因为我们不会雇佣前`k`位候选人，因此$Pr\{S_i\}=0$, $i=1,\dots,k$.
 注意$S_i$发生的必要条件为：
 - 第i位候选人是最优秀的，我们用事件$B_i$来表示
 - 我们不能雇佣$k+1\sim i-1$ 其中任何一位候选人，我们用时间$O_i$来表示
 我们可以证明上述条件也是$S_i$发生的充分条件。因此，$S_i=B_i\cap O_i$
 显然事件$B_i$和事件$O_i$是不相交的，因此：
+
 $$ Pr\{S_i\}=Pr\{B_i\cap O_i\}=Pr\{B_i\}Pr\{O_i\} $$
+
 我们显然有$Pr\{B_i\}=1/n$, 这是因为最优秀的候选人可能是`n`位候选人中的任意一位。
 为了计算$Pr\{O_i\}$, 注意到这等价于前$i-1$位候选人的`score`的最大值在前`k`位候选人中，即
+
 $$ M(i-1) = \max_{1\leq j\leq i-1} \mathrm{score}(j) = \max_{1\leq j \leq k} \mathrm{score}(j)  $$
+
 因此，我们有：$Pr\{O_i\} = k/(i-1)$.  总结起来，就是
+
 $$ Pr\{S\} = \sum_{i=k+1}^nPr\{S_i\}=\sum_{i=k+1}^n\frac{k}{n(i-1)}=\frac{k}{n}\sum_{i=k}^{n-1}\frac{1}{i} $$
+
 我们可以用积分来近似这个求和公式：
+
 $$ \int_{k}^n\frac{1}{x}dx\leq \sum_{i=k}^{n-1}\frac{1}{i}\leq \int_{k-1}^{n-1}\frac{1}{x}dx $$
+
 即
+
 $$ \frac{k}{n}(\ln n-\ln k)\leq Pr\{S\} \leq \frac{k}{n}(\ln(n-1)-\ln(k-1))$$
+
 因为我们希望$Pr\{S\}$尽可能大，因此我们对其下界进行最大化。经过计算，我们得到当
+
 $$ k = \frac{n}{e} $$
+
 时，概率下界达到最大值$1/e$, 因此，当我们选择$k=n/e$时，我们有至少$1/e$的概率能够找到最优秀的候选人。
