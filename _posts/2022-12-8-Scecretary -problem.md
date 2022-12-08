@@ -39,7 +39,9 @@ for i = 1 to n
 
 ## Probabilistic analysis
 根据前面的分析，我们可以给根据 $a_i$ 给所有候选人进行排名，得到一个排名序列 
+
 $$ \langle rank(1),\dots, rank(n)\rangle $$
+
 其中 $rank(i)$ 代表了第 $i$ 名候选人在所有 $n$ 名候选人中的分数，分数越高，候选人越优秀。
 这个排名序列是
 
@@ -48,7 +50,7 @@ $$ \langle 1,\dots,n \rangle $$
 的一个置换(permutation). 由于一共有 $n!$ 种可能的置换，因此这里“随机”代表均匀分布，即 $n!$ 种置换出现的概率是相等的。
 
 在进行分析之前，我们首先引入指示变量的定义。
->给定一个事件空间 $S$ 和一个事件 $A$ , 我们将事件 $A$ 的*指示变量*(indicator random variable) $I\{A\}$ 记为
+>给定一个事件空间 $S$ 和一个事件 $A$ , 我们将事件 $A$ 的*指示变量*(indicator random variable) 记为
 >
 $$ I\{A\} = \begin{cases} 1, &\text{if }A\text{ occurs}\\ 0, &\text{otherwise} \end{cases} $$
 
@@ -106,7 +108,7 @@ sort A, using P as sort keys
 > 因此，我们有：
 > 
 $$ \begin{aligned} Pr\{X\} &=Pr\{X_1\cap X_2\cap\cdots\cap X_n\}\\ &= Pr\{X_1\}Pr\{X_2\mid X_1\}\cdots Pr\{X_n\mid X_{n-1}\cap\cdots\cap X_{1}\}\\ &=\frac{n^3}{n^3}\frac{n^3-1}{n^3}\cdots\frac{n^3-(n-1)}{n^3}\\ &\geq \frac{n^3-n}{n^3}\frac{n^3-n}{n^3}\cdots\frac{n^3-n}{n^3}\\ &=\left(1-\frac{1}{n^2}\right)^{n-1}\geq1-\frac{n-1}{n^3}\\&\geq 1-\frac{1}{n} \end{aligned} $$
-
+>
 > 这里我们利用了不等式$(1-a)(1-b)>(1-a-b)$, $a,b\geq0$. 
 
 > 如果确实出现了元素重复的情况，我们可以重新调用一次`PERMUTE-BY-SORTING`.
