@@ -33,7 +33,6 @@ $$ \mathbf{A}^k\mathbf{q}_0 = \mathbf{A}^k\mathbf{V}\tilde{\mathbf{x}}=\mathbf{V
 将上式简单的改写一下：
 
 $$ \mathbf{A}^k\mathbf{q}_0 = \lambda_1^k\left(\sum_{i=1}^n\left(\frac{\lambda_i}{\lambda_1}\right)^k\tilde{x}_i\mathbf{v}_i\right) $$
-
 由前面的假设 $|\lambda_1| > |\lambda_2| \geq \cdots \geq\cdots |\lambda_n|$, 我们有 $(\lambda_i/ \lambda_1)^k\to0$ for $i\neq 1$. 因此对于充分大的 $k$, 我们可以认为 $\mathbf{A}^k\mathbf{q}_0$ 与 $\mathbf{v}_1$ 平行， **假设** $\tilde{x}_1\neq0$, 则我们有：
 
 $$ \mathbf{v}_1\approx \mathbf{q}_k = \frac{\mathbf{A}^k\mathbf{q}_0}{\|\mathbf{A}^k\mathbf{q}_0\|_2} $$
