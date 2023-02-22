@@ -12,7 +12,6 @@ tags: [algorithm]
 
 ## Introduction
 Power method 是线性代数中用来求矩阵最大特征值的一个算法。
-
 一般来说，给定一个矩阵 $\mathbf{A}=(a_{ij})\in\mathbb{R}^{n\times n}$, 我们通过求解多项式 $|\lambda \mathbf{I}-\mathbf{A}|$ 来找到 $\mathbf{A}$ 的最大特征值，但是这种方法一般非常耗时，因此，power method就可以用来解决这个问题。Power iteration算法表述如下：
 
 1. 随机选取 $\mathbf{q}_0\in\mathbb{R}^n $
