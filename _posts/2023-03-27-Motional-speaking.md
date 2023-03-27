@@ -1,4 +1,12 @@
-
+---
+title: Motional-speaking
+date: 2023-03-27
+description: 
+math: false
+img_path: /assets/images/
+categories: [autonomous driving]
+tags: [speaking]
+---
 # Part 1 Learning With Every Mile Driven
 
 Motional uses Continuous Learning Framework (CLF) to train our vehicles at an unprecedented scale quickly.
@@ -22,7 +30,7 @@ Historically, learning-based planner architectures have used rasterized images t
 
 # Part 3 Predicting the future in real time for safer autonomous driving
 Motional models all the agents and the map elements with a graph attention network that is processed through the vehicle’s onboard compute, which is running through models at a high update rate.
-![](assets/images/motional_graph_attention_network.png)
+![Graph attention network models](assets/images/motional_graph_attention_network.png)
 Since there is always a degree of unpredictability with human drivers and other objects we encounter on the road.
 So, to account for the uncertainties, Motional’s prediction model represents possible future trajectories with a mixture of Gaussian distributions.
 ![](assets/images/motional_2d_gaussian_model.png)
