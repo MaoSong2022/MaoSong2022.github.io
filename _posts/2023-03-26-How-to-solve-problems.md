@@ -17,6 +17,7 @@ tags: [thiking]
 
 # 问题的本质
 问题就是： 期望与现实的落差部分。
+
 ![期望和落差](definition_of_problem.jpeg)
 比较经典的状况就是：
 1. 没有问题，就是最大的问题。因为我们不知道目标是什么，也不知道现状如何。
@@ -45,12 +46,15 @@ tags: [thiking]
 方法就是**别盯着问题看**。要解决问题，一定不要只盯着问题看，盯着症状是找不到答案的，或者只能找到治标不治本的答案。这就像是门被锁住了，钥匙一定不在门上，你盯着钥匙孔看是没用的，你要到别处去找钥匙。
 
 理想状态下，我们采用了方法`A`， 达到期望`B`, 即
+
 ![method and expectation](method_lead_to_expectation.png)
 
 实际状态下，我们采用了方法`A`，达到了现实状态`B'`, 这就产生了落差`B-B'`, 也就是我们看到的表面问题，或者症状：
+
 ![method_symptom_expectation](method_symptom_expectation.png)
 
 出现这个症状的原因是我们没有考虑所有因素，譬如作战时我们讲究天时地利人和，这样我们就发现了症状的另一个诱因：变量：
+
 ![method_variable_symptom_expectation](method_variable_symptom_expectation.png)
 因此，现状`B'` 产生的原因有三点：
 1. 我们采用的方法`A`
