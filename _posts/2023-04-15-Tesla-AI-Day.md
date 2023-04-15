@@ -24,6 +24,7 @@ Tesla使用了纯视觉的方案来进行感知，其感知主要包括了两部
 Occupancy network的架构如下图所示：
 
 ![occupancy](assets/images/2022Tesla-ai-day-occupancy.png)
+
 对感知不是很了解，这一块可以看[赵行老师的知乎回答](https://zhuanlan.zhihu.com/p/570824078). 
 
 ## Lane network
@@ -45,6 +46,7 @@ Tesla使用交互搜索来进行轨迹规划，交互搜索包括三部分：
 ## Interactive search
 
 ![interactive search](assets/images/2022Tesla-ai-day-interactive-search.png)
+
 在遇到比较复杂的交通状况时，决策往往会变得很困难，比如我们在左转的时候需要考虑是cut-in还是yield。Tesla使用了交互搜索来解决这个难题。交互搜索包含以下步骤
 1. 使用occupancy network，lane network以及prediction来得到当前的环境信息（第一行）
 2. 列出可能的目标区域，用作备选(第二行)
@@ -58,6 +60,7 @@ Tesla使用交互搜索来进行轨迹规划，交互搜索包括三部分：
 这里Tesla还介绍了一下neural planner与optimization-based planner的对比：
 
 ![neural planner](assets/images/2022Tesla-ai-day-neural-planner-optimization-planner.png)
+
 optimization-based planner是通过逐步增加约束来求解轨迹规划问题的，速度为1-5ms； 而neural planner是同时使用人类的专家轨迹和离线轨迹规划算法生成的轨迹，速度远快于optimization-based planner.
 
 轨迹评分部分，Tesla给了四个标准：
@@ -103,6 +106,7 @@ data engine这一块，Tesla主要介绍了一个例子：
 可以对objects进行re-label的操作来生成不同的场景。
 
 ![relabel](assets/images/2022Tesla-ai-day-data-engine-relabel.png)
+
 如上图所示，一辆停在路边的车，我们可以通过给其赋予不同的标签（预测结果）来产生不同的场景。
 
 然后，通过收集相似类别的场景，我们就可以建立场景库。
