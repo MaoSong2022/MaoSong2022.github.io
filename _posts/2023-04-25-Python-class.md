@@ -175,6 +175,7 @@ False
 这个特性产生的原因有两个：
 1. Function is also an object in python
 2. **Default parameter values are evaluated from left to right when the function definition is executed.**
+
 第二点比较难以理解，但是从我的角度来看，其实就是不同的参数会产生不同的函数对象。
 因此当运行`group1=Group()`时，我们就定义了一个`Group`类，这个类绑定了一个`members`的列表对象。后续我们在运行`group2=Group()`时，我们实际上产生的是`group1`定义的`Group`类的一个实例，由于我们并没有重新运行`Group`类的定义，因此，`group2`和`group1`绑定的是同一个`members`列表对象。
 为了测试，我们现在生成一个新的类：
