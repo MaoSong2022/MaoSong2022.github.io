@@ -4,7 +4,7 @@ date:  2023-05-11
 description: 
 math: true
 img_path: /assets/images/
-categories: [autonomous_driving]
+categories: [autonomous driving]
 tags: [model]
 ---
 
