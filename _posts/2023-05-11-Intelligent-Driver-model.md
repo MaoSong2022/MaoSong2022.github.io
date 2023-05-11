@@ -1,7 +1,7 @@
 ---
 title: Intelligent Driver model (IDM) 
 date:  2023-05-11 
-description: 
+description: IDM is an lane following traffic model.
 math: true
 img_path: /assets/images/
 categories: [autonomous driving]
