@@ -16,8 +16,8 @@ tags: [model]
 作为一个跟车模型，IDM描述了单车的动力学模型。IDM可以被以下公式表述：
 
 $$ \begin{aligned}
-\dot{x}_{\alpha}&=\frac{dx_{\alpha}}{dt}=v_{\alpha}\\
-\dot{v}_{\alpha}&=\frac{dv_{\alpha}}{dt}=a\left[1-\left(\frac{v_\alpha}{v_0}\right)^\delta-\left(\frac{s^*(v_\alpha,\Delta v_\alpha)}{s_\alpha}\right)^2\right]
+\dot{x}_ {\alpha}&=\frac{dx_ {\alpha}}{dt}=v_ {\alpha}\\
+\dot{v}_ {\alpha}&=\frac{dv_ {\alpha}}{dt}=a\left[1-\left(\frac{v_ \alpha}{v_ 0}\right)^\delta-\left(\frac{s^*(v_ \alpha,\Delta v_ \alpha)}{s_\ alpha}\right)^2\right]
 \end{aligned} $$
 
 其中
@@ -35,23 +35,23 @@ $v_0$, $s_0$, $T$, $a$和 $b$的意义如下：
 指数 $\delta$ 通常设定为 $4$.
 
 # 模型特征
-自车的加速度$a$可以被分成自由项
+自车的加速度 $a$可以被分成自由项
 
-$$ \dot{v}_{\alpha}^{free}=a [1-( \frac{v_\alpha}{v_0} )^\delta ] $$
+$$ \dot{v}_ {\alpha}^{free}=a [1-( \frac{v_ \alpha}{v_0} )^\delta ] $$
 
 和交互项：
 
-$$\dot{v}_{\alpha}^{init}=-a\left(\frac{s^*(v_\alpha,\Delta v_\alpha)}{s_\alpha}\right)^2=-a\left(\frac{s_0+v_\alpha T}{s_\alpha}+\frac{v_\alpha\Delta v_\alpha}{2\sqrt{ab}s_\alpha}\right)^2 $$
+$$ \dot{v}_ {\alpha}^{init}=-a\left(\frac{s^*(v_ \alpha,\Delta v_ \alpha)}{s_ \alpha}\right)^2=-a\left(\frac{s_ 0+v_ \alpha T}{s_ \alpha}+\frac{v_ \alpha\Delta v_ \alpha}{2\sqrt{ab}s_ \alpha}\right)^2 $$
 
 其中，
-- 自由项代表了自车前方没有其他车辆，或者与其他车辆的较远的情况，此时自车的加速度由 $\dot{v}_{\alpha}^{free}$ 主导，自车的速度会由 $v_0$逐渐递增到 $v_\alpha$, 加速度则逐渐减小。
-- 交互项代表了追尾，特别是速度差 $\Delta v_\alpha$比较大时的情况，此时 $\dot{v}_{\alpha}^{init}$ 由第二项主导：
+- 自由项代表了自车前方没有其他车辆，或者与其他车辆的较远的情况，此时自车的加速度由 $\dot{v}_ {\alpha}^{free}$ 主导，自车的速度会由 $v_ 0$逐渐递增到 $v_ \alpha$, 加速度则逐渐减小。
+- 交互项代表了追尾，特别是速度差 $\Delta v_\alpha$比较大时的情况，此时 $\dot{v}_ {\alpha}^{init}$ 由第二项主导：
 
-	$$ -a\left(\frac{v_\alpha\Delta v_\alpha}{2\sqrt{ab}s_\alpha}\right)^2=-\frac{v_\alpha\Delta v_\alpha}{4bs_\alpha^2} $$
-  
-	即自车的加速度会让自车在进行紧急刹车时，刹车加速度不会超过 $b$
-- 当自车与前车非常接近，并且速度差 $\Delta v_\alpha$比较小时， 此时 $\dot{v}_{\alpha}^{init}$ 有第一项主导：
+ $$ -a( \frac{v_ \alpha\Delta v_ \alpha}{2\sqrt{ab}s_ \alpha})^2=-\frac{v_ \alpha\Delta v_ \alpha}{4bs_ \alpha^2} $$
+ 
+即自车的加速度会让自车在进行紧急刹车时，刹车加速度不会超过 $b$
+- 当自车与前车非常接近，并且速度差 $\Delta v_\alpha$比较小时， 此时 $\dot{v}_ {\alpha}^{init}$ 由第一项主导：
 
-	$$ -a\left(\frac{s_0+v_\alpha T}{s_\alpha}\right)^2 $$
-  
-	即自车倾向于减速与前车拉开距离，来保证安全。 
+ $$ -a\left(\frac{s_ 0+v_ \alpha T}{s_ \alpha}\right)^2 $$
+ 
+即自车倾向于减速与前车拉开距离，来保证安全。 
