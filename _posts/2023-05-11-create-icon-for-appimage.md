@@ -1,6 +1,6 @@
 ---
-title: { create icon for .appimage }
-date: { 2023-05-11 }
+title:  create icon for .appimage 
+date:  2023-05-11 
 description: 
 math: false
 img_path: /assets/images/
