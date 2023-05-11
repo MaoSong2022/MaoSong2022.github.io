@@ -1,6 +1,6 @@
 ---
-title: { Intelligent Driver model (IDM) }
-date: { 2023-05-11 }
+title: Intelligent Driver model (IDM) 
+date:  2023-05-11 
 description: 
 math: true
 img_path: /assets/images/
