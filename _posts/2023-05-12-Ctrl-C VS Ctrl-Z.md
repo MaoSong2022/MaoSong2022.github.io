@@ -9,6 +9,7 @@ tags: [os]
 ---
 # Introduction
 `ctrl+z` is used for **suspending** a process by sending it the signal `SIGTSTP`, which cannot be intercepted by the program.
+
 `ctrl+c` is used to **kill** a process with the signal `SIGINT`, and can be intercepted by a program so it can clean its self up before exiting, or not exit at all.
 
 If we suspend a process (`ctrl+z`), the terminal will tell us it has been suspended:
