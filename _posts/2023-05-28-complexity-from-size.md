@@ -9,16 +9,17 @@ tags: [algorithm]
 ---
 
 # Summary
-| Size of problem | Complexity |
-| --- | --- |
+
+| Size | Complexity |
+|----------------|------------------|
 | $\leq 12$ | $O(n!)$ |
 | $\leq25$ | $O(2^n)$ |
 | $\leq 100$ | $O(n^4)$ |
 | $\leq 500$ | $O(n^3)$ |
-| $\leq 10^4$ |  $O(n^2)$ | 
+| $\leq 10^4$ | $O(n^2)$ |
 | $\leq 10^6$ | $O(n\log n)$ |
 | $\leq 10^8$ | $O(n)$ |
-| $>10^8$ | $O(\log n)$|
+| $>10^8$ | $O(\log n)$ |
 
 
 # Reference
