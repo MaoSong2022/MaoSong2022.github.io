@@ -79,7 +79,7 @@ Moon
 
 ## Links
 
-<http://127.0.0.1:4000>
+%% <http://127.0.0.1:4000> %%
 
 ## Footnote
 
@@ -168,8 +168,6 @@ The image below will toggle dark/light mode based on theme preference, notice it
 <!-- ![dark mode only](/posts/20190808/devtools-dark.png){: .dark .w-75 .shadow .rounded-10 w='1212' h='668' } -->
 
 ## Video
-
-<!-- {% include embed/youtube.html id='Balreaj8Yqs' %} -->
 
 ## Reverse Footnote
 
