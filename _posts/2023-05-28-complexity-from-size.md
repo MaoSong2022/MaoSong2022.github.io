@@ -10,7 +10,7 @@ tags: [algorithm]
 
 # Summary
 | Size of problem | Complexity |
-|---|---|
+| --- | --- |
 | $\leq 12$ | $O(n!)$ |
 | $\leq25$ | $O(2^n)$ |
 | $\leq 100$ | $O(n^4)$ |
