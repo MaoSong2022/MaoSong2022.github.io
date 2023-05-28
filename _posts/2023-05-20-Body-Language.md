@@ -1,5 +1,5 @@
 ---
-title: Body-Language-is-your-superpower
+title: Body Language is your superpower
 date: 2023-05-20
 math:  false
 mermaid: false
