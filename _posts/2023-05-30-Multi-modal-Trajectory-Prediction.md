@@ -93,6 +93,7 @@ Given K predicted trajectories, each prediction is compared with the ground trut
 - Minimum-of-N(MoN). It calculates the minimum error among all predictions:
 
 $$ MoN=\mathbb{E}_ {i,t\in\tau}\min_ {k\le K}DE(\hat{Y}_ {i,k}^t, Y_ i^t) $$
+
 where $DE$ can be any distance metrics.
 
 - Miss Rate (MR). A prediction misses the ground truth if it is more than $d$ meters from the ground truth according to their displacement error and hits otherwise.
@@ -123,12 +124,12 @@ The main barrier is that only one ground truth is provided and its distribution 
 - Earth-moving distance can be used to calculate the ADE results with linear sum assignment between predicted and ground truth samples.
 - Recall can be used to measure the coverage.
 
-$$ Recall = \mathbb{E}_ {k\le K_G}(\min_ {k'\le K_R}\|\hat{Y}_ {i,k}^t-Y_ {i,k'}^t\|_ 2)<d $$
+$$ Recall = \mathbb{E}_ {k\le K_G}(\min_ {k'\le K_R}\|\hat{Y}_ {i,k}^t-Y_ {i,k'}^t\|_ 2)\le d $$
    
-   where $K_G$ is the number of predictions and $K_R$ is the number of annotated ground truths for agent $i$.
+where $K_G$ is the number of predictions and $K_R$ is the number of annotated ground truths for agent $i$.
 - Precision, calculates the ratio of generated samples in the support of the ground truth distribution and penalize out-of-distribution predictions:
 
-$$ Precision=\mathbb{E}_ {k\le K_ R}(\min_{k'\le K_ G}\|\hat{Y}_ {i,k}^t-Y_ {i,k'}^t\|_ 2) < d $$
+$$ Precision=\mathbb{E}_ {k\le K_ R}(\min_{k'\le K_ G}\|\hat{Y}_ {i,k}^t-Y_ {i,k'}^t\|_ 2) \le  d $$
 
 Cons: 
 - Require extra annotations and corrections by human experts on real-world datasets.
