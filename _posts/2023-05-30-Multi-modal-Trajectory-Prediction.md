@@ -18,7 +18,7 @@ tags: [prediction]
 
 $$ \hat{Y}_ {i,K}^{\tau}=\\{\hat{Y}_ {i,k}^{\tau}\mid k=1,\dots,K\\} $$
 
-with observed information $X_i^T$ , $X_{[N]\backslash \{i\}}^T$ and $S$ , where $[N]\backslash\{i\}=\{j=1,\dots,N\mid j\neq i\}$ is the observed trajectories of other agents and $S$ is the static information such as map or LiDAR data. 
+with observed information $X_i^T$ , $X_{\[N\]\backslash \{i\}}^T$ and $S$ , where $\[N\]\backslash\{i\}=\\{j=1,\dots,N\mid j\neq i\\}$ is the observed trajectories of other agents and $S$ is the static information such as map or LiDAR data. 
 Thus the problem is aim to find a function such that
 
 $$ \hat{Y}_ {i,K}=f_ {TP}(X_i^T,X_ {\[N\]\backslash \{i\}}^T, S) $$
@@ -47,7 +47,7 @@ An overview of the taxonomy of MTP frameworks
 Noised-based methods completes MTP by adding random noise to DTP model.
 The prediction is optimized by variety loss using the minimum reconstruction error:
 
-$$ L\_{variety}\(\\hat{Y}\_{i,K}, Y\_i^{\tau}\)=\\min\_{k<K}L\_{rec}\(\\hat{Y}\_{i,K}, Y\_i^{\tau}\) $$
+$$ L\_{variety}\(\hat{Y}\_{i,K}, Y\_i^{\tau}\)=\min\_{k<K}L\_{rec}\(\hat{Y}\_{i,K}, Y_i^{\tau}\) $$
 
 where $L_{rec}$ is the reconstruction error. 
 
