@@ -15,10 +15,12 @@ tags: [prediction]
 **Trajectory prediction**: The goal of trajectory prediction is to optimize a model $f_{TP}$ to predict $K$ future trajectories
 
 $$ \hat{Y}_ {i,K}^{\tau}=\{\hat{Y}_ {i,k}^{\tau}\mid k=1,\dots,K\} $$
+
 with observed information $X_i^T$ , $X_{[N]\backslash \{i\}}^T$ and $S$ , where $[N]\backslash\{i\}=\{j=1,\dots,N\mid j\neq i\}$ is the observed trajectories of other agents and $S$ is the static information such as map or LiDAR data. 
 Thus the problem is aim to find a function such that
 
 $$ \hat{Y}_ {i,K}=f_ {TP}(X_i^T,X_ {[N]\backslash \{i\}}^T, S) $$
+
 if $K=1$, then the task is called *deterministic trajectory prediction* (DTP), otherwise it is called *multi-modal trajectory prediction* (MTP).
 
 ## Framework for DTP
@@ -44,6 +46,7 @@ Noised-based methods completes MTP by adding random noise to DTP model.
 The prediction is optimized by variety loss using the minimum reconstruction error:
 
 $$ L_{variety}(\hat{Y}_ {i,K}, Y_i^\tau)=\min_{k<K}L_{rec}(\hat{Y}_ {i,K}, Y_ i^\tau) $$
+
 where $L_{rec}$ is the reconstruction error. 
 
 - GAN. The discriminator can be used to discriminate between good or bad predictions. The problem is that GAN suffers from mode collapse.
@@ -88,11 +91,13 @@ Given K predicted trajectories, each prediction is compared with the ground trut
 - Minimum-of-N(MoN). It calculates the minimum error among all predictions:
 
 	$$ MoN=\mathbb{E}_{i,t\in\tau}\min_{k<K}DE(\hat{Y}_{i,k}^t, Y_i^t) $$
+  
 	where $DE$ can be any distance metrics.
 
 - Miss Rate (MR). A prediction misses the ground truth if it is more than $d$ meters from the ground truth according to their displacement error and hits otherwise.
 
    $$ MR=\mathbb{E}_ {i,t\in\tau}\mathrm{sign}(\min_{k<K}DE(\hat{Y}_ {i,k}^t, Y_i^t)-d) $$
+   
 Cons:
 - sensitive to randomization.
 - Information leak since only the best prediction is used for evaluation based on the distances to the ground truth.
@@ -103,6 +108,7 @@ This kind metrics measure how likely the ground truth can be sampled from the pr
 - topK based metrics. Select candidates with a probability larger than a threshold $\gamma$ among $M>>K$ predictions for MoN evaluation, known as probability cumulative minimum distance (PCMD):
 
 	$$ PCMD = MoN(\hat{Y}_ {i,k}\mid  P(\hat{Y}_ {i,k'}\mid X_i^T, k'<M)\geq\gamma) $$ 
+  
 - Gaussian-based metrics. First estimate a Gaussian distribution given $K$ discrete predictions using a method such as kernel density estimation (KDE).
 
 	$$ KDE-NLL = -\mathbb{E}_ {i,t\in\tau}\log P(Y_i^t\mid KDE(\hat{Y}_ {i,K}^t)) $$
@@ -117,6 +123,7 @@ The main barrier is that only one ground truth is provided and its distribution 
 - Recall can be used to measure the coverage.
 
    $$ Recall = \mathbb{E}_ {k<K_G}(\min_{k'<K_R}\|\hat{Y}_ {i,k}^t-Y_{i,k'}^t\|_2)<d $$
+   
    where $K_G$ is the number of predictions and $K_R$ is the number of annotated ground truths for agent $i$.
 - Precision, calculates the ratio of generated samples in the support of the ground truth distribution and penalize out-of-distribution predictions:
 
