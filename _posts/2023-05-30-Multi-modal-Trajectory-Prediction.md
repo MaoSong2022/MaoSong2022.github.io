@@ -47,7 +47,7 @@ An overview of the taxonomy of MTP frameworks
 Noised-based methods completes MTP by adding random noise to DTP model.
 The prediction is optimized by variety loss using the minimum reconstruction error:
 
-$$ L\_{variety}\(\hat{Y}\_{i,K}, Y\_i^{\tau}\)= $$
+$$ L\_{variety}\(\hat{Y}\_{i,K}, Y\_i^{\tau}\)= \min\_{k<K}L\_{rec}$$
 
 where $L_{rec}$ is the reconstruction error. 
 
