@@ -92,7 +92,7 @@ Averaged displacement error (ADE) and Final displacement error (FDE) can be used
 Given K predicted trajectories, each prediction is compared with the ground truth and the best score is recorded without considering the exact confidence.
 - Minimum-of-N(MoN). It calculates the minimum error among all predictions:
 
-	$$ MoN=\mathbb{E}_ {i,t\in\tau}\min_ {k\le K}DE(\hat{Y}_ {i,k}^t, Y_ i^t) $$
+	$$ MoN=\mathbb{E}_ {i,t\in\tau} $$
   
 	where $DE$ can be any distance metrics.
 
