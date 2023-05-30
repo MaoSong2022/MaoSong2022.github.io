@@ -12,16 +12,16 @@ tags: [prediction]
 ## Concepts
 **Agent**: An agent in trajectory prediction is a road user with self-cognition such as a pedestrian, a motorist or a cyclist.
 
-**Trajectory**: A trajectory of an agent $i$ in trajectory prediction is defined as a sequence of 2D real-world or pixel coordinates: $\\{X_i^T,Y_i^\tau\\}$. where $X_i^T=\\{X_i^t\mid t\in\[1,T\_{obs}\\}$ is the observed trajectory with $T\_{obs}$ time steps, $Y_i^\tau=\{Y\_i^t\mid t\in\(T\_{obs}, T\_ {obs}+T\_{pred}\]\}$ is the ground truth of the future path with $T\_{pred}$ time steps. 
+**Trajectory**: A trajectory of an agent $i$ in trajectory prediction is defined as a sequence of 2D real-world or pixel coordinates: $\\{X_i^T,Y_i^\tau\\}$. where $X_i^T=\\{X_i^t\mid t\in\[1,T\_{obs}\\}$ is the observed trajectory with $T\_{obs}$ time steps, $Y_i^\tau=\\{Y\_i^t\mid t\in\(T\_{obs}, T\_ {obs}+T\_{pred}\]\\}$ is the ground truth of the future path with $T\_{pred}$ time steps. 
 
 **Trajectory prediction**: The goal of trajectory prediction is to optimize a model $f_{TP}$ to predict $K$ future trajectories
 
-$$ \hat{Y}_ {i,K}^{\tau}=\{\hat{Y}_ {i,k}^{\tau}\mid k=1,\dots,K\} $$
+$$ \hat{Y}_ {i,K}^{\tau}=\\{\hat{Y}_ {i,k}^{\tau}\mid k=1,\dots,K\\} $$
 
 with observed information $X_i^T$ , $X_{[N]\backslash \{i\}}^T$ and $S$ , where $[N]\backslash\{i\}=\{j=1,\dots,N\mid j\neq i\}$ is the observed trajectories of other agents and $S$ is the static information such as map or LiDAR data. 
 Thus the problem is aim to find a function such that
 
-$$ \hat{Y}_ {i,K}=f_ {TP}(X_i^T,X_ {[N]\backslash \{i\}}^T, S) $$
+$$ \hat{Y}_ {i,K}=f_ {TP}(X_i^T,X_ {\[N\]\backslash \{i\}}^T, S) $$
 
 if $K=1$, then the task is called *deterministic trajectory prediction* (DTP), otherwise it is called *multi-modal trajectory prediction* (MTP).
 
