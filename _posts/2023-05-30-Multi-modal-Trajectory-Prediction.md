@@ -92,13 +92,13 @@ Averaged displacement error (ADE) and Final displacement error (FDE) can be used
 Given K predicted trajectories, each prediction is compared with the ground truth and the best score is recorded without considering the exact confidence.
 - Minimum-of-N(MoN). It calculates the minimum error among all predictions:
 
-	$$ \min_ {k\le K}DE(\hat{Y}_ {i,k}^t, Y_ i^t) $$
+$$ MoN=\mathbb{E}_ {i,t\in\tau}\min_ {k\le K}DE(\hat{Y}_ {i,k}^t, Y_ i^t) $$
   
 	where $DE$ can be any distance metrics.
 
 - Miss Rate (MR). A prediction misses the ground truth if it is more than $d$ meters from the ground truth according to their displacement error and hits otherwise.
 
-   $$ MR=\mathbb{E}_ {i,t\in\tau}\mathrm{sign}(\min_ {k\le K}DE(\hat{Y}_ {i,k}^t, Y_ i^t)-d) $$
+$$ MR=\mathbb{E}_ {i,t\in\tau}\mathrm{sign}(\min_ {k\le K}DE(\hat{Y}_ {i,k}^t, Y_ i^t)-d) $$
    
 Cons:
 - sensitive to randomization.
@@ -109,11 +109,11 @@ This kind metrics measure how likely the ground truth can be sampled from the pr
 - Most-likely (ML) based metrics. Select the prediction with the highest probability to perform the DTP evaluation.
 - topK based metrics. Select candidates with a probability larger than a threshold $\gamma$ among $M>>K$ predictions for MoN evaluation, known as probability cumulative minimum distance (PCMD):
 
-	$$ PCMD = MoN(\hat{Y}_ {i,k}\mid  P(\hat{Y}_ {i,k'}\mid X_ i^T, k'\le M)\geq\gamma) $$ 
+$$ PCMD = MoN(\hat{Y}_ {i,k}\mid  P(\hat{Y}_ {i,k'}\mid X_ i^T, k'\le M)\geq\gamma) $$ 
   
 - Gaussian-based metrics. First estimate a Gaussian distribution given $K$ discrete predictions using a method such as kernel density estimation (KDE).
 
-	$$ KDE-NLL = -\mathbb{E}_ {i,t\in\tau}\log P(Y_ i^t\mid KDE(\hat{Y}_ {i,K}^t)) $$
+$$ KDE-NLL = -\mathbb{E}_ {i,t\in\tau}\log P(Y_ i^t\mid KDE(\hat{Y}_ {i,K}^t)) $$
 
 cons:
 - Due to noise, ground truth may not be most likely.
@@ -124,12 +124,12 @@ The main barrier is that only one ground truth is provided and its distribution 
 - Earth-moving distance can be used to calculate the ADE results with linear sum assignment between predicted and ground truth samples.
 - Recall can be used to measure the coverage.
 
-   $$ Recall = \mathbb{E}_ {k\le K_G}(\min_ {k'\le K_R}\|\hat{Y}_ {i,k}^t-Y_ {i,k'}^t\|_2)<d $$
+$$ Recall = \mathbb{E}_ {k\le K_G}(\min_ {k'\le K_R}\|\hat{Y}_ {i,k}^t-Y_ {i,k'}^t\|_2)<d $$
    
    where $K_G$ is the number of predictions and $K_R$ is the number of annotated ground truths for agent $i$.
 - Precision, calculates the ratio of generated samples in the support of the ground truth distribution and penalize out-of-distribution predictions:
 
-	$$ Precision=\mathbb{E}_ {k\le K_ R}(\min_{k'\le K_ G}\|\hat{Y}_ {i,k}^t-Y_ {i,k'}^t\|_ 2) < d $$
+$$ Precision=\mathbb{E}_ {k\le K_ R}(\min_{k'\le K_ G}\|\hat{Y}_ {i,k}^t-Y_ {i,k'}^t\|_ 2) < d $$
 
 Cons: 
 - Require extra annotations and corrections by human experts on real-world datasets.
