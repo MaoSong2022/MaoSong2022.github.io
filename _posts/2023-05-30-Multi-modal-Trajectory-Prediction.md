@@ -16,12 +16,12 @@ tags: [prediction]
 
 **Trajectory prediction**: The goal of trajectory prediction is to optimize a model $f_{TP}$ to predict $K$ future trajectories
 
-$$ \hat{Y}_ {i,K}^{\tau}=\\{\hat{Y}_ {i,k}^{\tau}\mid k=1,\dots,K\\} $$
+$$ \hat{Y}_ {i,K}^{\tau}=\{\hat{Y}_ {i,k}^{\tau}\mid k=1,\dots,K\} $$
 
 with observed information $X_i^T$ , $X_{\[N\]\backslash \{i\}}^T$ and $S$ , where $\[N\]\backslash\{i\}=\\{j=1,\dots,N\mid j\neq i\\}$ is the observed trajectories of other agents and $S$ is the static information such as map or LiDAR data. 
 Thus the problem is aim to find a function such that
 
-$$ \hat{Y}_ {i,K}=f_ {TP}(X_i^T,X_ {\[N\]\backslash \{i\}}^T, S) $$
+$$ \hat{Y}_ {i,K}=f_ {TP}(X_i^T,X_ {[N]\backslash \{i\}}^T, S) $$
 
 if $K=1$, then the task is called *deterministic trajectory prediction* (DTP), otherwise it is called *multi-modal trajectory prediction* (MTP).
 
@@ -47,7 +47,7 @@ An overview of the taxonomy of MTP frameworks
 Noised-based methods completes MTP by adding random noise to DTP model.
 The prediction is optimized by variety loss using the minimum reconstruction error:
 
-$$ L\_{variety}\(\hat{Y}\_{i,K}, Y\_i^{\tau}\)= \min\_{k\leq K}L\_{rec}\(\hat{Y}\_{i,K}, Y_i^{\tau}\)$$
+$$ L_ {variety}(\hat{Y}\_{i,K}, Y\_i^{\tau})= \min_ {k\leq K}L_ {rec}(\hat{Y}_ {i,K}, Y_ i^{\tau})$$
 
 where $L_{rec}$ is the reconstruction error. 
 
