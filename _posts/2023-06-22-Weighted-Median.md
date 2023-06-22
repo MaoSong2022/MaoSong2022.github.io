@@ -24,7 +24,7 @@ This post is to show median and Weighted median of data.
 
 $$ f(x) = \sum_{i=1}^nw_i|x_i-x| $$
 
-其中，$x_i$ 和 $w_i\geq0$ 分别代表`nums[i]`和`costs[i]`.  我们希望找到 $f(x)$ 的最小值。
+其中，$x_ i$ 和 $w_i\geq0$ 分别代表`nums[i]`和`costs[i]`.  我们希望找到 $f(x)$ 的最小值。
 
 > Property 1: $f(x)$ 是一个凸函数，因而 $f(x)$ 存在唯一的最小值。
 
@@ -48,7 +48,7 @@ $$ f(x)= \sum_{i=1}^nw_i(x_i-x)=\sum_{i=1}^nw_i(x_i-x_{(1)})+\sum_{i=1}^nw_i(x_{
 
 > Theorem: 定义如下集合：
 > 
->  $$ \mathcal{L}=\left\{j\mid \sum_{i=1}^jw_{(i)}\leq \frac{W}{2} \right\}, W=\sum_{i=1}^nw_i $$
+>  $$ \mathcal{L}=\{j\mid \sum_{i=1}^jw_{(i)}\leq \frac{W}{2} \}, W=\sum_{i=1}^nw_i $$
 > 
 >  则：
 >  1. 如果 $\mathcal{L}=\emptyset$, 则 $\arg\min f(x)=x_{(1)}$.
@@ -70,8 +70,8 @@ $$ \sum_{i=1}^jw_{(i)}>W, \forall j\in\{1,\dots,n\} $$
 
 从而 $\kappa_0\<0\<\kappa_j, j\in\{1,\dots,n\}$, 即 $f(x)$ 在区间 $(-\infty, x_{(1)}]$ 上单调下降，在区间 $[x_{(1)}, \infty)$ 上单调上升，因此 $f(x)$ 的最小值在 $x=x_{(1)}$ 处取得。
 
-当 $\mathcal{L}\neq \emptyset$, 我们有：$\kappa_k\leq 0$,  并且 $\kappa_j\geq0, \forall j\in\{k+1,\dots,n\}$. 
-1. 当 $\kappa_v\neq0$ 时，$f(x)$ 在区间 $(-\infty, x_{(k+1)}]$ 上单调下降，在区间 $[x_{(k+1)}, \infty)$ 上单调上升，因此 $f(x)$ 的最小值在 $x=x_{(k+1)}$ 处取得。
+当 $\mathcal{L}\neq \emptyset$, 我们有：$\kappa_ k\leq 0$,  并且 $\kappa_j\geq0, \forall j\in\{k+1,\dots,n\}$. 
+1. 当 $\kappa_ v\neq0$ 时，$f(x)$ 在区间 $(-\infty, x_{(k+1)}]$ 上单调下降，在区间 $[x_{(k+1)}, \infty)$ 上单调上升，因此 $f(x)$ 的最小值在 $x=x_{(k+1)}$ 处取得。
 2. 当 $\kappa_v=0$ 时，$f(x)$ 在区间 $\[x_{(k)}, x_{(k+1)}\]$ 上是一个常数，因此 $f(x)$ 的最小值在$\[x_{(k)}, x_{(k+1)}\]$ 上任一点达到最小值。
 这样，我们就完成了定理的证明。
 
