@@ -33,9 +33,10 @@ $$ f(x) = \sum_{i=1}^nw_i|x_i-x| $$
 我们将 $x_1,\dots,x_n$ 由小到大排序后的结果记为：
 
 $$ x_{(1)} \leq x_{(2)} \leq\cdots \leq x_{(n)} $$
+
 则我们进一步有以下结论：
 
-> Property 2: $f(x)$ 最小值在区间 $[x_{(1)}, x_{(n)}]$ 中取得。
+> Property 2: $f(x)$ 最小值在区间 $\[x_ {(1)}, x_ {(n)}\]$ 中取得。
 
 性质2可以通过简单的运算得到，假如 $x \leq x_{(1)}$, 则
 
@@ -46,16 +47,18 @@ $$ f(x)= \sum_{i=1}^nw_i(x_i-x)=\sum_{i=1}^nw_i(x_i-x_{(1)})+\sum_{i=1}^nw_i(x_{
 接下来，我们证明以下定理，定理表明 $f(x)$ 的最小值就是 $x_1,\dots,x_n$, $w_1,\dots,w_n$的带权中位数(weighted median). 
 
 > Theorem: 定义如下集合：
->  $$ \mathcal{L}=\left\{j\mid \sum_{i=1}^jw_{(i)}\leq \frac{W}{2} \right\}, W=\sum_{i=1}^nw_i $$ 
+> 
+>  $$ \mathcal{L}=\left\{j\mid \sum_{i=1}^jw_{(i)}\leq \frac{W}{2} \right\}, W=\sum_{i=1}^nw_i $$
+> 
 >  则：
 >  1. 如果 $\mathcal{L}=\emptyset$, 则 $\arg\min f(x)=x_{(1)}$.
 >  2. 如果 $\mathcal{L}\neq \emptyset$, 令 $k=\max \mathcal{L}$, 则
 > 	 1. 如果 $\sum_{i=1}^kw_{(i)}\neq \frac{W}{2}$, 则 $\arg\min f(x)=x_{(k+1)}$.
-> 	 2. 如果$\sum_{i=1}^kw_{(i)}= \frac{W}{2}$, 则 $\arg\min f(x)=(1-\lambda)x_{(k)}+\lambda x_{(k+1)}$, $\lambda\in[0,1]$.
+> 	 2. 如果 $\sum_{i=1}^kw_{(i)}= \frac{W}{2}$, 则 $\arg\min f(x)=(1-\lambda)x_{(k)}+\lambda x_{(k+1)}$, $\lambda\in[0,1]$.
 
 首先，我们知道 $f(x)$ 是一个分段线性函数，其断点为 $x_{(1)},\dots,x_{(n)}$. 我们将 $\kappa_i$, $i\in\{0,\dots,n\}$ 分别定义为以下区间上的斜率：
 
-$$ (-\infty, x_{(1)}], [x_{(1)}, x_{(2)}],\dots,[x_{(n)}, \infty) $$
+$$ (-\infty, x_{(1)}], \[x_{(1)}, x_{(2)}\],\dots,[x_{(n)}, \infty) $$
 
 我们很容易得到：
 
@@ -65,11 +68,11 @@ $$ \kappa_0=-W,\kappa_m=W, \kappa_j=2\sum_{i=1}^jw_{(i)}-W, j\in\{1,\dots,n-1\} 
 
 $$ \sum_{i=1}^jw_{(i)}>W, \forall j\in\{1,\dots,n\} $$
 
-从而 $\kappa_0<0<\kappa_j, j\in\{1,\dots,n\}$, 即 $f(x)$ 在区间 $(-\infty, x_{(1)}]$ 上单调下降，在区间 $[x_{(1)}, \infty)$ 上单调上升，因此 $f(x)$ 的最小值在 $x=x_{(1)}$ 处取得。
+从而 $\kappa_0\<0\<\kappa_j, j\in\{1,\dots,n\}$, 即 $f(x)$ 在区间 $(-\infty, x_{(1)}]$ 上单调下降，在区间 $[x_{(1)}, \infty)$ 上单调上升，因此 $f(x)$ 的最小值在 $x=x_{(1)}$ 处取得。
 
 当 $\mathcal{L}\neq \emptyset$, 我们有：$\kappa_k\leq 0$,  并且 $\kappa_j\geq0, \forall j\in\{k+1,\dots,n\}$. 
 1. 当 $\kappa_v\neq0$ 时，$f(x)$ 在区间 $(-\infty, x_{(k+1)}]$ 上单调下降，在区间 $[x_{(k+1)}, \infty)$ 上单调上升，因此 $f(x)$ 的最小值在 $x=x_{(k+1)}$ 处取得。
-2. 当 $\kappa_v=0$ 时，$f(x)$ 在区间 $[x_{(k)}, x_{(k+1)}]$ 上是一个常数，因此 $f(x)$ 的最小值在$[x_{(k)}, x_{(k+1)}]$ 上任一点达到最小值。
+2. 当 $\kappa_v=0$ 时，$f(x)$ 在区间 $\[x_{(k)}, x_{(k+1)}\]$ 上是一个常数，因此 $f(x)$ 的最小值在$\[x_{(k)}, x_{(k+1)}\]$ 上任一点达到最小值。
 这样，我们就完成了定理的证明。
 
 我们有一个比较简单的推论
