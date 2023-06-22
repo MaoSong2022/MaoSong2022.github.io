@@ -28,7 +28,7 @@ $$ f(x) = \sum_{i=1}^nw_i|x_i-x| $$
 
 > Property 1: $f(x)$ 是一个凸函数，因而 $f(x)$ 存在唯一的最小值。
 
-性质1非常容易证明，因为函数 $|x-x_i|$ 是一个凸函数， 而 $f(x)$ 是若干个凸函数的非负凸组合，因此 $f(x)$ 也是一个凸函数。
+性质1非常容易证明，因为函数 $\vert x-x_i\vert $ 是一个凸函数， 而 $f(x)$ 是若干个凸函数的非负凸组合，因此 $f(x)$ 也是一个凸函数。
 
 我们将 $x_1,\dots,x_n$ 由小到大排序后的结果记为：
 
@@ -126,6 +126,6 @@ int MinCostToMakeArrayEqual(const vector<int> &nums, const vector<int> &costs) {
 ```
 
 # References
-[Leetcode minimum cost to make array equal](https://leetcode.com/problems/minimum-cost-to-make-array-equal/)
-[The Component Weighted Median Absolute Deviations Problem](https://www.ejpam.com/index.php/ejpam/article/view/3808/927)
+1. [Leetcode minimum cost to make array equal](https://leetcode.com/problems/minimum-cost-to-make-array-equal/)
+2. [The Component Weighted Median Absolute Deviations Problem](https://www.ejpam.com/index.php/ejpam/article/view/3808/927)
 
