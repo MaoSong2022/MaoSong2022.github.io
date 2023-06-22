@@ -24,7 +24,7 @@ This post is to show median and Weighted median of data.
 
 $$ f(x) = \sum_{i=1}^nw_i|x_i-x| $$
 
-其中，$x_ i$ 和 $w_i\geq0$ 分别代表`nums[i]`和`costs[i]`.  我们希望找到 $f(x)$ 的最小值。
+其中，$x\_{i}$ 和 $w_i\geq0$ 分别代表`nums[i]`和`costs[i]`.  我们希望找到 $f(x)$ 的最小值。
 
 > Property 1: $f(x)$ 是一个凸函数，因而 $f(x)$ 存在唯一的最小值。
 
@@ -48,13 +48,13 @@ $$ f(x)= \sum_{i=1}^nw_i(x_i-x)=\sum_{i=1}^nw_i(x_i-x_{(1)})+\sum_{i=1}^nw_i(x_{
 
 > Theorem: 定义如下集合：
 > 
->  $$ \mathcal{L}=\{j\mid \sum_{i=1}^jw_{(i)}\leq \frac{W}{2} \}, W=\sum_{i=1}^nw_i $$
+>  $$ \mathcal{L}=\\{j\mid \sum_{i=1}^jw_{(i)}\leq \frac{W}{2} \\}, W=\sum_{i=1}^nw_i $$
 > 
 >  则：
 >  1. 如果 $\mathcal{L}=\emptyset$, 则 $\arg\min f(x)=x_{(1)}$.
 >  2. 如果 $\mathcal{L}\neq \emptyset$, 令 $k=\max \mathcal{L}$, 则
-> 	 1. 如果 $\sum_{i=1}^kw_{(i)}\neq \frac{W}{2}$, 则 $\arg\min f(x)=x_{(k+1)}$.
-> 	 2. 如果 $\sum_{i=1}^kw_{(i)}= \frac{W}{2}$, 则 $\arg\min f(x)=(1-\lambda)x_{(k)}+\lambda x_{(k+1)}$, $\lambda\in[0,1]$.
+> 	 a. 如果 $\sum_{i=1}^kw_{(i)}\neq \frac{W}{2}$, 则 $\arg\min f(x)=x_{(k+1)}$.
+> 	 b. 如果 $\sum_{i=1}^kw_{(i)}= \frac{W}{2}$, 则 $\arg\min f(x)=(1-\lambda)x_{(k)}+\lambda x_{(k+1)}$, $\lambda\in[0,1]$.
 
 首先，我们知道 $f(x)$ 是一个分段线性函数，其断点为 $x_{(1)},\dots,x_{(n)}$. 我们将 $\kappa_i$, $i\in\{0,\dots,n\}$ 分别定义为以下区间上的斜率：
 
@@ -70,7 +70,7 @@ $$ \sum_{i=1}^jw_{(i)}>W, \forall j\in\{1,\dots,n\} $$
 
 从而 $\kappa_0\<0\<\kappa_j, j\in\{1,\dots,n\}$, 即 $f(x)$ 在区间 $(-\infty, x_{(1)}]$ 上单调下降，在区间 $[x_{(1)}, \infty)$ 上单调上升，因此 $f(x)$ 的最小值在 $x=x_{(1)}$ 处取得。
 
-当 $\mathcal{L}\neq \emptyset$, 我们有：$\kappa_ k\leq 0$,  并且 $\kappa_j\geq0, \forall j\in\{k+1,\dots,n\}$. 
+当 $\mathcal{L}\neq \emptyset$, 我们有：$\kappa\_{k}\leq 0$,  并且 $\kappa_j\geq0, \forall j\in\{k+1,\dots,n\}$. 
 1. 当 $\kappa_ v\neq0$ 时，$f(x)$ 在区间 $(-\infty, x_{(k+1)}]$ 上单调下降，在区间 $[x_{(k+1)}, \infty)$ 上单调上升，因此 $f(x)$ 的最小值在 $x=x_{(k+1)}$ 处取得。
 2. 当 $\kappa_v=0$ 时，$f(x)$ 在区间 $\[x_{(k)}, x_{(k+1)}\]$ 上是一个常数，因此 $f(x)$ 的最小值在$\[x_{(k)}, x_{(k+1)}\]$ 上任一点达到最小值。
 这样，我们就完成了定理的证明。
@@ -80,6 +80,7 @@ $$ \sum_{i=1}^jw_{(i)}>W, \forall j\in\{1,\dots,n\} $$
 
 
 # Implementation
+
 ```c++
 #include <algorithm>
 #include <vector>
@@ -119,7 +120,8 @@ int MinCostToMakeArrayEqual(const vector<int> &nums, const vector<int> &costs) {
     total_cost += abs(nums[i] - median) * costs[i];
   }
   return total_cost;
-}```
+}
+```
 
 # References
 [Leetcode minimum cost to make array equal](https://leetcode.com/problems/minimum-cost-to-make-array-equal/)
