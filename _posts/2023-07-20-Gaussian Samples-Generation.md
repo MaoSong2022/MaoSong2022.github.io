@@ -81,6 +81,7 @@ Combining thing together, the process is given by
 3. Obtain an Gaussian sample $x=\sqrt{2}\mathrm{erf}^{-1}(2z-1)$.
 The code is given in [inverse_cdf.py](https://gist.github.com/MaoSong2022/c9f2e057b0bcc82679cbe067c89decd6). The result ($100,000$ samples with $100th$ Taylor expansion) is shown as follows:
 ![](inverse_cdf.png)
+
 As we can see, the result is very similar to the shape of normal distribution.
 
 ## Analysis
@@ -98,7 +99,7 @@ The idea behind Box-Muller Transform is using two independent uniform samples to
 ## Basic form
 Let's consider two independent Gaussian random variables $x$ and $y$, it is easy to obtain the joint probability density function:
 
-	$$ f(x,y)=f(x)f(y) = \frac{1}{2\pi}e^{-\frac{r^2}{2}} $$
+$$ f(x,y)=f(x)f(y) = \frac{1}{2\pi}e^{-\frac{r^2}{2}} $$
 
 where $r^2:= x^2+y^2$.  We further define $s=\frac{r^2}{2}$, then $r=\sqrt{2s}$, we then have
 
@@ -109,7 +110,7 @@ Notice that in this form, $f(x,y)$ is simply the product of a uniform random var
 
 Since the CDF of uniform distribution and the exponential distribution are unknown, we can generate two independent Gaussian samples as follows:
 1. Generate two uniform samples $U_1,U_2\sim\mathrm{uniform}(0,1)$.
-2. Use the inverse CDF of uniform distribution $\theta=2\pi U_1$ to generate a uniform sample $\theta\sim\mathrm{uniform}(0,2\pi)$; similarly, use the inverse CDF of exponential distribution $s=-\ln(U_2)$ ($1-U_2\sim \mathrm{uniform}(0,1)$).
+2. Use the inverse CDF of uniform distribution $\theta=2\pi U_1$ to generate a uniform sample $\theta\sim\mathrm{uniform}(0,2\pi)$; similarly, use the inverse CDF of exponential distribution $s=-\ln(U_2)$ (where $1-U_2\sim \mathrm{uniform}(0,1)$).
 3. Using the relationship between $x,y$ and $s$ to generate independent Gaussian samples: $x=\sqrt{2s}\cos\theta$, $y=\sqrt{2s}\sin\theta$.
 
 combining these altogether, we have:
@@ -177,6 +178,7 @@ $$ Q\mid \left(U\leq \frac{f(x)}{kg(x)}\right)\sim f(x) $$
 
 where $U\sim \mathrm{uniform}(0,1)$.  
 ![](reject_sampling.png)
+
 So the process of reject sampling is:
 1. Sample $z_1$ from $g(x)$.
 2. Sample $u_1$ from $\mathrm{uniform}(0,1)$.
@@ -187,11 +189,13 @@ The problem of reject sampling method is that is relies on the approximation dis
 
 [Ziggurat algorithm](https://en.wikipedia.org/wiki/Ziggurat_algorithm) uses a special kind of $g(x)$ to approximate the Gaussian distribution, where $f(x)=\exp(-x^2/2)$. Notice that $f(x)$ is an even function, we consider its positive part.
 ![](zigguart_example.png)
+
 We first set $n=8$ points ($n=8$ for clarity, $n=256$ in implementation) $0=x_0<x_1<\cdots<x_{7}$, then we obtain $8$ sets, of which $7$ of them are rectangles and $1$ of them is a bottom strip tailing off to infinity. Now the boundary of rectangles and the  bottom strip tailing of $f(x)$ forms $g(x)$, *i.e.*, 
+
 $$ g(x)=\begin{cases}f(x_i), x\in[x_i,x_{i+1}],i=0,\dots,6\\ f(x), x\geq x_7  \end{cases} $$
 
 The process then goes as follows:
-1. Random generate an integer $i\sim\mathrm{uniform}\{0,1,\dots,n-1\}$ and two uniform samples $U_1,U_2\sim\mathrm{uniform}[0,1]$.
+1. Random generate an integer $i\sim\mathrm{uniform}[0,1,\dots,n-1]$ and two uniform samples $U_1,U_2\sim\mathrm{uniform}[0,1]$.
 2. If $i\neq n-1$,
 	1. If $x=U_1x_i < x_{i-1}$, return $x$.
 	2. else  let $y=f(x_i) + U_2[f(x_{i-1})-f(x_i)]$, 
@@ -250,9 +254,9 @@ In fact, $99\%$ cases fall into case 1, that is, $x=U_1 x_i < x_{i-1}$, so the c
 In this blog, we reviewed some classical methods of gene rating Gaussian samples from the uniform samples. It do depends on applications and requirements to choose proper algorithms. 
 
 # References
-[How to generate Gaussian samples](https://medium.com/mti-technology/how-to-generate-gaussian-samples-347c391b7959)<br>
+[How to generate Gaussian samples](https://medium.com/mti-technology/how-to-generate-gaussian-samples-347c391b7959)  
 [Proof of Marsaglia polar method](https://stats.stackexchange.com/a/146707)
-[normaldist-benchmark](https://github.com/miloyip/normaldist-benchmark)<br>
-[numpy ziggurat implementation](https://github.com/numpy/numpy/blob/92b880f64024c0694c69a6397568ce758102f9d8/numpy/random/src/distributions/distributions.c#L137)<br>
-[The Ziggurat Method for Generating Random Variables](https://www.jstatsoft.org/article/view/v005i08)<br>
-[Generating Normally Distributed Values](https://datascience.oneoffcoder.com/generate-gaussian-distributed-values.html)<br>
+[normaldist-benchmark](https://github.com/miloyip/normaldist-benchmark)  
+[numpy ziggurat implementation](https://github.com/numpy/numpy/blob/92b880f64024c0694c69a6397568ce758102f9d8/numpy/random/src/distributions/distributions.c#L137)  
+[The Ziggurat Method for Generating Random Variables](https://www.jstatsoft.org/article/view/v005i08)  
+[Generating Normally Distributed Values](https://datascience.oneoffcoder.com/generate-gaussian-distributed-values.html)  
