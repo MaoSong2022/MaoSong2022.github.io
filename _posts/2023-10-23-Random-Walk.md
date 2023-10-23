@@ -27,7 +27,7 @@ To model a Markov chain, we need to define three things:
 ## State Space
 We first need to use a discrete state space. For simplicity, we write the state space as the integer lattice points, for 2D space, this means
 
-$$ S = \{(x,y)\in\mathbb{R}^2\mid x\in \mathbb{Z},y\in\mathbb{Z}\} $$
+$$ S = \\{(x,y)\in\mathbb{R}^2\mid x\in \mathbb{Z},y\in\mathbb{Z}\\} $$
 
 where $\mathbb{R}$ is the set of real numbers and $\mathbf{Z}$ is the set of all integers.
 
@@ -37,11 +37,11 @@ Let $s_{t-1},s_t\in S$ be two states, the transition function defines how we can
 
 In 2D case, we define the neighbor states of state $s_t=(i,j)$ as
 
-$$ N(s_t)  = N((i,j))=\{(x,y)\in S\mid 0<|x-i|+|y-j|\leq 1\} $$
+$$ N(s_t)  = N((i,j))=\\{(x,y)\in S\mid 0<|x-i|+|y-j|\leq 1\\} $$
 
 In 3D case, we define the neighbor states of state $s=(i,j,k)$ as
 
-$$ N(s_t) = N((i,j,k))=\{(x,y,z)\in S\mid 0<|x-i|+|y-j|+|z-k|\leq 1\} $$
+$$ N(s_t) = N((i,j,k))=\\{(x,y,z)\in S\mid 0<|x-i|+|y-j|+|z-k|\leq 1\\} $$
 
 For simplicity, we assume that state $s$ transits to its neighbor state $t\in N(s)$ with equal probability, we write this probability as $P(s_j=i\mid s_0=i)$:
 
@@ -58,9 +58,8 @@ $$ P(s_{t}=j\mid s_{t-1}=i) = \frac16, j\in N(i) $$
 ## initial distribution
 The initial distribution $p(s_0)$ defines where we start our random walk. For simplicity, we assume that  for a given state $s_0$
 
-$$ p(s) = \begin{cases}1, \text{ if }s=s_0\\
-0,\text{otherwise}
-\end{cases} $$
+$$ p(s) = \begin{cases}1, \text{ if }s=s_0\\  
+0,\text{otherwise} \end{cases} $$
 
 ## Markov property
 this property is the key to reduce the complex computation, the Markov property assume that the next state only depends on the current state, that is:
@@ -89,15 +88,16 @@ This theorem is equivalent to say, if we can return to state $i$ with probabilit
 
 Now, we define the Bernoulli random variable $p_{ii}^{(j)}$ to indicates if we return to the state $i$ in $j$-th step, that is,
 
-$$ p_{ii}^{(j)}=\begin{cases} 1,\text{if we didn't return in } j \text{-th step}\\ 0, \text{ otherwise} \end{cases} $$
+$$ p_{ii}^{(j)}=\begin{cases} 1,\text{if we didn't return in } j \text{-th step}\\ 
+0, \text{ otherwise} \end{cases} $$
 
 then we can rewrite the expectation value as:
 
 $$ \mathbb{E}(\\# \text{visits to }i\mid s_0=i)=\sum_{j=0}^\infty p_{ii}^{(j)}  $$
 
 So, this gives us a second way to determine whether the random variable is recurrent or transient:
-1. If the series $\sum_{j=0}^{\infty} p_{ii}^{(j)}$ diverges, then the state $i$ is recurrent
-2. If the series $\sum_{j=0}^{\infty} p_{ii}^{(j)}$ converges, then the state $i$ is transient
+1. If the series $\sum_{j=0}^{\infty}p_{ii}^{(j)}$ diverges, then the state $i$ is recurrent
+2. If the series $\sum_{j=0}^{\infty}p_{ii}^{(j)}$ converges, then the state $i$ is transient
 
 
 # Random Walk
@@ -109,7 +109,7 @@ $$ \sum_{j=0}^\infty p_{ii}^{(j)}=\sum_{j=1}^\infty p_{ii}^{(2j)}  $$
 
 when state $i$ is recurrent.
 
-Now consider the 2D case, we have four direction: up, down, left, right, we must have the equation: $\#$ steps goes left $=\#$ steps goes right and  $\#$ steps goes up $=\#$ steps goes down. We can write 
+Now consider the 2D case, we have four direction: up, down, left, right, we must have the equation: $\\#$ steps goes left $=\\#$ steps goes right and  $\\#$ steps goes up $=\\#$ steps goes down. We can write 
 
 $$ p_{ii}^{(2j)} = \frac{1}{4^{2j}}\sum_{n=0}^{j} \binom{(2j)!}{n!n!(j-n)!(j-n)!} $$
 
