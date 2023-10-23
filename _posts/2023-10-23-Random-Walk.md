@@ -71,7 +71,9 @@ $$ P(s_{t+1}\mid s_t,s_{t-1},\dots,s_0) = P(s_{t+1}\mid s_t) $$
 Now we need to define what does "go home" and "lost" means actually. In Markov chain, we use recurrence and transience to define these two terms. 
 
 > Definition: For $i\in S$, let $r$ be the return probability:
+> 
 > $$ r=P(s_n=i \text{ for some } n\geq1 \mid s_0=i) $$
+> 
 > if $m_i=1$, then we say that the state $i$ is **recurrent**; if $m_i<1$, then we say that the state $i$ is **transient**. 
 
 Now the problem is to determine the value of $r$ for 2D and 3D cases.  Computing $r$ directly is difficult, we first define the expected number of returns as:
@@ -94,8 +96,8 @@ then we can rewrite the expectation value as:
 $$ \mathbb{E}(\\# \text{visits to }i\mid s_0=i)=\sum_{j=0}^\infty p_{ii}^{(j)}  $$
 
 So, this gives us a second way to determine whether the random variable is recurrent or transient:
-1. If the series $\sum_{j=0}^\infty p_{ii}^{(j)}$ diverges, then the state $i$ is recurrent
-2. If the series $\sum_{j=0}^\infty p_{ii}^{(j)}$ converges, then the state $i$ is transient
+1. If the series $\sum_{j=0}^{\infty} p_{ii}^{(j)}$ diverges, then the state $i$ is recurrent
+2. If the series $\sum_{j=0}^{\infty} p_{ii}^{(j)}$ converges, then the state $i$ is transient
 
 
 # Random Walk
