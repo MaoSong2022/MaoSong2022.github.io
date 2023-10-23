@@ -45,7 +45,7 @@ $$ N(s_t) = N((i,j,k))=\{(x,y,z)\in S\mid 0<|x-i|+|y-j|+|z-k|\leq 1\} $$
 
 For simplicity, we assume that state $s$ transits to its neighbor state $t\in N(s)$ with equal probability, we write this probability as $P(s_j=i\mid s_0=i)$:
 
-$$ P(s_{t}=j\mid s_{t-1}=i) = \frac{1}{\#N(i)} $$
+$$ P(s_{t}=j\mid s_{t-1}=i) = \frac{1}{\\#N(i)} $$
 
 in 2D case, this means
 
@@ -75,12 +75,13 @@ Now we need to define what does "go home" and "lost" means actually. In Markov c
 > if $m_i=1$, then we say that the state $i$ is **recurrent**; if $m_i<1$, then we say that the state $i$ is **transient**. 
 
 Now the problem is to determine the value of $r$ for 2D and 3D cases.  Computing $r$ directly is difficult, we first define the expected number of returns as:
-$$ \mathbb{E}(\# \text{visits to }i\mid s_0=i)=\sum_{j=1}^\infty P(s_j=i\mid s_0=i) $$
+
+$$ \mathbb{E}(\\# \text{visits to }i\mid s_0=i)=\sum_{j=1}^\infty P(s_j=i\mid s_0=i) $$
 
 We first use the following theorem to make the return probability computable:
 > Theorem: 
->  1. If the state $i$ is recurrent, then $\mathbb{E}(\# \text{visits to }i\mid s_0=i)=\infty$, and we return to state $i$ infinitely many times with probability $1$.
->  2. If the state $i$ is transient, then $\mathbb{E}(\# \text{visits to }i\mid s_0=i)<\infty$, and we return to state $i$ infinitely many times with probability $0$.
+>  1. If the state $i$ is recurrent, then $\mathbb{E}(\\# \text{visits to }i\mid s_0=i)=\infty$, and we return to state $i$ infinitely many times with probability $1$.
+>  2. If the state $i$ is transient, then $\mathbb{E}(\\# \text{visits to }i\mid s_0=i)<\infty$, and we return to state $i$ infinitely many times with probability $0$.
 
 This theorem is equivalent to say, if we can return to state $i$ with probability $i$, then we will return to state $i$ infinitely many times.
 
@@ -90,7 +91,7 @@ $$ p_{ii}^{(j)}=\begin{cases} 1,\text{if we didn't return in } j \text{-th step}
 
 then we can rewrite the expectation value as:
 
-$$ \mathbb{E}(\# \text{visits to }i\mid s_0=i)=\sum_{j=0}^\infty p_{ii}^{(j)}  $$
+$$ \mathbb{E}(\\# \text{visits to }i\mid s_0=i)=\sum_{j=0}^\infty p_{ii}^{(j)}  $$
 
 So, this gives us a second way to determine whether the random variable is recurrent or transient:
 1. If the series $\sum_{j=0}^\infty p_{ii}^{(j)}$ diverges, then the state $i$ is recurrent
