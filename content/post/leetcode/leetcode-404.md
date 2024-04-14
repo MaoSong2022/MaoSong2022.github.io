@@ -1,6 +1,7 @@
 ---
 title: 404. Sum of Left Leaves
 date: 2024-04-14 21:06:34+0800
+description: Sum of Left Leaves of a binary tree.
 tags: 
     - Tree
     - DFS
