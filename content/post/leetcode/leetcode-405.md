@@ -3,8 +3,8 @@ title: 405. Convert a Number to Hexadecimal
 date: 2024-04-14 21:06:34+0800
 description: Convert a decimal number to hexadecimal.
 tags: 
-    - Tree
-    - DFS
+    - Math
+    - Bit Manipulation
 categories:
     - LeetCode
 ---
