@@ -7,6 +7,7 @@ tags:
     - Bit Manipulation
 categories:
     - LeetCode
+math: true
 ---
 
 

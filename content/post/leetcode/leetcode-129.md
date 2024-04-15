@@ -7,6 +7,7 @@ tags:
     - DFS
 categories:
     - LeetCode
+math: true
 ---
 
 concatenate the digit of path from the root to the leaf, and sum over the concatenated numbers.
