@@ -20,7 +20,7 @@ We iterate all grid component, when we meet the land, we use DFS to find all con
 
 # Complexity
 - Time complexity: visit all positions once.
-$$O(n)$$
+$$O(mn)$$
 
 - Space complexity:
 $$O(1)$$
