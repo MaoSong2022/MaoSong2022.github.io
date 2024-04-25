@@ -7,6 +7,7 @@ tags:
 categories:
     - Large Language Model 
     - Natural Language Processing
+math: true
 ---
 
 BLEU (Bilingual Evaluation Understudy) is a widely used metric that evaluates the quality of the translated text with respect to the reference translations.
