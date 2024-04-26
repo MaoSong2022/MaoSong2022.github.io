@@ -12,13 +12,13 @@ categories:
 ---
 
 
-## Problems of LLM
+# Problems of LLM
 - Out of date knowledge: the model cannot gain knowledge after training
 - Humiliation: the model may generate nonsense output
 - Specific domain: the generalized model is difficult to adapt to specific domain
 - Enthetic problems: the model may encounter 
 
-## Fine-tuning
+# Fine-tuning
 Fine-tuning is used to improve performance of foundation model on specific tasks with the help with some supervised data
 
 Fine-tuning methods can be classified into:
@@ -53,13 +53,13 @@ problems of RAG
     - Depends on the external information
 
 
-## Advance RAG
+# Advance RAG
 
 
-## Module RAG
+# Module RAG
 
 
-## Other technologies
+# Other technologies
 1. Query transformations
 2. Sentence window retrieval
 3. Fusion retrieval/ hybrid search

@@ -9,7 +9,7 @@ categories:
 
 Best practice for machine learning.
 
-## Introduction
+# Introduction
 Google posts a guide on how to uses machine learning in practice.
 It represents a style for machine learning, similar to Google C++ Style Guide.
 
@@ -24,7 +24,7 @@ Most algorithms we are facing are engineering problems instead of machine learni
 
 Google separates rules with respect to different stages.
 
-## Before machine learning
+# Before machine learning
 These rules help us understand whether the time is right for building a machine learning system.
 
 > Rule #1: Do not be afraid of lunch a product without machine learning.
@@ -39,7 +39,7 @@ This rule tells us that tracking as much as possible before we formalize what ou
 
 Considering using machine learning algorithms only if the heuristic algorithm doesn't work well, since a complex heuristic is not maintainable. Meanwhile, machine-learned models are easier to update and maintain.
 
-## ML phase 1: Your First Pipeline
+# ML phase 1: Your First Pipeline
 When creating our first pipeline, we should focus on our system infrastructure
 
 > Rule #4: Keep the first model simple and get the infrastructure right.
@@ -75,7 +75,7 @@ Before using machine learning models, if we have tried some heuristic algorithms
 3. Mine the raw inputs of the heuristic. We can use the inputs of heuristic as features to learn the heuristic implicitly. 
 4. Modify the label. 
 
-### Monitoring
+## Monitoring
 In general, such as making alerts and having a dashboard page.
 
 > Rule #8: Know the freshness requirements of our system.
@@ -94,7 +94,7 @@ Since the continuos change of data, silent failures may occur, so keep tracking 
 
 Knowing who created the feature helps us gain information about data. A detailed documentation helps user understand how it works.
 
-### Your first objective
+## Your first objective
 
 > Rule #12: Don't overthink which objective you choose to optimize.
 
@@ -111,7 +111,7 @@ This rule tells us the strategy of choosing metric in the beginning. In principa
 Sometimes, spam filtering confuses quality ranking, when we do quality ranking, we should clean the data.
 
 
-## ML phase 2: Feature engineering
+# ML phase 2: Feature engineering
 After we have a working end to end system with unit and system tests instrumented, Phase II begins.
 In this phase, we should make use of features.
 
@@ -148,7 +148,7 @@ Combine features may causing overfitting problems
 
 If you find that you are not using a feature, and that combining it with other features is not working, then drop it out of your infrastructure. 
 
-### Human analysis of the system
+## Human analysis of the system
 This subsection teaches us how to look at an existing model and improve it.
 
 > Rule #23: You are not a typical end user.
@@ -171,7 +171,7 @@ If your issues are measurable, then you can start using them as features, object
 
 > Rule #28: Be aware that identical short-term behavior does not imply identical long-term behavior.
 
-### Training-Serving skew
+## Training-Serving skew
 Training-serving skew is a difference between performance during training and performance during serving. 
 This skew can be caused by:
 1. A discrepancy between how you handle data in the training and serving pipelines
@@ -203,7 +203,7 @@ We can divide causes of Training-Serving Skew into several parts:
 2. The difference between the performance on the holdout data and the "next­day" data. Again, this will always exist
 3. The difference between the performance on the "next-day" data and the live data. 
 
-## ML phase 3: Slowed growth, Optimization refinement, and complex models
+# ML phase 3: Slowed growth, Optimization refinement, and complex models
 
 > Rule #38: Don’t waste time on new features if unaligned objectives have become the issue.
 
@@ -225,7 +225,7 @@ As in any engineering project, you have to weigh the benefit of adding new featu
 
 > Rule #43: Your friends tend to be the same across different products. Your interests tend not to be.
 
-## Conclusion
+# Conclusion
 In early stage, make sure that the infrastructure is well constructed, the used model can be simple.
 
 In main stage, focusing on the utilitarian performance and the gap between training data and test data.
@@ -234,5 +234,5 @@ When utilizing features, use simple, observable features.
 
 When deploying models, watch out training-serving skew.
 
-## Reference
+# Reference
 - [Rules of Machine Learning](https://developers.google.com/machine-learning/guides/rules-of-ml)
