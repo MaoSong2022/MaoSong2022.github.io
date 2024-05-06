@@ -48,3 +48,7 @@ public:
     }
 };
 ```
+
+
+# References
+- [Leetcode](https://leetcode.com/problems/delete-node-in-a-linked-list/description/)
