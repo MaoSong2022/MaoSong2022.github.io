@@ -6,7 +6,8 @@ date: 2024-05-02 13:13:12+0800
 tags: 
     - transformer
 categories:
-    - Large Language Model 
+    - Large Language Model
+math: true
 ---
 
 This post is a notes on understanding how transformer works in an algorithm perspective.
@@ -160,7 +161,6 @@ The unembedding learns to convert a vector representation of a token and its con
 
 $$ \bm{p} = \mathrm{softmax}(W_u\bm{e})\in \Delta(V)\subseteq \mathbb{R}^d $$
 where $\Delta(V)$ is a simplex over the set $V$.
-
 
 # Reference
 
