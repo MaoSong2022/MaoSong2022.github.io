@@ -16,9 +16,9 @@ Given an integer array of size $n$ containing prime integers, it can form $n(n-1
 
 We can use a priority queue to store prime integers, then we maintain the priority queue.
 
-# Approach
+# Approach1: Brute force
 
-# Complexity
+## Complexity
 
 - Time complexity: iterate the array once and maintain the priority queue.
 $$O(n^2\log k)$$
@@ -26,7 +26,7 @@ $$O(n^2\log k)$$
 - Space complexity: the size of the priority queue
 $$O(k)$$
 
-# Code
+## Code
 
 ```c++
 class Solution {
@@ -50,6 +50,42 @@ public:
             }
         }
         return pq.top();
+    }
+};
+```
+
+# Approach2: Simplification
+
+Notice that Approach1 requires iterating over all fractions, can we reduce the time complexity?
+
+The solution is by considering the relative order, if we write a matrix whose element `a[i][j]=nums[i]/nums[j]` (`i<j`), then we know that `a[i][i+1]>...>a[n-1][n]` since the array `nums` are increasing. So, the smallest fraction are in `a[1][2], ..., a[n-1][n]`. If we take the smallest fraction, and add its successive elements (same column, last row), then we can find the second smallest fraction and so on. This solution requires iterating over $\max(n, k)$ fractions and $O(n)$ spaces.
+
+## Complexity
+
+- Time complexity: iterate $\max(n, k)$ elements  and maintain the priority queue.
+$$O(\max(n, k)\log n)$$
+
+- Space complexity: the size of the priority queue
+$$O(n)$$
+
+## Code
+
+```c++
+class Solution {
+public:
+    vector<int> kthSmallestPrimeFraction(vector<int>& A, int K) {
+        // (fraction, (i, j))
+        priority_queue<pair<double, pair<int, int>>> pq;
+        for (int i = 0; i < A.size(); ++i) {
+            pq.push({-1.0 * A[i] / A.back(), {i, A.size() - 1}});
+        }
+        while (--K) {
+            auto t = pq.top().second;
+            q.pop();
+            --t.second;
+            pq.push({-1.0 * A[t.first] / A[t.second], {t.first, t.second}});
+        }
+        return {A[pq.top().second.first], A[pq.top().second.second]};
     }
 };
 ```
