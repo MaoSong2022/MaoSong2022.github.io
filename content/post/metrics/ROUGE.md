@@ -171,9 +171,8 @@ One problem of ROUGE-S is that it doesn't given any credit to a candidate senten
 
 To fix this problem, we extend ROUGE-S with the addition of unigram as counting unit. The extended version is called ROUGE-SU. We can also obtain ROUGE-SU from ROUGE-S by adding a begin-of-sentence marker at the beginning of candidate and reference sentences.
 
-# Implementation
-
 # Reference
 
 - [ROUGE: A Package for Automatic Evaluation of Summaries](https://aclanthology.org/W04-1013.pdf)
 - [ROUGE Eval](https://github.com/Yale-LILY/SummerTime/blob/e49058d928b4bd5b1017b7d774bea984bbdf5006/summertime/model/third_party/HMNet/Evaluation/OldROUGEEval.py)
+- [google-research rouge](https://github.com/google-research/google-research/tree/master/rouge)
