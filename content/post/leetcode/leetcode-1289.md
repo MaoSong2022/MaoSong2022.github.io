@@ -13,25 +13,28 @@ math: true
 
 Given a matrix, find the minimum falling path sum from top to bottom, with no two adjacent rows sharing the same column.
 
-
 # Intuition
+
 Same as the previous version, we only change the update formula.
 
 # Approach
+
 We use `dp[i][j]` to represent the minimum falling path sum that ends with `grid[i][j]`. The update rules is then given by
 
 $$ dp[i][j] = \min_{k=1,\dots,n,k\neq j}(grid[i][j] + dp[i - 1][k]) $$
 
 # Complexity
+
 - Time complexity: We need to iterate all elements of the matrix once, and each iterate requires to iterate its last row once, which is $O(n)$. This can be reduced to $O(n^2\log n)$ by compute the smallest, second smallest elements of the last row.
 
-$$O(n^3)$$ 
+$$O(n^3)$$
 
 - Space complexity: the `dp` matrix is of size $n\times n$. This can be reduced to $O(n)$ by use a $n\times 2$ matrix since each row only relates to its last row.
 
 $$O(n^2)$$
 
 # Code
+
 ```c++
 class Solution {
 public:
@@ -57,4 +60,5 @@ public:
 ```
 
 # Reference
+
 - [Leetcode 1289](https://leetcode.com/problems/minimum-falling-path-sum-ii/description/)
