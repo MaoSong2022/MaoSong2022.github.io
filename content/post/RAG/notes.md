@@ -134,6 +134,29 @@ retrieval frequency:
 
 ## Limitations of RAG
 
+# Long Context Window
+
+Advantages of Long Context Window:
+
+1. Improve the understanding and relativity: long context window allows model to refer to more context information when generating answers.
+2. Handling complex tasks: long context window makes handling complex tasks such as writing a long article, coding
+3. Improve users' experience: the user expects the model remember the chat history and use them to interact with the user.
+
+Disadvantages of long context window:
+
+1. Only uses context once, Requires refeeding the data to use long context window.
+2. Cost expensive due to input price.
+3. Time expensive due to limit of tokens per second.
+4. Needle in HayStack experiment show that there are problems with long context window.
+
+Advantages of RAG:
+
+1. Privacy projection.
+2. Allow chunking the texts and retrieve the related information more accurately
+3. Adaptive to the size of data.
+4. Accepts multiple type of data source (multimodality).
+5. Only uses a small part of the total data, which is cheaper compared with long context window .
+
 problems of RAG
 
 1. The quality of retrieval
