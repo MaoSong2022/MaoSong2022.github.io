@@ -39,28 +39,52 @@ The architecture of VITA is shown as follows:
 - Visual Encoder: InternViT-300M-448px
 - Audio Encoder: Mel Filter Bank block
 
+To support audio interruption, the author uses two model at the same time, where the generation model is responsible for handling user queries and the other model monitors the environment. The other models starts to work is there is an audio interruption.
+
+## Data
+
+### multimodal instruction tuning
+
+Training data of multimodal instruction tuning is given as follows:
+
+![Training data of multimodal instruction tuning](VITA_SFT_data.png)
+
+Improvements are made:
+
+1. The questions are randomly (about half) replaced with their audio versions, using TTS technique such as GPT-SoVITS
+2. Different system prompts are set to avoid conflicts between different types of data
+
+To support human-AI interaction, the noisy audio data are also constructed. Noisy audio samples are generated from existed QA data. These negative sample texts aim to improve the ability of VITA to not respond to non-query-related content.
+
+To distinguish three types of queries, the author uses three state tokens:
+
+- Token `<1>` denotes that the question input is the query audio
+- Token `<2>` denotes that the question input is the noisy audio.
+- Token `<3>` signifies the question of pure text.
+
 ## Training pipeline
 
 Training pipeline of VITA consists of three stages:
 
 ![Training pipeline of VITA](VITA_training_pipeline.png)
 
-## Data
-
-### multimodal instruction tuning
-
-For better interaction experience,
-
 ### Non-awakening Interaction
 
-This requires the deployment satisfies the following requirement:
+There are following requirements and solutions:
 
-1. Real-time Tracking of Environmental Sounds.
-2. Filtering out noisy audio
+1. Real-time Tracking of Environmental Sounds. This paper uses SileroVAD to complete the Voice Activity Detection (VAD) task.
 
-This paper uses SileroVAD to complte the Voice Activity Detection (VAD) task
+2. Filtering out noisy audio. This is done by making use of token `<2>`.
 
 ### Audio Interrupt Interaction
+
+There are following requirements and solutions:
+
+1. Real-time Tracking and Filtering of External Queries. This is done by use another VITA model as stated in Model section.
+
+# Evaluation
+
+![Evaluation on image and video understanding](image.png)
 
 # Conclusion
 
