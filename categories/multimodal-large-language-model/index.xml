@@ -1,0 +1,272 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Multimodal Large Language Model on Mao Song Homepage</title><link>https://demo.stack.jimmycai.com/categories/multimodal-large-language-model/</link><description>Recent content in Multimodal Large Language Model on Mao Song Homepage</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><lastBuildDate>Sat, 09 Nov 2024 09:53:43 +0800</lastBuildDate><atom:link href="https://demo.stack.jimmycai.com/categories/multimodal-large-language-model/index.xml" rel="self" type="application/rss+xml"/><item><title>An overview of adaption layer in multimodal large language models.</title><link>https://demo.stack.jimmycai.com/p/an-overview-of-adaption-layer-in-multimodal-large-language-models./</link><pubDate>Sat, 09 Nov 2024 09:53:43 +0800</pubDate><guid>https://demo.stack.jimmycai.com/p/an-overview-of-adaption-layer-in-multimodal-large-language-models./</guid><description>&lt;h1 id="introduction">Introduction
+&lt;/h1>&lt;p>A multimodal large language model (MLLM) usually consists of three parts: an encoder $E$ that ingests the information from different modality, a large language model (LLM) that is corresponds to complete various of downstream tasks given multimodal input such as image and text, and an adaption layer $C$ that aligns features of different modality to word embedding space of the LLM.
+Below is an example MLLM adopting aforementioned architecture: LLaVA [1]&lt;/p>
+&lt;p>&lt;img src="https://demo.stack.jimmycai.com/llava.png"
+loading="lazy"
+alt="Architecture of LlaVA"
+>&lt;/p>
+&lt;p>Efforts have been made to improve the performance of MLLMs. In this post, we aim to review the design of adaption layer and its potential effect on the downstream tasks.&lt;/p>
+&lt;h1 id="method">Method
+&lt;/h1>&lt;p>Suppose the hidden size of the LLM is $d$, the feature produced by encoder $E$ is $V\in\mathbb{R}^{P\times d_v}$, where $P$ is the number of features (number of visual patches if $E$ is an visual encoder) and $d_v$ is the channel dimension.
+The adaption layer $C$ then aligns the feature $V$ with the word embedding space with $x=C(V)\in\mathbb{R}^{Q\times d}$, where $Q$ is the number of tokens. As we can see, $C$ is actually a mapping from $\mathbb{R}^{P\times d_v}$ to $\mathbb{R}^{Q\times d}$.&lt;/p>
+&lt;p>Based on relationship between $d_v$ and $d$, we can divide projection layers into two types:&lt;/p>
+&lt;ol>
+&lt;li>Feature-preserving adaption layer, where $P=Q$&lt;/li>
+&lt;li>Feature-compressing adaption layer, where $P&amp;gt;Q$.&lt;/li>
+&lt;/ol>
+&lt;h2 id="feature-preserving-adaption-layer">Feature-preserving adaption layer
+&lt;/h2>&lt;p>Feature-preserving adaption layer does not change the number of features extracted by $E$. It is used by LLaVA [1] and LLaVA 1.5 [2].
+In LLaVA, the adaption layer is a linear layer [2], which is given by
+$$ x = VW^T, \text{ where } W\in\mathbb{R}^{d\times d_v}$$
+the code reads as:&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># one-layer MLP&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">adaption_layer&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Linear&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">hidden_size&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">num_features&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>In LLaVA 1.5 , the adaption layer is a two-layer MLP, which is adopted be various of following works. It is given by
+$$ x = \phi(VW_1^T)W_2^T$$
+where $W_1\in\mathbb{R}^{d\times d_v}$, $W_2\in\mathbb{R}^{d\times d}$, $\phi$ is a activation function, specified as &lt;code>nn.GELU()&lt;/code>. The code reads as:&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;span class="lnt">5
+&lt;/span>&lt;span class="lnt">6
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># two-layer MLP&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">adaption_layer&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Sequential&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Linear&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">num_features&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">hidden_size&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">GELU&lt;/span>&lt;span class="p">(),&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Linear&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">hidden_size&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">hidden_size&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h2 id="feature-compressing-adaption-layer">Feature-compressing adaption layer
+&lt;/h2>&lt;p>The feature compression adaption layers can be categorized into three types:&lt;/p>
+&lt;ol>
+&lt;li>average pooling&lt;/li>
+&lt;li>attention pooling&lt;/li>
+&lt;li>convolution mapping&lt;/li>
+&lt;/ol>
+&lt;p>They usually comprise two steps:&lt;/p>
+&lt;ol>
+&lt;li>reduce the number of features from $P$ to $Q$ with a pooling operation:
+$$ f&amp;rsquo; = \mathcal{P}(f)\in\mathbb{R}^{Q\times d_v} $$&lt;/li>
+&lt;li>project compressed features $f&amp;rsquo;$ to word embedding space with a transformation $\mathcal{T}$:
+$$ x = \mathcal{T}(f&amp;rsquo;)\in\mathbb{R}^{Q\times d} $$&lt;/li>
+&lt;/ol>
+&lt;p>&lt;strong>Average pooling&lt;/strong> This type of adaption layers use an average pooling as $\mathcal{P}$ to reduce the number of tokens, followed by a two-layer MLP as $\mathcal{T}$, which is the same as LLaVA 1.5:
+$$ f&amp;rsquo;&lt;em>i = \frac{1}{n}\sum&lt;/em>{j=1}^{n}f_{(i-1)n+j}, i=1,\dots,Q $$&lt;/p>
+&lt;p>&lt;strong>Q-former&lt;/strong> This type of adaption layers use an cross-attention layer as $\mathcal{P}$, the transformation $\mathcal{T}$ is also the same as LLaVA 1.5.
+$$ K = W_kf\in\mathbb{R}^{d_c}, V=W_vf\in\mathbb{R}^{d_c}, f&amp;rsquo;=\mathrm{softmax}\left(\frac{QK^T}{\sqrt{d_c}}\right)V\in\mathbb{R}^{Q\times d_v} $$
+where $W_k, W_v\in\mathbb{R}^{d_c\times d_v}$ and $Q\in\mathbb{R}^{Q\times d_c}$ is a learnable query.&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;span class="lnt">21
+&lt;/span>&lt;span class="lnt">22
+&lt;/span>&lt;span class="lnt">23
+&lt;/span>&lt;span class="lnt">24
+&lt;/span>&lt;span class="lnt">25
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="k">class&lt;/span> &lt;span class="nc">Qformer&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Module&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="fm">__init__&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">num_queries&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">hidden_size&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">num_features&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">num_heads&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">num_queries&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">num_queries&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">hidden_size&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">hidden_size&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">num_features&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">num_features&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">query_tokens&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Parameter&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">zeros&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">num_queries&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">num_features&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">query_tokens&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">data&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">normal_&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">mean&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mf">0.0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">std&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mf">0.02&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">attention&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">MultiheadAttention&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">hidden_size&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">num_heads&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">layer_norm_kv&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">LayerNorm&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">hidden_size&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">layer_norm_q&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">LayerNorm&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">hidden_size&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="nf">forward&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">attention_mask&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="kc">None&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">x&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">layer_norm_kv&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">x&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">permute&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">N&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">shape&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">q&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">layer_norm_q&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">query&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">q&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">q&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">unsqueeze&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">repeat&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">N&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">out&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">attention&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">q&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">k&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">v&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">attention_mask&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">attention_mask&lt;/span>&lt;span class="p">)[&lt;/span>&lt;span class="mi">0&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">out&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">out&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">permute&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>&lt;strong>C-Abstractor&lt;/strong> This type of adaption layers use a combination of convolution layer and averaging pooling as $\mathcal{P}$. $\mathcal{T}$ is defined as an additional convolution layers.
+$$ f_i&amp;rsquo; = \frac{1}{n}\sum_{j=1}^n w_jf_{(i-1)n+j},\quad x_i = \sum_{k=-K}^Kw_k&amp;rsquo;f_{i+k}&amp;rsquo; $$
+where $W=[w_1,\dots,w_n]^T\in\mathbb{R}^n$ and $W&amp;rsquo;=[w_1,\dots,w_n]^T\in\mathbb{R}^{2K}$ are the weights of the convolution layers.&lt;/p>
+&lt;p>&lt;strong>D-Abstractor&lt;/strong> aa&lt;/p>
+&lt;p>&lt;strong>MEQ-Former&lt;/strong>&lt;/p>
+&lt;p>&lt;strong>LDPv2&lt;/strong>&lt;/p>
+&lt;p>&lt;strong>VSS&lt;/strong>&lt;/p>
+&lt;h1 id="usages">Usages
+&lt;/h1>&lt;h1 id="comparisons">Comparisons
+&lt;/h1>&lt;h1 id="references">References
+&lt;/h1>&lt;ol>
+&lt;li>&lt;a class="link" href="https://papers.nips.cc/paper_files/paper/2023/hash/6dcf277ea32ce3288914faf369fe6de0-Abstract-Conference.html" target="_blank" rel="noopener"
+>LLaVA&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://openaccess.thecvf.com/content/CVPR2024/papers/Liu_Improved_Baselines_with_Visual_Instruction_Tuning_CVPR_2024_paper.pdf" target="_blank" rel="noopener"
+>LLaVA 1.5&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://github.com/haotian-liu/LLaVA/blob/main/llava/model/multimodal_projector/builder.py" target="_blank" rel="noopener"
+>LLaVA adaption layer code&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://arxiv.org/pdf/2405.10739v1" target="_blank" rel="noopener"
+>survey&lt;/a>&lt;/li>
+&lt;/ol></description></item><item><title>VITA-Towards Open-Source Interactive Omni Multimodal LLM</title><link>https://demo.stack.jimmycai.com/p/vita-towards-open-source-interactive-omni-multimodal-llm/</link><pubDate>Tue, 13 Aug 2024 14:36:45 +0800</pubDate><guid>https://demo.stack.jimmycai.com/p/vita-towards-open-source-interactive-omni-multimodal-llm/</guid><description>&lt;h1 id="tldr">TLDR
+&lt;/h1>&lt;p>This paper proposes a Multimodal Large Language Model VITA (Video, Image, Text, Audio).
+VITA supports non-awakening interaction and audio interruption for better interactive experience.
+VITA aims to be an open-sourced version of GPT-4o.&lt;/p>
+&lt;h1 id="introduction">Introduction
+&lt;/h1>&lt;p>Features of GPT-4o:&lt;/p>
+&lt;ol>
+&lt;li>a unified framework that processes text, vision, and audio signals in an end-to-end manner,&lt;/li>
+&lt;li>the capability to enable natural multimodal human-computer interaction.&lt;/li>
+&lt;/ol>
+&lt;p>Similar to Mini-GPT4, this paper tries to proposed an open-sourced version of GPT-4o.&lt;/p>
+&lt;h1 id="method">Method
+&lt;/h1>&lt;h2 id="model">Model
+&lt;/h2>&lt;p>The architecture of VITA is shown as follows:
+&lt;img src="https://demo.stack.jimmycai.com/VITA_architecture.png.png"
+loading="lazy"
+alt="Architecture of VITA"
+>&lt;/p>
+&lt;ul>
+&lt;li>LLM: Mixtral $8\times 7$ B&lt;/li>
+&lt;li>Visual Encoder: InternViT-300M-448px&lt;/li>
+&lt;li>Audio Encoder: Mel Filter Bank block&lt;/li>
+&lt;/ul>
+&lt;p>To support audio interruption, the author uses two model at the same time, where the generation model is responsible for handling user queries and the other model monitors the environment. The other models starts to work is there is an audio interruption.&lt;/p>
+&lt;h2 id="data">Data
+&lt;/h2>&lt;h3 id="multimodal-instruction-tuning">multimodal instruction tuning
+&lt;/h3>&lt;p>Training data of multimodal instruction tuning is given as follows:&lt;/p>
+&lt;p>&lt;img src="https://demo.stack.jimmycai.com/VITA_SFT_data.png"
+loading="lazy"
+alt="Training data of multimodal instruction tuning"
+>&lt;/p>
+&lt;p>Improvements are made:&lt;/p>
+&lt;ol>
+&lt;li>The questions are randomly (about half) replaced with their audio versions, using TTS technique such as GPT-SoVITS&lt;/li>
+&lt;li>Different system prompts are set to avoid conflicts between different types of data&lt;/li>
+&lt;/ol>
+&lt;p>To support human-AI interaction, the noisy audio data are also constructed. Noisy audio samples are generated from existed QA data. These negative sample texts aim to improve the ability of VITA to not respond to non-query-related content.&lt;/p>
+&lt;p>To distinguish three types of queries, the author uses three state tokens:&lt;/p>
+&lt;ul>
+&lt;li>Token &lt;code>&amp;lt;1&amp;gt;&lt;/code> denotes that the question input is the query audio&lt;/li>
+&lt;li>Token &lt;code>&amp;lt;2&amp;gt;&lt;/code> denotes that the question input is the noisy audio.&lt;/li>
+&lt;li>Token &lt;code>&amp;lt;3&amp;gt;&lt;/code> signifies the question of pure text.&lt;/li>
+&lt;/ul>
+&lt;h2 id="training-pipeline">Training pipeline
+&lt;/h2>&lt;p>Training pipeline of VITA consists of three stages:&lt;/p>
+&lt;p>&lt;img src="https://demo.stack.jimmycai.com/VITA_training_pipeline.png"
+loading="lazy"
+alt="Training pipeline of VITA"
+>&lt;/p>
+&lt;h3 id="non-awakening-interaction">Non-awakening Interaction
+&lt;/h3>&lt;p>There are following requirements and solutions:&lt;/p>
+&lt;ol>
+&lt;li>
+&lt;p>Real-time Tracking of Environmental Sounds. This paper uses SileroVAD to complete the Voice Activity Detection (VAD) task.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Filtering out noisy audio. This is done by making use of token &lt;code>&amp;lt;2&amp;gt;&lt;/code>.&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;h3 id="audio-interrupt-interaction">Audio Interrupt Interaction
+&lt;/h3>&lt;p>There are following requirements and solutions:&lt;/p>
+&lt;ol>
+&lt;li>Real-time Tracking and Filtering of External Queries. This is done by use another VITA model as stated in Model section.&lt;/li>
+&lt;/ol>
+&lt;h1 id="evaluation">Evaluation
+&lt;/h1>&lt;p>&lt;img src="https://demo.stack.jimmycai.com/image.png"
+loading="lazy"
+alt="Evaluation on image and video understanding"
+>&lt;/p>
+&lt;h1 id="conclusion">Conclusion
+&lt;/h1>&lt;p>The paper points out three limitations of VITA:&lt;/p>
+&lt;ol>
+&lt;li>Enhancement of Foundational Capabilities.&lt;/li>
+&lt;li>Refinement of Noisy Audio Construction.&lt;/li>
+&lt;li>Building end-to-end TTS in conjunction with LLM.&lt;/li>
+&lt;/ol>
+&lt;h1 id="reference">Reference
+&lt;/h1>&lt;ul>
+&lt;li>&lt;a class="link" href="http://arxiv.org/abs/2408.05211" target="_blank" rel="noopener"
+>Arxiv paper&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://vita-home.github.io" target="_blank" rel="noopener"
+>Github&lt;/a>&lt;/li>
+&lt;/ul></description></item><item><title>MathVerse Does Your Multi-modal LLM Truly See the Diagrams in Visual Math Problems?</title><link>https://demo.stack.jimmycai.com/p/mathverse-does-your-multi-modal-llm-truly-see-the-diagrams-in-visual-math-problems/</link><pubDate>Mon, 22 Apr 2024 18:04:14 +0800</pubDate><guid>https://demo.stack.jimmycai.com/p/mathverse-does-your-multi-modal-llm-truly-see-the-diagrams-in-visual-math-problems/</guid><description>&lt;h1 id="tldr">TLDR
+&lt;/h1>&lt;p>This paper proposes an multimodal large language model (MLLM) benchmark MathVerse for evaluating the mathematical problem-solving capability of MLLMs. The author also proposes Chain of Thought (CoT) for fine-grained evaluation. Results show that MLLMs are not able to use the visual information, and even performs better without visual input.&lt;/p>
+&lt;h1 id="introduction">Introduction
+&lt;/h1>&lt;p>Multiple benchmarks have been proposed to evaluate the mathematical reasoning capability of MLLMs, such as GeoQA, UniGeo, MathVista and MMMU.
+However, the problem of existing benchmarks are:&lt;/p>
+&lt;ol>
+&lt;li>The MLLMs may depend on text input instead of visual inputs to solve the problems.&lt;/li>
+&lt;li>The evaluation process is a black-box, we do not know at which step the MLLM makes a mistake.&lt;/li>
+&lt;/ol>
+&lt;p>The author proposes MathVerse to solve the aforementioned problems.&lt;/p>
+&lt;h1 id="method">Method
+&lt;/h1>&lt;h2 id="data-collection">Data collection
+&lt;/h2>&lt;p>MathVerse contains $2612$ visual math problems and can be divided into plan geometry ($1746$), solid geometry ($332$) and functions ($534$).&lt;/p>
+&lt;h2 id="text-input-processing">Text input processing
+&lt;/h2>&lt;p>To check if MLLMs use visual input to solve the mathematical problems, the author decompose the text input into three categories:&lt;/p>
+&lt;ol>
+&lt;li>Descriptive information: Directly observable and clearly portrayed content in the diagram.&lt;/li>
+&lt;li>Implicit Property: Higher level of visual perception but less mathematical knowledge.&lt;/li>
+&lt;li>Essential Condition: specific numerical or algebraic measurements.&lt;/li>
+&lt;/ol>
+&lt;p>The dataset is then augmented by creating six versions of each problem:&lt;/p>
+&lt;ul>
+&lt;li>Text-dominant version: all text input and visual inputs are kept.&lt;/li>
+&lt;li>Text-lite version: description information is discarded.&lt;/li>
+&lt;li>Text-only version: visual input is discarded&lt;/li>
+&lt;li>Vision-intensive version: description information and implicit property are discarded.&lt;/li>
+&lt;li>Vision-dominant version: description information and essential condition are discarded.&lt;/li>
+&lt;li>Vision-only version: text input is discarded&lt;/li>
+&lt;/ul>
+&lt;h2 id="cot-evaluation">CoT evaluation
+&lt;/h2>&lt;p>To visualize the reasoning process of MLLM when solving mathematical problems, the author employ GPT-4 to generate key steps of solving the problem. Then scores are given to each reasoning step, in this way, the reasoning process can be tested.&lt;/p>
+&lt;h1 id="result">Result
+&lt;/h1>&lt;p>Experiment results show that:&lt;/p>
+&lt;ol>
+&lt;li>MLLMs rely more on description information than seeing diagrams&lt;/li>
+&lt;li>LLMs Achieve Competitive Results to MLLMs.&lt;/li>
+&lt;/ol>
+&lt;h1 id="reference">Reference
+&lt;/h1>&lt;ul>
+&lt;li>&lt;a class="link" href="https://arxiv.org/pdf/2403.14624.pdf" target="_blank" rel="noopener"
+>paper&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://mathverse-cuhk.github.io/" target="_blank" rel="noopener"
+>Github&lt;/a>&lt;/li>
+&lt;/ul></description></item></channel></rss>
