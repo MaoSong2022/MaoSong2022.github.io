@@ -38,7 +38,7 @@ the code reads as:
 
 ```python
 # one-layer MLP
-adaption_layer = nn.Linear(config.mm_hidden_size, config.hidden_size)
+adaption_layer = nn.Linear(config.hidden_size, config.num_features)
 ```
 
 In LLaVA 1.5 , the adaption layer is a two-layer MLP, which is adopted be various of following works. It is given by
@@ -48,7 +48,7 @@ where $W_1\in\mathbb{R}^{d\times d_v}$, $W_2\in\mathbb{R}^{d\times d}$, $\phi$ i
 ```python
 # two-layer MLP
 adaption_layer = nn.Sequential(
-    nn.Linear(config.mm_hidden_size, config.hidden_size),
+    nn.Linear(config.num_features, config.hidden_size),
     nn.GELU(),
     nn.Linear(config.hidden_size, config.hidden_size)
 )
@@ -78,27 +78,43 @@ where $W_k, W_v\in\mathbb{R}^{d_c\times d_v}$ and $Q\in\mathbb{R}^{Q\times d_c}$
 
 ```python
 class Qformer(nn.Module):
-    def __init__(self, num_queries, hidden_size):
+    def __init__(self, num_queries, hidden_size, num_features, num_heads):
         self.num_queries = num_queries
         self.hidden_size = hidden_size
+        self.num_features = num_features
 
-        # transformation layer
-        self.projection = nn.Linear(hidden_size, hidden_size)
-        query_tokens = nn.Parameter(
-            torch.zeros(1, self.num_queries, self.hidden_size)
+        self.query_tokens = nn.Parameter(
+            torch.zeros(self.num_queries, self.num_features)
         )
-        query_tokens.data.normal_(mean=0.0, std=self.initializer_range)
-        self.key_layer = nn.Linear(num_queries)
+        self.query_tokens.data.normal_(mean=0.0, std=0.02)
 
-    def forward(self, image_embeds, attention_mask=None):
-        key, value = self.key(image_embeds), self.value(image_embeds)
-        score = 
+        self.attention = nn.MultiheadAttention(hidden_size, num_heads)
+        self.layer_norm_kv = nn.LayerNorm(hidden_size)
+        self.layer_norm_q = nn.LayerNorm(hidden_size)
 
+    def forward(self, x, attention_mask=None):
+        x = self.layer_norm_kv(x)
+        x = x.permute(1, 0, 2)
+
+        N = x.shape[1]
+        q = self.layer_norm_q(self.query)
+        q = q.unsqueeze(1).repeat(1, N, 1)
+        out = self.attention(q, k, v, attention_mask=attention_mask)[0]
+
+        out = out.permute(1, 0, 2)
 ```
 
 **C-Abstractor** This type of adaption layers use a combination of convolution layer and averaging pooling as $\mathcal{P}$. $\mathcal{T}$ is defined as an additional convolution layers.
 $$ f_i' = \frac{1}{n}\sum_{j=1}^n w_jf_{(i-1)n+j},\quad x_i = \sum_{k=-K}^Kw_k'f_{i+k}' $$
 where $W=[w_1,\dots,w_n]^T\in\mathbb{R}^n$ and $W'=[w_1,\dots,w_n]^T\in\mathbb{R}^{2K}$ are the weights of the convolution layers.
+
+**D-Abstractor** aa
+
+**MEQ-Former**
+
+**LDPv2**
+
+**VSS**
 
 # Usages
 
@@ -109,3 +125,4 @@ where $W=[w_1,\dots,w_n]^T\in\mathbb{R}^n$ and $W'=[w_1,\dots,w_n]^T\in\mathbb{R
 1. [LLaVA](https://papers.nips.cc/paper_files/paper/2023/hash/6dcf277ea32ce3288914faf369fe6de0-Abstract-Conference.html)
 2. [LLaVA 1.5](https://openaccess.thecvf.com/content/CVPR2024/papers/Liu_Improved_Baselines_with_Visual_Instruction_Tuning_CVPR_2024_paper.pdf)
 3. [LLaVA adaption layer code](https://github.com/haotian-liu/LLaVA/blob/main/llava/model/multimodal_projector/builder.py)
+4. [survey](https://arxiv.org/pdf/2405.10739v1)
