@@ -163,14 +163,14 @@ $$
 
 # 数据
 
-## RL prompt set
+## 数据处理
 
-1. Test Case Generation for Coding. 作者使用[CYaRon](https://github.com/luogu-dev/cyaron)来生成coding任务的测试用例。通过与Kimi k1.5结合，作者构建了一个包含323个测试用例的训练集。
+1. RL prompt set. 作者认为prompt的quality和diversity对RL训练至关重要。因此作者基于diverse coverage, balanced difficuty以及accurate evaluation来构建了一个RL prompt set。对于多样性，作者确保数据集覆盖多个domain。对于平衡难度，作者通过多次采样，根据通过率来给每个样本的难易程度打分。对于准确性，作者筛掉了多选题，正确题和证明题，确保模型能够生成正确的推理步骤。最后，作者还让模型进行猜测，如果模型猜测的正确率比较高，那么就认为该样本是easy-to-hack的，就会筛掉。
+2. Test Case Generation for Coding. 作者使用[CYaRon](https://github.com/luogu-dev/cyaron)来生成coding任务的测试用例。通过与Kimi k1.5结合，作者构建了一个包含323个测试用例的训练集。
+3. Reward modeling for Math. 作者使用了两种方法来提高reward model的准确性。第一个是classic RM，作者基于InstructGPT，构造了大约800K的数据训练了一个value-head based RM。模型会基于问题，参考答案和模型生成的答案来判断模型生成的答案是否正确。第二个是Chain of Thought RM，作者基于收集的800k CoT数据对kimi进行了finetune，然后对模型生成的推理步骤进行打分。最终发现，Chain of Thought RM的效果更好。因此，作者在RL训练中使用了Chain of Thought RM。
+4. Vision RL Data。 作者从三个方面构建了vision RL数据集：real-world data, synthetic visual reasoning data以及text-rendered data.
 
-2. Reward modeling for Math. 作者使用了两种方法来提高reward model的准确性。第一个是classic RM，作者基于InstructGPT，构造了大约800K的数据训练了一个value-head based RM。模型会基于问题，参考答案和模型生成的答案来判断模型生成的答案是否正确。第二个是Chain of Thought RM，作者基于收集的800k CoT数据对kimi进行了finetune，然后对模型生成的推理步骤进行打分。最终发现，Chain of Thought RM的效果更好。因此，作者在RL训练中使用了Chain of Thought RM。
-3. Vision RL Data。 作者从三个方面构建了vision RL数据集：real-world data, synthetic visual reasoning data以及text-rendered data.
-
-### 数据集
+## 数据集
 
 1. pretraining：其中，纯文本数据包括Engligh, Chinese, Code, math reasoning以及Knowledge这5个领域。多模态数据包括captioning, image-text interleaving, OCR, Knowledge以及QA数据集等。附录B介绍了数据集的来源和处理过程。
 2. SFT： vanilla SFT数据集包含1M的纯文本数据，其中包含500K的general QA数据，200K的coding数据，200K的数学和科学数据，5K的创作写作数据以及20K的长上下文任务（总结，QA，翻译和写作等）。作者还构建了1M的图文数据，包括chart理解，OCR，grounding，visual coding, visual reasoning以及visual aided math/science problems等
