@@ -46,72 +46,74 @@ Kimi k1.5是基于k1.5 base model， 通过进一步训练得到的推理模型�
 
 ## 问题定义
 
-给定一个训练数据集 $\mathcal{D} = \{(x_i, y_i^*)\}_{i=1}^n$， 其中$x_i$是问题，$y_i^*$是ground truth。我们希望找到一个模型$\pi_{\theta}$，来解决这个问题。通常问题比较难，因此我们使用chain of thought（CoT）的方法来解决这个问题。具体做法就是让模型输出中间步骤 $z=(z_1, z_2, ..., z_m)$， 来连接问题 $x_i$ 和答案 $y$。其中，$z_j$是模型在第$j$步的推理结果，即 $z_t\sim\pi_{\theta}(x_i, z_{<t})$, $y\sim \pi_{\theta}(x_i, z)$。
+给定一个训练数据集 $\mathcal{D} = \{(x_i, y_i^\star)\}_ {i=1}^n$， 其中 $x_ i$ 是问题， $y_{i}^\star$ 是ground truth。我们希望找到一个模型 $\pi_{\theta}$ ，来解决这个问题。通常问题比较难，因此我们使用chain of thought（CoT）的方法来解决这个问题。具体做法就是让模型输出中间步骤 $z=(z_1, z_2, ..., z_m)$， 来连接问题 $x_i$ 和答案 $y$。其中， $z_j$ 是模型在第 $j$ 步的推理结果，即 $z_t\sim\pi_{\theta}(x_i, z_{<t})$, $y\sim \pi_{\theta}(x_i, z)$。
 
-通常，我们还会使用一个reward model $r_{\phi}$，来评估模型输出的答案的质量。一个常用的reward model是基于答案的正确性来评估的，即 $r_{\phi}(x_i, y, y^*) = \mathbb{I}[y=y_i^*]$。这样，我们要求解的问题就变成了最大化中间步骤和最终答案的reward，即
+通常，我们还会使用一个reward model $r_{\phi}$，来评估模型输出的答案的质量。一个常用的reward model是基于答案的正确性来评估的，即 $r_{\phi}(x_i, y, y^\star) = \mathbb{I}[y=y_i^\star]$ 。这样，我们要求解的问题就变成了最大化中间步骤和最终答案的reward，即
 
 $$
-\max_{\theta} \mathbb{E}_{(x, y^*)\sim\mathcal{D},(y,z,)\sim\pi_{\theta}}  r_{\phi}(x, y, y^*)
+\max_{\theta} \mathbb{E}_ {(x, y^\star)\sim\mathcal{D},(y,z,)\sim\pi_{\theta}}  r_{\phi}(x, y, y^\star)
 $$
 
 ## Policy Optimization
 
-作者使用了online policy mirror descent来解决上面提到的优化问题。在每个iteration中，存在一个reference model $\pi_{\theta_r}$， 以及一个当前要更新的模型 $\pi_{\theta}$。online policy mirror descent要解决的优化问题为：
+作者使用了online policy mirror descent来解决上面提到的优化问题。在每个iteration中，存在一个reference model $\pi_{\theta_r}$ ， 以及一个当前要更新的模型 $\pi_{\theta}$ 。online policy mirror descent要解决的优化问题为：
 
 $$
-\min_{\theta} \mathbb{E}_{(x, y^*)\sim\mathcal{D}}  \left[\mathbb{E}_{(y,z,)\sim\pi_{\theta}}\left[r_{\phi}(x, y, y^*) - \beta \mathcal{D}_{KL}(\pi_{\theta}(y,z\mid x)\Vert \pi_{\theta_r}(y,z\mid x))\right]\right]
+\min_{\theta} \mathbb{E}_ {(x, y^\star)\sim\mathcal{D}}  \left[\mathbb{E}_ {(y,z,)\sim\pi_{\theta}}\left[r_{\phi}(x, y, y^\star) - \beta \mathcal{D}_ {KL}(\pi_{\theta}(y,z\mid x)\Vert \pi_{\theta_r}(y,z\mid x))\right]\right]
 $$
 
-其中，$\beta$是超参数，用于平衡reward和KL散度 $\mathcal{D}_{KL}(\cdot)$.
+其中， $\beta$ 是超参数，用于平衡reward和KL散度 $\mathcal{D}_{KL}(\cdot)$.
 
 上述问题有一个闭式解，即：
 
 $$
-\pi^*(y,z\mid x)=\pi_{\theta_r}(y,z\mid x)\exp\left(\frac{r_{\phi}(x, y, y^*)}{\beta}\right)/Z(x;\beta)
+\pi^\star(y,z\mid x)=\pi_{\theta_r}(y,z\mid x)\exp\left(\frac{r_{\phi}(x, y, y^\star)}{\beta}\right)/Z(x;\beta)
 $$
 
 其中，
 
 $$
-Z(x;\beta):=\sum_{y,z}\pi_{\theta_r}(y,z\mid x)\exp\left(\frac{r_{\phi}(x, y, y^*)}{\beta}\right)
+Z(x;\beta):=\sum_{y,z}\pi_{\theta_r}(y,z\mid x)\exp\left(\frac{r_{\phi}(x, y, y^\star)}{\beta}\right)
 $$
 
 是归一化因子。在闭式解的表达式中，我们对两边取对数，得到：
 
 $$
-r_{\phi}(x, y, y^*) - \beta \log Z - \beta \log\frac{\pi^*(y,z\mid x)}{\pi_{\theta_r}(y,z\mid x)}=0
+r_{\phi}(x, y, y^\star) - \beta \log Z - \beta \log\frac{\pi^\star(y,z\mid x)}{\pi_{\theta_r}(y,z\mid x)}=0
 $$
 
-这是最优策略满足的等式。作者这里使用了L2 loss来优化当前策略$\pi_{\theta}$，即：
+这是最优策略满足的等式。作者这里使用了L2 loss来优化当前策略 $\pi_{\theta}$ ，即：
 
 $$
-\min_{\theta} \mathbb{E}_{(x, y^*)\sim\mathcal{D}}  \left[\mathbb{E}_{(y,z,)\sim\pi_{\theta_r}}\left[r_{\phi}(x, y, y^*) - \beta \log Z - \beta \log\frac{\pi_{\theta}(y,z\mid x)}{\pi_{\theta_r}(y,z\mid x)}\right]^2\right]
-$$
-这里需要注意的一点是response $(y,z)$是基于reference model $\pi_{\theta_r}$生成的，而不再是基于当前策略$\pi_{\theta}$生成的。这是Kimi-1.5的RL训练和传统RL训练的一个不同点。这也是为什么k1.5说他是off-policy的原因。
-
-接下来，我们就可以对上面的目标函数求梯度，我们将里层的函数展开为$(a-b-c)^2=(a-b)^2-2(a-b)c+c^2$的形式，然后对$\theta$求梯度，得到：
-
-$$
- \mathbb{E}_{(x, y^*)\sim\mathcal{D}}  \left[\mathbb{E}_{(y,z,)\sim\pi_{\theta_r}}\left[\nabla_{\theta}\log \pi_{\theta}(y,z\mid x)(r_{\phi}(x, y, y^*) - \beta \log Z) - \frac{\beta}{2} \nabla_{\theta}\left(\log\frac{\pi_{\theta}(y,z\mid x)}{\pi_{\theta_r}(y,z\mid x)}\right)^2\right]\right]
+\min_{\theta} \mathbb{E}_ {(x, y^\star)\sim\mathcal{D}}  \left[\mathbb{E}_ {(y,z,)\sim\pi_ {\theta_r}}\left[r_{\phi}(x, y, y^\star) - \beta \log Z - \beta \log\frac{\pi_{\theta}(y,z\mid x)}{\pi_{\theta_r}(y,z\mid x)}\right]^2\right]
 $$
 
-如果我们对每个问题$x$,采样$k$个response $(y,z)$，那么我们可以近似上式中内部的期望，得到：
+这里需要注意的一点是response $(y,z)$ 是基于reference model $\pi_{\theta_r}$ 生成的，而不再是基于当前策略 $\pi_{\theta}$ 生成的。这是Kimi-1.5的RL训练和传统RL训练的一个不同点。这也是为什么k1.5说他是off-policy的原因。
+
+接下来，我们就可以对上面的目标函数求梯度，我们将里层的函数展开为 $(a-b-c)^2=(a-b)^2-2(a-b)c+c^2$ 的形式，然后对 $\theta$ 求梯度，得到：
 
 $$
-\frac{1}{k}\sum_{i=1}^k\left[\nabla_{\theta}\log \pi_{\theta}(y_i,z_i\mid x)(r_{\phi}(x, y_i, y^*) - \bar{r}) - \frac{\beta}{2} \nabla_{\theta}\left(\log\frac{\pi_{\theta}(y_i,z_i\mid x)}{\pi_{\theta_r}(y_i,z_i\mid x)}\right)^2\right]
+ \mathbb{E}_ {(x, y^\star)\sim\mathcal{D}}  \left[\mathbb{E}_ {(y,z,)\sim\pi_{\theta_r}}\left[\nabla_{\theta}\log \pi_{\theta}(y,z\mid x)(r_{\phi}(x, y, y^\star) - \beta \log Z) - \frac{\beta}{2} \nabla_{\theta}\left(\log\frac{\pi_{\theta}(y,z\mid x)}{\pi_{\theta_r}(y,z\mid x)}\right)^2\right]\right]
 $$
-这里，$\bar{r}$是$\beta \log Z$的估计值。作者提供了两种估计方法：
 
-1. 基于采样的 $(y_i,z_i)\sim \pi_{\theta_r}$对$\beta \log Z$进行估计：
+如果我们对每个问题$x$,采样 $k$ 个response $(y,z)$ ，那么我们可以近似上式中内部的期望，得到：
 
 $$
-\bar{r}=\beta\log\frac{1}{k}\sum_{j=1}^k\exp\left(\frac{r_{\phi}(x, y_j, y^*)}{\beta}\right)
+\frac{1}{k}\sum_{i=1}^k\left[\nabla_{\theta}\log \pi_{\theta}(y_i,z_i\mid x)(r_{\phi}(x, y_i, y^\star) - \bar{r}) - \frac{\beta}{2} \nabla_{\theta}\left(\log\frac{\pi_{\theta}(y_i,z_i\mid x)}{\pi_{\theta_r}(y_i,z_i\mid x)}\right)^2\right]
+$$
+
+这里， $\bar{r}$ 是 $\beta \log Z$ 的估计值。作者提供了两种估计方法：
+
+1. 基于采样的 $(y_i,z_i)\sim \pi_{\theta_r}$ 对 $\beta \log Z$ 进行估计：
+
+$$
+\bar{r}=\beta\log\frac{1}{k}\sum_{j=1}^k\exp\left(\frac{r_{\phi}(x, y_j, y^\star)}{\beta}\right)
 $$
 
 2. 直接使用samples rewards的平均值来近似：
 
 $$
-\bar{r}=\frac{1}{k}\sum_{i=1}^k r_{\phi}(x, y_i, y^*)
+\bar{r}=\frac{1}{k}\sum_{i=1}^k r_{\phi}(x, y_i, y^\star)
 $$
 
 作者提到，第二种方法效果很好并且计算效率更高，因此作者在实验中使用了第二种方法。
@@ -187,14 +189,15 @@ $$
 
 ## Length penalty
 
-Length penalty的目的是降低模型的overthinking和训练成本。作者加入了一个length reward，对于问题$x$和采样的回答$(y_i,z_i)$，回答$(y_i,z_i)$的length定义为 $len(x_i)=\text{length}([z_i, y_i])$ length reward定义为：
+Length penalty的目的是降低模型的overthinking和训练成本。作者加入了一个length reward，对于问题 $x$ 和采样的回答 $(y_i,z_i)$ ，回答 $(y_i,z_i)$ 的length定义为 $len(x_i)=\text{length}([z_i, y_i])$ length reward定义为：
 
 $$
 r_{\text{length}}(x, (y_i,z_i))=\begin{cases}
-    \lambda, & \text{if } r(x, y_i, y^*) = 1 \\
-    \min(0,\lambda), & \text{if } r(x, y_i, y^*) = 0 \\
+    \lambda, & \text{if } r(x, y_i, y^\star) = 1 \\
+    \min(0,\lambda), & \text{if } r(x, y_i, y^\star) = 0 \\
 \end{cases}
 $$
+
 其中
 
 $$
