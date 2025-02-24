@@ -26,6 +26,7 @@ categories:
 ## Kimi-1.5 base model
 
 k1.5 base model是一个基于transformer的多模态大模型，论文没有给出详细的模型结构，只有如下的示意图
+
 ![Architecture of k1.5 base model](k1-5-model-arch.png)
 
 k1.5 base model的训练包括三个阶段：
@@ -160,6 +161,7 @@ $$
 3. 推理和训练的资源需求可能并不一致，无法动态调控显卡资源
 
 因此，作者构建了一个hybrid deployment framework来解决上述问题，其框架如下图所示。
+
 ![Hybrid Deployment Framework](k1-5-hybrid-deployment-framework.png)
 
 该框架的主要优势在于使用Kubernetes Sidecar containers来在一个pod中共享所有的GPU资源。这样就避免了资源分配不均的问题。
@@ -212,15 +214,18 @@ $$
 ## 实验结果
 
 1. K1.5在long-CoT任务上的表现
+
 ![Long-CoT-benchmark](k1-5-long-cot-benchmark.png)
 
 2. K1.5在Short-CoT任务上的表现
+
 ![Short-CoT-benchmark](k1-5-short-cot-benchmark.png)
 
 3. Long Context Scaling
 作者在实验中还探究了上下文长度对模型推理能力的影响。作者针对几个模型进行了实验，结果在图5和图6里面。结果发现，随着上下文长度的增加，模型的推理能力会逐渐提升。
 
 4. Long2short
+
 ![Long2short](k1-5-long2short.png)
 
 ## 消融实验
