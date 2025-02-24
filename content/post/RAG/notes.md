@@ -47,7 +47,7 @@ Problems of fine-tuning:
 
 RAG consists of three major processes of *retrieval*, *augmentation*, and *generation*. The framework of RAG in LLM can be described as follows:
 
-![RAG-framework](RAG-framework.png)
+![RAG-framework](./RAG-framework.png)
 
 ## Retrieval
 
