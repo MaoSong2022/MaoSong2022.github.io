@@ -2,6 +2,7 @@
 title: Kimi k1.5 技术报告总结
 description: An brief introduction to Kimi k1.5
 date: 2025-02-08 10:09:52+0800
+math: true
 tags: 
     - kimi
 categories:
