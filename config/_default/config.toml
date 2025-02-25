@@ -1,8 +1,7 @@
 # Change baseurl before deploy
 baseurl = "https://maosong2022.github.io/"
 languageCode = "en-us"
-pagination.pagerSize = 5
-title = "Mao Song Homepage"
+title = "Mao Song's Homepage"
 
 # Theme i18n support
 # Available values: en, fr, id, ja, ko, pt-br, zh-cn, zh-tw, es, de, nl, it, th, el, uk, ar
@@ -14,3 +13,6 @@ hasCJKLanguage = true
 
 # Change it to your Disqus shortname before using
 disqusShortname = "hugo-theme-stack"
+
+[pagination]
+pagerSize = 5
