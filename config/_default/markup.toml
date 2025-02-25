@@ -15,14 +15,3 @@ lineNoStart = 1
 lineNos = true
 lineNumbersInTable = true
 tabWidth = 4
-
-[markup]
-  [markup.goldmark]
-    [markup.goldmark.extensions]
-      [markup.goldmark.extensions.passthrough]
-        enable = true
-        [markup.goldmark.extensions.passthrough.delimiters]
-          block = [['\[', '\]'], ['$$', '$$']]
-          inline = [['\(', '\)']]
-[params]
-  math = false
