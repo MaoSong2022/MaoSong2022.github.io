@@ -33,7 +33,7 @@ Similar to Mini-GPT4, this paper tries to proposed an open-sourced version of GP
 ## Model
 
 The architecture of VITA is shown as follows:
-![Architecture of VITA](VITA_architecture.png.png)
+![Architecture of VITA](VITA_architecture.png)
 
 - LLM: Mixtral $8\times 7$ B
 - Visual Encoder: InternViT-300M-448px
@@ -84,7 +84,7 @@ There are following requirements and solutions:
 
 # Evaluation
 
-![Evaluation on image and video understanding](image.png)
+![Evaluation on image and video understanding](VITA_evaluation.png)
 
 # Conclusion
 
