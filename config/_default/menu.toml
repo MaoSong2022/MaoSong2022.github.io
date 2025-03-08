@@ -21,13 +21,12 @@ name = "Google Scholar"
 url = "https://scholar.google.com/citations?user=BaqGkQQAAAAJ"
 
 [social.params]
-icon = "google-scholar"
-icon_pack = "ai"
+icon = "googlescholar"
 
 [[social]]
 identifier = "bilibili"
-name = "Bilibili"
+name = "bilibili"
 url = "https://b23.tv/a0Bb9Z1"
 
 [social.params]
-icon = "brand-Bilibili"
+icon = "bilibili"
