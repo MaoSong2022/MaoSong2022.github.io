@@ -8,7 +8,7 @@ links:
   - title: Bilibili
     description: Bilibili is a popular video sharing platform in China.
     website: https://b23.tv/a0Bb9Z1
-    image: https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png  
+    image: bilibili_icon.jpeg
 menu:
     main: 
         weight: 4
