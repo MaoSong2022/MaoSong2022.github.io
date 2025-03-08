@@ -139,11 +139,11 @@ reactionsEnabled = 1
 emitMetadata = 0
 
 [comments.gitalk]
-owner = ""
-admin = ""
-repo = ""
-clientID = ""
-clientSecret = ""
+owner = "MaoSong2022"
+admin = "MaoSong2022"
+repo = "MaoSong2022.github.io"
+clientID = "Ov23liR14pGD8RphGsPI"
+clientSecret = "cce2896fe5124d4fd1e7d3aa6d0572cc780219e0"
 
 [comments.cusdis]
 host = ""
