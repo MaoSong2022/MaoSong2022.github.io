@@ -1,0 +1,219 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>MultimodalLarge Language Model on Mao Song's Homepage</title><link>https://maosong2022.github.io/categories/multimodallarge-language-model/</link><description>Recent content in MultimodalLarge Language Model on Mao Song's Homepage</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><lastBuildDate>Tue, 04 Mar 2025 10:46:42 +0800</lastBuildDate><atom:link href="https://maosong2022.github.io/categories/multimodallarge-language-model/index.xml" rel="self" type="application/rss+xml"/><item><title>Notes on Qwen2.5 VL</title><link>https://maosong2022.github.io/p/notes-on-qwen2.5-vl/</link><pubDate>Tue, 04 Mar 2025 10:46:42 +0800</pubDate><guid>https://maosong2022.github.io/p/notes-on-qwen2.5-vl/</guid><description>&lt;h1 id="introduction">Introduction
+&lt;/h1>&lt;p>2025年2月20号Qwen团队发布了Qwen2.5 VL技术报告，Qwen2.5 VL包括3B，7B， 72B三个size。Qwen2.5-VL主要在架构，数据上进行了改进。通过评测，Qwen2.5-VL在多个benchmark上取得了SOTA。&lt;/p>
+&lt;p>Qwen2.5 VL认为已有模型的缺点为：&lt;/p>
+&lt;ul>
+&lt;li>计算复杂度高&lt;/li>
+&lt;li>上下文理解能力有限&lt;/li>
+&lt;li>细粒度visual perception能力不足&lt;/li>
+&lt;li>在不同上下文长度下表现不一致&lt;/li>
+&lt;/ul>
+&lt;p>Qwen2.5 VL的贡献为：&lt;/p>
+&lt;ol>
+&lt;li>使用了一个从零开始训练的ViT作为vision encoder，并且在ViT中使用了window attention，来提高计算效率&lt;/li>
+&lt;li>使用了dynamic FPS sampling，用于处理不同采样率的视频输入&lt;/li>
+&lt;li>将MRoPE扩展到了temporal domain上，进一步提高了模型在与时间相关任务上的表现&lt;/li>
+&lt;li>使用了更高质量的数据集，其中预训练阶段使用了4.1T的token&lt;/li>
+&lt;/ol>
+&lt;p>Qwen2.5 VL的主要亮点为：&lt;/p>
+&lt;ul>
+&lt;li>优秀的document parsing能力&lt;/li>
+&lt;li>精确的object grounding能力&lt;/li>
+&lt;li>针对长视频的理解和细粒度grounding能力&lt;/li>
+&lt;li>针对UI的agent functionality&lt;/li>
+&lt;/ul>
+&lt;h1 id="模型架构">模型架构
+&lt;/h1>&lt;h2 id="总览">总览
+&lt;/h2>&lt;p>Qwen2.5 VL和Qwen2 VL的架构基本一致，包括Vision Encoder，Language Encoder，以及projector layer三个部分，其架构图如下：&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/architecture.png"
+width="1345"
+height="889"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/architecture_hu17125015043072785911.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5-vl/architecture_hu16983634930428889570.png 1024w"
+loading="lazy"
+alt="Qwen2.5 VL架构图"
+class="gallery-image"
+data-flex-grow="151"
+data-flex-basis="363px"
+>&lt;/p>
+&lt;ul>
+&lt;li>LLM： 使用Qwen2.5 LLM作为LLM，并且将1D-RoPE升级为了MRoPE&lt;/li>
+&lt;li>Vision Encoder： 使用一个从零开始训练的ViT架构，patch_size为14，position embedding为2D-RoPE， attention为window attention和self-attention的混合，其中，只有四层使用的是self-attention.对于输入的图片，ViT会将图片resize到28的整数倍。&lt;/li>
+&lt;li>Projector Layer： 使用的是一个两层的MLP&lt;/li>
+&lt;/ul>
+&lt;p>模型的参数配置如下图&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/model_config.png"
+width="1180"
+height="861"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/model_config_hu6133933021768467739.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5-vl/model_config_hu685888814144466819.png 1024w"
+loading="lazy"
+alt="Qwen2.5 VL模型参数配置"
+class="gallery-image"
+data-flex-grow="137"
+data-flex-basis="328px"
+>&lt;/p>
+&lt;h2 id="vision-encoder">Vision Encoder
+&lt;/h2>&lt;p>Vision encoder的主要改进点为：&lt;/p>
+&lt;ol>
+&lt;li>使用了window attention来提升计算效率，window attention的size为 $112\times 112$， 对应为 $8\times 8$ 个patch. 这样做的好处是可以不用对图片做scaling&lt;/li>
+&lt;li>使用了2D RoPE来捕捉空间信息，使用3D RoPE来捕捉视频输入的时间信息&lt;/li>
+&lt;li>与LLM的结构进行对齐，包括使用RMSNorm替换LayerNorm，使用SwiGLU替换ReLU&lt;/li>
+&lt;/ol>
+&lt;h2 id="输入处理">输入处理
+&lt;/h2>&lt;p>对于图片输入，Qwen2.5 VL使用原始图片的空间信息来构建坐标，而不是将坐标normalize到[0, 1000]之间，这样让模型可以处理不同精度的图片输入。&lt;/p>
+&lt;p>对于视频输入，因为使用了3D RoPE，因此Qwen2.5 VL可以处理不同帧率的视频输入，这样就避免了不同帧率视频对模型视频理解带来的影响。这一点和Apollo里的想法是一样的。具体来说，Qwen2.5 VL首先将连续的两帧group到了一起，然后使用了temporal ID来将position和视频所对应的时间进行对齐。这里可以看Qwen2.5 VL的代码：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">Temporal (Time): 3 patches, representing different segments of the video in time.
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">Height: 2 patches, dividing each frame vertically.
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">Width: 2 patches, dividing each frame horizontally.
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">We also have some important parameters:
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">fps (Frames Per Second): The video&amp;#39;s frame rate, set to 1. This means one frame is processed each second.
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">tokens_per_second: This is a crucial parameter. It dictates how many &amp;#34;time-steps&amp;#34; or &amp;#34;temporal tokens&amp;#34; are conceptually packed into a one-second interval of the video. In this case, we have 25 tokens per second. So each second of the video will be represented with 25 separate time points. It essentially defines the temporal granularity.
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">temporal_patch_size: The number of frames that compose one temporal patch. Here, it&amp;#39;s 2 frames.
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">interval: The step size for the temporal position IDs, calculated as tokens_per_second * temporal_patch_size / fps. In this case, 25 * 2 / 1 = 50. This means that each temporal patch will be have a difference of 50 in the temporal position IDs.
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">input_ids: [V V V V V V V V V V V V T T T T T], here V is for vision.
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">vision temporal position_ids: [0, 0, 0, 0, 50, 50, 50, 50, 100, 100, 100, 100]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">vision height position_ids: [0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">vision width position_ids: [0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">text temporal position_ids: [101, 102, 103, 104, 105]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">text height position_ids: [101, 102, 103, 104, 105]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">text width position_ids: [101, 102, 103, 104, 105]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">Here we calculate the text start position_ids as the max vision position_ids plus 1.
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>这里&lt;code>fps&lt;/code>为1，表示每一帧对应一秒，&lt;code>tokens_per_second&lt;/code>为25，表示每秒包含25个token，&lt;code>temporal_patch_size&lt;/code>为2，表示每个temporal patch包含2个frame。因此一个patch里面，就包含了2frame, 对应50tokens. 然后前面提到连续两帧会被group到一起，因此每个temporal patch对应4个spatial patches. 其position_ids为：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="p">[(&lt;/span>&lt;span class="n">t&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">t&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">t&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">t&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">)]&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h1 id="训练">训练
+&lt;/h1>&lt;h2 id="预训练">预训练
+&lt;/h2>&lt;h3 id="数据">数据
+&lt;/h3>&lt;p>预训练阶段使用了4.1T的token，包括image captions, interleaved image-text data, optical character recognition (OCR) data, visual knowledge (e.g., celebrity, landmark, flora, and fauna identification), multi-modal academic questions, localization data, document parsing data, video descriptions, video localization, and agent-based interaction data. 作者详细介绍了以下几种数据：&lt;/p>
+&lt;ul>
+&lt;li>Interleaved image-text data： 主要1. 提高模型的上下文学习能力；2. 保持模型的text-only能力；3.包含一些通用信息。数据清洗包括：1. 基于text-only quality过滤； 2. 基于image-text相关性过滤；3. 基于image-text互补程度过滤；4.基于information density balance过滤.&lt;/li>
+&lt;li>Grounding data：作者使用了Grounding DINO, SAM等模型来生成一些grounding data.为了提升模型在open-vocabulary detection上的能力，作者将训练数据集扩展到了1万个object category上，作者还使用了一些point-based object grounding data来提升模型的能力&lt;/li>
+&lt;li>Document Parsing data：作者基于text,image, music sheets和chemical formulas合成了一些HTML格式的数据，然后根据tag和bounding box来提升模型document parsing的能力&lt;/li>
+&lt;li>OCR data：作者使用了开源，合成和in-house的数据集，数据集主要提到multi-lingual以及1M的chart-type数据&lt;/li>
+&lt;li>Video data：作者通过pipeline构建了long video caption来提升模型长视频的理解能力&lt;/li>
+&lt;li>Agent data：作者收集了一些mobile device和网页的screenshots,然后基于agent框架来合成控制轨迹&lt;/li>
+&lt;/ul>
+&lt;h3 id="训练-1">训练
+&lt;/h3>&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/pretraining.png"
+width="1217"
+height="428"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/pretraining_hu13120081010368224081.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5-vl/pretraining_hu851622592674460936.png 1024w"
+loading="lazy"
+alt="Qwen2.5 VL预训练阶段"
+class="gallery-image"
+data-flex-grow="284"
+data-flex-basis="682px"
+>&lt;/p>
+&lt;p>如上图所示，Qwen2.5 VL的预训练阶段包括了三个阶段：&lt;/p>
+&lt;ol>
+&lt;li>Visual Pretraining:这一阶段使用了image-caption, knowledge, OCR数据集，旨在提升ViT提取视觉特征的能力&lt;/li>
+&lt;li>multimodal pretraining:这一阶段在第一阶段的基础上增加了pure-text, interleaved data, VQA, Video grounding, agent data, 旨在提升模型处理复杂视觉信息的能力&lt;/li>
+&lt;li>long-context pretraining: 这一阶段，在第二阶段的基础上，增加了long video, long agent, long document data，旨在提升模型处理长上下文的能力&lt;/li>
+&lt;/ol>
+&lt;h2 id="后训练">后训练
+&lt;/h2>&lt;h3 id="数据-1">数据
+&lt;/h3>&lt;p>SFT阶段使用大概2M的样本进行训练，其中纯文本和多模态数据占比为1:1，语言主要是中文和英文。&lt;/p>
+&lt;p>为了保证数据质量，作者提供了一个数据清洗的pipeline，包括：&lt;/p>
+&lt;ol>
+&lt;li>domain-specific categorization: 作者基于Qwen2-VL-72B构建了Qwen2-VL-Instag，用于将QA pair分为8个大类别，30个小类别&lt;/li>
+&lt;li>Domain-tailed filtering:作者使用了rule-based和model-based方法来提升数据的质量
+&lt;ul>
+&lt;li>rule-based filtering: 重复性检测，格式检测等&lt;/li>
+&lt;li>model-based filtering: 使用基于Qwen2.5-VL训练的reward model来从多个维度评估QA pair的质量&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ol>
+&lt;p>为了进一步提升模型的推理能力，作者还是用了rejection sampling来refine 数据集。&lt;/p>
+&lt;h3 id="训练-2">训练
+&lt;/h3>&lt;p>post-training阶段分为SFT和DPO两个小阶段，这个阶段都会冻结VIT. SFT阶段使用大多数的训练数据，而DPO阶段专注于image-text data和pure text data，以更好地进行对齐。具体做法就是基于Grounding truth，使用checkpoint来评估数据的质量，然后只保留答案正确的数据来训练。&lt;/p>
+&lt;h1 id="评测">评测
+&lt;/h1>&lt;ol>
+&lt;li>通用VQA
+&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/general_vqa.png"
+width="1356"
+height="656"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/general_vqa_hu892650520576289201.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5-vl/general_vqa_hu9870708508441533774.png 1024w"
+loading="lazy"
+alt="通用VQA"
+class="gallery-image"
+data-flex-grow="206"
+data-flex-basis="496px"
+>&lt;/li>
+&lt;li>文档理解和OCR
+&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/document_understanding.png"
+width="1358"
+height="655"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/document_understanding_hu17694059179260147209.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5-vl/document_understanding_hu7262732638369499565.png 1024w"
+loading="lazy"
+alt="文档理解和OCR"
+class="gallery-image"
+data-flex-grow="207"
+data-flex-basis="497px"
+>&lt;/li>
+&lt;li>空间理解
+&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/grounding.png"
+width="1324"
+height="714"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/grounding_hu5967843440894939227.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5-vl/grounding_hu13144193697505905228.png 1024w"
+loading="lazy"
+alt="空间理解"
+class="gallery-image"
+data-flex-grow="185"
+data-flex-basis="445px"
+>&lt;/li>
+&lt;li>视频理解和Grounding
+&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/video.png"
+width="1320"
+height="672"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/video_hu2773206847940642085.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5-vl/video_hu9652119302145499627.png 1024w"
+loading="lazy"
+alt="视频理解和Grounding"
+class="gallery-image"
+data-flex-grow="196"
+data-flex-basis="471px"
+>&lt;/li>
+&lt;li>Agent
+&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/agent.png"
+width="1374"
+height="337"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/agent_hu14999408161773977095.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5-vl/agent_hu8333246447475526185.png 1024w"
+loading="lazy"
+alt="Agent"
+class="gallery-image"
+data-flex-grow="407"
+data-flex-basis="978px"
+>&lt;/li>
+&lt;/ol>
+&lt;h1 id="reference">Reference
+&lt;/h1>&lt;ul>
+&lt;li>&lt;a class="link" href="https://github.com/QwenLM/Qwen2.5-VL" target="_blank" rel="noopener"
+>Github&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://arxiv.org/abs/2502.13923" target="_blank" rel="noopener"
+>Paper&lt;/a>&lt;/li>
+&lt;/ul></description></item></channel></rss>
