@@ -18,10 +18,11 @@ icon = "brand-github"
 [[social]]
 identifier = "scholar"
 name = "Google Scholar"
-url = "https://scholar.google.com/citations?hl=en&user=BaqGkQQAAAAJ"
+url = "https://scholar.google.com/citations?user=BaqGkQQAAAAJ"
 
 [social.params]
-icon = "brand-googlescholar"
+icon = "google-scholar"
+icon_pack = "ai"
 
 [[social]]
 identifier = "bilibili"
@@ -29,4 +30,4 @@ name = "Bilibili"
 url = "https://b23.tv/a0Bb9Z1"
 
 [social.params]
-icon = "brand-bilibili"
+icon = "brand-Bilibili"
