@@ -6,7 +6,7 @@ math: true
 tags: 
     - kimi
 categories:
-    - Multi-modal Large Language Model 
+    - Multimodal Large Language Model 
     - Reasoning
 ---
 
