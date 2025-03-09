@@ -4,7 +4,7 @@ date: 2024-04-27 11:55:28+0800
 description: Minimum operations to reconstruct a string from a ring string
 tags: 
     - String
-    - Dynamic Programming
+    - DP
     - DFS
     - Hard
 categories:

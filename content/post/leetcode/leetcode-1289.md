@@ -4,7 +4,7 @@ date: 2024-04-26 20:44:17+0800
 description: Find the minimum falling path sum with no same column in adjacent rows
 tags: 
     - Matrix
-    - Dynamic Programming
+    - DP
     - Hard
 categories:
     - LeetCode

@@ -4,7 +4,7 @@ date: 2024-04-24 18:53:26+0800
 description: Sum of paths from root to leaf
 tags: 
     - Math
-    - Dynamic Programming
+    - DP
 categories:
     - LeetCode
 math: true

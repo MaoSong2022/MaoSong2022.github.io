@@ -3,7 +3,7 @@ title: 664. Strange Printer
 date: 2024-08-21 15:16:41+0000
 description: Use minimum turn to print a strange string.
 tags: 
-    - Dynamic Programming
+    - DP
     - Hard
 categories:
     - LeetCode

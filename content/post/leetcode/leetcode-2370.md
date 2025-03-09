@@ -4,7 +4,7 @@ date: 2024-04-25 20:34:06+0800
 description: Find the longest subsequence with given distance threshold on adjacent elements
 tags: 
     - Hash Table
-    - Dynamic Programming
+    - DP
     - Medium
 categories:
     - LeetCode

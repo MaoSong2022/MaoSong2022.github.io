@@ -3,7 +3,7 @@ title: 264. Ugly Number II
 date: 2024-08-18 10:37:20+0000
 description: Find the n-th ugly number
 tags: 
-    - Dynamic Programming
+    - DP
     - Medium
 categories:
     - LeetCode

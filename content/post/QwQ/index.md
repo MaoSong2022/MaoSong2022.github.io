@@ -8,7 +8,7 @@ tags:
     - Reasoning
 categories:
     - LLM 
-    - Reasoning Model
+    - Reasoning
 ---
 
 # Introduction
