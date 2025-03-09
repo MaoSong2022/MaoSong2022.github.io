@@ -8,7 +8,7 @@ tags:
     - RAG
 categories:
     - RAG
-    - Large Language Model 
+    - LLM 
 ---
 
 

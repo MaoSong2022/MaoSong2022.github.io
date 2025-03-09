@@ -7,7 +7,7 @@ tags:
     - Qwen
     - Reasoning
 categories:
-    - Large Language Model 
+    - LLM 
     - Reasoning Model
 ---
 

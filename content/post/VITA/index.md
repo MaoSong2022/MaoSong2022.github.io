@@ -10,7 +10,7 @@ tags:
     - Audio
     - Interaction
 categories:
-    - Multimodal Large Language Model
+    - MLLM
 ---
 
 # TLDR

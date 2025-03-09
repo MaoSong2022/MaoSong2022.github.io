@@ -7,7 +7,7 @@ image: agent_performance.png
 tags: 
     - Agent
 categories:
-    - Large Language Model
+    - LLM
 ---
 
 In AI Ascent, Andrew Ng shared his opinion about the agentic workflow, specifically, his talk focused on designs and future works on agentic workflows.

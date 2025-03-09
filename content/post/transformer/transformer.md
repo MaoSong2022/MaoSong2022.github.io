@@ -6,7 +6,7 @@ date: 2024-05-02 13:13:12+0800
 tags: 
     - transformer
 categories:
-    - Large Language Model
+    - LLM
 math: true
 ---
 

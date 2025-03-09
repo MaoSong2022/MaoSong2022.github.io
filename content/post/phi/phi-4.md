@@ -6,7 +6,7 @@ tags:
     - Phi
     - Synthetic data
 categories:
-    - Large Language Model 
+    - LLM 
 ---
 
 # Introduction

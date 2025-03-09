@@ -6,7 +6,7 @@ date: 2024-11-09 09:53:43+0800
 tags: 
     - adaption Layer 
 categories:
-    - Multimodal Large Language Model 
+    - MLLM
 ---
 
 

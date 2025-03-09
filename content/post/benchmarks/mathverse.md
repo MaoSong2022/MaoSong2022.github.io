@@ -6,7 +6,7 @@ tags:
     - math
 categories:
     - Benchmark
-    - Multimodal Large Language Model 
+    - MLLM 
 ---
 
 # TLDR

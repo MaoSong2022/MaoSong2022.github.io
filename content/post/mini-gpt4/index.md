@@ -4,10 +4,9 @@ description: An formal algorithm describing how transformer works.
 date: 2024-05-02 13:13:12+0800
 
 tags: 
-    - Multimodal Large Language Model 
     - Paper Reading
 categories:
-    - Large Language Model
+    - MLLM 
 ---
 
 

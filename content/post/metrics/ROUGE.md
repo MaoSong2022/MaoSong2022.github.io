@@ -5,8 +5,8 @@ description: The metric that evaluates similarity between summaries.
 tags: 
     - Metric
 categories:
-    - Large Language Model 
-    - Natural Language Processing
+    - LLM 
+    - NLP
 math: true
 ---
 

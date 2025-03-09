@@ -7,7 +7,7 @@ math: true
 tags: 
     - Qwen
 categories:
-    - MultimodalLarge Language Model 
+    - MLLM 
 ---
 
 # Introduction

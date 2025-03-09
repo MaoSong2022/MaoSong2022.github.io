@@ -5,7 +5,7 @@ date: 2024-04-22 16:22:19+0800
 tags: 
     - Llama
 categories:
-    - Large Language Model 
+    - LLM 
 ---
 
 Meta released Llama3 at April 18, which is evaluated on several benchmarks and achieves the SOTA on open-sourced LLMs.
