@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Llama on Mao Song's Homepage</title><link>https://maosong2022.github.io/tags/llama/</link><description>Recent content in Llama on Mao Song's Homepage</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><lastBuildDate>Mon, 22 Apr 2024 16:22:19 +0800</lastBuildDate><atom:link href="https://maosong2022.github.io/tags/llama/index.xml" rel="self" type="application/rss+xml"/><item><title>Introduction to Llama3</title><link>https://maosong2022.github.io/p/introduction-to-llama3/</link><pubDate>Mon, 22 Apr 2024 16:22:19 +0800</pubDate><guid>https://maosong2022.github.io/p/introduction-to-llama3/</guid><description>&lt;p>Meta released Llama3 at April 18, which is evaluated on several benchmarks and achieves the SOTA on open-sourced LLMs.&lt;/p>
+&lt;h1 id="introduction">Introduction
+&lt;/h1>&lt;h2 id="instruct-model-performance">Instruct model performance
+&lt;/h2>&lt;p>The performance of Llama3 8B compared with Gemma and Mistral:&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Model&lt;/th>
+&lt;th>Llama3 8B&lt;/th>
+&lt;th>Gemma 7B - It&lt;/th>
+&lt;th>Mistral &amp;amp;B Instruct&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>&lt;em>MMLU&lt;/em> (5 shot)&lt;/td>
+&lt;td>&lt;strong>68.4&lt;/strong>&lt;/td>
+&lt;td>53.3&lt;/td>
+&lt;td>58.4&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;em>GPQA&lt;/em> (0 shot)&lt;/td>
+&lt;td>&lt;strong>34.2&lt;/strong>&lt;/td>
+&lt;td>21.4&lt;/td>
+&lt;td>26.3&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;em>HumanEval&lt;/em> (0 shot)&lt;/td>
+&lt;td>&lt;strong>62.2&lt;/strong>&lt;/td>
+&lt;td>30.5&lt;/td>
+&lt;td>36.6&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;em>GSM-8K&lt;/em> (8 shot, CoT)&lt;/td>
+&lt;td>&lt;strong>79.6&lt;/strong>&lt;/td>
+&lt;td>30.6&lt;/td>
+&lt;td>39.9&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;em>MATH&lt;/em> (4 shot, CoT)&lt;/td>
+&lt;td>&lt;strong>30.0&lt;/strong>&lt;/td>
+&lt;td>12.2&lt;/td>
+&lt;td>11.0&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>performance of Llama3 70B compared with Gemini Pro 1.5 and Claude Sonnet:&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Model&lt;/th>
+&lt;th>Llama3 70B&lt;/th>
+&lt;th>Gemini Pro 1.5 (Published)&lt;/th>
+&lt;th>Claude 3 Sonnet (Published)&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>&lt;em>MMLU&lt;/em> (5 shot)&lt;/td>
+&lt;td>&lt;strong>82.0&lt;/strong>&lt;/td>
+&lt;td>81.9&lt;/td>
+&lt;td>79.0&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;em>GPQA&lt;/em> (0 shot)&lt;/td>
+&lt;td>39.5&lt;/td>
+&lt;td>&lt;strong>41.5&lt;/strong> (CoT)&lt;/td>
+&lt;td>38.5 (CoT)&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;em>HumanEval&lt;/em> (0 shot)&lt;/td>
+&lt;td>&lt;strong>81.7&lt;/strong>&lt;/td>
+&lt;td>71.9&lt;/td>
+&lt;td>73.0&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;em>GSM-8K&lt;/em> (8 shot, CoT)&lt;/td>
+&lt;td>&lt;strong>93.0&lt;/strong>&lt;/td>
+&lt;td>91.7 (11 shot)&lt;/td>
+&lt;td>92.3 (0 shot)&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;em>MATH&lt;/em> (4 shot, CoT)&lt;/td>
+&lt;td>50.4&lt;/td>
+&lt;td>&lt;strong>58.5&lt;/strong> (Minerva prompt)&lt;/td>
+&lt;td>40.5&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h2 id="pre-trained-model-performance">Pre-trained model performance
+&lt;/h2>&lt;p>The performance of Llama3 8B compared with Gemma and Mistral:&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Model&lt;/th>
+&lt;th>Llama3 8B&lt;/th>
+&lt;th>Gemma 7B (Published)&lt;/th>
+&lt;th>Gemma 7B (Measured)&lt;/th>
+&lt;th>Mistral 7B (Published)&lt;/th>
+&lt;th>Mistral 7B (Measured)&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>&lt;em>MMLU&lt;/em> (5 shot)&lt;/td>
+&lt;td>&lt;strong>66.6&lt;/strong>&lt;/td>
+&lt;td>64.3&lt;/td>
+&lt;td>64.4&lt;/td>
+&lt;td>62.5&lt;/td>
+&lt;td>63.9&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;em>AGIEval English&lt;/em> (3-5 shot)&lt;/td>
+&lt;td>&lt;strong>45.9&lt;/strong>&lt;/td>
+&lt;td>41.7&lt;/td>
+&lt;td>44.9&lt;/td>
+&lt;td>-&lt;/td>
+&lt;td>44.0&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;em>BIG-Bench Hard&lt;/em> (3 shot, CoT)&lt;/td>
+&lt;td>&lt;strong>61.1&lt;/strong>&lt;/td>
+&lt;td>55.1&lt;/td>
+&lt;td>59.0&lt;/td>
+&lt;td>-&lt;/td>
+&lt;td>56.0&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;em>ARC-Challenge&lt;/em> (25 shot)&lt;/td>
+&lt;td>78.6&lt;/td>
+&lt;td>53.2(0 shot)&lt;/td>
+&lt;td>&lt;strong>79.1&lt;/strong>&lt;/td>
+&lt;td>78.1&lt;/td>
+&lt;td>78.7&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;em>DROP&lt;/em> (3 shot, F1)&lt;/td>
+&lt;td>&lt;strong>58.4&lt;/strong>&lt;/td>
+&lt;td>-&lt;/td>
+&lt;td>56.3&lt;/td>
+&lt;td>-&lt;/td>
+&lt;td>54.4&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>performance of Llama3 70B compared with Gemini Pro 1.5 and Claude Sonnet:&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Model&lt;/th>
+&lt;th>Llama3 70B&lt;/th>
+&lt;th>Gemini Pro 1.0 (Published)&lt;/th>
+&lt;th>Mixtral 8 $\times$ 22B (Measured)&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>&lt;em>MMLU&lt;/em> (5-shot)&lt;/td>
+&lt;td>&lt;strong>79.5&lt;/strong>&lt;/td>
+&lt;td>71.8&lt;/td>
+&lt;td>77.7&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;em>AGIEval English&lt;/em> (3-5 shot)&lt;/td>
+&lt;td>&lt;strong>63.0&lt;/strong>&lt;/td>
+&lt;td>-&lt;/td>
+&lt;td>61.2&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;em>BIG-Bench Hard&lt;/em> (3 shot, CoT)&lt;/td>
+&lt;td>&lt;strong>81.3&lt;/strong>&lt;/td>
+&lt;td>75.0&lt;/td>
+&lt;td>79.2&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;em>ARC-Challenge&lt;/em> (25 shot)&lt;/td>
+&lt;td>&lt;strong>93.0&lt;/strong>&lt;/td>
+&lt;td>-&lt;/td>
+&lt;td>90.7&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;em>DROP&lt;/em> (3 shot, F1)&lt;/td>
+&lt;td>&lt;strong>79.7&lt;/strong>&lt;/td>
+&lt;td>74.1 (variable shot)&lt;/td>
+&lt;td>77.6&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h1 id="model-architecture">Model Architecture
+&lt;/h1>&lt;p>Several improvements are made on Llama3 compared to llama2:&lt;/p>
+&lt;ol>
+&lt;li>Llama3 uses a tokenizer with a vocabulary of 128K tokens.&lt;/li>
+&lt;li>Llama3 adopts grouped query attention (GQA) across both the 8B and 70B sizes.&lt;/li>
+&lt;li>Llama3 uses to context window of size 8192 tokens&lt;/li>
+&lt;/ol>
+&lt;h1 id="traning">Traning
+&lt;/h1>&lt;p>Llama3 uses 15T tokens for pre-training. Compares to Llama2, it is seven times larger and includes four times more code.&lt;/p>
+&lt;p>5% data of the training dataset are non-English to support multi-lingual use cases.&lt;/p>
+&lt;p>Data processing includes:&lt;/p>
+&lt;ol>
+&lt;li>Heuristic filters&lt;/li>
+&lt;li>NSFW filters&lt;/li>
+&lt;li>Semantic deduplication approaches&lt;/li>
+&lt;li>Text classifiers to predict data quality. Llama2 is used to generate training data for the text classifiers.&lt;/li>
+&lt;/ol>
+&lt;p>Data mixing strategy is explored to improve the performance of Llama3.&lt;/p>
+&lt;h1 id="scaling-up-pretraining">Scaling up pretraining
+&lt;/h1>&lt;p>Llama3 developed a series of scaling laws for downstream benchmark evaluations.&lt;/p>
+&lt;p>Scaling laws help:&lt;/p>
+&lt;ol>
+&lt;li>Select an optimal data mix and to make informed decisions on how to best use training compute.&lt;/li>
+&lt;li>Scaling laws allow Llama3 to predict the performance of the largest models on key tasks without training the models.&lt;/li>
+&lt;/ol>
+&lt;p>The authors finds our that the performance of the model continues to improve log-linearly as the training tokens increase. It is seen that Larger models can match the performance of these smaller models with less training compute, but smaller models are generally preferred because they are much more efficient during inference.&lt;/p>
+&lt;p>The authors combine three types of parallelization:&lt;/p>
+&lt;ol>
+&lt;li>Data parallelization&lt;/li>
+&lt;li>Model parallelization&lt;/li>
+&lt;li>Pipeline parallelization&lt;/li>
+&lt;/ol>
+&lt;h1 id="instruction-fine-tuning">Instruction fine-tuning
+&lt;/h1>&lt;p>The fine-tuning of Llama3 contains:&lt;/p>
+&lt;ol>
+&lt;li>Supervised fine-tuning&lt;/li>
+&lt;li>Rejection sampling&lt;/li>
+&lt;li>Proximal Policy Optimization&lt;/li>
+&lt;li>Direct Preference Optimization&lt;/li>
+&lt;/ol>
+&lt;p>Learning from perference rankings via PPO and DPO also greatly improved the performance of LLma3 on reasoning and coding tasks. Since perference ranking helps the model to select answer when it is in a dilemma.&lt;/p>
+&lt;h1 id="reference">Reference
+&lt;/h1>&lt;ul>
+&lt;li>&lt;a class="link" href="https://ai.meta.com/blog/meta-llama-3/" target="_blank" rel="noopener"
+>Llam3 blog&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://github.com/meta-llama/llama3/blob/main/eval_details.md" target="_blank" rel="noopener"
+>Evaluation details&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://github.com/meta-llama/llama3/blob/main/MODEL_CARD.md" target="_blank" rel="noopener"
+>Model Card&lt;/a>&lt;/li>
+&lt;/ul></description></item></channel></rss>
