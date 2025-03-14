@@ -6,7 +6,7 @@ links:
     website: https://github.com/MaoSong2022
     image: https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png
   - title: Bilibili
-    description: Bilibili is a popular video sharing platform in China.
+    description: Bilibili is a popular video sharing platform in China. See [Paper Readings](https://github.com/MaoSong2022/Paper_Reading) for a full list of my published videos.
     website: https://b23.tv/a0Bb9Z1
     image: bilibili_icon.jpeg
 menu:
