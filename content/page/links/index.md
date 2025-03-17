@@ -9,6 +9,9 @@ links:
     description: Bilibili is a popular video sharing platform in China.
     website: https://b23.tv/a0Bb9Z1
     image: bilibili_icon.jpeg
+  - title: Wechat Offcial Accounts
+    description: Wechat Offcial Accounts allows individual or organization to publish content.
+    image: wechat_avatar.jpg
 menu:
     main: 
         weight: 4
