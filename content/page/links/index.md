@@ -22,7 +22,7 @@ comments: false
 ---
 
 
-Hi, my name is Mao Song (毛松). I am currently a researcher in [Shanghai Artificial Intelligence Laboratory](https://www.shlab.org.cn/) or Shanghai AI Lab. I am working on multimodal large language models (MLLMs) and their applications.
+Hi, my name is Mao Song (毛松). I am currently a researcher in [Shanghai Artificial Intelligence Laboratory](https://www.shlab.org.cn/) or Shanghai AI Lab. I am working on multimodal large language models (MLLMs) and their applications. SEE my personal CV at [Resume](https://github.com/MaoSong2022/MaoSong2022.github.io/blob/master/assets/%E6%AF%9B%E6%9D%BE_%E7%AE%80%E5%8E%86.pdf)
 
 Before joining Shanghai AI Lab, I received my Master's degree from ShanghaiTech University, under the supervision of [Hao Wang](https://sist.shanghaitech.edu.cn/wanghao1/main.htm) and Bachelor's degree from Beijing Institute of Technology.
 
