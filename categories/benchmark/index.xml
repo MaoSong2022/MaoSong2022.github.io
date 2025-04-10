@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Benchmark on Mao Song's Homepage</title><link>https://maosong2022.github.io/categories/benchmark/</link><description>Recent content in Benchmark on Mao Song's Homepage</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><lastBuildDate>Mon, 22 Apr 2024 18:04:14 +0800</lastBuildDate><atom:link href="https://maosong2022.github.io/categories/benchmark/index.xml" rel="self" type="application/rss+xml"/><item><title>MathVerse Does Your Multi-modal LLM Truly See the Diagrams in Visual Math Problems?</title><link>https://maosong2022.github.io/p/mathverse-does-your-multi-modal-llm-truly-see-the-diagrams-in-visual-math-problems/</link><pubDate>Mon, 22 Apr 2024 18:04:14 +0800</pubDate><guid>https://maosong2022.github.io/p/mathverse-does-your-multi-modal-llm-truly-see-the-diagrams-in-visual-math-problems/</guid><description>&lt;h1 id="tldr">TLDR
+&lt;/h1>&lt;p>This paper proposes an multimodal large language model (MLLM) benchmark MathVerse for evaluating the mathematical problem-solving capability of MLLMs. The author also proposes Chain of Thought (CoT) for fine-grained evaluation. Results show that MLLMs are not able to use the visual information, and even performs better without visual input.&lt;/p>
+&lt;h1 id="introduction">Introduction
+&lt;/h1>&lt;p>Multiple benchmarks have been proposed to evaluate the mathematical reasoning capability of MLLMs, such as GeoQA, UniGeo, MathVista and MMMU.
+However, the problem of existing benchmarks are:&lt;/p>
+&lt;ol>
+&lt;li>The MLLMs may depend on text input instead of visual inputs to solve the problems.&lt;/li>
+&lt;li>The evaluation process is a black-box, we do not know at which step the MLLM makes a mistake.&lt;/li>
+&lt;/ol>
+&lt;p>The author proposes MathVerse to solve the aforementioned problems.&lt;/p>
+&lt;h1 id="method">Method
+&lt;/h1>&lt;h2 id="data-collection">Data collection
+&lt;/h2>&lt;p>MathVerse contains $2612$ visual math problems and can be divided into plan geometry ($1746$), solid geometry ($332$) and functions ($534$).&lt;/p>
+&lt;h2 id="text-input-processing">Text input processing
+&lt;/h2>&lt;p>To check if MLLMs use visual input to solve the mathematical problems, the author decompose the text input into three categories:&lt;/p>
+&lt;ol>
+&lt;li>Descriptive information: Directly observable and clearly portrayed content in the diagram.&lt;/li>
+&lt;li>Implicit Property: Higher level of visual perception but less mathematical knowledge.&lt;/li>
+&lt;li>Essential Condition: specific numerical or algebraic measurements.&lt;/li>
+&lt;/ol>
+&lt;p>The dataset is then augmented by creating six versions of each problem:&lt;/p>
+&lt;ul>
+&lt;li>Text-dominant version: all text input and visual inputs are kept.&lt;/li>
+&lt;li>Text-lite version: description information is discarded.&lt;/li>
+&lt;li>Text-only version: visual input is discarded&lt;/li>
+&lt;li>Vision-intensive version: description information and implicit property are discarded.&lt;/li>
+&lt;li>Vision-dominant version: description information and essential condition are discarded.&lt;/li>
+&lt;li>Vision-only version: text input is discarded&lt;/li>
+&lt;/ul>
+&lt;h2 id="cot-evaluation">CoT evaluation
+&lt;/h2>&lt;p>To visualize the reasoning process of MLLM when solving mathematical problems, the author employ GPT-4 to generate key steps of solving the problem. Then scores are given to each reasoning step, in this way, the reasoning process can be tested.&lt;/p>
+&lt;h1 id="result">Result
+&lt;/h1>&lt;p>Experiment results show that:&lt;/p>
+&lt;ol>
+&lt;li>MLLMs rely more on description information than seeing diagrams&lt;/li>
+&lt;li>LLMs Achieve Competitive Results to MLLMs.&lt;/li>
+&lt;/ol>
+&lt;h1 id="reference">Reference
+&lt;/h1>&lt;ul>
+&lt;li>&lt;a class="link" href="https://arxiv.org/pdf/2403.14624.pdf" target="_blank" rel="noopener"
+>paper&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://mathverse-cuhk.github.io/" target="_blank" rel="noopener"
+>Github&lt;/a>&lt;/li>
+&lt;/ul></description></item></channel></rss>
