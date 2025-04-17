@@ -1,0 +1,1596 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>MLLM on Mao Song(毛松)'s Homepage</title><link>https://maosong2022.github.io/categories/mllm/</link><description>Recent content in MLLM on Mao Song(毛松)'s Homepage</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><lastBuildDate>Tue, 01 Apr 2025 10:29:00 +0800</lastBuildDate><atom:link href="https://maosong2022.github.io/categories/mllm/index.xml" rel="self" type="application/rss+xml"/><item><title>Notes on Qwen2.5 omni</title><link>https://maosong2022.github.io/p/notes-on-qwen2.5-omni/</link><pubDate>Tue, 01 Apr 2025 10:29:00 +0800</pubDate><guid>https://maosong2022.github.io/p/notes-on-qwen2.5-omni/</guid><description>&lt;h1 id="介绍">介绍
+&lt;/h1>&lt;p>2025年3月26号，Qwen团队发布了Qwen2.5 omni，Qwen2.5 omni是一个多模态模型，支持文本、音频、视频、图像等多个模态的输入，支持文本，音频的输出。
+作者提出了TMRoPE来对齐不同的模态，然后还是用了Thinker-Talker的架构来同时生成文本和音频。
+Thinker是一个大语言模型，Talker是一个dual-track自回归模型，Talker基于Thinker的hideen states来生成audio token，最后通过一个sliding-window DiT来解码audio token&lt;/p>
+&lt;p>现有omni-model存在的问题：&lt;/p>
+&lt;ol>
+&lt;li>缺乏一个系统的，联合训练多个不同模态的方法&lt;/li>
+&lt;li>需要处理不同模态输出时互相干扰的问题&lt;/li>
+&lt;li>不能实时理解或者流式输出多模态信息&lt;/li>
+&lt;/ol>
+&lt;p>Qwen2.5 omni的解决方法：&lt;/p>
+&lt;ol>
+&lt;li>使用TMRoPE来对齐不同的模态。作者将audio以及video frame按照时间顺序组织成一个交替的架构，然后使用TMRoPE来对齐&lt;/li>
+&lt;li>使用Thinker-Talker的架构来同时生成文本和音频。Thinker负责文本输出，Talker负责音频的流式输出。&lt;/li>
+&lt;li>在multimodal encoder中使用Block-wise streaming处理技巧来实现实时理解；在输出时，实现了一个dual-track自回归架构来生成audio token，以及一个DiT模型来解码audio token&lt;/li>
+&lt;/ol>
+&lt;p>Qwen2.5 omni的贡献：&lt;/p>
+&lt;ol>
+&lt;li>提出了Qwen2.5-omni,可以实时理解多模态信息，并流式输出文本和音频&lt;/li>
+&lt;li>提出了TMRoPE，一个可以对齐不同模态的RoPE算法&lt;/li>
+&lt;li>提出了Thinker-Talker的架构，来完成实时理解和音频输出&lt;/li>
+&lt;li>在多个benchmark上取得了SOTA&lt;/li>
+&lt;/ol>
+&lt;h1 id="架构">架构
+&lt;/h1>&lt;h2 id="总览">总览
+&lt;/h2>&lt;p>Qwen2.5-omni的架构如下图所示
+&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5-omni/architecture.png"
+width="1346"
+height="1110"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5-omni/architecture_hu13856471526692175307.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5-omni/architecture_hu13696785578383343851.png 1024w"
+loading="lazy"
+alt="architecture of Qwen2.5-omni"
+class="gallery-image"
+data-flex-grow="121"
+data-flex-basis="291px"
+>&lt;/p>
+&lt;p>其中Talker类似于人的嘴，负责基于脑中的信息来生成对话；Thinker类似于人的大脑，负责理解输入的信息，并生成对话的上下文。&lt;/p>
+&lt;h2 id="输入">输入
+&lt;/h2>&lt;ul>
+&lt;li>text: Qwen的tokenizer&lt;/li>
+&lt;li>audio： Qwen2-Audio的tokenizer&lt;/li>
+&lt;li>vision： Qwen2.5-VL的vision tokenizer&lt;/li>
+&lt;/ul>
+&lt;p>视频以及TMRoPE。 对于视频来说，Qwen2.5-omni采取了和Qwen2.5-VL一样的MRoPE算法。只是这里的temporal ID对应40ms&lt;/p>
+&lt;p>音频：对于音频来说，Qwen2.5-omni也是以40ms进行采样然后encoding。&lt;/p>
+&lt;p>视频+音频：对于视频+音频来说，Qwen2.5-omni将视频和音频的token进行交替的排列，来保证时间上信息一致&lt;/p>
+&lt;h2 id="输出">输出
+&lt;/h2>&lt;ul>
+&lt;li>Text：text由Thinker直接输出，这和LLM的输出方式是一样的。&lt;/li>
+&lt;li>Speech：Qwen2.5-omni首先构建了&lt;code>qwen-tts-tokenizer&lt;/code>，一个speech codec，用于表示speech的关键信息。
+然后基于这些关键信息，Talker通过自回归的方式生成audio tokens以及text tokens。&lt;/li>
+&lt;/ul>
+&lt;h2 id="流式输出">流式输出
+&lt;/h2>&lt;p>对于流式输出来说，现在的模型存在latency，具体影响因素如下：&lt;/p>
+&lt;ol>
+&lt;li>处理多模态输入的延迟&lt;/li>
+&lt;li>TTFT （time to first token）&lt;/li>
+&lt;li>将第一段speech token解码为audio的时间&lt;/li>
+&lt;li>模型架构导致的latency，如模型参数等&lt;/li>
+&lt;/ol>
+&lt;p>为了解决这个问题，Qwen2.5-omni采取了以下措施：&lt;/p>
+&lt;ol>
+&lt;li>Support prefilling. 作者修改了audio以及vision encoder来在temporal dimension上支持block-wise attention.
+具体来讲，audio encoder只关注2秒内的信息，而vision encoder和Qwen2.5-VL一样，使用了一个MLP patch merger来压缩视觉token&lt;/li>
+&lt;li>Streaming Codec generation. 为了提高流式输出的效率，作者还是用了基于Flow-Matching的DiT，输出的code收线使用Flow-Matching转化为一个mel-spectrogram.
+然后再通过一个BigVGAN来重建得到对应的waveform. 作者在这里修改了DiT的attention，将其receptive field 限制为4个block，包括lookback of 2 blocks以及lookahead of 1 block.&lt;/li>
+&lt;/ol>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5-omni/DiT-sliding-window.png"
+width="410"
+height="433"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5-omni/DiT-sliding-window_hu6563920421928967677.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5-omni/DiT-sliding-window_hu2093921625058248866.png 1024w"
+loading="lazy"
+alt="Sliding Window DiT"
+class="gallery-image"
+data-flex-grow="94"
+data-flex-basis="227px"
+>&lt;/p>
+&lt;h1 id="pre-training">Pre Training
+&lt;/h1>&lt;p>模型参数初始化：&lt;/p>
+&lt;ul>
+&lt;li>LLM： 从Qwen2.5进行初始化&lt;/li>
+&lt;li>vision encoder：从Qwen2.5-VL的vision encoder进行初始化&lt;/li>
+&lt;li>audio encoder：从Whisper-large-v3进行初始化&lt;/li>
+&lt;/ul>
+&lt;p>Pretraining和Qwen2.5-VL的训练过程类似，分成了3个stage：&lt;/p>
+&lt;ol>
+&lt;li>冻结LLM的参数，仅训练vision encoder和audio encoder， 该阶段使用了audio-text以及image-text pairs来进行训练。 数据：image-text, video-text, video-audio, audio-text以及text corpus，
+跟Qwen2-Audio类似，作者将hierarchical tags用自然语言prompt进行替换&lt;/li>
+&lt;li>训练所有参数，使用更多的多模态数据进行训练。数据包括800B token的image和Video相关数据，300B token的audio数据，100B token的video-audio相关数据。&lt;/li>
+&lt;li>将模型的上下文扩展到32K。前两个阶段的上下文长度为8192，本阶段使用了long video data等数据来将模型的上下文扩展到32K。&lt;/li>
+&lt;/ol>
+&lt;h1 id="post-training">Post Training
+&lt;/h1>&lt;h2 id="thinker">Thinker
+&lt;/h2>&lt;p>数据格式为ChatML，数据类型包括pure text-based dialogue data, visual-modality conversation data, audio-modality conversation data and mix-modality conversation data.&lt;/p>
+&lt;h2 id="talker">Talker
+&lt;/h2>&lt;p>包括三个阶段&lt;/p>
+&lt;ol>
+&lt;li>ICL training: 训练Talker学习context continuation&lt;/li>
+&lt;li>DPO training: 提升speech generation的stability&lt;/li>
+&lt;li>multi-speaker instruction fine-tuning: 提升模型的naturalness和controllability&lt;/li>
+&lt;/ol>
+&lt;h1 id="evaluation">Evaluation
+&lt;/h1>&lt;p>Qwen2.5-omni在两类benchmark上进行来的评测，分别时多模态理解（X-&amp;gt;text）以及音频生成(X-&amp;gt; Speech)&lt;/p>
+&lt;p>我们这里主要关注一下speech understanding以及speech generation的benchmark.&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5-omni/audio-to-text-performance.png"
+width="1093"
+height="1125"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5-omni/audio-to-text-performance_hu3995772258484959637.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5-omni/audio-to-text-performance_hu12796047373868839849.png 1024w"
+loading="lazy"
+alt="Audio-to-Text Performance"
+class="gallery-image"
+data-flex-grow="97"
+data-flex-basis="233px"
+>&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5-omni/zero-shot-speech-generation.png"
+width="904"
+height="685"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5-omni/zero-shot-speech-generation_hu4247592615732321508.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5-omni/zero-shot-speech-generation_hu2294091350184113498.png 1024w"
+loading="lazy"
+alt="Speech Generation Performance"
+class="gallery-image"
+data-flex-grow="131"
+data-flex-basis="316px"
+>&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5-omni/single-speaker-speech-generation.png"
+width="864"
+height="513"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5-omni/single-speaker-speech-generation_hu18113694195638600776.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5-omni/single-speaker-speech-generation_hu13691510460279495977.png 1024w"
+loading="lazy"
+alt="single speaker speech generation"
+class="gallery-image"
+data-flex-grow="168"
+data-flex-basis="404px"
+>&lt;/p>
+&lt;h1 id="总结">总结
+&lt;/h1>&lt;p>Qwen2.5-omni相当于是结合了Qwen2.5-VL以及Mini-omni，跟mini-omni2的输入输出是类似的。不同的点在于，Qwen2.5-omni使用了Thinker-Talker的架构，然后还使用了TMRoPE来对齐不同的模态。总的来说，感觉模型还是更偏重于audio的理解与生成。&lt;/p>
+&lt;h1 id="reference">Reference
+&lt;/h1>&lt;ul>
+&lt;li>&lt;a class="link" href="http://arxiv.org/abs/2503.20215" target="_blank" rel="noopener"
+>Qwen2.5-omni&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://arxiv.org/abs/2408.16725" target="_blank" rel="noopener"
+>Mini-omni&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://arxiv.org/pdf/2410.11190" target="_blank" rel="noopener"
+>Mini-omni2&lt;/a>&lt;/li>
+&lt;/ul></description></item><item><title>Understanding Sigmoid Loss in SigLip</title><link>https://maosong2022.github.io/p/understanding-sigmoid-loss-in-siglip/</link><pubDate>Fri, 28 Mar 2025 14:55:50 +0800</pubDate><guid>https://maosong2022.github.io/p/understanding-sigmoid-loss-in-siglip/</guid><description>&lt;h2 id="introduction">Introduction
+&lt;/h2>&lt;p>A simple note to understand Sigmoid Loss in SigLip &lt;sup id="fnref:1">&lt;a href="#fn:1" class="footnote-ref" role="doc-noteref">1&lt;/a>&lt;/sup>. Supported by DeepSeek&lt;sup id="fnref:2">&lt;a href="#fn:2" class="footnote-ref" role="doc-noteref">2&lt;/a>&lt;/sup>&lt;/p>
+&lt;h2 id="binary-cross-entropy-loss">Binary cross entropy loss
+&lt;/h2>&lt;p>Suppose we want to solve the binary classification problem, with label $y\in{0, 1}$, a common option is to use binary cross entropy loss:&lt;/p>
+$$\mathcal{L}(x, y) = -[y\log (\sigma(z)) + (1-y)\log (1-\sigma(z))]$$&lt;p>where $z=f_\theta(x)$ is the logits predicted by our model $f_\theta$, and $\sigma$ is the sigmoid function:&lt;/p>
+$$\sigma(z) := \frac{1}{1 + e^{-z}}$$&lt;p>Let $\sigma(\cdot)$ be the sigmoid function, then we have:&lt;/p>
+$$
+\sigma(-z) = \frac{1}{1 + e^{z}} = \frac{e^{-z}}{1 + e^{-z}} = 1 - \frac{1}{1 + e^{-z}} = 1- \sigma(z)
+$$&lt;p>Now we substitute $\sigma(-z)=1-\sigma(z)$ into the loss function, we obtain:&lt;/p>
+$$\mathcal{L}(x, y) = -[y\log (\sigma(z)) + (1-y)\log (\sigma(-z))]$$&lt;p>Note that $y\in{0, 1}$ thus for each instance, there are two cases:&lt;/p>
+&lt;ul>
+&lt;li>If $y=0$, then $\mathcal{L}(x, y) =-\log (\sigma(-z))$&lt;/li>
+&lt;li>If $y=1$, then $\mathcal{L}(x, y) =-\log (\sigma(z))$&lt;/li>
+&lt;/ul>
+&lt;p>Now we want to use a unified expression to express these two cases. Note that this requires fitting a curve that passes two points $(0, -1)$ and $(1, 1)$. The simplest curve is a straight line $y=2x-1$. So, we can further simplify the loss expression into:&lt;/p>
+$$\mathcal{L}(x, y) = -\log\left[\sigma((2y-1)z)\right]$$&lt;h2 id="sigmoid-loss-in-siglip">Sigmoid Loss in SigLip
+&lt;/h2>&lt;p>Now we recall the sigmoid loss in SigLip:&lt;/p>
+$$\mathcal{L}(\{\bm{x}, \bm{y}\}_{i=1}^N)=-\frac{1}{N}\sum_{i=1}^N\sum_{j=1}^N\log \frac{1}{1+\exp\left[z_{ij}(-t\bm{x}_i\cdot \bm{y_j}+b)\right]}$$&lt;p>where $t, b$ are learnable parameters, and $z_{ij}=1$ if $i=j$ and $z_{ij}=-1$ otherwise.&lt;/p>
+&lt;p>To understand Sigmoid loss, notice that $z_{ij}=2\mathbb{I}_{i=j}-1$, which exactly matches the form we derived earlier.&lt;/p>
+&lt;h2 id="why-use-sigmoid-loss">Why Use Sigmoid Loss?
+&lt;/h2>&lt;ol>
+&lt;li>More stable: avoids $\log 0$.&lt;/li>
+&lt;li>More efficient: Compute Sigmoid once.&lt;/li>
+&lt;li>More Precise: one line of code without condition checking.&lt;/li>
+&lt;/ol>
+&lt;h1 id="references">References
+&lt;/h1>&lt;div class="footnotes" role="doc-endnotes">
+&lt;hr>
+&lt;ol>
+&lt;li id="fn:1">
+&lt;p>&lt;a class="link" href="https://openaccess.thecvf.com/content/ICCV2023/papers/Zhai_Sigmoid_Loss_for_Language_Image_Pre-Training_ICCV_2023_paper.pdf" target="_blank" rel="noopener"
+>SigLip&lt;/a>&amp;#160;&lt;a href="#fnref:1" class="footnote-backref" role="doc-backlink">&amp;#x21a9;&amp;#xfe0e;&lt;/a>&lt;/p>
+&lt;/li>
+&lt;li id="fn:2">
+&lt;p>&lt;a class="link" href="https://chat.deepseek.com/" target="_blank" rel="noopener"
+>DeepSeek&lt;/a>&amp;#160;&lt;a href="#fnref:2" class="footnote-backref" role="doc-backlink">&amp;#x21a9;&amp;#xfe0e;&lt;/a>&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;/div></description></item><item><title>Aya Vision模型总结</title><link>https://maosong2022.github.io/p/aya-vision%E6%A8%A1%E5%9E%8B%E6%80%BB%E7%BB%93/</link><pubDate>Mon, 17 Mar 2025 17:58:24 +0800</pubDate><guid>https://maosong2022.github.io/p/aya-vision%E6%A8%A1%E5%9E%8B%E6%80%BB%E7%BB%93/</guid><description>&lt;h1 id="介绍">介绍
+&lt;/h1>&lt;p>Aya Vision是一个多模态大语言模型，包含8B, 32B两个size，支持23种语言。Aya Vision基于 Aya Expanse大语言模型。&lt;/p>
+&lt;h1 id="模型架构">模型架构
+&lt;/h1>&lt;p>Aya Vision的模型架构如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/aya-vision%E6%A8%A1%E5%9E%8B%E6%80%BB%E7%BB%93/architecture.png"
+width="3624"
+height="1316"
+srcset="https://maosong2022.github.io/p/aya-vision%E6%A8%A1%E5%9E%8B%E6%80%BB%E7%BB%93/architecture_hu7451901003157889581.png 480w, https://maosong2022.github.io/p/aya-vision%E6%A8%A1%E5%9E%8B%E6%80%BB%E7%BB%93/architecture_hu7590094345800415710.png 1024w"
+loading="lazy"
+alt="Aya Vision模型架构 [1]"
+class="gallery-image"
+data-flex-grow="275"
+data-flex-basis="660px"
+>&lt;/p>
+&lt;ul>
+&lt;li>Vision Encoder: SigLip2-patch14-384&lt;/li>
+&lt;li>Vision-text connector: 2 layer MLP&lt;/li>
+&lt;li>LLM: Aya Expanse 8B/ 32B&lt;/li>
+&lt;/ul>
+&lt;h1 id="训练">训练
+&lt;/h1>&lt;p>训练包含两个stage：&lt;/p>
+&lt;ol>
+&lt;li>Vision-language alignment: 仅训练vision-text connector，基于image-text pairs进行训练&lt;/li>
+&lt;li>SFT：训练connector和LLM，基于合成的多语种数据进行训练&lt;/li>
+&lt;/ol>
+&lt;h1 id="多语种数据">多语种数据
+&lt;/h1>&lt;p>为了提高模型的多语种能力，作者先基于English的高质量数据集合成了annotation，然后作者讲这些数据转化为22中语言对应的文本&lt;/p>
+&lt;h1 id="model-merging">Model merging
+&lt;/h1>&lt;p>最后为了提高模型在纯文本任务上的表现，作者还使用了model merging的技巧。具体做法就是merge使用的base language model和SFT之后的vision-language model&lt;/p>
+&lt;h1 id="references">References
+&lt;/h1>&lt;ol>
+&lt;li>&lt;a class="link" href="https://huggingface.co/blog/aya-vision" target="_blank" rel="noopener"
+>Aya Vision Blog&lt;/a>&lt;/li>
+&lt;/ol></description></item><item><title>Gemma3 技术报告总结</title><link>https://maosong2022.github.io/p/gemma3-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/</link><pubDate>Sat, 15 Mar 2025 11:15:29 +0800</pubDate><guid>https://maosong2022.github.io/p/gemma3-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/</guid><description>&lt;img src="https://maosong2022.github.io/p/gemma3-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/cover.png" alt="Featured image of post Gemma3 技术报告总结" />&lt;h1 id="tldr">TLDR
+&lt;/h1>&lt;p>作者提出了Gemma3系列大模型，包括1B, 4B, 12B, 27B四个size。4B, 12B, 27B三个size均支持多模态，128K的上下文长度以及140种语言。&lt;/p>
+&lt;h1 id="方法">方法
+&lt;/h1>&lt;h2 id="数据处理">数据处理
+&lt;/h2>&lt;h3 id="数据格式">数据格式
+&lt;/h3>&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;span class="lnt">5
+&lt;/span>&lt;span class="lnt">6
+&lt;/span>&lt;span class="lnt">7
+&lt;/span>&lt;span class="lnt">8
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">[BOS]&amp;lt;start_of_turn&amp;gt;user
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">Who are you?&amp;lt;end_of_turn&amp;gt;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&amp;lt;start_of_turn&amp;gt;model
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">My name is Gemma!&amp;lt;end_of_turn&amp;gt;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&amp;lt;start_of_turn&amp;gt;user
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">What is 2+2?&amp;lt;end_of_turn&amp;gt;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&amp;lt;start_of_turn&amp;gt;model
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">2+2=4.&amp;lt;end_of_turn&amp;gt;
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>pretrain和SFT的区别在于,pretrain时模型输出以&lt;code>&amp;lt;eos&amp;gt;&lt;/code>结束,SFT时模型输出以&lt;code>&amp;lt;end_of_turn&amp;gt;&lt;/code>结束.&lt;/p>
+&lt;h3 id="图片处理">图片处理
+&lt;/h3>&lt;p>输入的图片都会被resize到896x896，如果图片精度过大或者不是正方形，则会通过Pan &amp;amp; Scan技巧裁剪为多个子图，然后每个子图分别进行resize。核心处理代码为：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="n">crop_size_w&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nb">int&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">math&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ceil&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">width&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="n">num_crops_w&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">crop_size_h&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nb">int&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">math&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ceil&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">height&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="n">num_crops_h&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># Don&amp;#39;t apply PaS if crop size is too small.&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">if&lt;/span> &lt;span class="nb">min&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">crop_size_w&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">crop_size_h&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">pan_and_scan_min_crop_size&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="p">[]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">crop_positions_w&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="n">crop_size_w&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">i&lt;/span> &lt;span class="k">for&lt;/span> &lt;span class="n">i&lt;/span> &lt;span class="ow">in&lt;/span> &lt;span class="nb">range&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">num_crops_w&lt;/span>&lt;span class="p">)]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">crop_positions_h&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="n">crop_size_h&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">i&lt;/span> &lt;span class="k">for&lt;/span> &lt;span class="n">i&lt;/span> &lt;span class="ow">in&lt;/span> &lt;span class="nb">range&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">num_crops_h&lt;/span>&lt;span class="p">)]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">image_crops&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">image&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">pos_h&lt;/span> &lt;span class="p">:&lt;/span> &lt;span class="n">pos_h&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">crop_size_h&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">pos_w&lt;/span> &lt;span class="p">:&lt;/span> &lt;span class="n">pos_w&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">crop_size_w&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">for&lt;/span> &lt;span class="n">pos_h&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">pos_w&lt;/span> &lt;span class="ow">in&lt;/span> &lt;span class="n">itertools&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">product&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">crop_positions_h&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">crop_positions_w&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h2 id="模型架构">模型架构
+&lt;/h2>&lt;p>模型包括4个size，分别是1B, 4B, 12B, 27B。1B的模型是单模态的，4B, 12B, 27B的模型是多模态的。对于多模态模型来说：&lt;/p>
+&lt;ul>
+&lt;li>Vision encoder: Siglip-400M&lt;/li>
+&lt;li>Projection layer: linear layer&lt;/li>
+&lt;li>LLM: Gemma 3&lt;/li>
+&lt;/ul>
+&lt;h2 id="模型参数">模型参数
+&lt;/h2>&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Model&lt;/th>
+&lt;th>Vision Encoder&lt;/th>
+&lt;th>Embedding Parameters&lt;/th>
+&lt;th>Non-embedding Parameters&lt;/th>
+&lt;th>context length&lt;/th>
+&lt;th>multilingual&lt;/th>
+&lt;th>training data&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>1B&lt;/td>
+&lt;td>0&lt;/td>
+&lt;td>302M&lt;/td>
+&lt;td>698M&lt;/td>
+&lt;td>32K&lt;/td>
+&lt;td>English&lt;/td>
+&lt;td>2T tokens&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>4B&lt;/td>
+&lt;td>417M&lt;/td>
+&lt;td>675M&lt;/td>
+&lt;td>3,209M&lt;/td>
+&lt;td>128K&lt;/td>
+&lt;td>140+ languages&lt;/td>
+&lt;td>4T tokens&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>12B&lt;/td>
+&lt;td>417M&lt;/td>
+&lt;td>1,012M&lt;/td>
+&lt;td>10,759M&lt;/td>
+&lt;td>128K&lt;/td>
+&lt;td>140+ languages&lt;/td>
+&lt;td>12T tokens&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>27B&lt;/td>
+&lt;td>417M&lt;/td>
+&lt;td>1,416M&lt;/td>
+&lt;td>25,600M&lt;/td>
+&lt;td>128K&lt;/td>
+&lt;td>140+ languages&lt;/td>
+&lt;td>14T tokens&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h2 id="attention-layers">Attention layers
+&lt;/h2>&lt;p>为了提高效率，作者将部分layer的self-attention替换为sliding window attention。论文里是将6 layers为一组，替换一组中最后一层为sliding window attention，其余层为self attention。判断某layer是否为sliding window attention的代码为：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># config.sliding_window_pattern = 6&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">is_sliding&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nb">bool&lt;/span>&lt;span class="p">((&lt;/span>&lt;span class="n">layer_idx&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">%&lt;/span> &lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">sliding_window_pattern&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h2 id="long-context">Long context
+&lt;/h2>&lt;p>作者将global self-attention的RoPE的base frequency从10K提升到了1M，对于sliding window attention，RoPE的base frequency保持10k不变。&lt;/p>
+&lt;h2 id="预训练">预训练
+&lt;/h2>&lt;ol>
+&lt;li>数据在模型参数里进行了汇总&lt;/li>
+&lt;li>tokenizer使用的是Gemini2.0的tokenizer，基于SentencePiece，vocab大小为262K&lt;/li>
+&lt;li>使用知识蒸馏的方法进行训练，每个token按照教师模型的概率采样256个logits，然后使用cross-entropy loss进行训练&lt;/li>
+&lt;li>4B, 12B, 27B的模型先在32K的context length上进行训练，然后在128K的context length上进行训练&lt;/li>
+&lt;/ol>
+&lt;h2 id="quantization-aware-training">Quantization Aware training
+&lt;/h2>&lt;p>作者提供了quantized版本的模型，模型基于预训练好的模型使用QAT方法进行SFT 5000 steps左右。最后是各个模型的内存占用情况&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>&lt;/th>
+&lt;th>Raw (GB)&lt;/th>
+&lt;th>&lt;/th>
+&lt;th>Quantized (GB)&lt;/th>
+&lt;th>&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>Model&lt;/td>
+&lt;td>bf16&lt;/td>
+&lt;td>Int4&lt;/td>
+&lt;td>Int4(blocks=32)&lt;/td>
+&lt;td>SFP8&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>1B&lt;/td>
+&lt;td>2.0&lt;/td>
+&lt;td>0.5&lt;/td>
+&lt;td>0.7&lt;/td>
+&lt;td>1.0&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>+KV&lt;/td>
+&lt;td>2.9&lt;/td>
+&lt;td>1.4&lt;/td>
+&lt;td>1.6&lt;/td>
+&lt;td>1.9&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>4B&lt;/td>
+&lt;td>8.0&lt;/td>
+&lt;td>2.6&lt;/td>
+&lt;td>2.9&lt;/td>
+&lt;td>4.4&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>+KV&lt;/td>
+&lt;td>12.7&lt;/td>
+&lt;td>7.3&lt;/td>
+&lt;td>7.6&lt;/td>
+&lt;td>9.1&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>12B&lt;/td>
+&lt;td>24.0&lt;/td>
+&lt;td>6.6&lt;/td>
+&lt;td>7.1&lt;/td>
+&lt;td>12.4&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>+KV&lt;/td>
+&lt;td>38.9&lt;/td>
+&lt;td>21.5&lt;/td>
+&lt;td>22.0&lt;/td>
+&lt;td>27.3&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>27B&lt;/td>
+&lt;td>54.0&lt;/td>
+&lt;td>14.1&lt;/td>
+&lt;td>15.3&lt;/td>
+&lt;td>27.4&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>+KV&lt;/td>
+&lt;td>72.7&lt;/td>
+&lt;td>32.8&lt;/td>
+&lt;td>34.0&lt;/td>
+&lt;td>46.1&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h2 id="后训练">后训练
+&lt;/h2>&lt;p>数据过滤：筛选掉包含PII，不安全的或者有毒的输出等。留下上下文依赖高，幻觉小的数据&lt;/p>
+&lt;p>训练包括升级版的知识蒸馏和基于RL的finetuning，其中RL的reward来自于weight averaged reward models, code execution feedback, ground-truth rewards&lt;/p>
+&lt;h1 id="实验">实验
+&lt;/h1>&lt;h2 id="表现">表现
+&lt;/h2>&lt;p>Gemma3的表现如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/gemma3-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/performance.png"
+width="1762"
+height="767"
+srcset="https://maosong2022.github.io/p/gemma3-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/performance_hu14555874255169857788.png 480w, https://maosong2022.github.io/p/gemma3-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/performance_hu15720531032123846925.png 1024w"
+loading="lazy"
+alt="performance of Gemma3"
+class="gallery-image"
+data-flex-grow="229"
+data-flex-basis="551px"
+>&lt;/p>
+&lt;p>与PaliGemma 2的表现对比&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/gemma3-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/comparison_with_pali_gemma_2.png"
+width="843"
+height="933"
+srcset="https://maosong2022.github.io/p/gemma3-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/comparison_with_pali_gemma_2_hu9558711894193063106.png 480w, https://maosong2022.github.io/p/gemma3-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/comparison_with_pali_gemma_2_hu6898425563427315909.png 1024w"
+loading="lazy"
+alt="Comparison with PaliGemma 2"
+class="gallery-image"
+data-flex-grow="90"
+data-flex-basis="216px"
+>&lt;/p>
+&lt;h2 id="消融实验">消融实验
+&lt;/h2>&lt;h3 id="local-attention-layers">Local attention layers
+&lt;/h3>&lt;ol>
+&lt;li>&lt;code>sliding_window_pattern&lt;/code>对模型的表现影响不大&lt;/li>
+&lt;li>sliding window size对模型的表现也不是很大，如下图&lt;/li>
+&lt;li>使用sliding window attention可以降低KV cache的内存占用&lt;/li>
+&lt;/ol>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/gemma3-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/sliding_window_size.png"
+width="865"
+height="618"
+srcset="https://maosong2022.github.io/p/gemma3-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/sliding_window_size_hu17309206232616813496.png 480w, https://maosong2022.github.io/p/gemma3-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/sliding_window_size_hu10295050076214734954.png 1024w"
+loading="lazy"
+alt="sliding window size"
+class="gallery-image"
+data-flex-grow="139"
+data-flex-basis="335px"
+>&lt;/p>
+&lt;h3 id="long-context-ablation">Long context ablation
+&lt;/h3>&lt;p>结论为long context会降低模型的性能&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/gemma3-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/long_context.png"
+width="864"
+height="887"
+srcset="https://maosong2022.github.io/p/gemma3-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/long_context_hu9509380818164822673.png 480w, https://maosong2022.github.io/p/gemma3-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/long_context_hu1683040308469995607.png 1024w"
+loading="lazy"
+alt="long context"
+class="gallery-image"
+data-flex-grow="97"
+data-flex-basis="233px"
+>&lt;/p>
+&lt;h3 id="知识蒸馏">知识蒸馏
+&lt;/h3>&lt;p>训练token个数比较少的时候，使用小的教师模型效果更好；训练token个数比较多的时候，使用大的教师模型效果更好。&lt;/p>
+&lt;h3 id="pan--scan">Pan &amp;amp; Scan
+&lt;/h3>&lt;p>使用图片原始的aspect ratio训练的模型效果更好。&lt;/p>
+&lt;h3 id="memorization">memorization
+&lt;/h3>&lt;p>memorization指模型输出的文本与训练数据中文本的重复率。结果发现Gemma3的memorization要更低一些。&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/gemma3-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/memorization.png"
+width="865"
+height="824"
+srcset="https://maosong2022.github.io/p/gemma3-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/memorization_hu3042760849725965340.png 480w, https://maosong2022.github.io/p/gemma3-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/memorization_hu3418502301793720798.png 1024w"
+loading="lazy"
+alt="memorization"
+class="gallery-image"
+data-flex-grow="104"
+data-flex-basis="251px"
+>&lt;/p>
+&lt;h1 id="结论">结论
+&lt;/h1>&lt;ol>
+&lt;li>sliding window attention在Qwen2.5-VL里已经验证过有效,这里在Gemma3上同样验证了有效性.&lt;/li>
+&lt;li>模型架构与PaliGemma系列基本一致，只是attention改变了，然后LLM从Gemma 2升级到了Gemma 3。&lt;/li>
+&lt;/ol>
+&lt;h1 id="参考文献">参考文献
+&lt;/h1>&lt;ul>
+&lt;li>&lt;a class="link" href="https://storage.googleapis.com/deepmind-media/gemma/Gemma3Report.pdf" target="_blank" rel="noopener"
+>Gemma3 Technical Report&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://github.com/huggingface/transformers/tree/main/src/transformers/models/gemma3" target="_blank" rel="noopener"
+>transformers-Gemma3 code&lt;/a>&lt;/li>
+&lt;/ul></description></item><item><title>Overview of Qwen-VL series</title><link>https://maosong2022.github.io/p/overview-of-qwen-vl-series/</link><pubDate>Sun, 09 Mar 2025 15:11:29 +0800</pubDate><guid>https://maosong2022.github.io/p/overview-of-qwen-vl-series/</guid><description>&lt;h1 id="timeline">Timeline
+&lt;/h1>&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>时间&lt;/th>
+&lt;th>模型系列&lt;/th>
+&lt;th>Feature&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>2023.08&lt;/td>
+&lt;td>Qwen-VL&lt;/td>
+&lt;td>Vision-centric understanding&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>Multi-lingual&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>Multi-image&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>Fine-grained visual understanding&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>2024.09&lt;/td>
+&lt;td>Qwen2-VL&lt;/td>
+&lt;td>Image understanding&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>Video understanding (20min)&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>Agent capability&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>Multilingual support&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>2025.02&lt;/td>
+&lt;td>Qwen2.5-VL&lt;/td>
+&lt;td>Document parsing&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>Object grounding&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>Long video understadning and grouding (1 hour)&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>Agent functionality&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h1 id="models">Models
+&lt;/h1>&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>&lt;/th>
+&lt;th>name&lt;/th>
+&lt;th>size&lt;/th>
+&lt;th>Vision&lt;/th>
+&lt;th>Adapter&lt;/th>
+&lt;th>LLM&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>1.0&lt;/td>
+&lt;td>Qwen-VL&lt;/td>
+&lt;td>9.6B&lt;/td>
+&lt;td>ViT(1.9B)&lt;/td>
+&lt;td>Cross-attention(0.08B)&lt;/td>
+&lt;td>Qwen-LLM(7B)&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>2.0&lt;/td>
+&lt;td>Qwen2-VL-2B&lt;/td>
+&lt;td>2B&lt;/td>
+&lt;td>ViT(675M)&lt;/td>
+&lt;td>MLP(0.0341B)&lt;/td>
+&lt;td>Qwen2-LLM(1.5B)&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>Qwen2-VL-7B&lt;/td>
+&lt;td>7B&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>MLP(0.0446B)&lt;/td>
+&lt;td>Qwen2-LLM(7.6B)&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>Qwen2-VL-72B&lt;/td>
+&lt;td>72B&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>MLP(0.0682B)&lt;/td>
+&lt;td>Qwen2-LLM(72B)&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>2.5&lt;/td>
+&lt;td>Qwen2.5-VL-3B&lt;/td>
+&lt;td>3B&lt;/td>
+&lt;td>ViT(675M)&lt;/td>
+&lt;td>MLP(0.1817B)&lt;/td>
+&lt;td>Qwen2.5-LLM(3B)&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>Qwen2.5-VL-7B&lt;/td>
+&lt;td>7B&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>MLP(0.3179B)&lt;/td>
+&lt;td>Qwen2.5-LLM(7.6B)&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>Qwe2.5n-VL-72B&lt;/td>
+&lt;td>72B&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>MLP(0.7267B)&lt;/td>
+&lt;td>Qwen2.5-LLM(72B)&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>Remark&lt;/p>
+&lt;ul>
+&lt;li>Qwen2-VL的MLP使用的是LayerNorm&lt;/li>
+&lt;li>Qwen2.5-VL的MLP使用的是RMSNorm&lt;/li>
+&lt;li>出了Qwen-VL之外，所有模型均有对应的Instruct版本，这里为了方便没有列出。Qwen-VL对应的是Qwen-VL-chat。&lt;/li>
+&lt;/ul>
+&lt;h1 id="data--training">Data &amp;amp; training
+&lt;/h1>&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Model series&lt;/th>
+&lt;th>stage&lt;/th>
+&lt;th>data&lt;/th>
+&lt;th>Vision&lt;/th>
+&lt;th>Adapter&lt;/th>
+&lt;th>LLM&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>Qwen-VL&lt;/td>
+&lt;td>pretraining&lt;/td>
+&lt;td>1.4B&lt;/td>
+&lt;td>✅&lt;/td>
+&lt;td>✅&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>Multi-task pretraining&lt;/td>
+&lt;td>96.8M&lt;/td>
+&lt;td>✅&lt;/td>
+&lt;td>✅&lt;/td>
+&lt;td>✅&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>SFT&lt;/td>
+&lt;td>350K&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>✅&lt;/td>
+&lt;td>✅&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Qwen2-VL&lt;/td>
+&lt;td>pretraining&lt;/td>
+&lt;td>600b tokens&lt;/td>
+&lt;td>✅？&lt;/td>
+&lt;td>✅？&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>Multi-task pretraining&lt;/td>
+&lt;td>800b tokens&lt;/td>
+&lt;td>✅？&lt;/td>
+&lt;td>✅？&lt;/td>
+&lt;td>✅？&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>SFT&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>✅？&lt;/td>
+&lt;td>✅？&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Qwen2.5-VL&lt;/td>
+&lt;td>Visual Pre-Training&lt;/td>
+&lt;td>1.5T token&lt;/td>
+&lt;td>✅？&lt;/td>
+&lt;td>✅？&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>Multimodal Pre-Training&lt;/td>
+&lt;td>2T token&lt;/td>
+&lt;td>✅&lt;/td>
+&lt;td>✅&lt;/td>
+&lt;td>✅&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>Long-Context Pre-Training&lt;/td>
+&lt;td>0.6T token&lt;/td>
+&lt;td>✅？&lt;/td>
+&lt;td>✅？&lt;/td>
+&lt;td>✅？&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>SFT&lt;/td>
+&lt;td>2M samples&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>✅&lt;/td>
+&lt;td>✅&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>DPO&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>✅&lt;/td>
+&lt;td>✅&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>Remark&lt;/p>
+&lt;ol>
+&lt;li>Qwen2-VL按照技术报告的说法是follow了Qwen-VL的训练方式，因此这里也使用了同样的表示&lt;/li>
+&lt;li>带问号的地方代表不确定，为个人猜测。请谨慎参考。&lt;/li>
+&lt;li>难以确定的原因是Qwen-VL系列将projection layer和ViT作为一个模块，因此比较难区分是否训练了projection layer&lt;/li>
+&lt;/ol>
+&lt;p>技术报告的训练框架图&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/overview-of-qwen-vl-series/qwen-vl-training.png"
+width="1908"
+height="868"
+srcset="https://maosong2022.github.io/p/overview-of-qwen-vl-series/qwen-vl-training_hu10403710283858859645.png 480w, https://maosong2022.github.io/p/overview-of-qwen-vl-series/qwen-vl-training_hu10541227880671039729.png 1024w"
+loading="lazy"
+alt="qwen-vl-training"
+class="gallery-image"
+data-flex-grow="219"
+data-flex-basis="527px"
+>&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/overview-of-qwen-vl-series/qwen2-5-training.png"
+width="1354"
+height="468"
+srcset="https://maosong2022.github.io/p/overview-of-qwen-vl-series/qwen2-5-training_hu9762734632441640035.png 480w, https://maosong2022.github.io/p/overview-of-qwen-vl-series/qwen2-5-training_hu16613519819175232642.png 1024w"
+loading="lazy"
+alt="qwen2-5-training"
+class="gallery-image"
+data-flex-grow="289"
+data-flex-basis="694px"
+>&lt;/p>
+&lt;p>References&lt;/p>
+&lt;ul>
+&lt;li>&lt;a class="link" href="https://arxiv.org/pdf/2308.12966" target="_blank" rel="noopener"
+>Qwen-VL&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://arxiv.org/pdf/2409.12191" target="_blank" rel="noopener"
+>Qwen2-VL&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://arxiv.org/pdf/2502.13923" target="_blank" rel="noopener"
+>Qwen2.5-VL&lt;/a>&lt;/li>
+&lt;/ul></description></item><item><title>Notes on Qwen2.5 VL</title><link>https://maosong2022.github.io/p/notes-on-qwen2.5-vl/</link><pubDate>Tue, 04 Mar 2025 10:46:42 +0800</pubDate><guid>https://maosong2022.github.io/p/notes-on-qwen2.5-vl/</guid><description>&lt;h1 id="introduction">Introduction
+&lt;/h1>&lt;p>2025年2月20号Qwen团队发布了Qwen2.5 VL技术报告，Qwen2.5 VL包括3B，7B， 72B三个size。Qwen2.5-VL主要在架构，数据上进行了改进。通过评测，Qwen2.5-VL在多个benchmark上取得了SOTA。&lt;/p>
+&lt;p>Qwen2.5 VL认为已有模型的缺点为：&lt;/p>
+&lt;ul>
+&lt;li>计算复杂度高&lt;/li>
+&lt;li>上下文理解能力有限&lt;/li>
+&lt;li>细粒度visual perception能力不足&lt;/li>
+&lt;li>在不同上下文长度下表现不一致&lt;/li>
+&lt;/ul>
+&lt;p>Qwen2.5 VL的贡献为：&lt;/p>
+&lt;ol>
+&lt;li>使用了一个从零开始训练的ViT作为vision encoder，并且在ViT中使用了window attention，来提高计算效率&lt;/li>
+&lt;li>使用了dynamic FPS sampling，用于处理不同采样率的视频输入&lt;/li>
+&lt;li>将MRoPE扩展到了temporal domain上，进一步提高了模型在与时间相关任务上的表现&lt;/li>
+&lt;li>使用了更高质量的数据集，其中预训练阶段使用了4.1T的token&lt;/li>
+&lt;/ol>
+&lt;p>Qwen2.5 VL的主要亮点为：&lt;/p>
+&lt;ul>
+&lt;li>优秀的document parsing能力&lt;/li>
+&lt;li>精确的object grounding能力&lt;/li>
+&lt;li>针对长视频的理解和细粒度grounding能力&lt;/li>
+&lt;li>针对UI的agent functionality&lt;/li>
+&lt;/ul>
+&lt;h1 id="模型架构">模型架构
+&lt;/h1>&lt;h2 id="总览">总览
+&lt;/h2>&lt;p>Qwen2.5 VL和Qwen2 VL的架构基本一致，包括Vision Encoder，Language Encoder，以及projector layer三个部分，其架构图如下：&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/architecture.png"
+width="1345"
+height="889"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/architecture_hu17125015043072785911.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5-vl/architecture_hu16983634930428889570.png 1024w"
+loading="lazy"
+alt="Qwen2.5 VL架构图"
+class="gallery-image"
+data-flex-grow="151"
+data-flex-basis="363px"
+>&lt;/p>
+&lt;ul>
+&lt;li>LLM： 使用Qwen2.5 LLM作为LLM，并且将1D-RoPE升级为了MRoPE&lt;/li>
+&lt;li>Vision Encoder： 使用一个从零开始训练的ViT架构，patch_size为14，position embedding为2D-RoPE， attention为window attention和self-attention的混合，其中，只有四层使用的是self-attention.对于输入的图片，ViT会将图片resize到28的整数倍。&lt;/li>
+&lt;li>Projector Layer： 使用的是一个两层的MLP&lt;/li>
+&lt;/ul>
+&lt;p>模型的参数配置如下图&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/model_config.png"
+width="1180"
+height="861"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/model_config_hu6133933021768467739.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5-vl/model_config_hu685888814144466819.png 1024w"
+loading="lazy"
+alt="Qwen2.5 VL模型参数配置"
+class="gallery-image"
+data-flex-grow="137"
+data-flex-basis="328px"
+>&lt;/p>
+&lt;h2 id="vision-encoder">Vision Encoder
+&lt;/h2>&lt;p>Vision encoder的主要改进点为：&lt;/p>
+&lt;ol>
+&lt;li>使用了window attention来提升计算效率，window attention的size为 $112\times 112$， 对应为 $8\times 8$ 个patch. 这样做的好处是可以不用对图片做scaling&lt;/li>
+&lt;li>使用了2D RoPE来捕捉空间信息，使用3D RoPE来捕捉视频输入的时间信息&lt;/li>
+&lt;li>与LLM的结构进行对齐，包括使用RMSNorm替换LayerNorm，使用SwiGLU替换ReLU&lt;/li>
+&lt;/ol>
+&lt;h2 id="输入处理">输入处理
+&lt;/h2>&lt;p>对于图片输入，Qwen2.5 VL使用原始图片的空间信息来构建坐标，而不是将坐标normalize到[0, 1000]之间，这样让模型可以处理不同精度的图片输入。&lt;/p>
+&lt;p>对于视频输入，因为使用了3D RoPE，因此Qwen2.5 VL可以处理不同帧率的视频输入，这样就避免了不同帧率视频对模型视频理解带来的影响。这一点和Apollo里的想法是一样的。具体来说，Qwen2.5 VL首先将连续的两帧group到了一起，然后使用了temporal ID来将position和视频所对应的时间进行对齐。这里可以看Qwen2.5 VL的代码：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">Temporal (Time): 3 patches, representing different segments of the video in time.
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">Height: 2 patches, dividing each frame vertically.
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">Width: 2 patches, dividing each frame horizontally.
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">We also have some important parameters:
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">fps (Frames Per Second): The video&amp;#39;s frame rate, set to 1. This means one frame is processed each second.
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">tokens_per_second: This is a crucial parameter. It dictates how many &amp;#34;time-steps&amp;#34; or &amp;#34;temporal tokens&amp;#34; are conceptually packed into a one-second interval of the video. In this case, we have 25 tokens per second. So each second of the video will be represented with 25 separate time points. It essentially defines the temporal granularity.
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">temporal_patch_size: The number of frames that compose one temporal patch. Here, it&amp;#39;s 2 frames.
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">interval: The step size for the temporal position IDs, calculated as tokens_per_second * temporal_patch_size / fps. In this case, 25 * 2 / 1 = 50. This means that each temporal patch will be have a difference of 50 in the temporal position IDs.
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">input_ids: [V V V V V V V V V V V V T T T T T], here V is for vision.
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">vision temporal position_ids: [0, 0, 0, 0, 50, 50, 50, 50, 100, 100, 100, 100]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">vision height position_ids: [0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">vision width position_ids: [0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">text temporal position_ids: [101, 102, 103, 104, 105]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">text height position_ids: [101, 102, 103, 104, 105]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">text width position_ids: [101, 102, 103, 104, 105]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">Here we calculate the text start position_ids as the max vision position_ids plus 1.
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>这里&lt;code>fps&lt;/code>为1，表示每一帧对应一秒，&lt;code>tokens_per_second&lt;/code>为25，表示每秒包含25个token，&lt;code>temporal_patch_size&lt;/code>为2，表示每个temporal patch包含2个frame。因此一个patch里面，就包含了2frame, 对应50tokens. 然后前面提到连续两帧会被group到一起，因此每个temporal patch对应4个spatial patches. 其position_ids为：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="p">[(&lt;/span>&lt;span class="n">t&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">t&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">t&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">t&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">)]&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h1 id="训练">训练
+&lt;/h1>&lt;h2 id="预训练">预训练
+&lt;/h2>&lt;h3 id="数据">数据
+&lt;/h3>&lt;p>预训练阶段使用了4.1T的token，包括image captions, interleaved image-text data, optical character recognition (OCR) data, visual knowledge (e.g., celebrity, landmark, flora, and fauna identification), multi-modal academic questions, localization data, document parsing data, video descriptions, video localization, and agent-based interaction data. 作者详细介绍了以下几种数据：&lt;/p>
+&lt;ul>
+&lt;li>Interleaved image-text data： 主要1. 提高模型的上下文学习能力；2. 保持模型的text-only能力；3.包含一些通用信息。数据清洗包括：1. 基于text-only quality过滤； 2. 基于image-text相关性过滤；3. 基于image-text互补程度过滤；4.基于information density balance过滤.&lt;/li>
+&lt;li>Grounding data：作者使用了Grounding DINO, SAM等模型来生成一些grounding data.为了提升模型在open-vocabulary detection上的能力，作者将训练数据集扩展到了1万个object category上，作者还使用了一些point-based object grounding data来提升模型的能力&lt;/li>
+&lt;li>Document Parsing data：作者基于text,image, music sheets和chemical formulas合成了一些HTML格式的数据，然后根据tag和bounding box来提升模型document parsing的能力&lt;/li>
+&lt;li>OCR data：作者使用了开源，合成和in-house的数据集，数据集主要提到multi-lingual以及1M的chart-type数据&lt;/li>
+&lt;li>Video data：作者通过pipeline构建了long video caption来提升模型长视频的理解能力&lt;/li>
+&lt;li>Agent data：作者收集了一些mobile device和网页的screenshots,然后基于agent框架来合成控制轨迹&lt;/li>
+&lt;/ul>
+&lt;h3 id="训练-1">训练
+&lt;/h3>&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/pretraining.png"
+width="1217"
+height="428"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/pretraining_hu13120081010368224081.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5-vl/pretraining_hu851622592674460936.png 1024w"
+loading="lazy"
+alt="Qwen2.5 VL预训练阶段"
+class="gallery-image"
+data-flex-grow="284"
+data-flex-basis="682px"
+>&lt;/p>
+&lt;p>如上图所示，Qwen2.5 VL的预训练阶段包括了三个阶段：&lt;/p>
+&lt;ol>
+&lt;li>Visual Pretraining:这一阶段使用了image-caption, knowledge, OCR数据集，旨在提升ViT提取视觉特征的能力&lt;/li>
+&lt;li>multimodal pretraining:这一阶段在第一阶段的基础上增加了pure-text, interleaved data, VQA, Video grounding, agent data, 旨在提升模型处理复杂视觉信息的能力&lt;/li>
+&lt;li>long-context pretraining: 这一阶段，在第二阶段的基础上，增加了long video, long agent, long document data，旨在提升模型处理长上下文的能力&lt;/li>
+&lt;/ol>
+&lt;h2 id="后训练">后训练
+&lt;/h2>&lt;h3 id="数据-1">数据
+&lt;/h3>&lt;p>SFT阶段使用大概2M的样本进行训练，其中纯文本和多模态数据占比为1:1，语言主要是中文和英文。&lt;/p>
+&lt;p>为了保证数据质量，作者提供了一个数据清洗的pipeline，包括：&lt;/p>
+&lt;ol>
+&lt;li>domain-specific categorization: 作者基于Qwen2-VL-72B构建了Qwen2-VL-Instag，用于将QA pair分为8个大类别，30个小类别&lt;/li>
+&lt;li>Domain-tailed filtering:作者使用了rule-based和model-based方法来提升数据的质量
+&lt;ul>
+&lt;li>rule-based filtering: 重复性检测，格式检测等&lt;/li>
+&lt;li>model-based filtering: 使用基于Qwen2.5-VL训练的reward model来从多个维度评估QA pair的质量&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ol>
+&lt;p>为了进一步提升模型的推理能力，作者还是用了rejection sampling来refine 数据集。&lt;/p>
+&lt;h3 id="训练-2">训练
+&lt;/h3>&lt;p>post-training阶段分为SFT和DPO两个小阶段，这个阶段都会冻结VIT. SFT阶段使用大多数的训练数据，而DPO阶段专注于image-text data和pure text data，以更好地进行对齐。具体做法就是基于Grounding truth，使用checkpoint来评估数据的质量，然后只保留答案正确的数据来训练。&lt;/p>
+&lt;h1 id="评测">评测
+&lt;/h1>&lt;ol>
+&lt;li>通用VQA
+&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/general_vqa.png"
+width="1356"
+height="656"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/general_vqa_hu892650520576289201.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5-vl/general_vqa_hu9870708508441533774.png 1024w"
+loading="lazy"
+alt="通用VQA"
+class="gallery-image"
+data-flex-grow="206"
+data-flex-basis="496px"
+>&lt;/li>
+&lt;li>文档理解和OCR
+&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/document_understanding.png"
+width="1358"
+height="655"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/document_understanding_hu17694059179260147209.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5-vl/document_understanding_hu7262732638369499565.png 1024w"
+loading="lazy"
+alt="文档理解和OCR"
+class="gallery-image"
+data-flex-grow="207"
+data-flex-basis="497px"
+>&lt;/li>
+&lt;li>空间理解
+&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/grounding.png"
+width="1324"
+height="714"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/grounding_hu5967843440894939227.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5-vl/grounding_hu13144193697505905228.png 1024w"
+loading="lazy"
+alt="空间理解"
+class="gallery-image"
+data-flex-grow="185"
+data-flex-basis="445px"
+>&lt;/li>
+&lt;li>视频理解和Grounding
+&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/video.png"
+width="1320"
+height="672"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/video_hu2773206847940642085.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5-vl/video_hu9652119302145499627.png 1024w"
+loading="lazy"
+alt="视频理解和Grounding"
+class="gallery-image"
+data-flex-grow="196"
+data-flex-basis="471px"
+>&lt;/li>
+&lt;li>Agent
+&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/agent.png"
+width="1374"
+height="337"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/agent_hu14999408161773977095.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5-vl/agent_hu8333246447475526185.png 1024w"
+loading="lazy"
+alt="Agent"
+class="gallery-image"
+data-flex-grow="407"
+data-flex-basis="978px"
+>&lt;/li>
+&lt;/ol>
+&lt;h1 id="reference">Reference
+&lt;/h1>&lt;ul>
+&lt;li>&lt;a class="link" href="https://github.com/QwenLM/Qwen2.5-VL" target="_blank" rel="noopener"
+>Github&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://arxiv.org/abs/2502.13923" target="_blank" rel="noopener"
+>Paper&lt;/a>&lt;/li>
+&lt;/ul></description></item><item><title>Kimi k1.5 技术报告总结</title><link>https://maosong2022.github.io/p/kimi-k1.5-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/</link><pubDate>Sat, 08 Feb 2025 10:09:52 +0800</pubDate><guid>https://maosong2022.github.io/p/kimi-k1.5-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/</guid><description>&lt;h1 id="介绍">介绍
+&lt;/h1>&lt;p>论文提出了Kimi k1.5， 一个基于强化学习训练的多模态推理模型。作者介绍了Kimi k1.5的训练方法，以及infra上的优化。作者的主要贡献如下：&lt;/p>
+&lt;ol>
+&lt;li>作者发现，模型的上下文长度可以有效提升LLM的推理能力。&lt;/li>
+&lt;li>作者提出了基于online mirror descent的强化学习训练方法。&lt;/li>
+&lt;li>作者发现可以通过long context scaling和policy optimization来提升模型的推理能力。&lt;/li>
+&lt;li>作者提出了long2short的推理方法，可以有效提升short CoT模型的推理能力。&lt;/li>
+&lt;/ol>
+&lt;h1 id="模型架构">模型架构
+&lt;/h1>&lt;p>论文中包括两个模型，一个是k1.5 base model， 其是一个多模态大模型。另一个是Kimi-1.5 reasoning model（简称为k1.5），k1.5是基于kimi-1.5 base model， 通过强化学习训练得到的推理模型。&lt;/p>
+&lt;h2 id="kimi-15-base-model">Kimi-1.5 base model
+&lt;/h2>&lt;p>k1.5 base model是一个基于transformer的多模态大模型，论文没有给出详细的模型结构，只有如下的示意图&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/kimi-k1.5-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/k1-5-model-arch.png"
+width="1210"
+height="287"
+srcset="https://maosong2022.github.io/p/kimi-k1.5-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/k1-5-model-arch_hu1937206545208930311.png 480w, https://maosong2022.github.io/p/kimi-k1.5-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/k1-5-model-arch_hu10349051156390148271.png 1024w"
+loading="lazy"
+alt="Architecture of k1.5 base model"
+class="gallery-image"
+data-flex-grow="421"
+data-flex-basis="1011px"
+>&lt;/p>
+&lt;p>k1.5 base model的训练包括三个阶段：&lt;/p>
+&lt;ol>
+&lt;li>Vision-language pretraining stage: 这一阶段的目的是让模型拥有语言和视觉的表征能力。训练时，模型先在纯文本的数据上进行训练，然后提高加入图文交错的数据进行训练，直到训练数据中图文交错的数据占比达到30%。模型的更新方式为先冻结LLM更新visual tower, 然后解冻LLM更新所有参数。&lt;/li>
+&lt;li>Vision-language cooldown stage: 这一阶段的目的是让模型保持多模态理解能力。作者发现，使用合成数据可以提高模型在这一阶段的表现。因此，作者使用闭源大语言模型，基于math, knowledge和code domain的pretraining data来合成了一些QA pair数据对，然后讲这些QA pair数据对加入到训练数据中。&lt;/li>
+&lt;li>Long-context activation stage: 这一阶段的目的是让模型在长上下文的数据上进行训练，以提升模型在长上下文上的理解能力。这一阶段包含了40%的full attention data以及60%的partial attention data。其中，full attention data是基于真实数据和合成的QA以及summary数据得到的，partial attention data是在cooldown data找那个通过均匀采样得到的。这一阶段，模型的上下文长度从4096逐步增加到131072。&lt;/li>
+&lt;/ol>
+&lt;h2 id="kimi-k15">Kimi k1.5
+&lt;/h2>&lt;p>Kimi k1.5是基于k1.5 base model， 通过进一步训练得到的推理模型。k1.5的训练包括四个阶段：&lt;/p>
+&lt;ol>
+&lt;li>pretraining：这一步就是k1.5 base model的训练， 包括三个小阶段。前面已经介绍过了。&lt;/li>
+&lt;li>vanilla SFT：这一步的目的是使得k1.5 base model具有指令跟随能力。对于non-reasoning任务，作者先使用人类标注产生一个seed dataset，然后基于seed dataset训练一个seed model，最后根据收集的prompt来使用seed model来生成回答。对于reasoning任务，作者使用了rejection sampling来扩展SFT数据集&lt;/li>
+&lt;li>long-CoT SFT： 这一步的目的是让模型能够像人类一样进行推理，能够掌握最基本的推理策略，即：planning，evaluation，reflection和exploration。从而为RL训练提供一个良好的初始化。&lt;/li>
+&lt;li>RL：这一步就是通过RL来提高模型的推理能力。我们在下一节中进行详细的介绍。&lt;/li>
+&lt;/ol>
+&lt;h1 id="rl">RL
+&lt;/h1>&lt;h2 id="问题定义">问题定义
+&lt;/h2>&lt;p>给定一个训练数据集 $\mathcal{D} = {(x_i, y_i^\star)}_ {i=1}^n$， 其中 $x_ i$ 是问题， $y_{i}^\star$ 是ground truth。我们希望找到一个模型 $\pi_{\theta}$ ，来解决这个问题。通常问题比较难，因此我们使用chain of thought（CoT）的方法来解决这个问题。具体做法就是让模型输出中间步骤 $z=(z_1, z_2, &amp;hellip;, z_m)$， 来连接问题 $x_i$ 和答案 $y$。其中， $z_j$ 是模型在第 $j$ 步的推理结果，即 $z_t\sim\pi_{\theta}(x_i, z_{&amp;lt;t})$, $y\sim \pi_{\theta}(x_i, z)$。&lt;/p>
+&lt;p>通常，我们还会使用一个reward model $r_{\phi}$，来评估模型输出的答案的质量。一个常用的reward model是基于答案的正确性来评估的，即 $r_{\phi}(x_i, y, y^\star) = \mathbb{I}[y=y_i^\star]$ 。这样，我们要求解的问题就变成了最大化中间步骤和最终答案的reward，即&lt;/p>
+$$
+\max_{\theta} \mathbb{E}_ {(x, y^\star)\sim\mathcal{D},(y,z,)\sim\pi_{\theta}} r_{\phi}(x, y, y^\star)
+$$&lt;h2 id="policy-optimization">Policy Optimization
+&lt;/h2>&lt;p>作者使用了online policy mirror descent来解决上面提到的优化问题。在每个iteration中，存在一个reference model $\pi_{\theta_r}$ ， 以及一个当前要更新的模型 $\pi_{\theta}$ 。online policy mirror descent要解决的优化问题为：&lt;/p>
+$$
+\min_{\theta} \mathbb{E}_ {(x, y^\star)\sim\mathcal{D}} \left[\mathbb{E}_ {(y,z,)\sim\pi_{\theta}}\left[r_{\phi}(x, y, y^\star) - \beta \mathcal{D}_ {KL}(\pi_{\theta}(y,z\mid x)\Vert \pi_{\theta_r}(y,z\mid x))\right]\right]
+$$&lt;p>其中， $\beta$ 是超参数，用于平衡reward和KL散度 $\mathcal{D}_{KL}(\cdot)$.&lt;/p>
+&lt;p>上述问题有一个闭式解，即：&lt;/p>
+$$
+\pi^\star(y,z\mid x)=\pi_{\theta_r}(y,z\mid x)\exp\left(\frac{r_{\phi}(x, y, y^\star)}{\beta}\right)/Z(x;\beta)
+$$&lt;p>其中，&lt;/p>
+$$
+Z(x;\beta):=\sum_{y,z}\pi_{\theta_r}(y,z\mid x)\exp\left(\frac{r_{\phi}(x, y, y^\star)}{\beta}\right)
+$$&lt;p>是归一化因子。在闭式解的表达式中，我们对两边取对数，得到：&lt;/p>
+$$
+r_{\phi}(x, y, y^\star) - \beta \log Z - \beta \log\frac{\pi^\star(y,z\mid x)}{\pi_{\theta_r}(y,z\mid x)}=0
+$$&lt;p>这是最优策略满足的等式。作者这里使用了L2 loss来优化当前策略 $\pi_{\theta}$ ，即：&lt;/p>
+$$
+\min_{\theta} \mathbb{E}_ {(x, y^\star)\sim\mathcal{D}} \left[\mathbb{E}_ {(y,z,)\sim\pi_ {\theta_r}}\left[r_{\phi}(x, y, y^\star) - \beta \log Z - \beta \log\frac{\pi_{\theta}(y,z\mid x)}{\pi_{\theta_r}(y,z\mid x)}\right]^2\right]
+$$&lt;p>这里需要注意的一点是response $(y,z)$ 是基于reference model $\pi_{\theta_r}$ 生成的，而不再是基于当前策略 $\pi_{\theta}$ 生成的。这是Kimi-1.5的RL训练和传统RL训练的一个不同点。这也是为什么k1.5说他是off-policy的原因。&lt;/p>
+&lt;p>接下来，我们就可以对上面的目标函数求梯度，我们将里层的函数展开为 $(a-b-c)^2=(a-b)^2-2(a-b)c+c^2$ 的形式，然后对 $\theta$ 求梯度，得到：&lt;/p>
+$$
+\mathbb{E}_ {(x, y^\star)\sim\mathcal{D}} \left[\mathbb{E}_ {(y,z,)\sim\pi_{\theta_r}}\left[\nabla_{\theta}\log \pi_{\theta}(y,z\mid x)(r_{\phi}(x, y, y^\star) - \beta \log Z) - \frac{\beta}{2} \nabla_{\theta}\left(\log\frac{\pi_{\theta}(y,z\mid x)}{\pi_{\theta_r}(y,z\mid x)}\right)^2\right]\right]
+$$&lt;p>如果我们对每个问题$x$,采样 $k$ 个response $(y,z)$ ，那么我们可以近似上式中内部的期望，得到：&lt;/p>
+$$
+\frac{1}{k}\sum_{i=1}^k\left[\nabla_{\theta}\log \pi_{\theta}(y_i,z_i\mid x)(r_{\phi}(x, y_i, y^\star) - \bar{r}) - \frac{\beta}{2} \nabla_{\theta}\left(\log\frac{\pi_{\theta}(y_i,z_i\mid x)}{\pi_{\theta_r}(y_i,z_i\mid x)}\right)^2\right]
+$$&lt;p>这里， $\bar{r}$ 是 $\beta \log Z$ 的估计值。作者提供了两种估计方法：&lt;/p>
+&lt;ol>
+&lt;li>基于采样的 $(y_i,z_i)\sim \pi_{\theta_r}$ 对 $\beta \log Z$ 进行估计：&lt;/li>
+&lt;/ol>
+$$
+\bar{r}=\beta\log\frac{1}{k}\sum_{j=1}^k\exp\left(\frac{r_{\phi}(x, y_j, y^\star)}{\beta}\right)
+$$&lt;ol start="2">
+&lt;li>直接使用samples rewards的平均值来近似：&lt;/li>
+&lt;/ol>
+$$
+\bar{r}=\frac{1}{k}\sum_{i=1}^k r_{\phi}(x, y_i, y^\star)
+$$&lt;p>作者提到，第二种方法效果很好并且计算效率更高，因此作者在实验中使用了第二种方法。&lt;/p>
+&lt;p>训练时，作者每次从数据集中采样一个batch的样本，然后使用上述的梯度更新模型。模型参数更新完之后，作者将新的模型作为reference model，然后重复上述过程。&lt;/p>
+&lt;blockquote>
+&lt;p>Remark
+作者还探究了为什么不使用value network。作者认为，在强化学习中，value network通常用于评估当前状态的价值，但是在reasoning model中，训练的目的是让模型能够充分探索，以提高模型在不同任务中的泛化性。因此，作者认为使用value network可能会限制模型的探索能力。&lt;/p>
+&lt;/blockquote>
+&lt;h2 id="training-strategy">Training Strategy
+&lt;/h2>&lt;p>作者提出了两个提高采样效率的方法：&lt;/p>
+&lt;ol>
+&lt;li>Curriculum Sampling. 这种采样方式会将问题按照难度进行排序，然后按照难度从易到难进行采样。以逐步提高模型的推理能力。&lt;/li>
+&lt;li>Prioritized Sampling.作者还采用了prioritized sampling来提高采样效率。也就是说，对于回答错误的问题，模型会进行更多的采样。&lt;/li>
+&lt;/ol>
+&lt;h2 id="infra">Infra
+&lt;/h2>&lt;h3 id="training-system">Training System
+&lt;/h3>&lt;p>&lt;img src="https://maosong2022.github.io/p/kimi-k1.5-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/k1-5-training-system.png"
+width="1112"
+height="530"
+srcset="https://maosong2022.github.io/p/kimi-k1.5-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/k1-5-training-system_hu56126063401246354.png 480w, https://maosong2022.github.io/p/kimi-k1.5-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/k1-5-training-system_hu14529664632197223449.png 1024w"
+loading="lazy"
+alt="Large Scale Reinforcement Learning Training System for LLM"
+class="gallery-image"
+data-flex-grow="209"
+data-flex-basis="503px"
+>&lt;/p>
+&lt;p>为了高效地进行RL训练，作者构建了一个iterative synchronous RL训练框架。框架如上图所示。框架的创新之处在于&lt;strong>Partial Rollout&lt;/strong>，该方法可以更高效的处理复杂的推理轨迹。框架包含了以下几部分：&lt;/p>
+&lt;ol>
+&lt;li>rollout worker: 该部分负责生成推理轨迹。然后将生成的推理轨迹加入到replay buffer中。&lt;/li>
+&lt;li>master: 管理data flow和replay buffer和train worker之间的通信。&lt;/li>
+&lt;li>train worker: 根据获取的rollout轨迹更新模型。&lt;/li>
+&lt;li>code execution service: 在代码相关任务中，该部分负责执行代码，并返回执行结果。&lt;/li>
+&lt;/ol>
+&lt;p>&lt;strong>Partial Rollout&lt;/strong>：Partial Rollout的目的是为了整体的训练效率。其做法就是给定一个固定的outpu token budget，然后限制推理轨迹的长度。当长度超过token限制时，没有完成的部分就会被存入到replay buffer中，以供后续的训练使用。&lt;/p>
+&lt;h3 id="deployment-framework">Deployment Framework
+&lt;/h3>&lt;p>根据前面的介绍，我们知道k1.5每个iteration的训练包括两步：&lt;/p>
+&lt;ol>
+&lt;li>inference phase: 基于Reference model进行采样，生成推理轨迹。&lt;/li>
+&lt;li>training phase: 基于采样得到的推理轨迹，更新模型。&lt;/li>
+&lt;/ol>
+&lt;p>如果我们直接使用Megatron和vLLM来实现上述的训练和推理，那么会存在以下问题：&lt;/p>
+&lt;ol>
+&lt;li>Megatron和vLLM的并行策略可能并不一致，因此很难进行参数共享&lt;/li>
+&lt;li>在训练过程中，vLLM可能会保留一些GPU，这就导致了训练和推理的资源分配不均。&lt;/li>
+&lt;li>推理和训练的资源需求可能并不一致，无法动态调控显卡资源&lt;/li>
+&lt;/ol>
+&lt;p>因此，作者构建了一个hybrid deployment framework来解决上述问题，其框架如下图所示。&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/kimi-k1.5-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/k1-5-hybrid-deployment-framework.png"
+width="867"
+height="560"
+srcset="https://maosong2022.github.io/p/kimi-k1.5-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/k1-5-hybrid-deployment-framework_hu6906289130535590140.png 480w, https://maosong2022.github.io/p/kimi-k1.5-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/k1-5-hybrid-deployment-framework_hu10807671325725203551.png 1024w"
+loading="lazy"
+alt="Hybrid Deployment Framework"
+class="gallery-image"
+data-flex-grow="154"
+data-flex-basis="371px"
+>&lt;/p>
+&lt;p>该框架的主要优势在于使用Kubernetes Sidecar containers来在一个pod中共享所有的GPU资源。这样就避免了资源分配不均的问题。&lt;/p>
+&lt;h1 id="数据">数据
+&lt;/h1>&lt;h2 id="数据处理">数据处理
+&lt;/h2>&lt;ol>
+&lt;li>RL prompt set. 作者认为prompt的quality和diversity对RL训练至关重要。因此作者基于diverse coverage, balanced difficuty以及accurate evaluation来构建了一个RL prompt set。对于多样性，作者确保数据集覆盖多个domain。对于平衡难度，作者通过多次采样，根据通过率来给每个样本的难易程度打分。对于准确性，作者筛掉了多选题，正确题和证明题，确保模型能够生成正确的推理步骤。最后，作者还让模型进行猜测，如果模型猜测的正确率比较高，那么就认为该样本是easy-to-hack的，就会筛掉。&lt;/li>
+&lt;li>Test Case Generation for Coding. 作者使用&lt;a class="link" href="https://github.com/luogu-dev/cyaron" target="_blank" rel="noopener"
+>CYaRon&lt;/a>来生成coding任务的测试用例。通过与Kimi k1.5结合，作者构建了一个包含323个测试用例的训练集。&lt;/li>
+&lt;li>Reward modeling for Math. 作者使用了两种方法来提高reward model的准确性。第一个是classic RM，作者基于InstructGPT，构造了大约800K的数据训练了一个value-head based RM。模型会基于问题，参考答案和模型生成的答案来判断模型生成的答案是否正确。第二个是Chain of Thought RM，作者基于收集的800k CoT数据对kimi进行了finetune，然后对模型生成的推理步骤进行打分。最终发现，Chain of Thought RM的效果更好。因此，作者在RL训练中使用了Chain of Thought RM。&lt;/li>
+&lt;li>Vision RL Data。 作者从三个方面构建了vision RL数据集：real-world data, synthetic visual reasoning data以及text-rendered data.&lt;/li>
+&lt;/ol>
+&lt;h2 id="数据集">数据集
+&lt;/h2>&lt;ol>
+&lt;li>pretraining：其中，纯文本数据包括Engligh, Chinese, Code, math reasoning以及Knowledge这5个领域。多模态数据包括captioning, image-text interleaving, OCR, Knowledge以及QA数据集等。附录B介绍了数据集的来源和处理过程。&lt;/li>
+&lt;li>SFT： vanilla SFT数据集包含1M的纯文本数据，其中包含500K的general QA数据，200K的coding数据，200K的数学和科学数据，5K的创作写作数据以及20K的长上下文任务（总结，QA，翻译和写作等）。作者还构建了1M的图文数据，包括chart理解，OCR，grounding，visual coding, visual reasoning以及visual aided math/science problems等&lt;/li>
+&lt;li>long-CoT SFT：该阶段的数据基于refined RL prompt set，使用了prompt engineering来构建了一个少量但高质量的long-CoT数据集。用于将reasoning能力内化到模型中。&lt;/li>
+&lt;/ol>
+&lt;h1 id="long2short">Long2short
+&lt;/h1>&lt;p>为了降低推理成本，作者提出了long2short的推理方法。该方法通过将长上下文推理转化为短上下文推理，让模型能够更加高效的完成推理。作者尝试了几种方法来实现long2short：&lt;/p>
+&lt;ol>
+&lt;li>Model merging:将long-CoT模型和short-CoT模型进行合并，然后进行推理。这里采用的办法是对两个模型的权重取平均。&lt;/li>
+&lt;li>shortest rejection sampling：通过对同一个问题进行多次采样（论文中每个问题采样8次），然后选择最短的，正确的推理步骤作为最终答案。&lt;/li>
+&lt;li>DPO：通过对同一个问题进行多次采样，选择最短的正确的回答作为正样本，最长的回答作为负样本，然后使用DPO进行训练。&lt;/li>
+&lt;li>Long2short RL：作者在RL阶段，选择一个在performance和token efficiency之间达到平衡的模型作为 base model，然后加入了一个long2short RL训练阶段。该阶段，作者加入了length penalty以及降低了maximum rollout length来鼓励模型生成更短的推理步骤。&lt;/li>
+&lt;/ol>
+&lt;h2 id="length-penalty">Length penalty
+&lt;/h2>&lt;p>Length penalty的目的是降低模型的overthinking和训练成本。作者加入了一个length reward，对于问题 $x$ 和采样的回答 $(y_i,z_i)$ ，回答 $(y_i,z_i)$ 的length定义为 $len(x_i)=\text{length}([z_i, y_i])$ length reward定义为：&lt;/p>
+$$
+r_{\text{length}}(x, (y_i,z_i))=\begin{cases}
+\lambda, &amp; \text{if } r(x, y_i, y^\star) = 1 \\
+\min(0,\lambda), &amp; \text{if } r(x, y_i, y^\star) = 0 \\
+\end{cases}
+$$&lt;p>其中&lt;/p>
+$$
+\lambda = 0.5 - \frac{len(x_i)-\min_{j}len(x_j)}{\max_{j}len(x_j)-\min_{j}len(x_j)}
+$$&lt;p>也就是说，当回答正确时，我们鼓励模型生成更长的推理步骤。反之，我们鼓励模型生成更短的推理步骤。&lt;/p>
+&lt;h1 id="实验">实验
+&lt;/h1>&lt;h2 id="实验结果">实验结果
+&lt;/h2>&lt;ol>
+&lt;li>K1.5在long-CoT任务上的表现&lt;/li>
+&lt;/ol>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/kimi-k1.5-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/k1-5-long-cot-benchmark.png"
+width="1118"
+height="425"
+srcset="https://maosong2022.github.io/p/kimi-k1.5-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/k1-5-long-cot-benchmark_hu6952644691331158148.png 480w, https://maosong2022.github.io/p/kimi-k1.5-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/k1-5-long-cot-benchmark_hu1430225520164276888.png 1024w"
+loading="lazy"
+alt="Long-CoT-benchmark"
+class="gallery-image"
+data-flex-grow="263"
+data-flex-basis="631px"
+>&lt;/p>
+&lt;ol start="2">
+&lt;li>K1.5在Short-CoT任务上的表现&lt;/li>
+&lt;/ol>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/kimi-k1.5-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/k1-5-short-cot-benchmark.png"
+width="1357"
+height="566"
+srcset="https://maosong2022.github.io/p/kimi-k1.5-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/k1-5-short-cot-benchmark_hu3005992739822340121.png 480w, https://maosong2022.github.io/p/kimi-k1.5-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/k1-5-short-cot-benchmark_hu15186336803595586566.png 1024w"
+loading="lazy"
+alt="Short-CoT-benchmark"
+class="gallery-image"
+data-flex-grow="239"
+data-flex-basis="575px"
+>&lt;/p>
+&lt;ol start="3">
+&lt;li>
+&lt;p>Long Context Scaling
+作者在实验中还探究了上下文长度对模型推理能力的影响。作者针对几个模型进行了实验，结果在图5和图6里面。结果发现，随着上下文长度的增加，模型的推理能力会逐渐提升。&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Long2short&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/kimi-k1.5-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/k1-5-long2short.png"
+width="1354"
+height="590"
+srcset="https://maosong2022.github.io/p/kimi-k1.5-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/k1-5-long2short_hu3211336959358196266.png 480w, https://maosong2022.github.io/p/kimi-k1.5-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/k1-5-long2short_hu6402801847399781857.png 1024w"
+loading="lazy"
+alt="Long2short"
+class="gallery-image"
+data-flex-grow="229"
+data-flex-basis="550px"
+>&lt;/p>
+&lt;h2 id="消融实验">消融实验
+&lt;/h2>&lt;ol>
+&lt;li>Scaling of model size and context length. 作者探究了模型大小和上下文长度对模型推理能力的影响，结果在图8里面。结果发现
+&lt;ol>
+&lt;li>小模型可以通过Long CoT来达到大模型的效果&lt;/li>
+&lt;li>大模型具有更高的token效率&lt;/li>
+&lt;li>理想情况下，使用具有更长上下文的大模型，可以同时达到更高的推理能力和更高的token效率，否则，使用上下文长度更长的小模型&lt;/li>
+&lt;/ol>
+&lt;/li>
+&lt;li>Effects of using negative gradients. 作者探究了使用负梯度对模型推理能力的影响。作者与ReST方法进行了对比，结果在图10里面。结果发现，ReST回到只模型产生更长的推理步骤。作者认为，选取合适的优化方法，可以有效提升模型的推理能力。&lt;/li>
+&lt;li>Sampling strategies. 作者还探究了采样策略对模型推理能力的影响。作者与均匀采样进行了对比，结果在图9里面。结果发现，论文提出的采样策略可以有效提升模型的推理能力。&lt;/li>
+&lt;/ol>
+&lt;h1 id="结论">结论
+&lt;/h1>&lt;p>作者提出了Kimi k1.5，一个基于强化学习训练的多模态推理模型。作者介绍了Kimi k1.5的训练方法，数据集，infra上的优化以及long2short的推理方法。作者的主要贡献在于：&lt;/p>
+&lt;ol>
+&lt;li>作者发现，模型的上下文长度可以有效提升LLM的推理能力。&lt;/li>
+&lt;li>作者提出了基于online mirror descent的强化学习训练方法。&lt;/li>
+&lt;li>作者提出了long2short的推理方法，可以有效提升short CoT模型的推理能力。&lt;/li>
+&lt;/ol>
+&lt;p>论文的问题在于对于多模态的内容介绍较少，感觉还是更倾向于文本推理任务。&lt;/p>
+&lt;h1 id="参考文献">参考文献
+&lt;/h1>&lt;ul>
+&lt;li>&lt;a class="link" href="http://arxiv.org/abs/2501.12599" target="_blank" rel="noopener"
+>Kimi k1.5: Scaling Reinforcement Learning with LLMs&lt;/a>&lt;/li>
+&lt;/ul></description></item><item><title>An overview of adaption layer in multimodal large language models.</title><link>https://maosong2022.github.io/p/an-overview-of-adaption-layer-in-multimodal-large-language-models./</link><pubDate>Sat, 09 Nov 2024 09:53:43 +0800</pubDate><guid>https://maosong2022.github.io/p/an-overview-of-adaption-layer-in-multimodal-large-language-models./</guid><description>&lt;h1 id="introduction">Introduction
+&lt;/h1>&lt;p>A multimodal large language model (MLLM) usually consists of three parts: an encoder $E$ that ingests the information from different modality, a large language model (LLM) that is corresponds to complete various of downstream tasks given multimodal input such as image and text, and an adaption layer $C$ that aligns features of different modality to word embedding space of the LLM.
+Below is an example MLLM adopting aforementioned architecture: LLaVA [1]&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/an-overview-of-adaption-layer-in-multimodal-large-language-models./llava.png"
+width="1032"
+height="360"
+srcset="https://maosong2022.github.io/p/an-overview-of-adaption-layer-in-multimodal-large-language-models./llava_hu14087429020602296246.png 480w, https://maosong2022.github.io/p/an-overview-of-adaption-layer-in-multimodal-large-language-models./llava_hu5281182413389194983.png 1024w"
+loading="lazy"
+alt="Architecture of LlaVA"
+class="gallery-image"
+data-flex-grow="286"
+data-flex-basis="688px"
+>&lt;/p>
+&lt;p>Efforts have been made to improve the performance of MLLMs. In this post, we aim to review the design of adaption layer and its potential effect on the downstream tasks.&lt;/p>
+&lt;h1 id="method">Method
+&lt;/h1>&lt;p>Suppose the hidden size of the LLM is $d$, the feature produced by encoder $E$ is $V\in\mathbb{R}^{P\times d_v}$, where $P$ is the number of features (number of visual patches if $E$ is an visual encoder) and $d_v$ is the channel dimension.
+The adaption layer $C$ then aligns the feature $V$ with the word embedding space with $x=C(V)\in\mathbb{R}^{Q\times d}$, where $Q$ is the number of tokens. As we can see, $C$ is actually a mapping from $\mathbb{R}^{P\times d_v}$ to $\mathbb{R}^{Q\times d}$.&lt;/p>
+&lt;p>Based on relationship between $d_v$ and $d$, we can divide projection layers into two types:&lt;/p>
+&lt;ol>
+&lt;li>Feature-preserving adaption layer, where $P=Q$&lt;/li>
+&lt;li>Feature-compressing adaption layer, where $P&amp;gt;Q$.&lt;/li>
+&lt;/ol>
+&lt;h2 id="feature-preserving-adaption-layer">Feature-preserving adaption layer
+&lt;/h2>$$ x = VW^T, \text{ where } W\in\mathbb{R}^{d\times d_v}$$&lt;p>
+the code reads as:&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># one-layer MLP&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">adaption_layer&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Linear&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">hidden_size&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">num_features&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>$$ x = \phi(VW_1^T)W_2^T$$&lt;p>
+where $W_1\in\mathbb{R}^{d\times d_v}$, $W_2\in\mathbb{R}^{d\times d}$, $\phi$ is a activation function, specified as &lt;code>nn.GELU()&lt;/code>. The code reads as:&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;span class="lnt">5
+&lt;/span>&lt;span class="lnt">6
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># two-layer MLP&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">adaption_layer&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Sequential&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Linear&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">num_features&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">hidden_size&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">GELU&lt;/span>&lt;span class="p">(),&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Linear&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">hidden_size&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">hidden_size&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h2 id="feature-compressing-adaption-layer">Feature-compressing adaption layer
+&lt;/h2>&lt;p>The feature compression adaption layers can be categorized into three types:&lt;/p>
+&lt;ol>
+&lt;li>average pooling&lt;/li>
+&lt;li>attention pooling&lt;/li>
+&lt;li>convolution mapping&lt;/li>
+&lt;/ol>
+&lt;p>They usually comprise two steps:&lt;/p>
+&lt;ol>
+&lt;li>reduce the number of features from $P$ to $Q$ with a pooling operation:
+$$ f' = \mathcal{P}(f)\in\mathbb{R}^{Q\times d_v} $$&lt;/li>
+&lt;li>project compressed features $f&amp;rsquo;$ to word embedding space with a transformation $\mathcal{T}$:
+$$ x = \mathcal{T}(f')\in\mathbb{R}^{Q\times d} $$&lt;/li>
+&lt;/ol>
+$$ f'_i = \frac{1}{n}\sum_{j=1}^{n}f_{(i-1)n+j}, i=1,\dots,Q $$$$ K = W_kf\in\mathbb{R}^{d_c}, V=W_vf\in\mathbb{R}^{d_c}, f'=\mathrm{softmax}\left(\frac{QK^T}{\sqrt{d_c}}\right)V\in\mathbb{R}^{Q\times d_v} $$&lt;p>
+where $W_k, W_v\in\mathbb{R}^{d_c\times d_v}$ and $Q\in\mathbb{R}^{Q\times d_c}$ is a learnable query.&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;span class="lnt">21
+&lt;/span>&lt;span class="lnt">22
+&lt;/span>&lt;span class="lnt">23
+&lt;/span>&lt;span class="lnt">24
+&lt;/span>&lt;span class="lnt">25
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="k">class&lt;/span> &lt;span class="nc">Qformer&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Module&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="fm">__init__&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">num_queries&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">hidden_size&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">num_features&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">num_heads&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">num_queries&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">num_queries&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">hidden_size&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">hidden_size&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">num_features&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">num_features&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">query_tokens&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Parameter&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">zeros&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">num_queries&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">num_features&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">query_tokens&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">data&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">normal_&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">mean&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mf">0.0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">std&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mf">0.02&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">attention&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">MultiheadAttention&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">hidden_size&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">num_heads&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">layer_norm_kv&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">LayerNorm&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">hidden_size&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">layer_norm_q&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">LayerNorm&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">hidden_size&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="nf">forward&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">attention_mask&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="kc">None&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">x&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">layer_norm_kv&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">x&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">permute&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">N&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">shape&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">q&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">layer_norm_q&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">query&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">q&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">q&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">unsqueeze&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">repeat&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">N&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">out&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">attention&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">q&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">k&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">v&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">attention_mask&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">attention_mask&lt;/span>&lt;span class="p">)[&lt;/span>&lt;span class="mi">0&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">out&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">out&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">permute&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>$$ f_i' = \frac{1}{n}\sum_{j=1}^n w_jf_{(i-1)n+j},\quad x_i = \sum_{k=-K}^Kw_k'f_{i+k}' $$&lt;p>
+where $W=[w_1,\dots,w_n]^T\in\mathbb{R}^n$ and $W&amp;rsquo;=[w_1,\dots,w_n]^T\in\mathbb{R}^{2K}$ are the weights of the convolution layers.&lt;/p>
+&lt;p>&lt;strong>D-Abstractor&lt;/strong> aa&lt;/p>
+&lt;p>&lt;strong>MEQ-Former&lt;/strong>&lt;/p>
+&lt;p>&lt;strong>LDPv2&lt;/strong>&lt;/p>
+&lt;p>&lt;strong>VSS&lt;/strong>&lt;/p>
+&lt;h1 id="usages">Usages
+&lt;/h1>&lt;h1 id="comparisons">Comparisons
+&lt;/h1>&lt;h1 id="references">References
+&lt;/h1>&lt;ol>
+&lt;li>&lt;a class="link" href="https://papers.nips.cc/paper_files/paper/2023/hash/6dcf277ea32ce3288914faf369fe6de0-Abstract-Conference.html" target="_blank" rel="noopener"
+>LLaVA&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://openaccess.thecvf.com/content/CVPR2024/papers/Liu_Improved_Baselines_with_Visual_Instruction_Tuning_CVPR_2024_paper.pdf" target="_blank" rel="noopener"
+>LLaVA 1.5&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://github.com/haotian-liu/LLaVA/blob/main/llava/model/multimodal_projector/builder.py" target="_blank" rel="noopener"
+>LLaVA adaption layer code&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://arxiv.org/pdf/2405.10739v1" target="_blank" rel="noopener"
+>survey&lt;/a>&lt;/li>
+&lt;/ol></description></item><item><title>VITA-Towards Open-Source Interactive Omni Multimodal LLM</title><link>https://maosong2022.github.io/p/vita-towards-open-source-interactive-omni-multimodal-llm/</link><pubDate>Tue, 13 Aug 2024 14:36:45 +0800</pubDate><guid>https://maosong2022.github.io/p/vita-towards-open-source-interactive-omni-multimodal-llm/</guid><description>&lt;h1 id="tldr">TLDR
+&lt;/h1>&lt;p>This paper proposes a Multimodal Large Language Model VITA (Video, Image, Text, Audio).
+VITA supports non-awakening interaction and audio interruption for better interactive experience.
+VITA aims to be an open-sourced version of GPT-4o.&lt;/p>
+&lt;h1 id="introduction">Introduction
+&lt;/h1>&lt;p>Features of GPT-4o:&lt;/p>
+&lt;ol>
+&lt;li>a unified framework that processes text, vision, and audio signals in an end-to-end manner,&lt;/li>
+&lt;li>the capability to enable natural multimodal human-computer interaction.&lt;/li>
+&lt;/ol>
+&lt;p>Similar to Mini-GPT4, this paper tries to proposed an open-sourced version of GPT-4o.&lt;/p>
+&lt;h1 id="method">Method
+&lt;/h1>&lt;h2 id="model">Model
+&lt;/h2>&lt;p>The architecture of VITA is shown as follows:
+&lt;img src="https://maosong2022.github.io/p/vita-towards-open-source-interactive-omni-multimodal-llm/VITA_architecture.png"
+width="1282"
+height="1069"
+srcset="https://maosong2022.github.io/p/vita-towards-open-source-interactive-omni-multimodal-llm/VITA_architecture_hu13166811980198188055.png 480w, https://maosong2022.github.io/p/vita-towards-open-source-interactive-omni-multimodal-llm/VITA_architecture_hu6710414439966249089.png 1024w"
+loading="lazy"
+alt="Architecture of VITA"
+class="gallery-image"
+data-flex-grow="119"
+data-flex-basis="287px"
+>&lt;/p>
+&lt;ul>
+&lt;li>LLM: Mixtral $8\times 7$ B&lt;/li>
+&lt;li>Visual Encoder: InternViT-300M-448px&lt;/li>
+&lt;li>Audio Encoder: Mel Filter Bank block&lt;/li>
+&lt;/ul>
+&lt;p>To support audio interruption, the author uses two model at the same time, where the generation model is responsible for handling user queries and the other model monitors the environment. The other models starts to work is there is an audio interruption.&lt;/p>
+&lt;h2 id="data">Data
+&lt;/h2>&lt;h3 id="multimodal-instruction-tuning">multimodal instruction tuning
+&lt;/h3>&lt;p>Training data of multimodal instruction tuning is given as follows:&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/vita-towards-open-source-interactive-omni-multimodal-llm/VITA_SFT_data.png"
+width="1286"
+height="672"
+srcset="https://maosong2022.github.io/p/vita-towards-open-source-interactive-omni-multimodal-llm/VITA_SFT_data_hu12706316391905990779.png 480w, https://maosong2022.github.io/p/vita-towards-open-source-interactive-omni-multimodal-llm/VITA_SFT_data_hu6833967022569500187.png 1024w"
+loading="lazy"
+alt="Training data of multimodal instruction tuning"
+class="gallery-image"
+data-flex-grow="191"
+data-flex-basis="459px"
+>&lt;/p>
+&lt;p>Improvements are made:&lt;/p>
+&lt;ol>
+&lt;li>The questions are randomly (about half) replaced with their audio versions, using TTS technique such as GPT-SoVITS&lt;/li>
+&lt;li>Different system prompts are set to avoid conflicts between different types of data&lt;/li>
+&lt;/ol>
+&lt;p>To support human-AI interaction, the noisy audio data are also constructed. Noisy audio samples are generated from existed QA data. These negative sample texts aim to improve the ability of VITA to not respond to non-query-related content.&lt;/p>
+&lt;p>To distinguish three types of queries, the author uses three state tokens:&lt;/p>
+&lt;ul>
+&lt;li>Token &lt;code>&amp;lt;1&amp;gt;&lt;/code> denotes that the question input is the query audio&lt;/li>
+&lt;li>Token &lt;code>&amp;lt;2&amp;gt;&lt;/code> denotes that the question input is the noisy audio.&lt;/li>
+&lt;li>Token &lt;code>&amp;lt;3&amp;gt;&lt;/code> signifies the question of pure text.&lt;/li>
+&lt;/ul>
+&lt;h2 id="training-pipeline">Training pipeline
+&lt;/h2>&lt;p>Training pipeline of VITA consists of three stages:&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/vita-towards-open-source-interactive-omni-multimodal-llm/VITA_training_pipeline.png"
+width="1301"
+height="852"
+srcset="https://maosong2022.github.io/p/vita-towards-open-source-interactive-omni-multimodal-llm/VITA_training_pipeline_hu12778043419258304094.png 480w, https://maosong2022.github.io/p/vita-towards-open-source-interactive-omni-multimodal-llm/VITA_training_pipeline_hu1848643356938254411.png 1024w"
+loading="lazy"
+alt="Training pipeline of VITA"
+class="gallery-image"
+data-flex-grow="152"
+data-flex-basis="366px"
+>&lt;/p>
+&lt;h3 id="non-awakening-interaction">Non-awakening Interaction
+&lt;/h3>&lt;p>There are following requirements and solutions:&lt;/p>
+&lt;ol>
+&lt;li>
+&lt;p>Real-time Tracking of Environmental Sounds. This paper uses SileroVAD to complete the Voice Activity Detection (VAD) task.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Filtering out noisy audio. This is done by making use of token &lt;code>&amp;lt;2&amp;gt;&lt;/code>.&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;h3 id="audio-interrupt-interaction">Audio Interrupt Interaction
+&lt;/h3>&lt;p>There are following requirements and solutions:&lt;/p>
+&lt;ol>
+&lt;li>Real-time Tracking and Filtering of External Queries. This is done by use another VITA model as stated in Model section.&lt;/li>
+&lt;/ol>
+&lt;h1 id="evaluation">Evaluation
+&lt;/h1>&lt;p>&lt;img src="https://maosong2022.github.io/p/vita-towards-open-source-interactive-omni-multimodal-llm/VITA_evaluation.png"
+width="1297"
+height="536"
+srcset="https://maosong2022.github.io/p/vita-towards-open-source-interactive-omni-multimodal-llm/VITA_evaluation_hu3461940985657118198.png 480w, https://maosong2022.github.io/p/vita-towards-open-source-interactive-omni-multimodal-llm/VITA_evaluation_hu13137771961429217061.png 1024w"
+loading="lazy"
+alt="Evaluation on image and video understanding"
+class="gallery-image"
+data-flex-grow="241"
+data-flex-basis="580px"
+>&lt;/p>
+&lt;h1 id="conclusion">Conclusion
+&lt;/h1>&lt;p>The paper points out three limitations of VITA:&lt;/p>
+&lt;ol>
+&lt;li>Enhancement of Foundational Capabilities.&lt;/li>
+&lt;li>Refinement of Noisy Audio Construction.&lt;/li>
+&lt;li>Building end-to-end TTS in conjunction with LLM.&lt;/li>
+&lt;/ol>
+&lt;h1 id="reference">Reference
+&lt;/h1>&lt;ul>
+&lt;li>&lt;a class="link" href="http://arxiv.org/abs/2408.05211" target="_blank" rel="noopener"
+>Arxiv paper&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://vita-home.github.io" target="_blank" rel="noopener"
+>Github&lt;/a>&lt;/li>
+&lt;/ul></description></item><item><title>MiniGPT-4-Enhancing Vision-Language Understanding with Advanced Large Language Models</title><link>https://maosong2022.github.io/p/minigpt-4-enhancing-vision-language-understanding-with-advanced-large-language-models/</link><pubDate>Thu, 02 May 2024 13:13:12 +0800</pubDate><guid>https://maosong2022.github.io/p/minigpt-4-enhancing-vision-language-understanding-with-advanced-large-language-models/</guid><description>&lt;h1 id="tldr">TLDR
+&lt;/h1>&lt;p>This paper proposed an open-sourced, GPT-4 liked multimodal language model (MLLM), mini-GPT4, aiming to provide inspiration of how to build an MLLM.&lt;/p>
+&lt;h1 id="introduction">Introduction
+&lt;/h1>&lt;p>GPT-4 has exhibited remarkable vision language abilities, however, due to it is not open sourced, it is hard to explore the construction and how the GPT-4 is trained.&lt;/p>
+&lt;p>To solve this problem, this paper builds mini-GPT4, which utilizes an advanced LLM, Vicuna and BLIP-2, to build an open sourced MLLM. The result show that mini-GPT4 possesses numerous capabilities similar to those demostrated by GPT-4.&lt;/p>
+&lt;h1 id="method">Method
+&lt;/h1>&lt;p>The architecture of mini-GPT4 is shown as follows:&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/minigpt-4-enhancing-vision-language-understanding-with-advanced-large-language-models/mini-gpt4-architecture.png"
+width="907"
+height="600"
+srcset="https://maosong2022.github.io/p/minigpt-4-enhancing-vision-language-understanding-with-advanced-large-language-models/mini-gpt4-architecture_hu12707907117125568329.png 480w, https://maosong2022.github.io/p/minigpt-4-enhancing-vision-language-understanding-with-advanced-large-language-models/mini-gpt4-architecture_hu14925688768741311301.png 1024w"
+loading="lazy"
+alt="mini-GPT4 architecture"
+class="gallery-image"
+data-flex-grow="151"
+data-flex-basis="362px"
+>&lt;/p>
+&lt;p>mini-GPT4 consists of three parts:&lt;/p>
+&lt;ol>
+&lt;li>Vision Encoder same as used in BLIP-2, which is built upon a ViT backbone and a Q-former network.&lt;/li>
+&lt;li>A single projection layer, which aligns the encoded visual features with the Vicuna language model.&lt;/li>
+&lt;li>Language decoder: Vicuna.&lt;/li>
+&lt;/ol>
+&lt;h2 id="training">Training
+&lt;/h2>&lt;p>mini-GPT4 only trains the linear projection layer, this includes two stages:&lt;/p>
+&lt;ol>
+&lt;li>First pre-training stage: in this stage, the language decoder and vision encoder are remain frozen, only the linear projection layer is trained. The training dataset contains Conceptual Caption, SBU and LAION. The problem is that the output may be incoherent like repetitive words or sentences.&lt;/li>
+&lt;li>Fine-tune dataset generation: the pre-trained mini-GPT4 is used to generate image-text pair as fine-tune data, to improve the text quality, the generated text is polished with the help of ChatGPT. Finally, the dataset is manually refined.&lt;/li>
+&lt;li>Second-stage fine-tuning: Fine-tune the mini-GPT-4 with the high quality fine-tune data.&lt;/li>
+&lt;/ol>
+&lt;h1 id="reference">Reference
+&lt;/h1>&lt;ul>
+&lt;li>&lt;a class="link" href="https://github.com/Vision-CAIR/MiniGPT-4/tree/main" target="_blank" rel="noopener"
+>Github&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://openreview.net/forum?id=1tZbq88f27" target="_blank" rel="noopener"
+>Paper&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://minigpt-4.github.io/" target="_blank" rel="noopener"
+>Homepage&lt;/a>&lt;/li>
+&lt;/ul></description></item><item><title>MathVerse Does Your Multi-modal LLM Truly See the Diagrams in Visual Math Problems?</title><link>https://maosong2022.github.io/p/mathverse-does-your-multi-modal-llm-truly-see-the-diagrams-in-visual-math-problems/</link><pubDate>Mon, 22 Apr 2024 18:04:14 +0800</pubDate><guid>https://maosong2022.github.io/p/mathverse-does-your-multi-modal-llm-truly-see-the-diagrams-in-visual-math-problems/</guid><description>&lt;h1 id="tldr">TLDR
+&lt;/h1>&lt;p>This paper proposes an multimodal large language model (MLLM) benchmark MathVerse for evaluating the mathematical problem-solving capability of MLLMs. The author also proposes Chain of Thought (CoT) for fine-grained evaluation. Results show that MLLMs are not able to use the visual information, and even performs better without visual input.&lt;/p>
+&lt;h1 id="introduction">Introduction
+&lt;/h1>&lt;p>Multiple benchmarks have been proposed to evaluate the mathematical reasoning capability of MLLMs, such as GeoQA, UniGeo, MathVista and MMMU.
+However, the problem of existing benchmarks are:&lt;/p>
+&lt;ol>
+&lt;li>The MLLMs may depend on text input instead of visual inputs to solve the problems.&lt;/li>
+&lt;li>The evaluation process is a black-box, we do not know at which step the MLLM makes a mistake.&lt;/li>
+&lt;/ol>
+&lt;p>The author proposes MathVerse to solve the aforementioned problems.&lt;/p>
+&lt;h1 id="method">Method
+&lt;/h1>&lt;h2 id="data-collection">Data collection
+&lt;/h2>&lt;p>MathVerse contains $2612$ visual math problems and can be divided into plan geometry ($1746$), solid geometry ($332$) and functions ($534$).&lt;/p>
+&lt;h2 id="text-input-processing">Text input processing
+&lt;/h2>&lt;p>To check if MLLMs use visual input to solve the mathematical problems, the author decompose the text input into three categories:&lt;/p>
+&lt;ol>
+&lt;li>Descriptive information: Directly observable and clearly portrayed content in the diagram.&lt;/li>
+&lt;li>Implicit Property: Higher level of visual perception but less mathematical knowledge.&lt;/li>
+&lt;li>Essential Condition: specific numerical or algebraic measurements.&lt;/li>
+&lt;/ol>
+&lt;p>The dataset is then augmented by creating six versions of each problem:&lt;/p>
+&lt;ul>
+&lt;li>Text-dominant version: all text input and visual inputs are kept.&lt;/li>
+&lt;li>Text-lite version: description information is discarded.&lt;/li>
+&lt;li>Text-only version: visual input is discarded&lt;/li>
+&lt;li>Vision-intensive version: description information and implicit property are discarded.&lt;/li>
+&lt;li>Vision-dominant version: description information and essential condition are discarded.&lt;/li>
+&lt;li>Vision-only version: text input is discarded&lt;/li>
+&lt;/ul>
+&lt;h2 id="cot-evaluation">CoT evaluation
+&lt;/h2>&lt;p>To visualize the reasoning process of MLLM when solving mathematical problems, the author employ GPT-4 to generate key steps of solving the problem. Then scores are given to each reasoning step, in this way, the reasoning process can be tested.&lt;/p>
+&lt;h1 id="result">Result
+&lt;/h1>&lt;p>Experiment results show that:&lt;/p>
+&lt;ol>
+&lt;li>MLLMs rely more on description information than seeing diagrams&lt;/li>
+&lt;li>LLMs Achieve Competitive Results to MLLMs.&lt;/li>
+&lt;/ol>
+&lt;h1 id="reference">Reference
+&lt;/h1>&lt;ul>
+&lt;li>&lt;a class="link" href="https://arxiv.org/pdf/2403.14624.pdf" target="_blank" rel="noopener"
+>paper&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://mathverse-cuhk.github.io/" target="_blank" rel="noopener"
+>Github&lt;/a>&lt;/li>
+&lt;/ul></description></item></channel></rss>
