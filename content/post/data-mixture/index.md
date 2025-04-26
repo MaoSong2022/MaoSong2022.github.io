@@ -13,6 +13,7 @@ categories:
 # 介绍
 
 简单总结一下已有的介绍了训练数据配比的多模态大模型，方便后续使用。
+根据之前看的一些论文进行总结，如有缺漏，欢迎批评指正。
 
 # 相关工作
 
@@ -74,11 +75,11 @@ Idefics系列(1/2/3)是huggingface提出的视觉多模态大模型系列，在 
 
 ## Eagle 2/2.5
 
-Eagle (1/2/2.5) 是NVLab提出了系列多模态大模型，Eagle 2给出了stage1.5 和 stage 2的数据配比
+Eagle (1/2/2.5) 是NVLab提出了系列多模态大模型，[Eagle 2](http://arxiv.org/abs/2501.14818) 给出了 stage 1.5 和 stage 2的数据配比
 
 ![Eagle 2 data mixture](eagle2_data_mixture.png)
 
-Eagle 2.5 在 Eagle 2的基础上加入了一些 long context 数据，其数据列表在表11里
+[Eagle 2.5](http://arxiv.org/abs/2504.15271) 在 Eagle 2的基础上加入了一些 long context 数据，其数据列表在表11里
 
 ## SmolVLM
 
@@ -106,3 +107,20 @@ Eagle 2.5 在 Eagle 2的基础上加入了一些 long context 数据，其数据
 ## MiniCPM V
 
 [MiniCPM V](http://arxiv.org/abs/2408.01800) 是 OpenBMB发布的轻量化多模态大模型，其在表1和表2列出了ptraining和SFT数据的具体量级和类别。
+
+# 参考文献
+
+- [LLaVA 1.5](https://arxiv.org/abs/2310.03744)
+- [LLaVA OneVision](http://arxiv.org/abs/2408.03326)
+- [Apollo](http://arxiv.org/abs/2412.10360)
+- [Cambiran-1](http://arxiv.org/abs/2406.16860)
+- [Idefics2](https://arxiv.org/abs/2405.02246)
+- [Idefics3](http://arxiv.org/abs/2408.12637)
+- [Molmo](http://arxiv.org/abs/2409.17146)
+- [Eagle 2](http://arxiv.org/abs/2501.14818)
+- [Eagle 2.5](http://arxiv.org/abs/2504.15271)
+- [SmolVLM](http://arxiv.org/abs/2504.05299)
+- [MM1](http://arxiv.org/abs/2403.09611)
+- [MM1.5](http://arxiv.org/abs/2409.20566)
+- [InternVL2.5](http://arxiv.org/abs/2412.05271)
+- [MiniCPM V](http://arxiv.org/abs/2408.01800)
