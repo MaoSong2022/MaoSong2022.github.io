@@ -1,0 +1,820 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Qwen on Mao Song(毛松)'s Homepage</title><link>https://maosong2022.github.io/tags/qwen/</link><description>Recent content in Qwen on Mao Song(毛松)'s Homepage</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><lastBuildDate>Tue, 29 Apr 2025 11:23:04 +0800</lastBuildDate><atom:link href="https://maosong2022.github.io/tags/qwen/index.xml" rel="self" type="application/rss+xml"/><item><title>Qwen3前瞻</title><link>https://maosong2022.github.io/p/qwen3%E5%89%8D%E7%9E%BB/</link><pubDate>Tue, 29 Apr 2025 11:23:04 +0800</pubDate><guid>https://maosong2022.github.io/p/qwen3%E5%89%8D%E7%9E%BB/</guid><description>&lt;h1 id="介绍">介绍
+&lt;/h1>&lt;p>Qwen3发布，包含两种架构的模型，每种架构均包含对应的base model和post-trained model.&lt;/p>
+&lt;p>&lt;strong>MoE架构&lt;/strong>：上下文长度为128K，128个专家，每个token由8个专家负责处理&lt;/p>
+&lt;ul>
+&lt;li>Qwen3-235B-A22B, 总参数235B，激活参数22B，&lt;/li>
+&lt;li>Qwen3-30B-A3B, 总参数30B，激活参数3B&lt;/li>
+&lt;/ul>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Models&lt;/th>
+&lt;th>Layers&lt;/th>
+&lt;th>Heads (Q / KV)&lt;/th>
+&lt;th># Experts (Total / Activated)&lt;/th>
+&lt;th>Context Length&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>Qwen3-30B-A3B&lt;/td>
+&lt;td>48&lt;/td>
+&lt;td>32 / 4&lt;/td>
+&lt;td>128 / 8&lt;/td>
+&lt;td>128K&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Qwen3-235B-A22B&lt;/td>
+&lt;td>94&lt;/td>
+&lt;td>64 / 4&lt;/td>
+&lt;td>128 / 8&lt;/td>
+&lt;td>128K&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>&lt;strong>dense架构&lt;/strong>: Qwen3-32B, Qwen3-14B, Qwen3-8B, Qwen3-4B, Qwen3-1.7B, and Qwen3-0.6B&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Models&lt;/th>
+&lt;th>Layers&lt;/th>
+&lt;th>Heads (Q / KV)&lt;/th>
+&lt;th>Tie Embedding&lt;/th>
+&lt;th>Context Length&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>Qwen3-0.6B&lt;/td>
+&lt;td>28&lt;/td>
+&lt;td>16 / 8&lt;/td>
+&lt;td>Yes&lt;/td>
+&lt;td>32K&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Qwen3-1.7B&lt;/td>
+&lt;td>28&lt;/td>
+&lt;td>16 / 8&lt;/td>
+&lt;td>Yes&lt;/td>
+&lt;td>32K&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Qwen3-4B&lt;/td>
+&lt;td>36&lt;/td>
+&lt;td>32 / 8&lt;/td>
+&lt;td>Yes&lt;/td>
+&lt;td>32K&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Qwen3-8B&lt;/td>
+&lt;td>36&lt;/td>
+&lt;td>32 / 8&lt;/td>
+&lt;td>No&lt;/td>
+&lt;td>128K&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Qwen3-14B&lt;/td>
+&lt;td>40&lt;/td>
+&lt;td>40 / 8&lt;/td>
+&lt;td>No&lt;/td>
+&lt;td>128K&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Qwen3-32B&lt;/td>
+&lt;td>64&lt;/td>
+&lt;td>64 / 8&lt;/td>
+&lt;td>No&lt;/td>
+&lt;td>128K&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h1 id="亮点">亮点
+&lt;/h1>&lt;ol>
+&lt;li>Hybrid Thinking modes
+qwen3支持两种思考模式： thinking mode 和 non-thinking mode，前者用于解决复杂的问题，后者用于解决简单的问题&lt;/li>
+&lt;li>multilingual support
+qwen3支持119中语言和方言&lt;/li>
+&lt;li>Improved agentic capabilities
+提升了qwen3的coding和agentic能力，并支持MCP&lt;/li>
+&lt;/ol>
+&lt;h1 id="训练">训练
+&lt;/h1>&lt;h2 id="pre-training">Pre-training
+&lt;/h2>&lt;p>Qwen3使用了36T token进行训练 （与之相比，Qwen2.5使用方的token数量为18T），数据来源于互联网和PDF，作者使用Qwen2.5-VL来提取内容，然后使用Qwen2.5来提升内容质量。作者还基于Qwen2.5-Math和Qwen2.5-Coder来合成数学以及代码数据&lt;/p>
+&lt;p>训练包含三个stage：&lt;/p>
+&lt;ol>
+&lt;li>上下文长度为4K tokens，训练数据为30T tokens, 目标是让模型掌握初步的语言能力和知识&lt;/li>
+&lt;li>上下文长度为4K tokens，训练数据为5T tokens,这部分数据主要是knowledge intensive的数据，比如STEM, coding和reasoning等&lt;/li>
+&lt;li>上下文长度扩展到32K tokens，训练数据主要是高质量长上下文的数据&lt;/li>
+&lt;/ol>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/qwen3%E5%89%8D%E7%9E%BB/qwen3-base.jpg"
+width="1554"
+height="1058"
+srcset="https://maosong2022.github.io/p/qwen3%E5%89%8D%E7%9E%BB/qwen3-base_hu12486593419265846584.jpg 480w, https://maosong2022.github.io/p/qwen3%E5%89%8D%E7%9E%BB/qwen3-base_hu13961341124876178588.jpg 1024w"
+loading="lazy"
+alt="performance of qwen3 base"
+class="gallery-image"
+data-flex-grow="146"
+data-flex-basis="352px"
+>&lt;/p>
+&lt;h2 id="post-training">Post-training
+&lt;/h2>&lt;p>Post-training包含四个阶段，如下图所示
+&lt;img src="https://maosong2022.github.io/p/qwen3%E5%89%8D%E7%9E%BB/post-training.png"
+width="4143"
+height="1640"
+srcset="https://maosong2022.github.io/p/qwen3%E5%89%8D%E7%9E%BB/post-training_hu12371199527398711262.png 480w, https://maosong2022.github.io/p/qwen3%E5%89%8D%E7%9E%BB/post-training_hu2234000358067062540.png 1024w"
+loading="lazy"
+alt="post training of qwen3"
+class="gallery-image"
+data-flex-grow="252"
+data-flex-basis="606px"
+>&lt;/p>
+&lt;ul>
+&lt;li>Stage 1, Long CoT code start: 作者基于math, coding, logical reasoning, STEM等domain的Long CoT数据来微调模型，让模型拥有初步的推理能力，这和Kimi-VL是类似的&lt;/li>
+&lt;li>Stage 2, reasoning-based RL: 作者使用rule-based rewards来提供奖励，然后使用RL来训练模型，经一部提高模型的exploration和exploitation能力&lt;/li>
+&lt;li>Stage 3, thinking mode fusion: 作者混合了一部分instruction-following和Long CoT数据来提升模型的non-thinking能力，这样可以让模型在两种思考模式之间切换&lt;/li>
+&lt;li>Stage 4,general RL： 作者使用RL在20多个general-domain任务上进一步提高模型的通用能力，包括instruction following, format following以及agent capability等&lt;/li>
+&lt;/ul>
+&lt;h1 id="future-work">Future work
+&lt;/h1>&lt;p>作者希望在未来能够在模型架构和训练方式上进行提升，包括：scaling data, increasing model size, extending context length, broadening modalities, advancing RL with environmental feedback for long-horizon reasoning.&lt;/p>
+&lt;h1 id="结论">结论
+&lt;/h1>&lt;p>与Gemini2.5 pro，Kimi-VL等reaosning model不同，qwen3可以在快思考和慢思考之间进行转换。感觉未来有两个趋势，一个是如何在快思考和慢思考之间进行切换，切换的逻辑是什么？第二个就是qwen3以及qwen2.5-vl都在强调的agent能力，也就是我们不仅仅是在做一个LLM，而是逐步延伸到了agent这个层面。&lt;/p>
+&lt;h1 id="参考文献">参考文献
+&lt;/h1>&lt;ul>
+&lt;li>&lt;a class="link" href="https://qwenlm.github.io/blog/qwen3/" target="_blank" rel="noopener"
+>blog&lt;/a>&lt;/li>
+&lt;/ul></description></item><item><title>Notes on Qwen2.5 omni</title><link>https://maosong2022.github.io/p/notes-on-qwen2.5-omni/</link><pubDate>Tue, 01 Apr 2025 10:29:00 +0800</pubDate><guid>https://maosong2022.github.io/p/notes-on-qwen2.5-omni/</guid><description>&lt;h1 id="介绍">介绍
+&lt;/h1>&lt;p>2025年3月26号，Qwen团队发布了Qwen2.5 omni，Qwen2.5 omni是一个多模态模型，支持文本、音频、视频、图像等多个模态的输入，支持文本，音频的输出。
+作者提出了TMRoPE来对齐不同的模态，然后还是用了Thinker-Talker的架构来同时生成文本和音频。
+Thinker是一个大语言模型，Talker是一个dual-track自回归模型，Talker基于Thinker的hideen states来生成audio token，最后通过一个sliding-window DiT来解码audio token&lt;/p>
+&lt;p>现有omni-model存在的问题：&lt;/p>
+&lt;ol>
+&lt;li>缺乏一个系统的，联合训练多个不同模态的方法&lt;/li>
+&lt;li>需要处理不同模态输出时互相干扰的问题&lt;/li>
+&lt;li>不能实时理解或者流式输出多模态信息&lt;/li>
+&lt;/ol>
+&lt;p>Qwen2.5 omni的解决方法：&lt;/p>
+&lt;ol>
+&lt;li>使用TMRoPE来对齐不同的模态。作者将audio以及video frame按照时间顺序组织成一个交替的架构，然后使用TMRoPE来对齐&lt;/li>
+&lt;li>使用Thinker-Talker的架构来同时生成文本和音频。Thinker负责文本输出，Talker负责音频的流式输出。&lt;/li>
+&lt;li>在multimodal encoder中使用Block-wise streaming处理技巧来实现实时理解；在输出时，实现了一个dual-track自回归架构来生成audio token，以及一个DiT模型来解码audio token&lt;/li>
+&lt;/ol>
+&lt;p>Qwen2.5 omni的贡献：&lt;/p>
+&lt;ol>
+&lt;li>提出了Qwen2.5-omni,可以实时理解多模态信息，并流式输出文本和音频&lt;/li>
+&lt;li>提出了TMRoPE，一个可以对齐不同模态的RoPE算法&lt;/li>
+&lt;li>提出了Thinker-Talker的架构，来完成实时理解和音频输出&lt;/li>
+&lt;li>在多个benchmark上取得了SOTA&lt;/li>
+&lt;/ol>
+&lt;h1 id="架构">架构
+&lt;/h1>&lt;h2 id="总览">总览
+&lt;/h2>&lt;p>Qwen2.5-omni的架构如下图所示
+&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5-omni/architecture.png"
+width="1346"
+height="1110"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5-omni/architecture_hu13856471526692175307.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5-omni/architecture_hu13696785578383343851.png 1024w"
+loading="lazy"
+alt="architecture of Qwen2.5-omni"
+class="gallery-image"
+data-flex-grow="121"
+data-flex-basis="291px"
+>&lt;/p>
+&lt;p>其中Talker类似于人的嘴，负责基于脑中的信息来生成对话；Thinker类似于人的大脑，负责理解输入的信息，并生成对话的上下文。&lt;/p>
+&lt;h2 id="输入">输入
+&lt;/h2>&lt;ul>
+&lt;li>text: Qwen的tokenizer&lt;/li>
+&lt;li>audio： Qwen2-Audio的tokenizer&lt;/li>
+&lt;li>vision： Qwen2.5-VL的vision tokenizer&lt;/li>
+&lt;/ul>
+&lt;p>视频以及TMRoPE。 对于视频来说，Qwen2.5-omni采取了和Qwen2.5-VL一样的MRoPE算法。只是这里的temporal ID对应40ms&lt;/p>
+&lt;p>音频：对于音频来说，Qwen2.5-omni也是以40ms进行采样然后encoding。&lt;/p>
+&lt;p>视频+音频：对于视频+音频来说，Qwen2.5-omni将视频和音频的token进行交替的排列，来保证时间上信息一致&lt;/p>
+&lt;h2 id="输出">输出
+&lt;/h2>&lt;ul>
+&lt;li>Text：text由Thinker直接输出，这和LLM的输出方式是一样的。&lt;/li>
+&lt;li>Speech：Qwen2.5-omni首先构建了&lt;code>qwen-tts-tokenizer&lt;/code>，一个speech codec，用于表示speech的关键信息。
+然后基于这些关键信息，Talker通过自回归的方式生成audio tokens以及text tokens。&lt;/li>
+&lt;/ul>
+&lt;h2 id="流式输出">流式输出
+&lt;/h2>&lt;p>对于流式输出来说，现在的模型存在latency，具体影响因素如下：&lt;/p>
+&lt;ol>
+&lt;li>处理多模态输入的延迟&lt;/li>
+&lt;li>TTFT （time to first token）&lt;/li>
+&lt;li>将第一段speech token解码为audio的时间&lt;/li>
+&lt;li>模型架构导致的latency，如模型参数等&lt;/li>
+&lt;/ol>
+&lt;p>为了解决这个问题，Qwen2.5-omni采取了以下措施：&lt;/p>
+&lt;ol>
+&lt;li>Support prefilling. 作者修改了audio以及vision encoder来在temporal dimension上支持block-wise attention.
+具体来讲，audio encoder只关注2秒内的信息，而vision encoder和Qwen2.5-VL一样，使用了一个MLP patch merger来压缩视觉token&lt;/li>
+&lt;li>Streaming Codec generation. 为了提高流式输出的效率，作者还是用了基于Flow-Matching的DiT，输出的code收线使用Flow-Matching转化为一个mel-spectrogram.
+然后再通过一个BigVGAN来重建得到对应的waveform. 作者在这里修改了DiT的attention，将其receptive field 限制为4个block，包括lookback of 2 blocks以及lookahead of 1 block.&lt;/li>
+&lt;/ol>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5-omni/DiT-sliding-window.png"
+width="410"
+height="433"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5-omni/DiT-sliding-window_hu6563920421928967677.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5-omni/DiT-sliding-window_hu2093921625058248866.png 1024w"
+loading="lazy"
+alt="Sliding Window DiT"
+class="gallery-image"
+data-flex-grow="94"
+data-flex-basis="227px"
+>&lt;/p>
+&lt;h1 id="pre-training">Pre Training
+&lt;/h1>&lt;p>模型参数初始化：&lt;/p>
+&lt;ul>
+&lt;li>LLM： 从Qwen2.5进行初始化&lt;/li>
+&lt;li>vision encoder：从Qwen2.5-VL的vision encoder进行初始化&lt;/li>
+&lt;li>audio encoder：从Whisper-large-v3进行初始化&lt;/li>
+&lt;/ul>
+&lt;p>Pretraining和Qwen2.5-VL的训练过程类似，分成了3个stage：&lt;/p>
+&lt;ol>
+&lt;li>冻结LLM的参数，仅训练vision encoder和audio encoder， 该阶段使用了audio-text以及image-text pairs来进行训练。 数据：image-text, video-text, video-audio, audio-text以及text corpus，
+跟Qwen2-Audio类似，作者将hierarchical tags用自然语言prompt进行替换&lt;/li>
+&lt;li>训练所有参数，使用更多的多模态数据进行训练。数据包括800B token的image和Video相关数据，300B token的audio数据，100B token的video-audio相关数据。&lt;/li>
+&lt;li>将模型的上下文扩展到32K。前两个阶段的上下文长度为8192，本阶段使用了long video data等数据来将模型的上下文扩展到32K。&lt;/li>
+&lt;/ol>
+&lt;h1 id="post-training">Post Training
+&lt;/h1>&lt;h2 id="thinker">Thinker
+&lt;/h2>&lt;p>数据格式为ChatML，数据类型包括pure text-based dialogue data, visual-modality conversation data, audio-modality conversation data and mix-modality conversation data.&lt;/p>
+&lt;h2 id="talker">Talker
+&lt;/h2>&lt;p>包括三个阶段&lt;/p>
+&lt;ol>
+&lt;li>ICL training: 训练Talker学习context continuation&lt;/li>
+&lt;li>DPO training: 提升speech generation的stability&lt;/li>
+&lt;li>multi-speaker instruction fine-tuning: 提升模型的naturalness和controllability&lt;/li>
+&lt;/ol>
+&lt;h1 id="evaluation">Evaluation
+&lt;/h1>&lt;p>Qwen2.5-omni在两类benchmark上进行来的评测，分别时多模态理解（X-&amp;gt;text）以及音频生成(X-&amp;gt; Speech)&lt;/p>
+&lt;p>我们这里主要关注一下speech understanding以及speech generation的benchmark.&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5-omni/audio-to-text-performance.png"
+width="1093"
+height="1125"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5-omni/audio-to-text-performance_hu3995772258484959637.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5-omni/audio-to-text-performance_hu12796047373868839849.png 1024w"
+loading="lazy"
+alt="Audio-to-Text Performance"
+class="gallery-image"
+data-flex-grow="97"
+data-flex-basis="233px"
+>&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5-omni/zero-shot-speech-generation.png"
+width="904"
+height="685"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5-omni/zero-shot-speech-generation_hu4247592615732321508.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5-omni/zero-shot-speech-generation_hu2294091350184113498.png 1024w"
+loading="lazy"
+alt="Speech Generation Performance"
+class="gallery-image"
+data-flex-grow="131"
+data-flex-basis="316px"
+>&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5-omni/single-speaker-speech-generation.png"
+width="864"
+height="513"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5-omni/single-speaker-speech-generation_hu18113694195638600776.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5-omni/single-speaker-speech-generation_hu13691510460279495977.png 1024w"
+loading="lazy"
+alt="single speaker speech generation"
+class="gallery-image"
+data-flex-grow="168"
+data-flex-basis="404px"
+>&lt;/p>
+&lt;h1 id="总结">总结
+&lt;/h1>&lt;p>Qwen2.5-omni相当于是结合了Qwen2.5-VL以及Mini-omni，跟mini-omni2的输入输出是类似的。不同的点在于，Qwen2.5-omni使用了Thinker-Talker的架构，然后还使用了TMRoPE来对齐不同的模态。总的来说，感觉模型还是更偏重于audio的理解与生成。&lt;/p>
+&lt;h1 id="reference">Reference
+&lt;/h1>&lt;ul>
+&lt;li>&lt;a class="link" href="http://arxiv.org/abs/2503.20215" target="_blank" rel="noopener"
+>Qwen2.5-omni&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://arxiv.org/abs/2408.16725" target="_blank" rel="noopener"
+>Mini-omni&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://arxiv.org/pdf/2410.11190" target="_blank" rel="noopener"
+>Mini-omni2&lt;/a>&lt;/li>
+&lt;/ul></description></item><item><title>Overview of Qwen-VL series</title><link>https://maosong2022.github.io/p/overview-of-qwen-vl-series/</link><pubDate>Sun, 09 Mar 2025 15:11:29 +0800</pubDate><guid>https://maosong2022.github.io/p/overview-of-qwen-vl-series/</guid><description>&lt;h1 id="timeline">Timeline
+&lt;/h1>&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>时间&lt;/th>
+&lt;th>模型系列&lt;/th>
+&lt;th>Feature&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>2023.08&lt;/td>
+&lt;td>Qwen-VL&lt;/td>
+&lt;td>Vision-centric understanding&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>Multi-lingual&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>Multi-image&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>Fine-grained visual understanding&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>2024.09&lt;/td>
+&lt;td>Qwen2-VL&lt;/td>
+&lt;td>Image understanding&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>Video understanding (20min)&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>Agent capability&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>Multilingual support&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>2025.02&lt;/td>
+&lt;td>Qwen2.5-VL&lt;/td>
+&lt;td>Document parsing&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>Object grounding&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>Long video understadning and grouding (1 hour)&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>Agent functionality&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h1 id="models">Models
+&lt;/h1>&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>&lt;/th>
+&lt;th>name&lt;/th>
+&lt;th>size&lt;/th>
+&lt;th>Vision&lt;/th>
+&lt;th>Adapter&lt;/th>
+&lt;th>LLM&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>1.0&lt;/td>
+&lt;td>Qwen-VL&lt;/td>
+&lt;td>9.6B&lt;/td>
+&lt;td>ViT(1.9B)&lt;/td>
+&lt;td>Cross-attention(0.08B)&lt;/td>
+&lt;td>Qwen-LLM(7B)&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>2.0&lt;/td>
+&lt;td>Qwen2-VL-2B&lt;/td>
+&lt;td>2B&lt;/td>
+&lt;td>ViT(675M)&lt;/td>
+&lt;td>MLP(0.0341B)&lt;/td>
+&lt;td>Qwen2-LLM(1.5B)&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>Qwen2-VL-7B&lt;/td>
+&lt;td>7B&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>MLP(0.0446B)&lt;/td>
+&lt;td>Qwen2-LLM(7.6B)&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>Qwen2-VL-72B&lt;/td>
+&lt;td>72B&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>MLP(0.0682B)&lt;/td>
+&lt;td>Qwen2-LLM(72B)&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>2.5&lt;/td>
+&lt;td>Qwen2.5-VL-3B&lt;/td>
+&lt;td>3B&lt;/td>
+&lt;td>ViT(675M)&lt;/td>
+&lt;td>MLP(0.1817B)&lt;/td>
+&lt;td>Qwen2.5-LLM(3B)&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>Qwen2.5-VL-7B&lt;/td>
+&lt;td>7B&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>MLP(0.3179B)&lt;/td>
+&lt;td>Qwen2.5-LLM(7.6B)&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>Qwe2.5n-VL-72B&lt;/td>
+&lt;td>72B&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>MLP(0.7267B)&lt;/td>
+&lt;td>Qwen2.5-LLM(72B)&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>Remark&lt;/p>
+&lt;ul>
+&lt;li>Qwen2-VL的MLP使用的是LayerNorm&lt;/li>
+&lt;li>Qwen2.5-VL的MLP使用的是RMSNorm&lt;/li>
+&lt;li>出了Qwen-VL之外，所有模型均有对应的Instruct版本，这里为了方便没有列出。Qwen-VL对应的是Qwen-VL-chat。&lt;/li>
+&lt;/ul>
+&lt;h1 id="data--training">Data &amp;amp; training
+&lt;/h1>&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Model series&lt;/th>
+&lt;th>stage&lt;/th>
+&lt;th>data&lt;/th>
+&lt;th>Vision&lt;/th>
+&lt;th>Adapter&lt;/th>
+&lt;th>LLM&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>Qwen-VL&lt;/td>
+&lt;td>pretraining&lt;/td>
+&lt;td>1.4B&lt;/td>
+&lt;td>✅&lt;/td>
+&lt;td>✅&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>Multi-task pretraining&lt;/td>
+&lt;td>96.8M&lt;/td>
+&lt;td>✅&lt;/td>
+&lt;td>✅&lt;/td>
+&lt;td>✅&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>SFT&lt;/td>
+&lt;td>350K&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>✅&lt;/td>
+&lt;td>✅&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Qwen2-VL&lt;/td>
+&lt;td>pretraining&lt;/td>
+&lt;td>600b tokens&lt;/td>
+&lt;td>✅？&lt;/td>
+&lt;td>✅？&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>Multi-task pretraining&lt;/td>
+&lt;td>800b tokens&lt;/td>
+&lt;td>✅？&lt;/td>
+&lt;td>✅？&lt;/td>
+&lt;td>✅？&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>SFT&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>✅？&lt;/td>
+&lt;td>✅？&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Qwen2.5-VL&lt;/td>
+&lt;td>Visual Pre-Training&lt;/td>
+&lt;td>1.5T token&lt;/td>
+&lt;td>✅？&lt;/td>
+&lt;td>✅？&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>Multimodal Pre-Training&lt;/td>
+&lt;td>2T token&lt;/td>
+&lt;td>✅&lt;/td>
+&lt;td>✅&lt;/td>
+&lt;td>✅&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>Long-Context Pre-Training&lt;/td>
+&lt;td>0.6T token&lt;/td>
+&lt;td>✅？&lt;/td>
+&lt;td>✅？&lt;/td>
+&lt;td>✅？&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>SFT&lt;/td>
+&lt;td>2M samples&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>✅&lt;/td>
+&lt;td>✅&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>DPO&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>✅&lt;/td>
+&lt;td>✅&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>Remark&lt;/p>
+&lt;ol>
+&lt;li>Qwen2-VL按照技术报告的说法是follow了Qwen-VL的训练方式，因此这里也使用了同样的表示&lt;/li>
+&lt;li>带问号的地方代表不确定，为个人猜测。请谨慎参考。&lt;/li>
+&lt;li>难以确定的原因是Qwen-VL系列将projection layer和ViT作为一个模块，因此比较难区分是否训练了projection layer&lt;/li>
+&lt;/ol>
+&lt;p>技术报告的训练框架图&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/overview-of-qwen-vl-series/qwen-vl-training.png"
+width="1908"
+height="868"
+srcset="https://maosong2022.github.io/p/overview-of-qwen-vl-series/qwen-vl-training_hu10403710283858859645.png 480w, https://maosong2022.github.io/p/overview-of-qwen-vl-series/qwen-vl-training_hu10541227880671039729.png 1024w"
+loading="lazy"
+alt="qwen-vl-training"
+class="gallery-image"
+data-flex-grow="219"
+data-flex-basis="527px"
+>&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/overview-of-qwen-vl-series/qwen2-5-training.png"
+width="1354"
+height="468"
+srcset="https://maosong2022.github.io/p/overview-of-qwen-vl-series/qwen2-5-training_hu9762734632441640035.png 480w, https://maosong2022.github.io/p/overview-of-qwen-vl-series/qwen2-5-training_hu16613519819175232642.png 1024w"
+loading="lazy"
+alt="qwen2-5-training"
+class="gallery-image"
+data-flex-grow="289"
+data-flex-basis="694px"
+>&lt;/p>
+&lt;p>References&lt;/p>
+&lt;ul>
+&lt;li>&lt;a class="link" href="https://arxiv.org/pdf/2308.12966" target="_blank" rel="noopener"
+>Qwen-VL&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://arxiv.org/pdf/2409.12191" target="_blank" rel="noopener"
+>Qwen2-VL&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://arxiv.org/pdf/2502.13923" target="_blank" rel="noopener"
+>Qwen2.5-VL&lt;/a>&lt;/li>
+&lt;/ul></description></item><item><title>Notes on QwQ-32B</title><link>https://maosong2022.github.io/p/notes-on-qwq-32b/</link><pubDate>Sat, 08 Mar 2025 09:46:16 +0800</pubDate><guid>https://maosong2022.github.io/p/notes-on-qwq-32b/</guid><description>&lt;h1 id="introduction">Introduction
+&lt;/h1>&lt;p>通义团队在3月6号发布了QwQ-32B，一个基于RL的，32B参数的reasoning model，QwQ-32B的表现可以与DeepSeek-R1相比&lt;/p>
+&lt;h1 id="模型架构">模型架构
+&lt;/h1>&lt;p>QwQ-32B基于Qwen2.5-32B开发。主要通过基于outcome-based rewards的RL进行训练。训练过程包括两个stage&lt;/p>
+&lt;ol>
+&lt;li>Stage 1：本阶段在math和coding domain上进行RL的训练，作者使用了一个verifier来保证最终数学问题结果的正确性，使用了一个code execution server来保证最终生成代码的正确性。&lt;/li>
+&lt;li>Stage 2：本阶段在通用领域上进行RL的训练。模型基于general reward model和一些rule-based verifier进行训练。应该是类似DeepSeek-R1的规则。&lt;/li>
+&lt;/ol>
+&lt;h1 id="实验结果">实验结果
+&lt;/h1>&lt;p>实验结果如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-qwq-32b/qwq-32b-final.jpg"
+width="3035"
+height="1713"
+srcset="https://maosong2022.github.io/p/notes-on-qwq-32b/qwq-32b-final_hu8354107095607630009.jpg 480w, https://maosong2022.github.io/p/notes-on-qwq-32b/qwq-32b-final_hu6845858612094320689.jpg 1024w"
+loading="lazy"
+alt="QwQ_evaluation"
+class="gallery-image"
+data-flex-grow="177"
+data-flex-basis="425px"
+>&lt;/p>
+&lt;h1 id="reference">Reference
+&lt;/h1>&lt;ul>
+&lt;li>&lt;a class="link" href="https://qwenlm.github.io/blog/qwq-32b/" target="_blank" rel="noopener"
+>blog&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://chat.qwen.ai/?models=Qwen2.5-Plus" target="_blank" rel="noopener"
+>demo&lt;/a>&lt;/li>
+&lt;/ul></description></item><item><title>Notes on Qwen2.5 VL</title><link>https://maosong2022.github.io/p/notes-on-qwen2.5-vl/</link><pubDate>Tue, 04 Mar 2025 10:46:42 +0800</pubDate><guid>https://maosong2022.github.io/p/notes-on-qwen2.5-vl/</guid><description>&lt;h1 id="introduction">Introduction
+&lt;/h1>&lt;p>2025年2月20号Qwen团队发布了Qwen2.5 VL技术报告，Qwen2.5 VL包括3B，7B， 72B三个size。Qwen2.5-VL主要在架构，数据上进行了改进。通过评测，Qwen2.5-VL在多个benchmark上取得了SOTA。&lt;/p>
+&lt;p>Qwen2.5 VL认为已有模型的缺点为：&lt;/p>
+&lt;ul>
+&lt;li>计算复杂度高&lt;/li>
+&lt;li>上下文理解能力有限&lt;/li>
+&lt;li>细粒度visual perception能力不足&lt;/li>
+&lt;li>在不同上下文长度下表现不一致&lt;/li>
+&lt;/ul>
+&lt;p>Qwen2.5 VL的贡献为：&lt;/p>
+&lt;ol>
+&lt;li>使用了一个从零开始训练的ViT作为vision encoder，并且在ViT中使用了window attention，来提高计算效率&lt;/li>
+&lt;li>使用了dynamic FPS sampling，用于处理不同采样率的视频输入&lt;/li>
+&lt;li>将MRoPE扩展到了temporal domain上，进一步提高了模型在与时间相关任务上的表现&lt;/li>
+&lt;li>使用了更高质量的数据集，其中预训练阶段使用了4.1T的token&lt;/li>
+&lt;/ol>
+&lt;p>Qwen2.5 VL的主要亮点为：&lt;/p>
+&lt;ul>
+&lt;li>优秀的document parsing能力&lt;/li>
+&lt;li>精确的object grounding能力&lt;/li>
+&lt;li>针对长视频的理解和细粒度grounding能力&lt;/li>
+&lt;li>针对UI的agent functionality&lt;/li>
+&lt;/ul>
+&lt;h1 id="模型架构">模型架构
+&lt;/h1>&lt;h2 id="总览">总览
+&lt;/h2>&lt;p>Qwen2.5 VL和Qwen2 VL的架构基本一致，包括Vision Encoder，Language Encoder，以及projector layer三个部分，其架构图如下：&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/architecture.png"
+width="1345"
+height="889"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/architecture_hu17125015043072785911.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5-vl/architecture_hu16983634930428889570.png 1024w"
+loading="lazy"
+alt="Qwen2.5 VL架构图"
+class="gallery-image"
+data-flex-grow="151"
+data-flex-basis="363px"
+>&lt;/p>
+&lt;ul>
+&lt;li>LLM： 使用Qwen2.5 LLM作为LLM，并且将1D-RoPE升级为了MRoPE&lt;/li>
+&lt;li>Vision Encoder： 使用一个从零开始训练的ViT架构，patch_size为14，position embedding为2D-RoPE， attention为window attention和self-attention的混合，其中，只有四层使用的是self-attention.对于输入的图片，ViT会将图片resize到28的整数倍。&lt;/li>
+&lt;li>Projector Layer： 使用的是一个两层的MLP&lt;/li>
+&lt;/ul>
+&lt;p>模型的参数配置如下图&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/model_config.png"
+width="1180"
+height="861"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/model_config_hu6133933021768467739.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5-vl/model_config_hu685888814144466819.png 1024w"
+loading="lazy"
+alt="Qwen2.5 VL模型参数配置"
+class="gallery-image"
+data-flex-grow="137"
+data-flex-basis="328px"
+>&lt;/p>
+&lt;h2 id="vision-encoder">Vision Encoder
+&lt;/h2>&lt;p>Vision encoder的主要改进点为：&lt;/p>
+&lt;ol>
+&lt;li>使用了window attention来提升计算效率，window attention的size为 $112\times 112$， 对应为 $8\times 8$ 个patch. 这样做的好处是可以不用对图片做scaling&lt;/li>
+&lt;li>使用了2D RoPE来捕捉空间信息，使用3D RoPE来捕捉视频输入的时间信息&lt;/li>
+&lt;li>与LLM的结构进行对齐，包括使用RMSNorm替换LayerNorm，使用SwiGLU替换ReLU&lt;/li>
+&lt;/ol>
+&lt;h2 id="输入处理">输入处理
+&lt;/h2>&lt;p>对于图片输入，Qwen2.5 VL使用原始图片的空间信息来构建坐标，而不是将坐标normalize到[0, 1000]之间，这样让模型可以处理不同精度的图片输入。&lt;/p>
+&lt;p>对于视频输入，因为使用了3D RoPE，因此Qwen2.5 VL可以处理不同帧率的视频输入，这样就避免了不同帧率视频对模型视频理解带来的影响。这一点和Apollo里的想法是一样的。具体来说，Qwen2.5 VL首先将连续的两帧group到了一起，然后使用了temporal ID来将position和视频所对应的时间进行对齐。这里可以看Qwen2.5 VL的代码：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">Temporal (Time): 3 patches, representing different segments of the video in time.
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">Height: 2 patches, dividing each frame vertically.
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">Width: 2 patches, dividing each frame horizontally.
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">We also have some important parameters:
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">fps (Frames Per Second): The video&amp;#39;s frame rate, set to 1. This means one frame is processed each second.
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">tokens_per_second: This is a crucial parameter. It dictates how many &amp;#34;time-steps&amp;#34; or &amp;#34;temporal tokens&amp;#34; are conceptually packed into a one-second interval of the video. In this case, we have 25 tokens per second. So each second of the video will be represented with 25 separate time points. It essentially defines the temporal granularity.
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">temporal_patch_size: The number of frames that compose one temporal patch. Here, it&amp;#39;s 2 frames.
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">interval: The step size for the temporal position IDs, calculated as tokens_per_second * temporal_patch_size / fps. In this case, 25 * 2 / 1 = 50. This means that each temporal patch will be have a difference of 50 in the temporal position IDs.
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">input_ids: [V V V V V V V V V V V V T T T T T], here V is for vision.
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">vision temporal position_ids: [0, 0, 0, 0, 50, 50, 50, 50, 100, 100, 100, 100]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">vision height position_ids: [0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">vision width position_ids: [0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">text temporal position_ids: [101, 102, 103, 104, 105]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">text height position_ids: [101, 102, 103, 104, 105]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">text width position_ids: [101, 102, 103, 104, 105]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">Here we calculate the text start position_ids as the max vision position_ids plus 1.
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>这里&lt;code>fps&lt;/code>为1，表示每一帧对应一秒，&lt;code>tokens_per_second&lt;/code>为25，表示每秒包含25个token，&lt;code>temporal_patch_size&lt;/code>为2，表示每个temporal patch包含2个frame。因此一个patch里面，就包含了2frame, 对应50tokens. 然后前面提到连续两帧会被group到一起，因此每个temporal patch对应4个spatial patches. 其position_ids为：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="p">[(&lt;/span>&lt;span class="n">t&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">t&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">t&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">t&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">)]&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h1 id="训练">训练
+&lt;/h1>&lt;h2 id="预训练">预训练
+&lt;/h2>&lt;h3 id="数据">数据
+&lt;/h3>&lt;p>预训练阶段使用了4.1T的token，包括image captions, interleaved image-text data, optical character recognition (OCR) data, visual knowledge (e.g., celebrity, landmark, flora, and fauna identification), multi-modal academic questions, localization data, document parsing data, video descriptions, video localization, and agent-based interaction data. 作者详细介绍了以下几种数据：&lt;/p>
+&lt;ul>
+&lt;li>Interleaved image-text data： 主要1. 提高模型的上下文学习能力；2. 保持模型的text-only能力；3.包含一些通用信息。数据清洗包括：1. 基于text-only quality过滤； 2. 基于image-text相关性过滤；3. 基于image-text互补程度过滤；4.基于information density balance过滤.&lt;/li>
+&lt;li>Grounding data：作者使用了Grounding DINO, SAM等模型来生成一些grounding data.为了提升模型在open-vocabulary detection上的能力，作者将训练数据集扩展到了1万个object category上，作者还使用了一些point-based object grounding data来提升模型的能力&lt;/li>
+&lt;li>Document Parsing data：作者基于text,image, music sheets和chemical formulas合成了一些HTML格式的数据，然后根据tag和bounding box来提升模型document parsing的能力&lt;/li>
+&lt;li>OCR data：作者使用了开源，合成和in-house的数据集，数据集主要提到multi-lingual以及1M的chart-type数据&lt;/li>
+&lt;li>Video data：作者通过pipeline构建了long video caption来提升模型长视频的理解能力&lt;/li>
+&lt;li>Agent data：作者收集了一些mobile device和网页的screenshots,然后基于agent框架来合成控制轨迹&lt;/li>
+&lt;/ul>
+&lt;h3 id="训练-1">训练
+&lt;/h3>&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/pretraining.png"
+width="1217"
+height="428"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/pretraining_hu13120081010368224081.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5-vl/pretraining_hu851622592674460936.png 1024w"
+loading="lazy"
+alt="Qwen2.5 VL预训练阶段"
+class="gallery-image"
+data-flex-grow="284"
+data-flex-basis="682px"
+>&lt;/p>
+&lt;p>如上图所示，Qwen2.5 VL的预训练阶段包括了三个阶段：&lt;/p>
+&lt;ol>
+&lt;li>Visual Pretraining:这一阶段使用了image-caption, knowledge, OCR数据集，旨在提升ViT提取视觉特征的能力&lt;/li>
+&lt;li>multimodal pretraining:这一阶段在第一阶段的基础上增加了pure-text, interleaved data, VQA, Video grounding, agent data, 旨在提升模型处理复杂视觉信息的能力&lt;/li>
+&lt;li>long-context pretraining: 这一阶段，在第二阶段的基础上，增加了long video, long agent, long document data，旨在提升模型处理长上下文的能力&lt;/li>
+&lt;/ol>
+&lt;h2 id="后训练">后训练
+&lt;/h2>&lt;h3 id="数据-1">数据
+&lt;/h3>&lt;p>SFT阶段使用大概2M的样本进行训练，其中纯文本和多模态数据占比为1:1，语言主要是中文和英文。&lt;/p>
+&lt;p>为了保证数据质量，作者提供了一个数据清洗的pipeline，包括：&lt;/p>
+&lt;ol>
+&lt;li>domain-specific categorization: 作者基于Qwen2-VL-72B构建了Qwen2-VL-Instag，用于将QA pair分为8个大类别，30个小类别&lt;/li>
+&lt;li>Domain-tailed filtering:作者使用了rule-based和model-based方法来提升数据的质量
+&lt;ul>
+&lt;li>rule-based filtering: 重复性检测，格式检测等&lt;/li>
+&lt;li>model-based filtering: 使用基于Qwen2.5-VL训练的reward model来从多个维度评估QA pair的质量&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ol>
+&lt;p>为了进一步提升模型的推理能力，作者还是用了rejection sampling来refine 数据集。&lt;/p>
+&lt;h3 id="训练-2">训练
+&lt;/h3>&lt;p>post-training阶段分为SFT和DPO两个小阶段，这个阶段都会冻结VIT. SFT阶段使用大多数的训练数据，而DPO阶段专注于image-text data和pure text data，以更好地进行对齐。具体做法就是基于Grounding truth，使用checkpoint来评估数据的质量，然后只保留答案正确的数据来训练。&lt;/p>
+&lt;h1 id="评测">评测
+&lt;/h1>&lt;ol>
+&lt;li>通用VQA
+&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/general_vqa.png"
+width="1356"
+height="656"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/general_vqa_hu892650520576289201.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5-vl/general_vqa_hu9870708508441533774.png 1024w"
+loading="lazy"
+alt="通用VQA"
+class="gallery-image"
+data-flex-grow="206"
+data-flex-basis="496px"
+>&lt;/li>
+&lt;li>文档理解和OCR
+&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/document_understanding.png"
+width="1358"
+height="655"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/document_understanding_hu17694059179260147209.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5-vl/document_understanding_hu7262732638369499565.png 1024w"
+loading="lazy"
+alt="文档理解和OCR"
+class="gallery-image"
+data-flex-grow="207"
+data-flex-basis="497px"
+>&lt;/li>
+&lt;li>空间理解
+&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/grounding.png"
+width="1324"
+height="714"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/grounding_hu5967843440894939227.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5-vl/grounding_hu13144193697505905228.png 1024w"
+loading="lazy"
+alt="空间理解"
+class="gallery-image"
+data-flex-grow="185"
+data-flex-basis="445px"
+>&lt;/li>
+&lt;li>视频理解和Grounding
+&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/video.png"
+width="1320"
+height="672"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/video_hu2773206847940642085.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5-vl/video_hu9652119302145499627.png 1024w"
+loading="lazy"
+alt="视频理解和Grounding"
+class="gallery-image"
+data-flex-grow="196"
+data-flex-basis="471px"
+>&lt;/li>
+&lt;li>Agent
+&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/agent.png"
+width="1374"
+height="337"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/agent_hu14999408161773977095.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5-vl/agent_hu8333246447475526185.png 1024w"
+loading="lazy"
+alt="Agent"
+class="gallery-image"
+data-flex-grow="407"
+data-flex-basis="978px"
+>&lt;/li>
+&lt;/ol>
+&lt;h1 id="reference">Reference
+&lt;/h1>&lt;ul>
+&lt;li>&lt;a class="link" href="https://github.com/QwenLM/Qwen2.5-VL" target="_blank" rel="noopener"
+>Github&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://arxiv.org/abs/2502.13923" target="_blank" rel="noopener"
+>Paper&lt;/a>&lt;/li>
+&lt;/ul></description></item></channel></rss>

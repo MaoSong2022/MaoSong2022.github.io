@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Reasoning on Mao Song(毛松)'s Homepage</title><link>https://maosong2022.github.io/tags/reasoning/</link><description>Recent content in Reasoning on Mao Song(毛松)'s Homepage</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><lastBuildDate>Sat, 08 Mar 2025 09:46:16 +0800</lastBuildDate><atom:link href="https://maosong2022.github.io/tags/reasoning/index.xml" rel="self" type="application/rss+xml"/><item><title>Notes on QwQ-32B</title><link>https://maosong2022.github.io/p/notes-on-qwq-32b/</link><pubDate>Sat, 08 Mar 2025 09:46:16 +0800</pubDate><guid>https://maosong2022.github.io/p/notes-on-qwq-32b/</guid><description>&lt;h1 id="introduction">Introduction
+&lt;/h1>&lt;p>通义团队在3月6号发布了QwQ-32B，一个基于RL的，32B参数的reasoning model，QwQ-32B的表现可以与DeepSeek-R1相比&lt;/p>
+&lt;h1 id="模型架构">模型架构
+&lt;/h1>&lt;p>QwQ-32B基于Qwen2.5-32B开发。主要通过基于outcome-based rewards的RL进行训练。训练过程包括两个stage&lt;/p>
+&lt;ol>
+&lt;li>Stage 1：本阶段在math和coding domain上进行RL的训练，作者使用了一个verifier来保证最终数学问题结果的正确性，使用了一个code execution server来保证最终生成代码的正确性。&lt;/li>
+&lt;li>Stage 2：本阶段在通用领域上进行RL的训练。模型基于general reward model和一些rule-based verifier进行训练。应该是类似DeepSeek-R1的规则。&lt;/li>
+&lt;/ol>
+&lt;h1 id="实验结果">实验结果
+&lt;/h1>&lt;p>实验结果如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-qwq-32b/qwq-32b-final.jpg"
+width="3035"
+height="1713"
+srcset="https://maosong2022.github.io/p/notes-on-qwq-32b/qwq-32b-final_hu8354107095607630009.jpg 480w, https://maosong2022.github.io/p/notes-on-qwq-32b/qwq-32b-final_hu6845858612094320689.jpg 1024w"
+loading="lazy"
+alt="QwQ_evaluation"
+class="gallery-image"
+data-flex-grow="177"
+data-flex-basis="425px"
+>&lt;/p>
+&lt;h1 id="reference">Reference
+&lt;/h1>&lt;ul>
+&lt;li>&lt;a class="link" href="https://qwenlm.github.io/blog/qwq-32b/" target="_blank" rel="noopener"
+>blog&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://chat.qwen.ai/?models=Qwen2.5-Plus" target="_blank" rel="noopener"
+>demo&lt;/a>&lt;/li>
+&lt;/ul></description></item></channel></rss>
