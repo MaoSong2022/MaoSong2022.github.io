@@ -37,7 +37,7 @@ $$ x = VW^T, \text{ where } W\in\mathbb{R}^{d\times d_v}$$
 the code reads as:
 
 ```python
-# one-layer MLP
+# linear layer
 adaption_layer = nn.Linear(config.hidden_size, config.num_features)
 ```
 
@@ -72,20 +72,18 @@ They usually comprise two steps:
 **Average pooling** This type of adaption layers use an average pooling as $\mathcal{P}$ to reduce the number of tokens, followed by a two-layer MLP as $\mathcal{T}$, which is the same as LLaVA 1.5:
 $$ f'_i = \frac{1}{n}\sum_{j=1}^{n}f_{(i-1)n+j}, i=1,\dots,Q $$
 
-**Q-former** This type of adaption layers use an cross-attention layer as $\mathcal{P}$, the transformation $\mathcal{T}$ is also the same as LLaVA 1.5.
+**Perceiver Resampler** This type of adaption layers use an cross-attention layer as $\mathcal{P}$, the transformation $\mathcal{T}$ is also the same as LLaVA 1.5.
 $$ K = W_kf\in\mathbb{R}^{d_c}, V=W_vf\in\mathbb{R}^{d_c}, f'=\mathrm{softmax}\left(\frac{QK^T}{\sqrt{d_c}}\right)V\in\mathbb{R}^{Q\times d_v} $$
 where $W_k, W_v\in\mathbb{R}^{d_c\times d_v}$ and $Q\in\mathbb{R}^{Q\times d_c}$ is a learnable query.
 
 ```python
-class Qformer(nn.Module):
+class PerceiverResampler(nn.Module):
     def __init__(self, num_queries, hidden_size, num_features, num_heads):
         self.num_queries = num_queries
         self.hidden_size = hidden_size
         self.num_features = num_features
 
-        self.query_tokens = nn.Parameter(
-            torch.zeros(self.num_queries, self.num_features)
-        )
+        self.query_tokens = nn.Parameter(torch.zeros(self.num_queries, self.num_features), requires_grad=True)
         self.query_tokens.data.normal_(mean=0.0, std=0.02)
 
         self.attention = nn.MultiheadAttention(hidden_size, num_heads)
@@ -97,11 +95,16 @@ class Qformer(nn.Module):
         x = x.permute(1, 0, 2)
 
         N = x.shape[1]
-        q = self.layer_norm_q(self.query)
+        q = self.layer_norm_q(self.query_tokens)
         q = q.unsqueeze(1).repeat(1, N, 1)
         out = self.attention(q, k, v, attention_mask=attention_mask)[0]
 
         out = out.permute(1, 0, 2)
+
+adaption_layer = nn.Sequential(
+    PerceiverResampler(num_queries, hidden_size, num_features, num_heads),
+    MLP(hidden_size, intermediate_size, hidden_size)
+)
 ```
 
 **C-Abstractor** This type of adaption layers use a combination of convolution layer and averaging pooling as $\mathcal{P}$. $\mathcal{T}$ is defined as an additional convolution layers.
@@ -110,11 +113,7 @@ where $W=[w_1,\dots,w_n]^T\in\mathbb{R}^n$ and $W'=[w_1,\dots,w_n]^T\in\mathbb{R
 
 **D-Abstractor** aa
 
-**MEQ-Former**
 
-**LDPv2**
-
-**VSS**
 
 # Usages
 
