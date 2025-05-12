@@ -1,7 +1,7 @@
 ---
 title: "Tags"
 date: 2022-03-06
-layout: "taxonomy"
+layout: "tags"
 slug: "tags"
 menu:
     main:
@@ -10,4 +10,4 @@ menu:
             icon: tag
 ---
 
-This page lists all the tags used across the blog posts. Click on any tag to see all posts associated with that tag.
+This page displays a tag cloud of all tags used across the blog posts. The size of each tag indicates its frequency. Click on any tag to see all posts associated with that tag.
