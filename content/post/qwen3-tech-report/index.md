@@ -1,7 +1,7 @@
 ---
 title: Qwen3 技术报告总结
 description: Qwen3 包括6个dense模型，2个MoE模型，主要亮点是快慢思考模式切换，多语种，支持thinking budge调整
-date: 2025-03-04 10:46:42+0800
+date: 2025-05-15 14:48:11+0800
 math: true
 
 tags: 
