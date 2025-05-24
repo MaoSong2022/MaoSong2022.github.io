@@ -50,7 +50,7 @@ $$
 置换不变性(permutation invariant)的定义：假设 $f:\mathbb{R}^n\to\mathbb{R}^n$，如果
 
 $$
-f(\sigma({x})) = (f({x}))
+f(\sigma(\bm{x})) = (f(\bm{x}))
 $$
 
 则我们说 $f$是置换不变的. 这里 $\sigma:\mathbb{R}^n\to\mathbb{R}^n$ 是一个置换函数 (permutation function). 当输入的是一个矩阵时，我们默认置换其列，即对 $X=[X_1,\dots,X_n]\in\mathbb{R}^{d\times n}$, 我们有 $\sigma(X)=[X_{\sigma_1},\dots, X_{\sigma_n}]=Y\Pi $, 其中 $\Pi\in\mathbb{R}^{n\times n}\in \{0,1\}^{n\times n}$ 是一个置换矩阵 (permutation matrix)。
@@ -58,7 +58,7 @@ $$
 置换等变性 (permutation equivariant)的定义：假设 $f:\mathbb{R}^n\to\mathbb{R}^n$，如果
 
 $$
-f(\sigma({x})) = \sigma(f({x}))
+f(\sigma(\bm{x})) = \sigma(f(\bm{x}))
 $$
 则我们说 $f$是置换等变的.
 
@@ -92,7 +92,6 @@ $$
 $$
 
 **证明**:
-
 $$
 \begin{aligned}
     \mathrm{Attn}(\sigma(X), Y, Y) &= V\mathrm{softmax}\left(\frac{K^TQ\Pi}{\sqrt{d}}\right)\\
@@ -109,12 +108,12 @@ $$
 
 ## Bias对attention layer的影响
 
-接下来，我们考虑在计算query, key和value时加入bias。为了简化，我们只考虑query为一个向量的情况，即 $X={x}\in\mathbb{R}^d$, 我们计算query, key和value如下：
+接下来，我们考虑在计算query, key和value时加入bias。为了简化，我们只考虑query为一个向量的情况，即 $X=\bm{x}\in\mathbb{R}^d$, 我们计算query, key和value如下：
 
 $$
-{q} = W_Q{x}+{b}_Q\in\mathbb{R}^{d}\\
-K = W_KY + {b}_K\mathbf{1}^T\in\mathbb{R}^{d\times n}\\
-V = W_VY + {b}_V\mathbf{1}^T\in\mathbb{R}^{d\times n}
+\bm{q} = W_Q\bm{x}+\bm{b}_Q\in\mathbb{R}^{d}\\
+K = W_KY + \bm{b}_K\mathbf{1}^T\in\mathbb{R}^{d\times n}\\
+V = W_VY + \bm{b}_V\mathbf{1}^T\in\mathbb{R}^{d\times n}
 $$
 
 这里 $\mathbf{1}^T\in\mathbb{R}^{n}$. 我们这里简化了scaling的操作，因为其不对结果产生影响。
@@ -125,43 +124,43 @@ $$
 
 $$
 \begin{aligned}
-    \mathrm{Attn}({x}, Y, Y) &= V\mathrm{softmax}\left(K^T{q}\right)\\
-    &= \left(W_VY + {b}_V\mathbb{1}^T\right)\mathrm{softmax}\left(K^T{q}\right)\\
-    &= W_VY\mathrm{softmax}\left(K^T{q}\right) + {b}_V\mathbb{1}^T \mathrm{softmax}\left(K^T{q}\right)
+    \mathrm{Attn}(\bm{x}, Y, Y) &= V\mathrm{softmax}\left(K^T\bm{q}\right)\\
+    &= \left(W_VY + \bm{b}_V\mathbb{1}^T\right)\mathrm{softmax}\left(K^T\bm{q}\right)\\
+    &= W_VY\mathrm{softmax}\left(K^T\bm{q}\right) + \bm{b}_V\mathbb{1}^T \mathrm{softmax}\left(K^T\bm{q}\right)
 \end{aligned}
 $$
-由于 $\mathrm{softmax}\left(K^T{q}\right)\in\mathbb{R}^{n}$的列求和为$1$, 因此，$\mathbb{1}^T\mathrm{softmax}\left(K^T{q}\right)=1$, 我们有
+由于 $\mathrm{softmax}\left(K^T\bm{q}\right)\in\mathbb{R}^{n}$的列求和为$1$, 因此，$\mathbb{1}^T\mathrm{softmax}\left(K^T\bm{q}\right)=1$, 我们有
 
 $$
-\mathrm{Attn}({x}, Y, Y) = W_VY\mathrm{softmax}\left(K^T{q}\right) + {b}_V
+\mathrm{Attn}(\bm{x}, Y, Y) = W_VY\mathrm{softmax}\left(K^T\bm{q}\right) + \bm{b}_V
 $$
 
 接下来，我们展开 $K$:
 
 $$
 \begin{aligned}
-\mathrm{Attn}({x}, Y, Y) &= W_VY\mathrm{softmax}\left(K^T{q}\right) + {b}_V\\
-&= W_VY\mathrm{softmax}\left((W_KY + {b}_K\mathbf{1}^T)^T{q}\right) + {b}_V\\
-&= W_VY\mathrm{softmax}\left(Y^TW_K^Tq + \mathbf{1}{b}_K^T{q}\right) + {b}_V\\
+\mathrm{Attn}(\bm{x}, Y, Y) &= W_VY\mathrm{softmax}\left(K^T\bm{q}\right) + \bm{b}_V\\
+&= W_VY\mathrm{softmax}\left((W_KY + \bm{b}_K\mathbf{1}^T)^T\bm{q}\right) + \bm{b}_V\\
+&= W_VY\mathrm{softmax}\left(Y^TW_K^Tq + \mathbf{1}\bm{b}_K^T\bm{q}\right) + \bm{b}_V\\
 \end{aligned}
 $$
 
-这里，我们需要用到softmax函数的平移不变性，即 $\mathrm{softmax}({x}+\delta\mathbf{1})=\mathrm{softmax}({x})$, 这里 $\delta\in\mathbb{R}$ 是一个常数，证明起来很简单：
+这里，我们需要用到softmax函数的平移不变性，即 $\mathrm{softmax}(\bm{x}+\delta\mathbf{1})=\mathrm{softmax}(\bm{x})$, 这里 $\delta\in\mathbb{R}$ 是一个常数，证明起来很简单：
 $$
-\mathrm{softmax}({x}+\delta)_i = \frac{e^{x_i+\delta}}{\sum_{j}e^{x_j+\delta}} = \frac{e^{x_i} * e^{\delta}}{\sum_{j}e^{x_j} * e^{\delta}} = \mathrm{softmax}({x})_i
+\mathrm{softmax}(\bm{x}+\delta)_i = \frac{e^{x_i+\delta}}{\sum_{j}e^{x_j+\delta}} = \frac{e^{x_i} * e^{\delta}}{\sum_{j}e^{x_j} * e^{\delta}} = \mathrm{softmax}(\bm{x})_i
 $$
-而这里 ${b}_K^T{q}\in\mathbb{R}$，因此我们可以将这一项给去掉，我们得到：
+而这里 $\bm{b}_K^T\bm{q}\in\mathbb{R}$，因此我们可以将这一项给去掉，我们得到：
 
 $$
-\mathrm{Attn}({x}, Y, Y) = W_VY\mathrm{softmax}\left(Y^TW_K^T{q}\right) + {b}_V
+\mathrm{Attn}(\bm{x}, Y, Y) = W_VY\mathrm{softmax}\left(Y^TW_K^T\bm{q}\right) + \bm{b}_V
 $$
 
-接下来，我们展开 ${q}$,
+接下来，我们展开 $\bm{q}$,
 $$
 \boxed{
 \begin{aligned}
-\mathrm{Attn}({x}, Y, Y) &= W_VY\mathrm{softmax}\left(Y^TW_K^T{q}\right) + {b}_V\\
-&= W_VY\mathrm{softmax}\left(Y^TW_K^T(W_Q{x}+{b}_Q)\right) + {b}_V\\
+\mathrm{Attn}(\bm{x}, Y, Y) &= W_VY\mathrm{softmax}\left(Y^TW_K^T\bm{q}\right) + \bm{b}_V\\
+&= W_VY\mathrm{softmax}\left(Y^TW_K^T(W_Q\bm{x}+\bm{b}_Q)\right) + \bm{b}_V\\
 \end{aligned}}
 $$
 
@@ -174,7 +173,7 @@ $$
 实际上这个问题并没有定论。特别是加入position encoding之后，就更难探究bias对最终结果的影响了。但是，我认为一个原因就是bias其实就是某种先验知识，假设输入满足高斯分布，那么我们有
 
 $$
-\mathbb{E}[W{x}+b] = b
+\mathbb{E}[W\bm{x}+b] = b
 $$
 
 加上先验知识后，当训练数据出现distribution shift之后，模型在训练过程中可能就会不稳定(PaLM). 而后来将LayerNorm替换为RMSNorm，使用RoPE而不是其他的additive position encoding, 我认为也是避免模型学习到先验知识，从而影响其泛化性。在未来，我认为transformer里应该是没有bias的，尽管这样效果可能会差一些，但是其稳定性更好，泛化性应该也会更好。
