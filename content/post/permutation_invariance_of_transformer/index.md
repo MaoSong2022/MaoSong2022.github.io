@@ -1,6 +1,6 @@
 ---
-title: 为什么transformer没有QKV bias
-description: 基于数学推导分析attention的性质
+title: 关于attention bias的一些思考
+description: 为什么transformer没有QKV bias
 date: 2025-05-22 15:25:07+0800
 tags: 
     - transformer
