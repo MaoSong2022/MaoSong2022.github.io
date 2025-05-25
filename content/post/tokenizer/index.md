@@ -12,12 +12,13 @@ math: true
 
 # Introduction
 
-在自然语言处理中, tokenizer的作用是将一个文本序列通过一个字典转化为一个token id的序列. 我们回顾图片分类任务, 我们在预测的时候, 实际上预测的是类别对应的id, 而不是类别本身. tokenizer做的事情就是提供一个类似于从类别到对应id的字典.
+在自然语言处理中, tokenizer的作用是将一个文本序列通过一个字典转化为一个token id的序列.
+我们回顾图片分类任务, 模型在预测的时候, 实际上预测的是类别对应的id, 而不是类别本身. tokenizer做的事情就是提供一个类似于从类别到对应id的字典.
 
 一般来说, 一个tokenizer处理文本序列的过程有两步：
 
-1. pre-tokenize, 也就是预处理, 我们需要将文本序列分割成合适大小的chunks
-2. tokenize, 构建chunks到token id的映射
+1. pre-tokenize, 也就是预处理, 我们需要将文本序列分割成合适大小的chunks (words)
+2. tokenize, 构建chunks (words)到token id的映射
 
 注：实际上, huggingface的tokenizer包括[四个步骤](https://huggingface.co/docs/tokenizers/pipeline), 其中第二第三个步骤与上述一致. 在pre-tokenize之前, 我们有一个normalization过程, 该过程会对文本序列进行处理, 如将文本序列变为小写, 删掉声调符号等, 如下面例子所示：
 
@@ -28,10 +29,6 @@ normalizer = normalizers.Sequence([NFD(), StripAccents()])
 normalizer.normalize_str("Héllò hôw are ü?")
 # "Hello how are u?"
 ```
-
-其完整流程如下图所示 (图源：[huggingface llm-course](https://huggingface.co/learn/llm-course/chapter6/4?fw=pt))
-
-![tokenization pipeline](tokenization_pipeline.png)
 
 在tokenize之后, 我们会有一个post-processing过程, 比如BERT会在生成的token系列前后加入 `[CLS]` token 和 `[SEP]` token, 例子如下：
 
@@ -44,41 +41,45 @@ print(token_ids)
 # represents [[CLS], "I", "love", "NLP", ".", [SEP]]
 ```
 
-构建好tokenizer之后, 我们还要保证tokenizer提供两个功能
+其完整流程如下图所示 (图源：[huggingface llm-course](https://huggingface.co/learn/llm-course/chapter6/4?fw=pt))
+
+![tokenization pipeline](tokenization_pipeline.png)
+
+构建好tokenizer之后, 我们还要保证tokenizer提供两个接口
 
 1. encoding, 给定文本序列, 将其映射到字典中去得到token id序列
 2. decoding, 给定token id序列, 将其解码成文本序列
 
 接下来, 我们将简单介绍一下word tokenizer, character tokenizer以及byte tokenizer, 并分析它们各自的不足.
-然后, 我们介绍一些sub-word tokenizer, 最后, 我们介绍现代大语言模型中使用最多的BPE tokenizer
+然后,  我们介绍现代大语言模型中使用最多的BPE tokenizer. 最后, 我们介绍一些sub-word tokenizer.
 
-# 无需训练的tokenizer
+# Training-free tokenizer
 
-本节我们将要介绍word tokenizer, character tokenizer以及byte tokenizer，它们的特点就是简单易懂，不需要额外的规则和学习。但是也都有各自的缺点。
+本节我们将要介绍word tokenizer, character tokenizer以及byte tokenizer，它们的特点就是简单易懂，不需要额外的规则和学习。但是它们也都有各自的缺点。
 
-## Word tokenizer**
+## Word tokenizer
 
-给定一个文本序列,  我们现在需要将其转化为一个token序列. 一个比较自然的想法是, 我们按照空格将序列拆分成若干个单词, 这样每个单词的语义都能比较好的保留. 下面是一个例子
+给定一个文本序列,  我们现在需要将其转化为一个token序列. 一个比较自然的想法是, 我们按照空格将序列拆分成若干个单词, 这样每个单词的语义都能比较好地保留. 下面是一个例子
 
 ```python
 import tiktoken
 
 tokenizer = tiktoken.get_encoding("gpt2")
-indices = tokenizer.encode("hello, world")
-# indices = []
+indices = tokenizer.encode("hello world")
+# indices = [18435, 995]
 ```
 
 接下来我们基于一个预定义好的词典, 将其转化为一个token id的序列.
-但是, 这种做法的问题就是, 如果出现了预定义好的词典之外的词 (out of vocabulary, OOV) 怎么办？现有的处理方法是使用 `<UNK>` token来表示这些OOV的词.
-这显然会丢失语义信息, 因为我们编码成 `<UNK>` token之后, 就没办法再解码回来了.
+word tokenizer的问题是不能处理预定义好的词典之外的词 (out of vocabulary, OOV) . 现有的处理方法是使用 `<UNK>` token来表示这些OOV的词.
+但这样显然会丢失语义信息, 因为我们编码成 `<UNK>` token之后, 就没办法再解码回原有的语义信息了。
 word tokenizer的缺点为：
 
-1. 单词数量很大，导致很多罕见的单词出现频率很低，降低了tokenizer的利用率
-2. 对于不在词典内的单词只能用`<UNK>` token，会损害语义信息
+1. 单词数量很大，很多罕见单词的出现频率很低，降低了tokenizer的利用率
+2. 对于不在词典内的单词只能用`<UNK>` token表示，损害了语义信息
 
 既然基于word的tokenizer有OOV的问题. 我们能否想办法解决这个问题呢？答案是可以的, 我们可以使用 character tokenizer.
 
-## Character tokenizer**
+## Character tokenizer
 
 Character tokenizer的基本思想是使用字符而不是单词来编码文本序列. 其实现方式如下：
 
@@ -95,8 +96,9 @@ character tokenizer的词表大小取决于我们的编码方式，UTF-8的编�
 
 1. character tokenizer会导致我们的词表非常大
 2. 和word tokenizer一样，很多character非常罕见，会降低词表的利用率
+3. token序列的上下文语义信息较差
 
-## Byte tokenizer**
+## Byte tokenizer
 
 我们发现，character tokenizer和word tokenizer的词表都很大，我们能否想办法降低词表大小，提升每个token的利用率呢？答案是使用Byte tokenizer。
 
@@ -118,7 +120,7 @@ byte tokenizer的词表很小，其词表大小为 `256`, 这是因为一个byte
 
 尽管byte tokenizer实现简单，并且词表也很小，可以说byte tokenizer解决了character tokenizer和word tokenizer的问题。
 但是，byte tokenizer的问题在于，其encode的到的token序列可能会非常长！我们知道，transformer计算量与token序列的长度是平方级关系的，也就是说token序列长度增加10倍，整体的计算量就会增加100倍，因此我们势必需要考虑token序列的长度。
-因此，byte tokenizer的问题为：
+总之，byte tokenizer的问题为：
 
 1. 产生的token序列过长，增加了transformer的计算量
 2. 没有上下文语义信息
@@ -142,15 +144,20 @@ byte tokenizer的词表很小，其词表大小为 `256`, 这是因为一个byte
 
 ## 基本原理与实现
 
-BPE，即byte pair tokenizer的原理非常简单，也就是说对于出现频率比较高的词，我们应该有一个简写的方式，也就是我们使用一个新的token来表示这个词。比如在英语中，我们会使用`plz` 来代替 `please` 以及使用`how r u` 来代替`how are you`.
+实际生活中，对于出现频率比较高的词，我们会有一个简写的方式，也就是我们使用一个新的单词来表示这个词。比如在英语中，我们会使用`plz` 来代替 `please` 以及使用`how r u` 来代替`how are you`.
+BPE，即byte pair tokenizer的原理也是类似的，对于出现频率比较高的byte pair或者character pair, 我们会使用一个新的token来表示这个pair，这样就压缩了sequence的长度。
 
 BPE算法包括以下几个步骤：
 
 1. 对文本序列进行pre-tokenize，分割成不同的单词
-2. 当`len(vocab)<vocab_size`时，重复一下步骤：
+2. 当`len(vocab)<vocab_size`时，重复以下步骤：
    1. 对所有单词，统计其相邻character或者byte pair的频率
    2. 计算出现频率最高的pair，使用一个新的token来表示这个pair
    3. 将新的token和其对应的`token_id`加入到`vocab`中
+
+算法如下图所示
+
+![BPE algorithm](bpe_algorithm.png)
 
 其具体实现如下：
 
