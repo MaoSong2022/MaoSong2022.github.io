@@ -218,14 +218,57 @@ WordPiece是Google在预训练BERT时采用的tokenizer，
 
 ## Unigram
 
-## SentencePiece
+Unigram也是由Google提出来的tokenizer，与BPE和wordpiece不同，unigram从一个非常大的vocab开始，然后merge token来降低vocab的size，直到达到指定大小。初始的vocab可以基于BPE算法或者使用prefix subword来构建。并且，初始vocab还包含所有的base characters来保证所有的word都可以被tokenize.
+
+算法的描述如下：
+
+![unigram](unigram.png)
+
+我们来看一下算法的细节，首先对于一个word，我们有多种切割方式，比如`'bug'`可以被切分为如下三种形式：
+
+```python
+[['b', 'u', 'g'], ['b', 'ug'], ['bu', 'g']]
+```
+
+unigram 假设每个 word 出现的概率是其 subword 出现概率的乘积，即对于包含 $n$个subword的单词 $\bm{x}=(x_1,\dots,x_n)$, 我们有：
+
+$$
+p(\bm{x}) = \prod_{i=1}^n p(x_i)
+$$
+其中，对于给定的vocab $\mathcal{V}$, 我们有
+
+$$\sum_{v\in\mathcal{V}} p(x)=1$$
+
+unigram的目的就是选择合适的切分 $\bm{x}\in S(\bf{x})$ (这里我们用 $\bf{x}$ 表示单词本身，用 $\bm{x}$ 表示一个切分), 使得 $p(\bm{x})$的概率最大。这样我们就可以写出unigram的损失函数了：
+
+$$
+\mathcal{L} = \sum_{i=1}^{N} \log\left(\sum_{\bm{x}\in S(\bf{x})}p(\bm{x})\right)
+$$
+
+其本质就是：我们希望对每个单词找到一种合适的切分，切分得到的subword的概率分布满足其求和为1，并且使得每个单词的概率最大。
+
+但是直接对上面概率最大化的问题就是我们每个subword的概率是未知的，unigram的做法是使用EM算法求解这个问题。
+
+当我们求解完成之后，对每个subword，我们都尝试将其从 $\mathcal{V}$中移除，然后计算移除后的损失 $loss_i$, 我们依照$loss_i$对subword进行排序，然后我们去掉 $\eta \%$ 比例的subword。
+
+unigram的伪代码逻辑如下：
+
+```python
+while len(model) > vocab_size:
+    scores = compute_scores(model)
+    sorted_scores = sorted(scores.items(), key=lambda x: x[1])
+    # Remove percent_to_remove tokens with the lowest scores.
+    for i in range(int(len(model) * percent_to_remove)):
+        _ = token_freqs.pop(sorted_scores[i][0])
+
+    total_sum = sum([freq for token, freq in token_freqs.items()])
+    model = {token: -log(freq / total_sum) for token, freq in token_freqs.items()}
+```
+
+其中 `compute_scores` 用于计算从`model`中去掉每个token之后的loss
 
 # 总结
 
-- Byte-Pair Encoding (BPE): GPT
-- Byte Byte-Pair Encoding (BPE): GPT-2
-- WordPiece: BERT, DistillBERT, Electra
-- Unigram & SentencePiece: ALBERT, XLNet, Marian, T5
 
 sub-word tokenizer的对比 (来自[huggingface llm course](https://huggingface.co/learn/llm-course/chapter6/4?fw=pt))
 
@@ -236,14 +279,25 @@ sub-word tokenizer的对比 (来自[huggingface llm course](https://huggingface.
 | training step | merge with most frequent pair | merge with best score | remove all tokens minimized the loss |
 | learns | merge rules and a vocab | a vocab | a vocab with a score for each token|
 | encoding | splits into words and applies merge rules| find the longest subword from the beginning that is in the vocab | finds the most likely split into tokens with learned scores|
+| model | GPT | BERT | T5|
 
 # Tokenizer-free
 
 以上都是基于tokenizer
 
-# 实践：Tokenizer
+# 实践
 
-虽然我们已经实现了基于BPE的tokenizer, 但实际上, huggingface已经实现了前面提到的tokenizer pipeline, huggingface的tokenizer包括两种：
+## tiktoken
+
+[tiktoken](https://github.com/openai/tiktoken)是openAI提出来的一个BPE tokenizer，openAI的模型都基于这个tokenizer，其主要用于调用GPT系列模型是对token进行计数, 我们可以在[tokenizer](https://platform.openai.com/tokenizer) 这个网站查看其分词情况。
+
+## SentencePiece
+
+[SentencePiece](https://github.com/google/sentencepiece)是google开源的一个无监督的text tokenizer，其实现了BPE和unigram两种算法，SentencePiece还是一个语言无关的tokenizer，使其更适合多语种大语言模型的开发
+
+## Tokenizer
+
+[tokenizer](https://github.com/huggingface/tokenizers) 是huggingface推出的为基于transformer服务的tokenizer库，其支持BPE， wordpiece和unigram等分词算法，使用简便。并且，huggingface的tokenizer包括两种：
 
 1. fast tokenizer, 即[Tokenizer库](https://github.com/huggingface/tokenizers), 这个库是基于Rust开发的
 2. slow tokenizer, 这个是transformer库里模型自带的, 比如ChatGLM就有自己开发的tokenizer
@@ -255,7 +309,19 @@ huggingface比较了并行处理时两者的区别：
 | `batched=True` | 10.8s | 4min41s|
 | `batched=False` | 59.2s | 5min3s|
 
-huggingface提供的tokenizer库已经非常齐全了, 如果说我们需要开发新的tokenizer的话, 建议直接使用Tokenizer库, 而不是重新造轮子.
+huggingface提供的tokenizer库已经非常齐全了, 如果我们要训练新的基于transformer的模型的话，建议直接使用Huggingface的`AutoTokenizer`.
+
+## 总结
+
+| 特性 | SentencePiece | Tokenizer | tiktoken |
+| --- | --- | --- | --- |
+| 是否适合中文 | √ | √ | × |
+| 是否适合英文 | √ | √ | √ |
+| 是否适合训练 | √ | √ | × |
+| 是否快速 | √ | √ | fast |
+| 是否用于 GPT 系列 | × | × | √ |
+| 是否可解码 | √ | √ | √ |
+| 是否支持多语言 | √ | √ | × |
 
 # 结论
 
@@ -269,356 +335,3 @@ huggingface提供的tokenizer库已经非常齐全了, 如果说我们需要开�
 - [Unigram](https://arxiv.org/pdf/1804.10959)
 - [WordPiece](https://static.googleusercontent.com/media/research.google.com/ja//pubs/archive/37842.pdf)
 - [Huggingface LLM Course](https://huggingface.co/learn/llm-course/chapter6/1)
-
-# 附录
-
-## 附录A: Naive BPE tokenizer实现
-
-```python
-import regex as re
-from collections import defaultdict
-
-
-def pre_tokenize(file_path: str) -> list[list[str]]:
-    """Pre-tokenize text from a file into chunks of tokens.
-
-    Args:
-        file_path: Path to the input text file.
-
-    Returns:
-        List of lists containing pre-tokenized text chunks. Each inner list contains
-        tokens from one chunk of text split on <|endoftext|> markers.
-    """
-    with open(file_path) as f:
-        data = f.read()
-
-    # Split text into chunks at special token
-    chunks = re.split(r"<\|endoftext\|>", data)
-    
-    # Pattern matches contractions, words, numbers, symbols and whitespace
-    pattern = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
-    pre_tokenized_chunks = [re.findall(pattern, chunk) for chunk in chunks]
-    return pre_tokenized_chunks
-
-
-def get_stats(
-    bytes_tuple_counter: defaultdict[tuple[bytes, bytes], int]
-) -> defaultdict[tuple[bytes, bytes], int]:
-    """Calculate frequencies of adjacent byte pairs in the vocabulary.
-
-    Args:
-        bytes_tuple_counter: Counter mapping byte tuples to their frequencies.
-
-    Returns:
-        Counter mapping byte pairs (bigrams) to their frequencies across all tuples.
-    """
-    counter = defaultdict(int)
-    # Count frequencies of adjacent byte pairs
-    for bytes_tuple, count in bytes_tuple_counter.items():
-        for i in range(len(bytes_tuple) - 1):
-            counter[(bytes_tuple[i], bytes_tuple[i + 1])] += count
-
-    return counter
-
-
-def merge_pairs(
-    bytes_tuple_counter: defaultdict[tuple[bytes, bytes], int], 
-    merge_pair: tuple[bytes, bytes]
-) -> defaultdict[tuple[bytes, bytes], int]:
-    """Merge all occurrences of the specified byte pair in the vocabulary.
-
-    Args:
-        bytes_tuple_counter: Counter mapping byte tuples to their frequencies.
-        merge_pair: The pair of bytes to merge into a single token.
-
-    Returns:
-        Updated counter with the specified pair merged wherever it occurs.
-    """
-    counter = defaultdict(int)
-    for bytes_tuple, count in bytes_tuple_counter.items():
-        bytes_list = []
-        i = 0
-        # Iterate through bytes, merging pairs where found
-        while i < len(bytes_tuple):
-            if i < len(bytes_tuple) - 1:
-                pair = (bytes_tuple[i], bytes_tuple[i + 1])
-                if pair == merge_pair:
-                    bytes_list.append(merge_pair[0] + merge_pair[1])
-                    i += 2
-                    continue
-
-            bytes_list.append(bytes_tuple[i])
-            i += 1
-        counter[tuple(bytes_list)] += count
-
-    return counter
-
-
-def train(file_path: str, vocab_size: int, special_tokens: list[str]) -> tuple[dict[int, bytes], list[tuple[bytes, bytes]]]:
-    """Train a BPE tokenizer on text data.
-
-    Args:
-        file_path: Path to the training text file.
-        vocab_size: Target size for the vocabulary.
-        special_tokens: List of special tokens to include in vocabulary.
-
-    Returns:
-        Tuple containing:
-        - Dictionary mapping token IDs to byte sequences
-        - List of merge rules as (bytes, bytes) pairs
-    """
-    # Initialize vocabulary with special tokens
-    vocab = {i: token.encode("utf-8") for i, token in enumerate(special_tokens)}
-
-    # Add initial byte-level tokens (0-255)
-    for i in range(256):
-        vocab[len(vocab)] = bytes([i])
-
-    # Pre-tokenize input text
-    pre_tokenized_chunks = pre_tokenize(file_path)
-    
-    # Count word frequencies
-    word_counts = defaultdict(int)
-    for chunk in pre_tokenized_chunks:
-        for word in chunk:
-            word_counts[word] += 1
-
-    # Convert words to byte tuples and count frequencies
-    bytes_tuple_counter = defaultdict(int)
-    for word, count in word_counts.items():
-        bytes_tuple = tuple(bytes([c]) for c in word.encode("utf-8"))
-        bytes_tuple_counter[bytes_tuple] += count
-
-    merges = []
-    # Learn merge rules until target vocab size is reached
-    while len(vocab) < vocab_size:
-        new_token_id = len(vocab)
-        stats = get_stats(bytes_tuple_counter)
-        
-        # Find the most frequent byte pair
-        best_score = (0, bytes([0]), bytes([0]))
-        for pair, count in stats.items():
-            current_score = (count, pair[0], pair[1])
-            if current_score > best_score:
-                best_score = current_score
-
-        freq, merge_pair = best_score[0], (best_score[1], best_score[2])
-
-        # Apply the merge and update vocabulary
-        bytes_tuple_counter = merge_pairs(bytes_tuple_counter, merge_pair)
-        new_bytes = merge_pair[0] + merge_pair[1]
-        vocab[new_token_id] = new_bytes
-        merges.append(merge_pair)
-
-    return vocab, merges
-```
-
-## 附录A: Efficient BPE tokenizer实现
-
-```python
-"""Byte Pair Encoding (BPE) tokenizer implementation.
-
-This module implements a BPE tokenizer that learns subword units from text data.
-It includes functions for pre-tokenization, pair frequency counting, merging tokens,
-and training the BPE vocabulary.
-"""
-
-import regex as re
-from collections import defaultdict
-
-
-def pre_tokenize(file_path: str) -> list[list[str]]:
-    """Pre-tokenize text into chunks of words and subwords.
-
-    Args:
-        file_path: Path to the text file to tokenize.
-
-    Returns:
-        List of lists containing pre-tokenized strings. The outer list represents text chunks
-        separated by <|endoftext|> tokens, while inner lists contain the pre-tokenized strings.
-    """
-    with open(file_path) as f:
-        data = f.read()
-
-    # Split text into chunks at <|endoftext|> tokens
-    chunks = re.split(r"<\|endoftext\|>", data)
-    
-    pattern = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
-    pre_tokenized_chunks = [re.findall(pattern, chunk) for chunk in chunks]
-    return pre_tokenized_chunks
-
-
-def get_stats(
-    splits: dict[bytes, list[bytes]], word_freqs: dict[bytes, int]
-) -> tuple[defaultdict[tuple[bytes, bytes], int], defaultdict[tuple[bytes, bytes], set[bytes]]]:
-    """Calculate statistics for adjacent token pairs in the vocabulary.
-
-    Args:
-        splits: Dictionary mapping words to their current tokenization.
-        word_freqs: Dictionary mapping words to their frequencies in the corpus.
-
-    Returns:
-        A tuple containing:
-        - pair_freqs: Dictionary mapping token pairs to their frequencies
-        - pair_to_word: Dictionary mapping token pairs to the set of words containing them
-    """
-    pair_freqs = defaultdict(int)
-    pair_to_word = defaultdict(set)
-    
-    for word, freq in word_freqs.items():
-        split = splits[word]
-        if len(split) == 1:
-            continue
-
-        # Count frequencies of adjacent pairs and track which words contain each pair
-        for i in range(len(split) - 1):
-            pair = (split[i], split[i + 1])
-            pair_freqs[pair] += freq
-            pair_to_word[pair].add(word)
-            
-    return pair_freqs, pair_to_word
-
-
-def get_merge_pair(pair_freqs: defaultdict[tuple[bytes, bytes], int]) -> tuple[tuple[bytes, bytes], int]:
-    """Find the most frequent pair of adjacent tokens to merge.
-
-    Args:
-        pair_freqs: Dictionary mapping token pairs to their frequencies.
-
-    Returns:
-        A tuple containing:
-        - The best pair to merge (as a tuple of two byte sequences)
-        - The frequency of that pair
-        
-    Note:
-        If multiple pairs have the same frequency, the lexicographically larger pair is chosen.
-    """
-    best_pair = None
-    max_freq = -1
-    
-    for pair, freq in pair_freqs.items():
-        if freq > max_freq or (freq == max_freq and pair > best_pair):
-            max_freq = freq
-            best_pair = pair
-
-    return best_pair, max_freq
-
-
-def merge_pairs(
-    splits: dict[bytes, list[bytes]],
-    merge_pair: tuple[bytes, bytes],
-    pair_freqs: defaultdict[tuple[bytes, bytes], int],
-    pair_to_words: defaultdict[tuple[bytes, bytes], set[bytes]],
-    word_freqs: dict[bytes, int],
-) -> dict[bytes, list[bytes]]:
-    """Merge all occurrences of the selected token pair and update statistics.
-
-    Args:
-        splits: Dictionary mapping words to their current tokenization.
-        merge_pair: The pair of tokens to merge.
-        pair_freqs: Dictionary mapping token pairs to their frequencies.
-        pair_to_words: Dictionary mapping token pairs to words containing them.
-        word_freqs: Dictionary mapping words to their frequencies.
-
-    Returns:
-        Updated splits dictionary with the merged tokens.
-    """
-    token1, token2 = merge_pair
-    new_token = token1 + token2
-    words_to_update = list(pair_to_words[merge_pair])
-
-    # Remove the merged pair from tracking dictionaries
-    if merge_pair in pair_freqs:
-        del pair_freqs[merge_pair]
-    if merge_pair in pair_to_words:
-        del pair_to_words[merge_pair]
-
-    # Process each word containing the merge pair
-    for word in words_to_update:
-        split = splits[word]
-        freq_of_word = word_freqs[word]
-        if len(split) == 1:
-            continue
-
-        i = 0
-        while i < len(split) - 1:
-            # Check if current position contains the merge pair
-            if split[i] == token1 and split[i + 1] == token2:
-                # Update frequencies for pairs involving tokens before the merge
-                if i > 0:
-                    prev_token = split[i - 1]
-                    old_left_pair = (prev_token, token1)
-                    pair_freqs[old_left_pair] -= freq_of_word
-                    new_left_pair = (prev_token, new_token)
-                    pair_freqs[new_left_pair] += freq_of_word
-                    pair_to_words[new_left_pair].add(word)
-
-                # Update frequencies for pairs involving tokens after the merge
-                if i < len(split) - 2:
-                    next_token = split[i + 2]
-                    old_right_pair = (token2, next_token)
-                    pair_freqs[old_right_pair] -= freq_of_word
-                    new_right_pair = (new_token, next_token)
-                    pair_freqs[new_right_pair] += freq_of_word
-                    pair_to_words[new_right_pair].add(word)
-
-                # Replace the pair with the merged token
-                split = split[:i] + [new_token] + split[i + 2 :]
-            else:
-                i += 1
-
-        # Update the tokenization for this word
-        splits[word] = split
-
-    return splits
-
-
-def train_bpe(
-    vocab_size: int, special_tokens: list[str], file_path: str
-) -> tuple[dict[int, bytes], list[tuple[bytes, bytes]]]:
-    """Train a BPE tokenizer on the input text.
-
-    Args:
-        vocab_size: Target vocabulary size.
-        special_tokens: List of special tokens to include in vocabulary.
-        file_path: Path to training text file.
-
-    Returns:
-        A tuple containing:
-        - vocab: Dictionary mapping token IDs to byte sequences
-        - merges: List of merge operations (as tuples of byte sequences)
-    """
-    # Initialize vocabulary with special tokens and base characters
-    vocab = {i: token.encode("utf-8") for i, token in enumerate(special_tokens)}
-    merges = []
-
-    # Add all possible bytes (0-255) to the vocabulary
-    for i in range(256):
-        vocab[len(vocab)] = bytes([i])
-
-    # Pre-tokenize input text and count word frequencies
-    pre_tokenized_chunks = pre_tokenize(file_path)
-    word_freqs = defaultdict(int)
-    for chunk in pre_tokenized_chunks:
-        for word in chunk:
-            word_freqs[word.encode("utf-8")] += 1
-
-    # Initialize each word as sequence of bytes
-    splits = {word: [bytes([i]) for i in word] for word in word_freqs}
-
-    # Get initial statistics
-    pair_freqs, pair_to_words = get_stats(splits, word_freqs)
-
-    # Main training loop: merge pairs until desired vocabulary size is reached
-    while len(vocab) < vocab_size:
-        merge_pair, freq = get_merge_pair(pair_freqs)
-        splits = merge_pairs(splits, merge_pair, pair_freqs, pair_to_words, word_freqs)
-        
-        # Add merged token to vocabulary
-        new_token_id = len(vocab)
-        vocab[new_token_id] = merge_pair[0] + merge_pair[1]
-        merges.append((merge_pair[0], merge_pair[1]))
-
-    return vocab, merges
-
-```
