@@ -31,7 +31,7 @@ normalizer.normalize_str("Héllò hôw are ü?")
 # "Hello how are u?"
 ```
 
-在tokenize之后, 我们会有一个post-processing过程, 比如BERT会在生成的token系列前后加入 `[CLS]` token 和 `[SEP]` token, 例子如下：
+在tokenize之后, 我们会有一个post-processing过程, 比如BERT会在生成的token系列前后加入 `[CLS]` token 和 `[SEP]` token, 例子如下:
 
 ```python
 from transformers import AutoTokenizer
@@ -43,7 +43,7 @@ print(token_ids)
 # represents [[CLS], "I", "love", "NL", "##P", ".", [SEP]]
 ```
 
-其完整流程如下图所示 (图源：[huggingface llm-course](https://huggingface.co/learn/llm-course/chapter6/4?fw=pt))
+其完整流程如下图所示 (图源: [huggingface llm-course](https://huggingface.co/learn/llm-course/chapter6/4?fw=pt))
 
 ![tokenization pipeline](tokenization_pipeline.png)
 
@@ -57,7 +57,7 @@ print(token_ids)
 
 ## 2. Training-free tokenizer
 
-本节我们将要介绍word tokenizer, character tokenizer以及byte tokenizer，它们的特点就是简单易懂，不需要额外的规则和学习。
+本节我们将要介绍word tokenizer, character tokenizer以及byte tokenizer, 它们的特点就是简单易懂, 不需要额外的规则和学习.
 
 ### 2.1 Word tokenizer
 
@@ -79,8 +79,8 @@ word tokenizer的优点是能够保留语义信息，且压缩率比较高（每
 
 word tokenizer的缺点为：
 
-1. 单词数量很大，很多罕见单词的出现频率很低，降低了tokenizer的利用率
-2. 对于不在词典内的单词只能用`<UNK>` token表示，损害了语义信息
+1. 单词数量很大, 很多罕见单词的出现频率很低, 降低了tokenizer的利用率
+2. 对于不在词典内的单词只能用`<UNK>` token表示, 损害了语义信息
 
 既然基于word的tokenizer有OOV的问题，我们能否想办法解决这个问题呢？答案是可以的, 我们可以使用 character tokenizer。
 
@@ -100,12 +100,12 @@ class CharacterTokenizer:
 character tokenizer的词表大小取决于我们的编码方式，UTF-8的编码大概有[110K code points](https://en.wikipedia.org/wiki/UTF-8)。character tokenizer的缺点总结如下：
 
 1. character tokenizer会导致我们的词表非常大
-2. 和word tokenizer一样，很多character非常罕见，会降低词表的利用率
+2. 和word tokenizer一样, 很多character非常罕见, 会降低词表的利用率
 3. token序列的上下文语义信息较差
 
 ### 2.3 Byte tokenizer
 
-我们发现，character tokenizer和word tokenizer的词表都很大，我们能否想办法降低词表大小，提升每个token的利用率呢？答案是使用Byte tokenizer。
+我们发现, character tokenizer和word tokenizer的词表都很大, 我们能否想办法降低词表大小, 提升每个token的利用率呢？答案是使用Byte tokenizer.
 
 Byte tokenizer的基本思想是, 所有的字符(character)都是由byte组成的, 比如对于UTF-8编码来说, 每个字符由1-4个byte组成。
 因此, 所有满足UTF-8编码的文本, 我们都可以将它们转换为基于byte的token序列。
@@ -122,19 +122,19 @@ class ByteTokenizer:
         return bytes(token_ids).decode("utf-8")
 ```
 
-byte tokenizer的词表很小，其词表大小为 `256`, 这是因为一个byte可以有256中可能的值。
+byte tokenizer的词表很小, 其词表大小为 `256`, 这是因为一个byte可以有256中可能的值.
 
 尽管byte tokenizer实现简单，并且词表也很小，可以说byte tokenizer解决了character tokenizer和word tokenizer的问题。
 但是，byte tokenizer的问题在于，其encode的到的token序列可能会非常长！我们知道，transformer计算量与token序列的长度是平方级关系的，也就是说token序列长度增加10倍，整体的计算量就会增加100倍，因此我们势必需要考虑token序列的长度。
 
 总之，byte tokenizer的问题为：
 
-1. 产生的token序列过长，增加了transformer的计算量
+1. 产生的token序列过长, 增加了transformer的计算量
 2. 没有上下文语义信息
 
 ### 2.4 总结
 
-我们总结一下word tokenizer, character tokenizer以及byte tokenizer三者各自的特点：
+我们总结一下word tokenizer, character tokenizer以及byte tokenizer三者各自的特点:
 
 | Feature | Word Tokenizer | Character Tokenizer | Byte Tokenizer |
 |---------|---------------|-------------------|---------------|
@@ -146,7 +146,7 @@ byte tokenizer的词表很小，其词表大小为 `256`, 这是因为一个byte
 | Support Spell Error | Bad | Yes | Yes |
 | Context | Good | Bad | Worst |
 
-因此，这三种tokenizer尽管实现起来很简单，但是其都有各自的问题。为了解决这些问题，我们的做法就是折衷，使用sub-word tokenizer，也就是介于word tokenizer和byte tokenizer之间的方法。
+因此, 这三种tokenizer尽管实现起来很简单, 但是其都有各自的问题. 为了解决这些问题, 我们的做法就是折衷, 使用sub-word tokenizer, 也就是介于word tokenizer和byte tokenizer之间的方法.
 
 ## 3. BPE
 
@@ -155,13 +155,13 @@ byte tokenizer的词表很小，其词表大小为 `256`, 这是因为一个byte
 实际生活中，对于出现频率比较高的词，我们会有一个简写的方式，也就是我们使用一个新的单词来表示这个词。比如在英语中，我们会使用`plz` 来代替 `please` 以及使用`how r u` 来代替`how are you`。
 BPE，即byte pair tokenizer的原理也是类似的，对于出现频率比较高的byte pair或者character pair, 我们会使用一个新的token来表示这个pair，这样就压缩了sequence的长度。
 
-BPE算法包括以下几个步骤：
+BPE算法包括以下几个步骤:
 
-1. 对文本序列进行pre-tokenize，分割成不同的单词
-2. 当`len(vocab)<vocab_size`时，重复以下步骤：
-   1. 对所有单词，统计其相邻character或者byte pair的频率
-   2. 计算出现频率最高的pair，使用一个新的token来表示这个pair
-   3. 将新的token和其对应的`token_id`加入到`vocab`中，并更新单词的分割表示
+1. 对文本序列进行pre-tokenize, 分割成不同的单词
+2. 当`len(vocab)<vocab_size`时, 重复以下步骤:
+   1. 对所有单词, 统计其相邻character或者byte pair的频率
+   2. 计算出现频率最高的pair, 使用一个新的token来表示这个pair
+   3. 将新的token和其对应的`token_id`加入到`vocab`中, 并更新单词的分割表示
 
 算法如下图所示 (参考文献2)
 
@@ -198,7 +198,7 @@ pair_to_word = {
 }
 ```
 
-merge之后, token序列变成了`(b'x', b'z', b'y')` (假设`best_pair`对应的新的token为`b'z'`), 这时候的计数为：
+merge之后, token序列变成了`(b'x', b'z', b'y')` (假设`best_pair`对应的新的token为`b'z'`), 这时候的计数为:
 
 ```python
 {
@@ -214,7 +214,7 @@ merge之后, token序列变成了`(b'x', b'z', b'y')` (假设`best_pair`对应�
 
 基于这个结论，我们就可以优化BPE算法了，具体逻辑就是：
 
-1. pretokenize，将 text 切分为若干个 word
+1. pretokenize, 将 text 切分为若干个 word
 2. 计算`word_count`, `pair_freq`, `pair_to_word`, 使用`splits`记录每个word对应的token分布
 3. 重复以下过程：
    1. 挑选频率最高的pair将其merge为一个新的token, 基于`pair_to_words`更新对应的`pair_freq`
@@ -251,17 +251,17 @@ $$
 
 Unigram也是由Google提出来的tokenizer，与BPE和wordpiece不同，unigram从一个非常大的vocab开始，然后merge token来降低vocab的size，直到达到指定大小。初始的vocab可以基于BPE算法或者使用prefix subword来构建。并且，初始vocab还包含所有的base characters来保证所有的word都可以被tokenize。
 
-算法的描述如下：
+算法的描述如下:
 
 ![unigram](unigram.png)
 
-我们来看一下算法的细节，首先对于一个word，我们有多种切割方式，比如`'bug'`可以被切分为如下三种形式：
+我们来看一下算法的细节, 首先对于一个word, 我们有多种切割方式, 比如`'bug'`可以被切分为如下三种形式:
 
 ```python
 [['b', 'u', 'g'], ['b', 'ug'], ['bu', 'g']]
 ```
 
-unigram 假设每个 word 出现的概率是其 subword 出现概率的乘积，即对于包含 $n$个subword的单词 $\bm{x}=(x_1,\dots,x_n)$, 我们有：
+unigram 假设每个 word 出现的概率是其 subword 出现概率的乘积, 即对于包含 $n$个subword的单词 $\bm{x}=(x_1,\dots,x_n)$, 我们有:
 
 $$
 p(\bm{x}) = \prod_{i=1}^n p(x_i)
@@ -271,19 +271,19 @@ $$
 
 $$\sum_{v\in\mathcal{V}} p(x)=1$$
 
-unigram的目的就是选择合适的切分 $\bm{x}\in S(\bf{x})$ (这里我们用 $\bf{x}$ 表示单词本身，用 $\bm{x}$ 表示 $\bf{x}$ 的一个切分), 使得 $p(\bm{x})$的概率最大。这样我们就可以写出unigram的损失函数了：
+unigram的目的就是选择合适的切分 $\bm{x}\in S(\bf{x})$ (这里我们用 $\bf{x}$ 表示单词本身, 用 $\bm{x}$ 表示 $\bf{x}$ 的一个切分), 使得 $p(\bm{x})$的概率最大. 这样我们就可以写出unigram的损失函数了:
 
 $$
 \mathcal{L} = \sum_{i=1}^{N} \log\left(\sum_{\bm{x}\in S(\bf{x})}p(\bm{x})\right)
 $$
 
-其本质就是：我们希望对每个单词找到一种合适的切分，切分得到的subword的概率分布满足其求和为1，并且使得每个单词的概率最大。
+其本质就是: 我们希望对每个单词找到一种合适的切分, 切分得到的subword的概率分布满足其求和为1, 并且使得每个单词的概率最大.
 
-但是直接对上面概率最大化的问题就是我们每个subword的概率是未知的，unigram的做法是使用EM算法求解这个问题。
+但是直接对上面概率最大化的问题就是我们每个subword的概率是未知的, unigram的做法是使用EM算法求解这个问题.
 
-当我们求解完成之后，对每个subword，我们都尝试将其从 $\mathcal{V}$中移除，然后计算移除后的损失 $loss_i$, 我们依照$loss_i$对subword进行排序，然后我们去掉 $\eta \%$ 比例的subword。
+当我们求解完成之后, 对每个subword, 我们都尝试将其从 $\mathcal{V}$中移除, 然后计算移除后的损失 $loss_i$, 我们依照$loss_i$对subword进行排序, 然后我们去掉 $\eta \%$ 比例的subword.
 
-unigram的伪代码逻辑如下：
+unigram的伪代码逻辑如下:
 
 ```python
 while len(model) > vocab_size:
@@ -297,7 +297,7 @@ while len(model) > vocab_size:
     model = {token: -log(freq / total_sum) for token, freq in token_freqs.items()}
 ```
 
-其中 `compute_scores` 用于计算最优分割以及从`model`中去掉每个token之后的loss。
+其中 `compute_scores` 用于计算最优分割以及从`model`中去掉每个token之后的loss.
 
 具体实现见 [Github wordpiece](https://github.com/MaoSong2022/assignment1-basics/blob/main/cs336_basics/unigram.py) (基于[huggingface llm course](https://huggingface.co/learn/llm-course/chapter6/4?fw=pt))。代码实现的关键在于为每个word选取最优分割，huggingface是采取了动态规划的方法，也就是我们使用 `dp[i]` 来表示 `word[:i]` 的最优score，这样我们有：
 
@@ -324,7 +324,7 @@ sub-word tokenizer的对比 (来自[huggingface llm course](https://huggingface.
 
 ### 5.1 tiktoken
 
-[tiktoken](https://github.com/openai/tiktoken)是openAI提出来的一个BPE tokenizer，openAI的模型都基于这个tokenizer，其主要用于调用GPT系列模型是对token进行计数, 我们可以在[tokenizer](https://platform.openai.com/tokenizer) 这个网站查看其分词情况。
+[tiktoken](https://github.com/openai/tiktoken)是openAI提出来的一个BPE tokenizer, openAI的模型都基于这个tokenizer, 其主要用于调用GPT系列模型是对token进行计数, 我们可以在[tokenizer](https://platform.openai.com/tokenizer) 这个网站查看其分词情况.
 
 ### 5.2 SentencePiece
 
@@ -332,12 +332,12 @@ sub-word tokenizer的对比 (来自[huggingface llm course](https://huggingface.
 
 ### 5.3 Tokenizer
 
-[tokenizer](https://github.com/huggingface/tokenizers) 是huggingface推出的为基于transformer服务的tokenizer库，其支持BPE， wordpiece和unigram等分词算法，使用简便。并且，huggingface的tokenizer包括两种：
+[tokenizer](https://github.com/huggingface/tokenizers) 是huggingface推出的为基于transformer服务的tokenizer库, 其支持BPE,  wordpiece和unigram等分词算法, 使用简便. 并且, huggingface的tokenizer包括两种:
 
 1. fast tokenizer, 即[Tokenizer库](https://github.com/huggingface/tokenizers), 这个库是基于Rust开发的
 2. slow tokenizer, 这个是transformer库里模型自带的, 比如ChatGLM就有自己开发的tokenizer
 
-huggingface比较了并行处理时两者的区别：
+huggingface比较了并行处理时两者的区别:
 
 | Setting | Fast Tokenizer | Slow Tokenizer |
 |---------|---------------|---------------|
