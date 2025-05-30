@@ -55,7 +55,7 @@ print(token_ids)
 
 # Training-free tokenizer
 
-本节我们将要介绍word tokenizer, character tokenizer以及byte tokenizer，它们的特点就是简单易懂，不需要额外的规则和学习。但是它们也都有各自的缺点。
+本节我们将要介绍word tokenizer, character tokenizer以及byte tokenizer，它们的特点就是简单易懂，不需要额外的规则和学习。
 
 ## Word tokenizer
 
@@ -71,7 +71,7 @@ indices = tokenizer.encode("hello world")
 ```
 
 接下来我们基于一个预定义好的词典, 将其转化为一个token id的序列.
-word tokenizer的问题是不能处理预定义好的词典之外的词 (out of vocabulary, OOV) . 现有的处理方法是使用 `<UNK>` token来表示这些OOV的词.
+word tokenizer的优点是能够保留语义信息，且压缩率比较高（每个token包含的bytes数），其问题是不能处理预定义好的词典之外的词 (out of vocabulary, OOV). 现有的处理方法是使用 `<UNK>` token来表示这些OOV的词.
 但这样显然会丢失语义信息, 因为我们编码成 `<UNK>` token之后, 就没办法再解码回原有的语义信息了。
 word tokenizer的缺点为：
 
@@ -138,6 +138,7 @@ byte tokenizer的词表很小，其词表大小为 `256`, 这是因为一个byte
 | #tokens | small | large | very large |
 | Chinese | yes | yes | yes|
 | support spell error | bad | yes | yes |
+| context | good | bad| worst|
 
 因此，这三种tokenizer尽管实现起来很简单，但是其都有各自的问题。为了解决这些问题，我们的做法就是折衷，使用sub-word tokenizer，也就是介于word tokenizer和byte tokenizer之间的方法。
 
@@ -154,24 +155,25 @@ BPE算法包括以下几个步骤：
 2. 当`len(vocab)<vocab_size`时，重复以下步骤：
    1. 对所有单词，统计其相邻character或者byte pair的频率
    2. 计算出现频率最高的pair，使用一个新的token来表示这个pair
-   3. 将新的token和其对应的`token_id`加入到`vocab`中
+   3. 将新的token和其对应的`token_id`加入到`vocab`中，并更新单词的分割表示
 
-算法如下图所示
+算法如下图所示 (参考文献2)
 
 ![BPE algorithm](bpe_algorithm.png)
 
-其具体实现见附录A
-
-> 注意：在本文中，我们实际上实现的是BBPE (byte BPE算法)，BBPE与BPE的区别在于我们的最小单元是character还是bytes. 本质上原理是一致的
+> 注意：实际上，我们实现的是BBPE (byte BPE算法)，BBPE与BPE的区别在于我们的最小单元是character还是bytes. 本质上原理是一致的
 
 ## 高效实现
 
-BPE的原理很简单, 我们也实现了其naive版本, 但是naive版本的问题是太慢了. 因此我们将要优化naive版本.
+BPE的原理很简单, 我们也实现了其naive版本, 但是naive版本的问题是太慢了. 因此我们将要优化naive版本的效率.
 
 首先我们发现, 我们不需要遍历所有的word, 只有含有`best_pair`的word我们才会进行处理, 因此, 我们的第一个改进就是使用 `pair_to_word` 来记录每个pair的来源, 比如
 
 ```python
-pair_to_word = {(b' ', b't'): [b' the', b' it'], (b't', b'h'): [b'the']}
+pair_to_word = {
+    (b' ', b't'): [b' the', b' it'], 
+    (b't', b'h'): [b'the']
+}
 ```
 
 这样, 我们在merge的时候, 直接使用 `pair_to_word[best_pair]` 来获取需要被更新的token序列就可以了.
@@ -202,13 +204,13 @@ merge之后, token序列变成了`(b'x', b'z', b'y')` (假设`best_pair`对应�
 
 也就是说, merge之后, 三个pair的计数减少了1, 分别是`(token_seq[i-1], merge_pair[0])`,`merge_pair` 和 `(merge_pair[1], token_seq[i+2])`. 两个pair的个数增加了1, 分别是 `(token_seq[i-1], new_token)`和`(new_token, token_seq[i+2])` (这里我们假设`merge_pair=(token_seq[i], token_seq[i+1])`) 基于这个结论，我们就可以优化BPE算法了，具体逻辑就是：
 
-1. pretokenize，将text切分为若干个word
+1. pretokenize，将 text 切分为若干个 word
 2. 计算`word_count`, `pair_freq`, `pair_to_word`, 使用`splits`记录每个word对应的token分布
 3. 重复以下过程：
    1. 挑选频率最高的pair将其merge为一个新的token, 基于`pair_to_words`更新对应的`pair_freq`:
    2. 对每个`split`, 按照上述方式更新`pair_freq`和`split`
 
-其具体实现如附录B所示.
+其具体实现见Github
 
 # Other subword tokenizers
 
@@ -239,7 +241,7 @@ $$
 
 $$\sum_{v\in\mathcal{V}} p(x)=1$$
 
-unigram的目的就是选择合适的切分 $\bm{x}\in S(\bf{x})$ (这里我们用 $\bf{x}$ 表示单词本身，用 $\bm{x}$ 表示一个切分), 使得 $p(\bm{x})$的概率最大。这样我们就可以写出unigram的损失函数了：
+unigram的目的就是选择合适的切分 $\bm{x}\in S(\bf{x})$ (这里我们用 $\bf{x}$ 表示单词本身，用 $\bm{x}$ 表示 $\bf{x}$ 的一个切分), 使得 $p(\bm{x})$的概率最大。这样我们就可以写出unigram的损失函数了：
 
 $$
 \mathcal{L} = \sum_{i=1}^{N} \log\left(\sum_{\bm{x}\in S(\bf{x})}p(\bm{x})\right)
@@ -265,10 +267,9 @@ while len(model) > vocab_size:
     model = {token: -log(freq / total_sum) for token, freq in token_freqs.items()}
 ```
 
-其中 `compute_scores` 用于计算从`model`中去掉每个token之后的loss
+其中 `compute_scores` 用于计算最优分割以及从`model`中去掉每个token之后的loss
 
 # 总结
-
 
 sub-word tokenizer的对比 (来自[huggingface llm course](https://huggingface.co/learn/llm-course/chapter6/4?fw=pt))
 
@@ -281,9 +282,6 @@ sub-word tokenizer的对比 (来自[huggingface llm course](https://huggingface.
 | encoding | splits into words and applies merge rules| find the longest subword from the beginning that is in the vocab | finds the most likely split into tokens with learned scores|
 | model | GPT | BERT | T5|
 
-# Tokenizer-free
-
-以上都是基于tokenizer
 
 # 实践
 
