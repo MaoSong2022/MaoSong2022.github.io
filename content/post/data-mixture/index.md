@@ -104,9 +104,33 @@ Eagle (1/2/2.5) 是NVLab提出了系列多模态大模型，[Eagle 2](http://arx
 
 [InternVL2.5](http://arxiv.org/abs/2412.05271) 在论文里总结了其使用的pretraining数据和SFT数据，但是没有具体的数据配比，请参考论文的表4和表5
 
+SFT数据配比
+
+| Category      | Ratio   |
+|:--------------|:--------|
+| single-image  | 45.92%  |
+| multi-image   | 9.37%   |
+| video        | 39.79%  |
+| pure-text    | 4.92%   |
+
 ## MiniCPM V
 
 [MiniCPM V](http://arxiv.org/abs/2408.01800) 是 OpenBMB发布的轻量化多模态大模型，其在表1和表2列出了ptraining和SFT数据的具体量级和类别。
+
+## Flash-VL
+
+| Category            | Ratio |
+|:--------------------|------:|
+| Special Enhancement |    4% |
+| Text                |   21% |
+| Caption             |    4% |
+| Chart               |   16% |
+| Math                |   11% |
+| OCR                 |    3% |
+| Code                |    8% |
+| General             |   33% |
+
+具体数据参见[原论文](http://arxiv.org/abs/2505.09498)
 
 # 参考文献
 
