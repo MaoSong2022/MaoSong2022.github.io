@@ -1,0 +1,358 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Position Encoding on Mao Song(毛松)'s Homepage</title><link>https://maosong2022.github.io/tags/position-encoding/</link><description>Recent content in Position Encoding on Mao Song(毛松)'s Homepage</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><lastBuildDate>Mon, 19 May 2025 10:46:39 +0800</lastBuildDate><atom:link href="https://maosong2022.github.io/tags/position-encoding/index.xml" rel="self" type="application/rss+xml"/><item><title>Position encoding总结</title><link>https://maosong2022.github.io/p/position-encoding%E6%80%BB%E7%BB%93/</link><pubDate>Mon, 19 May 2025 10:46:39 +0800</pubDate><guid>https://maosong2022.github.io/p/position-encoding%E6%80%BB%E7%BB%93/</guid><description>&lt;blockquote>
+&lt;p>本文前半部分参考【参考文献1】，推荐大家看博客原文。&lt;/p>
+&lt;/blockquote>
+&lt;h1 id="introduction">Introduction
+&lt;/h1>&lt;p>在&lt;a class="link" href="https://maosong.website/p/%E5%85%B3%E4%BA%8Eattention-bias%E7%9A%84%E4%B8%80%E4%BA%9B%E6%80%9D%E8%80%83/" target="_blank" rel="noopener"
+>上一篇blog&lt;/a>中, 我们介绍了Attention的两个性质，也就是在不加position encoding的情况下，Attention对于query是permutation equivariant的，对于key和value是permutation invariant的。
+比如说，“我爱你”和“你爱我”这两句话所表示的含义应该是不一样的，但是我们将这两句话作为key和value的时候，我们发现模型的输出是一致的。
+这显然是不能接受的，因此，我们就需要加入position encoding，让模型学习到不同的语序有不同的含义。&lt;/p>
+&lt;p>下面是测试代码【参考文献1】&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;span class="lnt">21
+&lt;/span>&lt;span class="lnt">22
+&lt;/span>&lt;span class="lnt">23
+&lt;/span>&lt;span class="lnt">24
+&lt;/span>&lt;span class="lnt">25
+&lt;/span>&lt;span class="lnt">26
+&lt;/span>&lt;span class="lnt">27
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">torch&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">torch.nn&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="nn">nn&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">transformers&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">AutoTokenizer&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">AutoModel&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">model_id&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s2">&amp;#34;meta-llama/Llama-3.2-1B&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">tok&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">AutoTokenizer&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">from_pretrained&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">model_id&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">model&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">AutoModel&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">from_pretrained&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">model_id&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">text&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s2">&amp;#34;The dog chased another dog&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">tokens&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">tok&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">text&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">return_tensors&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;pt&amp;#34;&lt;/span>&lt;span class="p">)[&lt;/span>&lt;span class="s2">&amp;#34;input_ids&amp;#34;&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">embeddings&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">model&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">embed_tokens&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">tokens&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">hdim&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">embeddings&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">shape&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">W_q&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Linear&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">hdim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">hdim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">bias&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="kc">False&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">W_k&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Linear&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">hdim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">hdim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">bias&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="kc">False&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">W_v&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Linear&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">hdim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">hdim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">bias&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="kc">False&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">mha&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">MultiheadAttention&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">embed_dim&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">hdim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">num_heads&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">4&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">batch_first&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="kc">True&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">with&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">no_grad&lt;/span>&lt;span class="p">():&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">for&lt;/span> &lt;span class="n">param&lt;/span> &lt;span class="ow">in&lt;/span> &lt;span class="n">mha&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">parameters&lt;/span>&lt;span class="p">():&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">init&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">normal_&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">param&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">std&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mf">0.1&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="c1"># Initialize weights to be non-negligible&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">output&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">_&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">mha&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">W_q&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">embeddings&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="n">W_k&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">embeddings&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="n">W_v&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">embeddings&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">dog1_out&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">output&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="mi">0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">dog2_out&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">output&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="mi">0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">5&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nb">print&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="sa">f&lt;/span>&lt;span class="s2">&amp;#34;Dog output identical?: &lt;/span>&lt;span class="si">{&lt;/span>&lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">allclose&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">dog1_out&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">dog2_out&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">atol&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mf">1e-6&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="si">}&lt;/span>&lt;span class="s2">&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="c1">#True&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>Position encoding可以分为绝对位置编码(absolute position encoding, APE)，相对位置编码(relative position encoding, RPE)，绝对位置编码是transformer里提出的编码模式，但是现在的大多数模型使用的都是相对位置编码。&lt;/p>
+&lt;p>本文中，我们先介绍位置编码应该具有的性质，然后我们分别介绍绝对位置编码和相对位置编码，我们将着重关注苏剑林老师提出来的RoPE。最后，我们将简单介绍一下LLaMA4使用的NoPE和Qwen系列使用的YARN&lt;/p>
+&lt;h1 id="位置编码">位置编码
+&lt;/h1>&lt;p>在介绍位置编码之前，我们首先应该关注位置编码的性质，位置编码的目标是为输入的token embedding增加位置信息，那么理想的位置编码应该是怎么样的呢？&lt;/p>
+&lt;p>我们这里直接引用【参考文献1】中给定的性质：&lt;/p>
+&lt;ol>
+&lt;li>&lt;strong>性质1&lt;/strong>: token sequence中每个位置的位置编码都是唯一的。这个很好理解，如果不唯一的话，那么根据前面推导的性质，这两个位置的attention输出就完全一致了&lt;/li>
+&lt;li>&lt;strong>性质2&lt;/strong>: 线性相关性。也就是说，如果我们知道了位置$p$处的位置编码，那么理想情况下，我们应该能比较简单地得到$p+k$处的位置编码&lt;/li>
+&lt;li>&lt;strong>性质3&lt;/strong>: 泛化到长上下文中去。我们希望位置编码不仅在8K的上下文起作用，还希望位置编码能够泛化到32K的上下文&lt;/li>
+&lt;li>&lt;strong>性质4&lt;/strong>: 生成模式是固定的。固定的模式有助于模型更好地学习位置相关的信息&lt;/li>
+&lt;li>&lt;strong>性质5&lt;/strong>: 可以扩展到多维。我们希望位置编码可以从文本扩展到图片再到视频，也就是从$1D$到$nD$.&lt;/li>
+&lt;/ol>
+&lt;h1 id="绝对位置编码">绝对位置编码
+&lt;/h1>&lt;p>绝对位置编码依照其名称，其思想就是为每个位置的token分配一个固定的位置信息，也就是对于输入的hidden states $\bm{x}=[\bm{x}_1,\dots,\ \bm{x}_m]\in\mathbb{R}^{d\times m}$, 我们有&lt;/p>
+$$
+\bm{x}_i' = \bm{x}_i + p_i, i=1,\dots, m
+$$&lt;p>这里，$p_i\in\mathbb{R}^d$. 我们的attention就变成了&lt;/p>
+$$
+\mathrm{Attn}(X) = (V+P)\mathrm{softmax}\left(\frac{(K+P)^T(Q+P)}{\sqrt{d}}\right)
+$$&lt;p>这里&lt;/p>
+$$
+P = [p_1,\dots,p_m]\in\mathbb{R}^{d\times m}， Q= W_QX, K=W_KX, V=W_VX
+$$&lt;h2 id="整数位置编码">整数位置编码
+&lt;/h2>$$
+p_i = [i, \dots, i]=i\mathbf{1}_{d\times 1}\in\mathbb{R}^d,\ i=1,\dots,m
+$$&lt;p>可以看到，这个简单的设计满足性质1，性质2，性质3，性质4.&lt;/p>
+&lt;p>但是，注意到attention的输入$X$通常是经过Layer Normalization处理过后的，因此其按列符合正态分布，并且均值和方差一般较小。当我们加上整数位置编码之后，其token本身的信息就会被污染，也就是信噪比非常低(信噪比比较低)。一个解决方法就是我们对$p_i$进行normalization，也就是&lt;/p>
+$$
+p_i' = \frac{1}{m}p_i = \frac{i}{m}\mathbf{1}_{d\times 1}
+$$&lt;p>现在所有的位置编码的值都比较小，但是我们发现新的位置编码不满足性质2了，这是因为现在位置编码还和sequence长度有关，我们从位置$p$到位置$p+k$不仅取决于$k$还取决于sequence长度$m$&lt;/p>
+&lt;h2 id="二进制位置编码">二进制位置编码
+&lt;/h2>&lt;p>既然整数位置编码的主要问题是对输入影响太大，我们能否找一个不影响输入的整数位置编码方式呢？【参考文献1】提出了二进制位置编码，因为每个token是$d$维的，因此我们可以使用二进制来表示$i$. 比如说，当$d=3$, $m=3$时，我们的位置编码分别为&lt;/p>
+$$
+p_0 =p_{(000)_2} = [0, 0, 0],\ p_1 =p_{(001)_2}= [0, 0, 1],\ p_2 =p_{(010)_2} = [0, 1, 0]
+$$&lt;p>现在，我们二进制位置编码满足性质1，性质2. 对于性质3，由于$d$位二进制的表示范围为 $[0, 2^d-1]$，因此其泛化性受到$d$的影响。&lt;/p>
+&lt;p>我们还发现，二进制位置编码高位，也就是$p_{i,0}$的变化很慢，而低位，也就是$p_{i,d}$变化很快，【参考文献1】画出了不同位置的值的变化情况。&lt;/p>
+&lt;p>二进制位置编码解决了整数位置编码的信噪比过低和线性相关性。但是其问题是其对不同位置的token embedding产生的影响是不一样的。比如位置1和位置2的相同的token embedding之间的区别是：&lt;/p>
+$$
+(\bm{x}_2 + p_2) - (\bm{x}_1 + p_1) = p_2 - p_1 = [0, 1, 0] - [0, 0, 1] = [0, 1, -1]
+$$&lt;p>
+这样导致输出的微小变化（增加一个token或减少一个token）都会对最终结果产生巨大影响。因此，我们需要想办法解决这个问题&lt;/p>
+&lt;h2 id="sinusoidal">Sinusoidal
+&lt;/h2>&lt;h1 id="相对位置编码">相对位置编码
+&lt;/h1>&lt;h1 id="rope">RoPE
+&lt;/h1>&lt;p>RoPE由苏剑林老师提出，最早应用于LLaMA架构，后续被大多数模型所采用。&lt;/p>
+&lt;h2 id="naive实现">naive实现
+&lt;/h2>$$
+\Theta_m\bm{x}=\begin{bmatrix}
+\cos m\theta_0 &amp; -\sin m\theta_0 &amp; &amp;&amp;\cdots &amp;\cdots &amp;\cdots \\
+\sin m\theta_0 &amp; \cos m\theta_0 &amp; &amp;&amp;\cdots &amp;\cdots &amp;\cdots\\
+&amp; &amp; \cos m\theta_1 &amp; -\sin m\theta_1 &amp; \cdots &amp;\cdots &amp;\cdots\\
+&amp; &amp; \sin m\theta_1 &amp; \cos m\theta_1 &amp; \cdots &amp;\cdots &amp;\cdots \\
+&amp;&amp;&amp;&amp; \ddots &amp;\vdots &amp;\vdots\\
+&amp;&amp;&amp;&amp; &amp; \cos m\theta_{d/2} &amp; -\sin m\theta_{d/2}\\
+&amp;&amp;&amp;&amp; &amp; \sin m\theta_{d/2} &amp; \cos m\theta_{d/2}
+\end{bmatrix}\begin{bmatrix}
+x_1\\
+x_2\\
+\vdots \\
+x_d
+\end{bmatrix}
+$$&lt;p>我们首先将上面的矩阵乘法给算出来，得到：&lt;/p>
+$$
+\Theta_m\bm{x}=\begin{bmatrix}
+\cos m\theta_0\ x_1 - \sin m\theta_0\ x_2\\
+\sin m\theta_0\ x_1 + \cos m\theta_0\ x_2\\
+\vdots\\
+\cos m\theta_{d/2}\ x_{d-1} - \sin m\theta_{d/2}\ x_d\\
+\sin m\theta_{d/2}\ x_{d-1} + \cos m\theta_{d/2}\ x_d\\
+\end{bmatrix}:=\begin{bmatrix}
+o_1\\
+o_2\\
+\vdots\\
+o_{d-1}\\
+~~o_d~~
+\end{bmatrix}
+$$&lt;p>实现的时候，我们通常按照奇偶index来分别计算，然后通过重排序来得到最终的结果，实现代码如下：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;span class="lnt">21
+&lt;/span>&lt;span class="lnt">22
+&lt;/span>&lt;span class="lnt">23
+&lt;/span>&lt;span class="lnt">24
+&lt;/span>&lt;span class="lnt">25
+&lt;/span>&lt;span class="lnt">26
+&lt;/span>&lt;span class="lnt">27
+&lt;/span>&lt;span class="lnt">28
+&lt;/span>&lt;span class="lnt">29
+&lt;/span>&lt;span class="lnt">30
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="k">def&lt;/span> &lt;span class="nf">apply_rotary_pos_emb&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">sin&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">cos&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">-&amp;gt;&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s2">&amp;#34;&amp;#34;&amp;#34;Apply rotary positional embeddings to a tensor.
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="s2">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="s2"> This function applies rotary positional embeddings (RoPE) to the input tensor by
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="s2"> performing a rotation in 2D space for each pair of dimensions.
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="s2">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="s2"> Args:
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="s2"> x (torch.Tensor): Input tensor to apply RoPE to. Shape is (...,seq_len, d_k)
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="s2"> sin (torch.Tensor): Sine component of rotary embeddings. Shape is (...,seq_len, d_k_half)
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="s2"> cos (torch.Tensor): Cosine component of rotary embeddings. Shape is (...,seq_len, d_k_half)
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="s2">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="s2"> Returns:
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="s2"> torch.Tensor: Tensor with rotary positional embeddings applied. Shape matches input x.
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="s2">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="s2"> References:
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="s2"> RoFormer: Enhanced Transformer with Rotary Position Embedding
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="s2"> https://arxiv.org/abs/2104.09864
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="s2"> &amp;#34;&amp;#34;&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">x_even&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="o">...&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="p">::&lt;/span>&lt;span class="mi">2&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="c1"># (seq_len, d_k_half)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">x_odd&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="o">...&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">::&lt;/span>&lt;span class="mi">2&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="c1"># (seq_len, d_k_half)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">odds&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">cos&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">x_even&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="n">sin&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">x_odd&lt;/span> &lt;span class="c1"># (...,seq_len, d_k_half)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">evens&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">sin&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">x_even&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">cos&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">x_odd&lt;/span> &lt;span class="c1"># (...,seq_len, d_k_half)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">stacked&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">stack&lt;/span>&lt;span class="p">((&lt;/span>&lt;span class="n">odds&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">evens&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="mi">2&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="c1"># (...,seq_len, 2, d_k_half)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">stacked_trans&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">rearrange&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">stacked&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;... seq_len double d_k_half -&amp;gt; ... seq_len d_k_half double&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span> &lt;span class="c1"># (...,seq_len, d_k_half, 2)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">out&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">rearrange&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">stacked_trans&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;... seq_len d_k_half double -&amp;gt; ... seq_len (d_k_half double)&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span> &lt;span class="c1"># (..., seq_len, d_k)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">out&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>$$
+\begin{bmatrix}
+o_1 &amp; o_1 &amp; \cdots &amp; o_{d-1} \\
+o_2 &amp; o_4 &amp; \cdots &amp; o_d\\
+\end{bmatrix}
+$$$$
+\begin{bmatrix}
+o_1 &amp; o_2 \\
+o_3 &amp; o_4 \\
+\vdots&amp; \vdots\\
+o_{d-1} &amp; o_d \\
+\end{bmatrix}
+$$$$
+\begin{bmatrix}
+o_1 \\
+o_2\\
+\vdots\\
+o_{d-1}\\
+o_d \\
+\end{bmatrix}
+$$&lt;p>在实现的时候，我们一般根据$\sin$ 和$\cos$进行分组，也就是&lt;/p>
+$$
+\Theta_m\bm{x}=\begin{bmatrix}
+\cos m\theta_0\\
+\cos m\theta_0\\
+\vdots\\
+\cos m\theta_{d/2}\\
+\cos m\theta_{d/2}\\
+\end{bmatrix}\odot \begin{bmatrix}
+x1\\
+x2\\
+\vdots\\
+x_{d-1}\\
+x_d\\
+\end{bmatrix} + \begin{bmatrix}
+\sin m\theta_0\\
+\sin m\theta_0\\
+\vdots\\
+\sin m\theta_{d/2}\\
+\sin m\theta_{d/2}\\
+\end{bmatrix}\odot
+\begin{bmatrix}
+-\ x_2\\
+x_1\\
+\vdots\\
+-x_d\\
+x_{d-1}\\
+\end{bmatrix}
+$$&lt;h2 id="通用实现">通用实现
+&lt;/h2>&lt;p>我们可以看到，naive版本的实现与现在大语言模型所采用的实现并不一致，我们先把现有的大语言模型的RoPE实现，这里使用了&lt;a class="link" href="https://github.com/huggingface/transformers/blob/main/src/transformers/models/llama/modeling_llama.py" target="_blank" rel="noopener"
+>LLaMA的transformer代码&lt;/a>放在下面，&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;span class="lnt">21
+&lt;/span>&lt;span class="lnt">22
+&lt;/span>&lt;span class="lnt">23
+&lt;/span>&lt;span class="lnt">24
+&lt;/span>&lt;span class="lnt">25
+&lt;/span>&lt;span class="lnt">26
+&lt;/span>&lt;span class="lnt">27
+&lt;/span>&lt;span class="lnt">28
+&lt;/span>&lt;span class="lnt">29
+&lt;/span>&lt;span class="lnt">30
+&lt;/span>&lt;span class="lnt">31
+&lt;/span>&lt;span class="lnt">32
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="k">def&lt;/span> &lt;span class="nf">rotate_half&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s2">&amp;#34;&amp;#34;&amp;#34;Rotates half the hidden dims of the input.&amp;#34;&amp;#34;&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">x1&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="o">...&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="p">:&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">shape&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">//&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">x2&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="o">...&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">shape&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">//&lt;/span> &lt;span class="mi">2&lt;/span> &lt;span class="p">:]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">cat&lt;/span>&lt;span class="p">((&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">x2&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">x1&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="n">dim&lt;/span>&lt;span class="o">=-&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">def&lt;/span> &lt;span class="nf">apply_rotary_pos_emb&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">q&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">k&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">cos&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">sin&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">position_ids&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="kc">None&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">unsqueeze_dim&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s2">&amp;#34;&amp;#34;&amp;#34;Applies Rotary Position Embedding to the query and key tensors.
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="s2">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="s2"> Args:
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="s2"> q (`torch.Tensor`): The query tensor.
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="s2"> k (`torch.Tensor`): The key tensor.
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="s2"> cos (`torch.Tensor`): The cosine part of the rotary embedding.
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="s2"> sin (`torch.Tensor`): The sine part of the rotary embedding.
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="s2"> position_ids (`torch.Tensor`, *optional*):
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="s2"> Deprecated and unused.
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="s2"> unsqueeze_dim (`int`, *optional*, defaults to 1):
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="s2"> The &amp;#39;unsqueeze_dim&amp;#39; argument specifies the dimension along which to unsqueeze cos[position_ids] and
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="s2"> sin[position_ids] so that they can be properly broadcasted to the dimensions of q and k. For example, note
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="s2"> that cos[position_ids] and sin[position_ids] have the shape [batch_size, seq_len, head_dim]. Then, if q and
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="s2"> k have the shape [batch_size, heads, seq_len, head_dim], then setting unsqueeze_dim=1 makes
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="s2"> cos[position_ids] and sin[position_ids] broadcastable to the shapes of q and k. Similarly, if q and k have
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="s2"> the shape [batch_size, seq_len, heads, head_dim], then set unsqueeze_dim=2.
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="s2"> Returns:
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="s2"> `tuple(torch.Tensor)` comprising of the query and key tensors rotated using the Rotary Position Embedding.
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="s2"> &amp;#34;&amp;#34;&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">cos&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">cos&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">unsqueeze&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">unsqueeze_dim&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">sin&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">sin&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">unsqueeze&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">unsqueeze_dim&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">q_embed&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">q&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">cos&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">rotate_half&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">q&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">sin&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">k_embed&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">k&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">cos&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">rotate_half&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">k&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">sin&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">q_embed&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">k_embed&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>我们将上述代码翻译成公式，实际上$\sin$部分对应的向量现在变成了&lt;/p>
+$$
+\begin{bmatrix}
+-x_{d/2+1}\\
+-x_{d/2+2}\\
+\vdots\\
+-x_{d}\\
+x_1\\
+\vdots\\
+x_{d/2}\\
+\end{bmatrix}
+$$&lt;p>我们带回到原始公式，可以得到对应的rotating matrix现在变成了&lt;/p>
+$$
+\begin{bmatrix}
+\cos m\theta_0 &amp; -\sin m\theta_0 &amp; &amp;&amp;\cdots &amp;\cdots &amp;\cdots \\
+\sin m\theta_0 &amp; \cos m\theta_0 &amp; &amp;&amp;\cdots &amp;\cdots &amp;\cdots\\
+&amp; &amp; \cos m\theta_1 &amp; -\sin m\theta_1 &amp; \cdots &amp;\cdots &amp;\cdots\\
+&amp; &amp; \sin m\theta_1 &amp; \cos m\theta_1 &amp; \cdots &amp;\cdots &amp;\cdots \\
+&amp;&amp;&amp;&amp; \ddots &amp;\vdots &amp;\vdots\\
+&amp;&amp;&amp;&amp; &amp; \cos m\theta_{d/2} &amp; -\sin m\theta_{d/2}\\
+&amp;&amp;&amp;&amp; &amp; \sin m\theta_{d/2} &amp; \cos m\theta_{d/2}
+\end{bmatrix}
+$$&lt;h1 id="结论">结论
+&lt;/h1>&lt;h1 id="参考文献">参考文献
+&lt;/h1></description></item></channel></rss>

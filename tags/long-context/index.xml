@@ -1,0 +1,306 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Long Context on Mao Song(毛松)'s Homepage</title><link>https://maosong2022.github.io/tags/long-context/</link><description>Recent content in Long Context on Mao Song(毛松)'s Homepage</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><lastBuildDate>Sat, 15 Mar 2025 11:15:29 +0800</lastBuildDate><atom:link href="https://maosong2022.github.io/tags/long-context/index.xml" rel="self" type="application/rss+xml"/><item><title>Gemma3 技术报告总结</title><link>https://maosong2022.github.io/p/gemma3-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/</link><pubDate>Sat, 15 Mar 2025 11:15:29 +0800</pubDate><guid>https://maosong2022.github.io/p/gemma3-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/</guid><description>&lt;img src="https://maosong2022.github.io/p/gemma3-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/cover.png" alt="Featured image of post Gemma3 技术报告总结" />&lt;h1 id="tldr">TLDR
+&lt;/h1>&lt;p>作者提出了Gemma3系列大模型，包括1B, 4B, 12B, 27B四个size。4B, 12B, 27B三个size均支持多模态，128K的上下文长度以及140种语言。&lt;/p>
+&lt;h1 id="方法">方法
+&lt;/h1>&lt;h2 id="数据处理">数据处理
+&lt;/h2>&lt;h3 id="数据格式">数据格式
+&lt;/h3>&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;span class="lnt">5
+&lt;/span>&lt;span class="lnt">6
+&lt;/span>&lt;span class="lnt">7
+&lt;/span>&lt;span class="lnt">8
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">[BOS]&amp;lt;start_of_turn&amp;gt;user
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">Who are you?&amp;lt;end_of_turn&amp;gt;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&amp;lt;start_of_turn&amp;gt;model
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">My name is Gemma!&amp;lt;end_of_turn&amp;gt;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&amp;lt;start_of_turn&amp;gt;user
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">What is 2+2?&amp;lt;end_of_turn&amp;gt;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&amp;lt;start_of_turn&amp;gt;model
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">2+2=4.&amp;lt;end_of_turn&amp;gt;
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>pretrain和SFT的区别在于,pretrain时模型输出以&lt;code>&amp;lt;eos&amp;gt;&lt;/code>结束,SFT时模型输出以&lt;code>&amp;lt;end_of_turn&amp;gt;&lt;/code>结束.&lt;/p>
+&lt;h3 id="图片处理">图片处理
+&lt;/h3>&lt;p>输入的图片都会被resize到896x896，如果图片精度过大或者不是正方形，则会通过Pan &amp;amp; Scan技巧裁剪为多个子图，然后每个子图分别进行resize。核心处理代码为：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="n">crop_size_w&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nb">int&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">math&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ceil&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">width&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="n">num_crops_w&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">crop_size_h&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nb">int&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">math&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ceil&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">height&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="n">num_crops_h&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># Don&amp;#39;t apply PaS if crop size is too small.&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">if&lt;/span> &lt;span class="nb">min&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">crop_size_w&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">crop_size_h&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">pan_and_scan_min_crop_size&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="p">[]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">crop_positions_w&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="n">crop_size_w&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">i&lt;/span> &lt;span class="k">for&lt;/span> &lt;span class="n">i&lt;/span> &lt;span class="ow">in&lt;/span> &lt;span class="nb">range&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">num_crops_w&lt;/span>&lt;span class="p">)]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">crop_positions_h&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="n">crop_size_h&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">i&lt;/span> &lt;span class="k">for&lt;/span> &lt;span class="n">i&lt;/span> &lt;span class="ow">in&lt;/span> &lt;span class="nb">range&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">num_crops_h&lt;/span>&lt;span class="p">)]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">image_crops&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">image&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">pos_h&lt;/span> &lt;span class="p">:&lt;/span> &lt;span class="n">pos_h&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">crop_size_h&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">pos_w&lt;/span> &lt;span class="p">:&lt;/span> &lt;span class="n">pos_w&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">crop_size_w&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">for&lt;/span> &lt;span class="n">pos_h&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">pos_w&lt;/span> &lt;span class="ow">in&lt;/span> &lt;span class="n">itertools&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">product&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">crop_positions_h&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">crop_positions_w&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h2 id="模型架构">模型架构
+&lt;/h2>&lt;p>模型包括4个size，分别是1B, 4B, 12B, 27B。1B的模型是单模态的，4B, 12B, 27B的模型是多模态的。对于多模态模型来说：&lt;/p>
+&lt;ul>
+&lt;li>Vision encoder: Siglip-400M&lt;/li>
+&lt;li>Projection layer: linear layer&lt;/li>
+&lt;li>LLM: Gemma 3&lt;/li>
+&lt;/ul>
+&lt;h2 id="模型参数">模型参数
+&lt;/h2>&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Model&lt;/th>
+&lt;th>Vision Encoder&lt;/th>
+&lt;th>Embedding Parameters&lt;/th>
+&lt;th>Non-embedding Parameters&lt;/th>
+&lt;th>context length&lt;/th>
+&lt;th>multilingual&lt;/th>
+&lt;th>training data&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>1B&lt;/td>
+&lt;td>0&lt;/td>
+&lt;td>302M&lt;/td>
+&lt;td>698M&lt;/td>
+&lt;td>32K&lt;/td>
+&lt;td>English&lt;/td>
+&lt;td>2T tokens&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>4B&lt;/td>
+&lt;td>417M&lt;/td>
+&lt;td>675M&lt;/td>
+&lt;td>3,209M&lt;/td>
+&lt;td>128K&lt;/td>
+&lt;td>140+ languages&lt;/td>
+&lt;td>4T tokens&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>12B&lt;/td>
+&lt;td>417M&lt;/td>
+&lt;td>1,012M&lt;/td>
+&lt;td>10,759M&lt;/td>
+&lt;td>128K&lt;/td>
+&lt;td>140+ languages&lt;/td>
+&lt;td>12T tokens&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>27B&lt;/td>
+&lt;td>417M&lt;/td>
+&lt;td>1,416M&lt;/td>
+&lt;td>25,600M&lt;/td>
+&lt;td>128K&lt;/td>
+&lt;td>140+ languages&lt;/td>
+&lt;td>14T tokens&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h2 id="attention-layers">Attention layers
+&lt;/h2>&lt;p>为了提高效率，作者将部分layer的self-attention替换为sliding window attention。论文里是将6 layers为一组，替换一组中最后一层为sliding window attention，其余层为self attention。判断某layer是否为sliding window attention的代码为：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># config.sliding_window_pattern = 6&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">is_sliding&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nb">bool&lt;/span>&lt;span class="p">((&lt;/span>&lt;span class="n">layer_idx&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">%&lt;/span> &lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">sliding_window_pattern&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h2 id="long-context">Long context
+&lt;/h2>&lt;p>作者将global self-attention的RoPE的base frequency从10K提升到了1M，对于sliding window attention，RoPE的base frequency保持10k不变。&lt;/p>
+&lt;h2 id="预训练">预训练
+&lt;/h2>&lt;ol>
+&lt;li>数据在模型参数里进行了汇总&lt;/li>
+&lt;li>tokenizer使用的是Gemini2.0的tokenizer，基于SentencePiece，vocab大小为262K&lt;/li>
+&lt;li>使用知识蒸馏的方法进行训练，每个token按照教师模型的概率采样256个logits，然后使用cross-entropy loss进行训练&lt;/li>
+&lt;li>4B, 12B, 27B的模型先在32K的context length上进行训练，然后在128K的context length上进行训练&lt;/li>
+&lt;/ol>
+&lt;h2 id="quantization-aware-training">Quantization Aware training
+&lt;/h2>&lt;p>作者提供了quantized版本的模型，模型基于预训练好的模型使用QAT方法进行SFT 5000 steps左右。最后是各个模型的内存占用情况&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>&lt;/th>
+&lt;th>Raw (GB)&lt;/th>
+&lt;th>&lt;/th>
+&lt;th>Quantized (GB)&lt;/th>
+&lt;th>&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>Model&lt;/td>
+&lt;td>bf16&lt;/td>
+&lt;td>Int4&lt;/td>
+&lt;td>Int4(blocks=32)&lt;/td>
+&lt;td>SFP8&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>1B&lt;/td>
+&lt;td>2.0&lt;/td>
+&lt;td>0.5&lt;/td>
+&lt;td>0.7&lt;/td>
+&lt;td>1.0&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>+KV&lt;/td>
+&lt;td>2.9&lt;/td>
+&lt;td>1.4&lt;/td>
+&lt;td>1.6&lt;/td>
+&lt;td>1.9&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>4B&lt;/td>
+&lt;td>8.0&lt;/td>
+&lt;td>2.6&lt;/td>
+&lt;td>2.9&lt;/td>
+&lt;td>4.4&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>+KV&lt;/td>
+&lt;td>12.7&lt;/td>
+&lt;td>7.3&lt;/td>
+&lt;td>7.6&lt;/td>
+&lt;td>9.1&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>12B&lt;/td>
+&lt;td>24.0&lt;/td>
+&lt;td>6.6&lt;/td>
+&lt;td>7.1&lt;/td>
+&lt;td>12.4&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>+KV&lt;/td>
+&lt;td>38.9&lt;/td>
+&lt;td>21.5&lt;/td>
+&lt;td>22.0&lt;/td>
+&lt;td>27.3&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>27B&lt;/td>
+&lt;td>54.0&lt;/td>
+&lt;td>14.1&lt;/td>
+&lt;td>15.3&lt;/td>
+&lt;td>27.4&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>+KV&lt;/td>
+&lt;td>72.7&lt;/td>
+&lt;td>32.8&lt;/td>
+&lt;td>34.0&lt;/td>
+&lt;td>46.1&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h2 id="后训练">后训练
+&lt;/h2>&lt;p>数据过滤：筛选掉包含PII，不安全的或者有毒的输出等。留下上下文依赖高，幻觉小的数据&lt;/p>
+&lt;p>训练包括升级版的知识蒸馏和基于RL的finetuning，其中RL的reward来自于weight averaged reward models, code execution feedback, ground-truth rewards&lt;/p>
+&lt;h1 id="实验">实验
+&lt;/h1>&lt;h2 id="表现">表现
+&lt;/h2>&lt;p>Gemma3的表现如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/gemma3-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/performance.png"
+width="1762"
+height="767"
+srcset="https://maosong2022.github.io/p/gemma3-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/performance_hu14555874255169857788.png 480w, https://maosong2022.github.io/p/gemma3-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/performance_hu15720531032123846925.png 1024w"
+loading="lazy"
+alt="performance of Gemma3"
+class="gallery-image"
+data-flex-grow="229"
+data-flex-basis="551px"
+>&lt;/p>
+&lt;p>与PaliGemma 2的表现对比&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/gemma3-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/comparison_with_pali_gemma_2.png"
+width="843"
+height="933"
+srcset="https://maosong2022.github.io/p/gemma3-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/comparison_with_pali_gemma_2_hu9558711894193063106.png 480w, https://maosong2022.github.io/p/gemma3-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/comparison_with_pali_gemma_2_hu6898425563427315909.png 1024w"
+loading="lazy"
+alt="Comparison with PaliGemma 2"
+class="gallery-image"
+data-flex-grow="90"
+data-flex-basis="216px"
+>&lt;/p>
+&lt;h2 id="消融实验">消融实验
+&lt;/h2>&lt;h3 id="local-attention-layers">Local attention layers
+&lt;/h3>&lt;ol>
+&lt;li>&lt;code>sliding_window_pattern&lt;/code>对模型的表现影响不大&lt;/li>
+&lt;li>sliding window size对模型的表现也不是很大，如下图&lt;/li>
+&lt;li>使用sliding window attention可以降低KV cache的内存占用&lt;/li>
+&lt;/ol>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/gemma3-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/sliding_window_size.png"
+width="865"
+height="618"
+srcset="https://maosong2022.github.io/p/gemma3-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/sliding_window_size_hu17309206232616813496.png 480w, https://maosong2022.github.io/p/gemma3-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/sliding_window_size_hu10295050076214734954.png 1024w"
+loading="lazy"
+alt="sliding window size"
+class="gallery-image"
+data-flex-grow="139"
+data-flex-basis="335px"
+>&lt;/p>
+&lt;h3 id="long-context-ablation">Long context ablation
+&lt;/h3>&lt;p>结论为long context会降低模型的性能&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/gemma3-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/long_context.png"
+width="864"
+height="887"
+srcset="https://maosong2022.github.io/p/gemma3-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/long_context_hu9509380818164822673.png 480w, https://maosong2022.github.io/p/gemma3-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/long_context_hu1683040308469995607.png 1024w"
+loading="lazy"
+alt="long context"
+class="gallery-image"
+data-flex-grow="97"
+data-flex-basis="233px"
+>&lt;/p>
+&lt;h3 id="知识蒸馏">知识蒸馏
+&lt;/h3>&lt;p>训练token个数比较少的时候，使用小的教师模型效果更好；训练token个数比较多的时候，使用大的教师模型效果更好。&lt;/p>
+&lt;h3 id="pan--scan">Pan &amp;amp; Scan
+&lt;/h3>&lt;p>使用图片原始的aspect ratio训练的模型效果更好。&lt;/p>
+&lt;h3 id="memorization">memorization
+&lt;/h3>&lt;p>memorization指模型输出的文本与训练数据中文本的重复率。结果发现Gemma3的memorization要更低一些。&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/gemma3-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/memorization.png"
+width="865"
+height="824"
+srcset="https://maosong2022.github.io/p/gemma3-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/memorization_hu3042760849725965340.png 480w, https://maosong2022.github.io/p/gemma3-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/memorization_hu3418502301793720798.png 1024w"
+loading="lazy"
+alt="memorization"
+class="gallery-image"
+data-flex-grow="104"
+data-flex-basis="251px"
+>&lt;/p>
+&lt;h1 id="结论">结论
+&lt;/h1>&lt;ol>
+&lt;li>sliding window attention在Qwen2.5-VL里已经验证过有效,这里在Gemma3上同样验证了有效性.&lt;/li>
+&lt;li>模型架构与PaliGemma系列基本一致，只是attention改变了，然后LLM从Gemma 2升级到了Gemma 3。&lt;/li>
+&lt;/ol>
+&lt;h1 id="参考文献">参考文献
+&lt;/h1>&lt;ul>
+&lt;li>&lt;a class="link" href="https://storage.googleapis.com/deepmind-media/gemma/Gemma3Report.pdf" target="_blank" rel="noopener"
+>Gemma3 Technical Report&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://github.com/huggingface/transformers/tree/main/src/transformers/models/gemma3" target="_blank" rel="noopener"
+>transformers-Gemma3 code&lt;/a>&lt;/li>
+&lt;/ul></description></item></channel></rss>

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Phi on Mao Song(毛松)'s Homepage</title><link>https://maosong2022.github.io/tags/phi/</link><description>Recent content in Phi on Mao Song(毛松)'s Homepage</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><lastBuildDate>Mon, 16 Dec 2024 17:33:52 +0800</lastBuildDate><atom:link href="https://maosong2022.github.io/tags/phi/index.xml" rel="self" type="application/rss+xml"/><item><title>Phi-4技术报告总结</title><link>https://maosong2022.github.io/p/phi-4%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/</link><pubDate>Mon, 16 Dec 2024 17:33:52 +0800</pubDate><guid>https://maosong2022.github.io/p/phi-4%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/</guid><description>&lt;h1 id="introduction">Introduction
+&lt;/h1>&lt;p>微软在12月12号发布了Phi-4的技术报告,主要关注了数据的构建，特别是。Phi-4是一个14B的大语言模型，主要在STEM相关的QA任务以及推理相关的任务上表现比较好。Phi-4主要在三个方面进行了改进：&lt;/p>
+&lt;ol>
+&lt;li>在pre-training和mid-training阶段使用了合成数据进行训练&lt;/li>
+&lt;li>&lt;/li>
+&lt;/ol>
+&lt;h1 id="data">Data
+&lt;/h1>&lt;h1 id="pre-training">Pre-training
+&lt;/h1>&lt;h2 id="architecture">Architecture
+&lt;/h2>&lt;h1 id="post-training">Post-training
+&lt;/h1>&lt;h2 id="dpo">DPO
+&lt;/h2>&lt;h2 id="sft">SFT
+&lt;/h2>&lt;h1 id="references">References
+&lt;/h1>&lt;ul>
+&lt;li>&lt;a class="link" href="https://techcommunity.microsoft.com/blog/aiplatformblog/introducing-phi-4-microsoft%E2%80%99s-newest-small-language-model-specializing-in-comple/4357090" target="_blank" rel="noopener"
+>Blog&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://arxiv.org/abs/2412.08905" target="_blank" rel="noopener"
+>Arxiv&lt;/a>&lt;/li>
+&lt;/ul></description></item></channel></rss>
