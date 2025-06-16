@@ -14,7 +14,7 @@ categories:
 
 在[上一篇blog](https://maosong.website/p/%E5%85%B3%E4%BA%8Eattention-bias%E7%9A%84%E4%B8%80%E4%BA%9B%E6%80%9D%E8%80%83/)中, 我们介绍了Attention的两个性质，也就是在不加position encoding的情况下，Attention对于query是permutation equivariant的，对于key和value是permutation invariant的。
 比如说，“我爱你”和“你爱我”这两句话所表示的含义应该是不一样的，但是我们将这两句话作为key和value的时候，我们发现模型的输出是一致的。
-这显然是不能接受的，因此，我们就需要加入position encoding，让模型学习到不同的语序有不同的含义。
+这显然是不能接受的，因此，我们就需要加入position encoding，让模型学习到语序讯息，从而明白不同的语序有不同的含义。
 
 下面是测试代码【参考文献1】
 
@@ -48,7 +48,7 @@ dog2_out = output[0, 5]
 print(f"Dog output identical?: {torch.allclose(dog1_out, dog2_out, atol=1e-6)}") #True
 ```
 
-Position encoding可以分为绝对位置编码(absolute position encoding, APE)，相对位置编码(relative position encoding, RPE)，绝对位置编码是transformer里提出的编码模式，但是现在的大多数模型使用的都是相对位置编码。
+Position encoding可以分为绝对位置编码(absolute position encoding, APE)，相对位置编码(relative position encoding, RPE)以及可学习的位置编码。可学习位置编码主要是BERT类的模型在使用，其训练成本比较高，本文不做讨论。绝对位置编码是transformer里提出的编码模式，但是现在的大多数模型使用的都是相对位置编码。
 
 本文中，我们先介绍位置编码应该具有的性质，然后我们分别介绍绝对位置编码和相对位置编码，我们将着重关注苏剑林老师提出来的RoPE。最后，我们将简单介绍一下LLaMA4使用的NoPE和Qwen系列使用的YARN
 
@@ -59,7 +59,7 @@ Position encoding可以分为绝对位置编码(absolute position encoding, APE)
 我们这里直接引用【参考文献1】中给定的性质：
 
 1. **性质1**: token sequence中每个位置的位置编码都是唯一的。这个很好理解，如果不唯一的话，那么根据前面推导的性质，这两个位置的attention输出就完全一致了
-2. **性质2**: 线性相关性。也就是说，如果我们知道了位置$p$处的位置编码，那么理想情况下，我们应该能比较简单地得到$p+k$处的位置编码
+2. **性质2**: 线性相关性。也就是说，如果我们知道了位置$p$处的位置编码，那么理想情况下，我们应该能比较简单地得到$p+k$处的位置编码，理想情况下，我们应该有 $PE(p+k)=W_kPE(p)$.
 3. **性质3**: 泛化到长上下文中去。我们希望位置编码不仅在8K的上下文起作用，还希望位置编码能够泛化到32K的上下文
 4. **性质4**: 生成模式是固定的。固定的模式有助于模型更好地学习位置相关的信息
 5. **性质5**: 可以扩展到多维。我们希望位置编码可以从文本扩展到图片再到视频，也就是从$1D$到$nD$.
@@ -88,15 +88,15 @@ $$
 
 一个最简单的想法就是我们使用正整数来标记token所在的位置，也就是
 $$
-p_i = [i, \dots, i]=i\mathbf{1}_{d\times 1}\in\mathbb{R}^d,\ i=1,\dots,m
+PE(i) = [i, \dots, i]=i\mathbf{1}_{d\times 1}\in\mathbb{R}^d,\ i=1,\dots,m
 $$
 
 可以看到，这个简单的设计满足性质1，性质2，性质3，性质4.
 
-但是，注意到attention的输入$X$通常是经过Layer Normalization处理过后的，因此其按列符合正态分布，并且均值和方差一般较小。当我们加上整数位置编码之后，其token本身的信息就会被污染，也就是信噪比非常低(信噪比比较低)。一个解决方法就是我们对$p_i$进行normalization，也就是
+但是，注意到attention的输入$X$通常是经过Layer Normalization处理过后的，因此其按列符合正态分布，并且均值和方差一般较小。当我们加上整数位置编码之后，其token本身的信息就会被污染，也就是信噪比非常低(信噪比比较低)。一个解决方法就是我们对$PE(i)$进行normalization，也就是
 
 $$
-p_i' = \frac{1}{m}p_i = \frac{i}{m}\mathbf{1}_{d\times 1}
+PE(i)' = \frac{1}{m}PE(i) = \frac{i}{m}\mathbf{1}_{d\times 1}
 $$
 
 现在所有的位置编码的值都比较小，但是我们发现新的位置编码不满足性质2了，这是因为现在位置编码还和sequence长度有关，我们从位置$p$到位置$p+k$不仅取决于$k$还取决于sequence长度$m$
@@ -106,27 +106,141 @@ $$
 既然整数位置编码的主要问题是对输入影响太大，我们能否找一个不影响输入的整数位置编码方式呢？【参考文献1】提出了二进制位置编码，因为每个token是$d$维的，因此我们可以使用二进制来表示$i$. 比如说，当$d=3$, $m=3$时，我们的位置编码分别为
 
 $$
-p_0 =p_{(000)_2} = [0, 0, 0],\  p_1 =p_{(001)_2}= [0, 0, 1],\  p_2 =p_{(010)_2} = [0, 1, 0]
+PE(0) =p_{(000)_2} = [0, 0, 0],\  PE(1) =p_{(001)_2}= [0, 0, 1],\  PE(2) =p_{(010)_2} = [0, 1, 0]
 $$
 
 现在，我们二进制位置编码满足性质1，性质2. 对于性质3，由于$d$位二进制的表示范围为 $[0, 2^d-1]$，因此其泛化性受到$d$的影响。
 
-我们还发现，二进制位置编码高位，也就是$p_{i,0}$的变化很慢，而低位，也就是$p_{i,d}$变化很快，【参考文献1】画出了不同位置的值的变化情况。
+我们还发现，二进制位置编码高位，也就是$PE(i)_{0}$的变化很慢，而低位，也就是$PE(i)_{d}$变化很快，【参考文献1】画出了不同位置的值的变化情况。
 
 二进制位置编码解决了整数位置编码的信噪比过低和线性相关性。但是其问题是其对不同位置的token embedding产生的影响是不一样的。比如位置1和位置2的相同的token embedding之间的区别是：
 
 $$
-(\bm{x}_2 + p_2) - (\bm{x}_1 + p_1) = p_2 - p_1 = [0, 1, 0] - [0, 0, 1] = [0, 1, -1]
+(\bm{x}_2 + PE(2)) - (\bm{x}_1 + PE(1)) = (\bm{x}_2-\bm{x}_1)+ [0, 1, -1]
 $$
-这样导致输出的微小变化（增加一个token或减少一个token）都会对最终结果产生巨大影响。因此，我们需要想办法解决这个问题
+
+一般来说, $\bm{x}_2-\bm{x}_1$比较小，因此使用二进制位置编码的问题是输入位置的微小变化（增加一个token或减少一个token）都会对最终结果产生巨大影响。因此，我们需要想办法解决这个问题
 
 ## Sinusoidal
 
+前面提到二进制位置编码的问题是相邻token之间变化太大，不够光滑。因此我们想要增加一个光滑性质，也就是说我们希望：
+
+1. 位置编码值在 $[-1, 1]$之间，防止对token embedding产生影响
+2. 相邻token的位置编码尽可能相近，即 $|PE(k+p)-PE(p)| \leq \delta |k|$, 其中 $\delta>0$是一个比较小的数。
+3. 与二进制一样，高位的变化比较慢，低位的变化比较快
+
+一个想法就是利用三角函数$\sin$或者$\cos$，三角函数满足前两个性质， 对于第三个性质，我们可以通过控制频率来满足。这样我们得到的位置编码就具有如下形式：
+
+$$
+PE(p, i) = \sin\left(\frac{p}{\theta^{i/d}}\right)
+$$
+
+其中 $\theta$是我们的超参数。
+
+我们现在来推到一下上面位置编码的线性相关性，我们有
+
+$$
+PE(p+k) = \sin\left(\frac{p+k}{\theta^{i/d}}\right)=PE(p)\cos\left(\frac{k}{\theta^{i/d}}\right) + \cos\left(\frac{p}{\theta^{i/d}}\right)\sin\left(\frac{k}{\theta^{i/d}}\right)
+$$
+
+我们发现，$\sin$位置编码不满足线性相关性。但是出现的 $\cos$ 给了我们启发，也就是我们可以同时使用 $\sin$ 或者 $\cos$ 来完成位置编码，这也是原始transformer里提出来的Sinusoidal位置编码，其形式为：
+
+$$
+\begin{aligned}
+    PE(p, 2i) &= \sin\left(\frac{p}{\theta^{2i/d}}\right)\\
+    PE(p, 2i+1) &= \cos\left(\frac{p}{\theta^{2i/d}}\right)
+\end{aligned}
+$$
+
+现在，我们再推导一下线性相关性，我们记 $\omega_i=1/\theta^{2i/d}$ 就得到：
+
+$$
+\begin{aligned}
+    \begin{bmatrix}
+        PE(p+k, 2i)\\
+        PE(p+k, 2i+1)\\
+    \end{bmatrix}&=\begin{bmatrix}
+        \sin \omega_i(p+k)\\
+        \cos \omega_i(p+k)
+    \end{bmatrix}\\
+    &=\begin{bmatrix}
+        \sin \omega_i(\omega_ip)\cos(\omega_ik)+\cos w_i(\omega_ip)\sin(\omega_ik)\\
+        \cos \omega_i(\omega_ip)\cos(\omega_ik)-\sin w_i(\omega_ip)\sin(\omega_ik)
+    \end{bmatrix}\\
+    &= \begin{bmatrix}
+        \cos(\omega_ik)& \sin(\omega_ik)\\
+        -\sin(\omega_ik)& \cos(\omega_ik)
+    \end{bmatrix}\begin{bmatrix}
+        PE(p, 2i)\\
+        PE(p, 2i+1)\\
+    \end{bmatrix}
+\end{aligned}
+$$
+
+也就是说，Sinusoidal位置编码满足线性相关性。
+
 # 相对位置编码
+
+前面介绍了绝对位置编码，每个位置的位置编码是固定的。与之相对的，我们自然会想到，是否存在相对位置编码？与绝对位置编码相比，相对位置编码更能够体现上下文之间的联系。
+但是，一个问题就是，绝对位置编码也蕴含了相对信息，我们如何定义相对位置编码？
 
 # RoPE
 
 RoPE由苏剑林老师提出，最早应用于LLaMA架构，后续被大多数模型所采用。
+
+之前的PE大多数关注于加性位置编码，也就是**假设位置编码的形式为 $\bm{x}+\bm{p}$**, 基于这种假设，已有的工作基本都集中于优化下面的Q和K的内积
+
+$$
+\langle W_Q\bm{x}_m+\bm{p}_m, W_K\bm{x}_n + \bm{p}_n\rangle
+$$
+
+这里 $f_q(\bm{x}_m, m)=W_q\bm{x}_m+\bm{q}_m$, $f_q(\bm{x}_n, n)=W_q\bm{x}_n+\bm{q}_n$
+
+而RoPE里面，作者使用了一个不同的假设，也就是**假设内积应该仅包含两者的相对信息**，也就是
+
+$$
+\langle f_q(\bm{x}_m, m), f_q(\bm{x}_n, n)\rangle := g(\bm{x}_m,\bm{x}_n, m-n)
+$$
+
+这里的 $f$ 和 $g$都是未知函数。我们的目标就是从这个公式中推导出一个合适的位置编码出来。
+
+不失一般性，我们可以假设
+
+$$
+f_q(\bm{x}_m,0) = \bm{x}_m,\quad  f_q(\bm{x}_n, 0) = \bm{x}_n
+$$
+
+这个假设代表初始条件下，我们不对输入做任何改变，也就是不增加位置信息。
+
+## 2D推导
+
+RoPE直接使用复平面来进行推导，实际上在实数平面上也是一样的。我们假设 $d=2$, 注意到二维平面上的每个点都可以表示为如下形式
+
+$$
+\bm{z} = (x_1,x_2) = (r\cos\theta,r\sin\theta)
+$$
+其中 ($\mathrm{atan2}$ 定义参考[维基百科](https://en.wikipedia.org/wiki/Polar_coordinate_system))
+$$
+r = \|\bm{z}\|_2 = \sqrt{x_1^2+x_2^2},\quad  \theta = \mathrm{atan2}(y, x)
+$$
+
+现在，对于三个向量 $f_q(\bm{x}_m, m)$, $f_q(\bm{x}_n, n)$, $g(\bm{x}_m,\bm{x}_n, m-n)$ 我们可以写出其极坐标形式：
+
+$$
+\begin{aligned}
+    f_q(\bm{x}_m,m) &:= (r_1\cos\theta_1, r_1\sin\theta_1)\\
+    f_q(\bm{x}_n, n) &:= (r_2\cos\theta_2, r_2\sin\theta_2)\\
+    g(\bm{x}_m,\bm{x}_n, m-n) &:= (r_3\cos\theta_3, r_3\sin\theta_3)
+\end{aligned}
+$$
+
+我们计算内积得到：
+
+$$
+\langle f_q(\bm{x}_m, m), f_q(\bm{x}_n, n)\rangle = 
+$$
+
+带入初始条件得到
 
 ## naive实现
 
@@ -221,13 +335,12 @@ $$
 
 最后，我们将结果进行展平（第二次rearrange）操作，得到
 $$
-\begin{bmatrix}
-o_1 \\
-o_2\\
-\vdots\\
-o_{d-1}\\
-o_d \\
-\end{bmatrix}
+[
+o_1,
+o_2,
+\dots,
+o_{d-1},
+o_d ]^T
 $$
 
 在实现的时候，我们一般根据$\sin$ 和$\cos$进行分组，也就是
@@ -261,9 +374,92 @@ x_{d-1}\\
 \end{bmatrix}
 $$
 
+## LLaMA实现
+
+```python
+def precompute_freqs_cis(dim: int, end: int, theta: float = 10000.0):
+    """
+    Precompute the frequency tensor for complex exponentials (cis) with given dimensions.
+
+    This function calculates a frequency tensor with complex exponentials using the given dimension 'dim'
+    and the end index 'end'. The 'theta' parameter scales the frequencies.
+    The returned tensor contains complex values in complex64 data type.
+
+    Args:
+        dim (int): Dimension of the frequency tensor.
+        end (int): End index for precomputing frequencies.
+        theta (float, optional): Scaling factor for frequency computation. Defaults to 10000.0.
+
+    Returns:
+        torch.Tensor: Precomputed frequency tensor with complex exponentials.
+
+    
+        
+
+    """
+    freqs = 1.0 / (theta ** (torch.arange(0, dim, 2)[: (dim // 2)].float() / dim))
+    t = torch.arange(end, device=freqs.device)  # type: ignore
+    freqs = torch.outer(t, freqs).float()  # type: ignore
+    freqs_cis = torch.polar(torch.ones_like(freqs), freqs)  # complex64
+    return freqs_cis
+
+def reshape_for_broadcast(freqs_cis: torch.Tensor, x: torch.Tensor):
+    """
+    Reshape frequency tensor for broadcasting it with another tensor.
+
+    This function reshapes the frequency tensor to have the same shape as the target tensor 'x'
+    for the purpose of broadcasting the frequency tensor during element-wise operations.
+
+    Args:
+        freqs_cis (torch.Tensor): Frequency tensor to be reshaped.
+        x (torch.Tensor): Target tensor for broadcasting compatibility.
+
+    Returns:
+        torch.Tensor: Reshaped frequency tensor.
+
+    Raises:
+        AssertionError: If the frequency tensor doesn't match the expected shape.
+        AssertionError: If the target tensor 'x' doesn't have the expected number of dimensions.
+    """
+    ndim = x.ndim
+    assert 0 <= 1 < ndim
+    assert freqs_cis.shape == (x.shape[1], x.shape[-1])
+    shape = [d if i == 1 or i == ndim - 1 else 1 for i, d in enumerate(x.shape)]
+    return freqs_cis.view(*shape)
+
+
+def apply_rotary_emb(
+    xq: torch.Tensor,
+    xk: torch.Tensor,
+    freqs_cis: torch.Tensor,
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    """
+    Apply rotary embeddings to input tensors using the given frequency tensor.
+
+    This function applies rotary embeddings to the given query 'xq' and key 'xk' tensors using the provided
+    frequency tensor 'freqs_cis'. The input tensors are reshaped as complex numbers, and the frequency tensor
+    is reshaped for broadcasting compatibility. The resulting tensors contain rotary embeddings and are
+    returned as real tensors.
+
+    Args:
+        xq (torch.Tensor): Query tensor to apply rotary embeddings.
+        xk (torch.Tensor): Key tensor to apply rotary embeddings.
+        freqs_cis (torch.Tensor): Precomputed frequency tensor for complex exponentials.
+
+    Returns:
+        Tuple[torch.Tensor, torch.Tensor]: Tuple of modified query tensor and key tensor with rotary embeddings.
+    """
+    xq_ = torch.view_as_complex(xq.float().reshape(*xq.shape[:-1], -1, 2))
+    xk_ = torch.view_as_complex(xk.float().reshape(*xk.shape[:-1], -1, 2))
+    freqs_cis = reshape_for_broadcast(freqs_cis, xq_)
+    xq_out = torch.view_as_real(xq_ * freqs_cis).flatten(3)
+    xk_out = torch.view_as_real(xk_ * freqs_cis).flatten(3)
+    return xq_out.type_as(xq), xk_out.type_as(xk)
+```
+
 ## 通用实现
 
-我们可以看到，naive版本的实现与现在大语言模型所采用的实现并不一致，我们先把现有的大语言模型的RoPE实现，这里使用了[LLaMA的transformer代码](https://github.com/huggingface/transformers/blob/main/src/transformers/models/llama/modeling_llama.py)放在下面，
+我们可以看到，naive版本的实现与现在大语言模型所采用的实现并不一致，我们先看一下现有的大语言模型的RoPE实现，这里使用了[LLaMA的transformer代码](https://github.com/huggingface/transformers/blob/main/src/transformers/models/llama/modeling_llama.py)放在下面，
 
 ```python
 def rotate_half(x):
@@ -298,36 +494,121 @@ def apply_rotary_pos_emb(q, k, cos, sin, position_ids=None, unsqueeze_dim=1):
     q_embed = (q * cos) + (rotate_half(q) * sin)
     k_embed = (k * cos) + (rotate_half(k) * sin)
     return q_embed, k_embed
+
+class LlamaRotaryEmbedding(torch.nn.Module):
+    def __init__(self, dim, max_position_embeddings=2048, base=10000, device=None):
+        super().__init__()
+
+        self.dim = dim
+        self.max_position_embeddings = max_position_embeddings
+        self.base = base
+        inv_freq = 1.0 / (self.base ** (torch.arange(0, self.dim, 2).float().to(device) / self.dim))
+        self.register_buffer("inv_freq", inv_freq)
+
+        # Build here to make `torch.jit.trace` work.
+        self._set_cos_sin_cache(
+            seq_len=max_position_embeddings, device=self.inv_freq.device, dtype=torch.get_default_dtype()
+        )
+
+    def _set_cos_sin_cache(self, seq_len, device, dtype):
+        self.max_seq_len_cached = seq_len
+        t = torch.arange(self.max_seq_len_cached, device=device, dtype=self.inv_freq.dtype)
+
+        freqs = torch.einsum("i,j->ij", t, self.inv_freq)
+        # Different from paper, but it uses a different permutation in order to obtain the same calculation
+        emb = torch.cat((freqs, freqs), dim=-1)
+        self.register_buffer("cos_cached", emb.cos()[None, None, :, :].to(dtype), persistent=False)
+        self.register_buffer("sin_cached", emb.sin()[None, None, :, :].to(dtype), persistent=False)
+
+    def forward(self, x, seq_len=None):
+        # x: [bs, num_attention_heads, seq_len, head_size]
+        if seq_len > self.max_seq_len_cached:
+            self._set_cos_sin_cache(seq_len=seq_len, device=x.device, dtype=x.dtype)
+
+        return (
+            self.cos_cached[:, :, :seq_len, ...].to(dtype=x.dtype),
+            self.sin_cached[:, :, :seq_len, ...].to(dtype=x.dtype),
+        )
 ```
 
-我们将上述代码翻译成公式，实际上$\sin$部分对应的向量现在变成了
+我们将上述代码翻译成公式，现在我们的 $\Theta$ 变成了 (对应 `emb = torch.cat((freqs, freqs), dim=-1)`)
 
 $$
-\begin{bmatrix}
--x_{d/2+1}\\
--x_{d/2+2}\\
-\vdots\\
--x_{d}\\
-x_1\\
-\vdots\\
-x_{d/2}\\
+\Theta = [\theta_0,\dots,\theta_{d/2},\theta_0,\dots,\theta_{d/2}]^T
+$$
+
+实际上$\sin$部分对应的向量现在变成了
+
+$$
+[-x_{d/2+1},
+-x_{d/2+2},
+\dots,
+-x_{d},
+x_1,
+\dots,
+x_{d/2}]^T
+$$
+
+我们带回到原始公式，可以得到对应的RoPE操作变成了
+
+$$
+R_{\theta,m}^d=\begin{bmatrix}
+    \cos m\theta_0 &  & &  -\sin m\theta_0 & \cdots &\cdots &\cdots \\
+    & & \cos m\theta_1 & &-\sin m\theta_1 & \cdots  &\cdots \\
+    & & & \cos m\theta_2 & &-\sin m\theta_2 & \cdots  \\
+    \vdots&\vdots&\vdots&\vdots& \vdots &\vdots &\vdots\\
+    & & &  &\cos m\theta_{d/2 - 1} & & -\sin m\theta_{d/2 - 1}  \\
+    \sin m\theta_0 && & \cos m\theta_0  &&\cdots &\cdots \\
+    & & \sin m\theta_1 & &\cos m\theta_1 & \cdots &\cdots  \\
+    & & & \sin m\theta_2 & &\cos m\theta_2 & \cdots  \\
+    \vdots&\vdots&\vdots&\vdots& \vdots &\vdots &\vdots\\
+    &&&& \sin m\theta_{d/2 - 1}&  & \cos m\theta_{d/2 - 1}
 \end{bmatrix}
 $$
+这列每一行的 $\cos$ 和 $\sin$ 都相差了 $d/2$ 列.
 
-我们带回到原始公式，可以得到对应的rotating matrix现在变成了
+因此，这里的区别在于，原始RoPE计算的pair为 $(x_{2i-1}, x_{2i})$, 而LLaMA里的RoPE计算的pair为 $(x_{i}, x_{i+d/2})$.
+
+我们通过验证可以发现，
 
 $$
-\begin{bmatrix}
-    \cos m\theta_0 & -\sin m\theta_0 & &&\cdots &\cdots &\cdots \\
-    \sin m\theta_0 & \cos m\theta_0 & &&\cdots &\cdots &\cdots\\
-    & & \cos m\theta_1 & -\sin m\theta_1 & \cdots  &\cdots &\cdots\\
-    & & \sin m\theta_1 & \cos m\theta_1 & \cdots &\cdots &\cdots \\
-    &&&& \ddots &\vdots &\vdots\\
-    &&&& & \cos m\theta_{d/2} & -\sin m\theta_{d/2}\\
-    &&&& & \sin m\theta_{d/2} & \cos m\theta_{d/2}
-\end{bmatrix}
+(R_{\theta,m}^d)^TR_{\theta,n}^d = R_{\theta,n-m}^d
 $$
+
+也就是满足RoPE的性质。
+
+总之，transformer library使用这种方式，可以减少计算量，提高整体的计算效率。
+
+为了适应使用原始RoPE的架构，Huggingface对权重进行了转换，使得基于原始RoPE实现的模型也可以获得加速.
+
+假设 $d=8$，原始RoPE的pair为`[(q_0, q_1), (q_2, q_3), (q_4, q_5), (q_6, q_7)]`, 新的pair为 `[(q_0, q_4), (q_1, q_5), (q_2, q_6), (q_3, q_7)]`. 我们希望对index进行remap，我们发现一个满足条件的permutation为 `[0, 2, 4, 6, 1, 3, 5, 7]`, 也就是 `q_0->q_0`, `q_2->q_1`, ..., `q_7->q_7`.
+
+但是，如果我们在推理时这样做，就会降低整体速度，因此Huggingface的做法是改变$W_Q$和 $W_K$的权重，具体来说，就是 $\Pi q=(\Pi W_Q)x$， 左边是在线转换，右侧离线转换好$W_Q$之后，正常计算就可以了。[具体代码](https://github.com/huggingface/transformers/blob/e42587f596181396e1c4b63660abf0c736b10dae/src/transformers/models/llama/convert_llama_weights_to_hf.py)为
+
+```python
+# permute for sliced rotary
+def permute(w, n_heads=n_heads, dim1=dim, dim2=dim):
+    return w.view(n_heads, dim1 // n_heads // 2, 2, dim2).transpose(1, 2).reshape(dim1, dim2)
+
+
+state_dict = {
+    f"model.layers.{layer_i}.self_attn.q_proj.weight": permute(
+        loaded[f"layers.{layer_i}.attention.wq.weight"]
+    ),
+    f"model.layers.{layer_i}.self_attn.k_proj.weight": permute(
+        loaded[f"layers.{layer_i}.attention.wk.weight"]
+    ),
+    ...
+}
+```
+
+# Alibi
+
+除了RoPE之外，我们还有
 
 # 结论
 
 # 参考文献
+
+- [Is LLaMA rotary embedding implementation correct?](https://discuss.huggingface.co/t/is-llama-rotary-embedding-implementation-correct/44509/2)
+- [[LLaMA] Rotary positional embedding differs with official implementation](https://github.com/huggingface/transformers/issues/25199)
