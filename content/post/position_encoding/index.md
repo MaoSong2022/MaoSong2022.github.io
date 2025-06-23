@@ -13,8 +13,8 @@ categories:
 # Introduction
 
 在[上一篇blog](https://maosong.website/p/%E5%85%B3%E4%BA%8Eattention-bias%E7%9A%84%E4%B8%80%E4%BA%9B%E6%80%9D%E8%80%83/)中, 我们介绍了Attention的两个性质，也就是在不加position encoding的情况下，Attention对于query是permutation equivariant的，对于key和value是permutation invariant的。
-比如说，“我爱你”和“你爱我”这两句话所表示的含义应该是不一样的，但是我们将这两句话作为key和value的时候，我们发现模型的输出是一致的。
-这显然是不能接受的，因此，我们就需要加入position encoding，让模型学习到语序讯息，从而明白不同的语序有不同的含义。
+但是“我爱你”和“你爱我”这两句话所表示的含义应该是不一样的，如果我们将这两句话作为key和value的时候，我们发现模型的输出是一致的。
+这显然是不能接受的，因此，我们就需要加入position encoding，让模型学习到语序信息，从而明白不同的语序有不同的含义。
 
 下面是测试代码【参考文献1】
 
@@ -48,7 +48,7 @@ dog2_out = output[0, 5]
 print(f"Dog output identical?: {torch.allclose(dog1_out, dog2_out, atol=1e-6)}") #True
 ```
 
-Position encoding可以分为绝对位置编码(absolute position encoding, APE)，相对位置编码(relative position encoding, RPE)以及可学习的位置编码。可学习位置编码主要是BERT类的模型在使用，其训练成本比较高，本文不做讨论。绝对位置编码是transformer里提出的编码模式，但是现在的大多数模型使用的都是相对位置编码。
+Position encoding可以分为绝对位置编码(absolute position encoding, APE)，相对位置编码(relative position encoding, RPE)以及可学习的位置编码。可学习位置编码主要是BERT类的模型在使用，其训练成本比较高，本文不做讨论。绝对位置编码是原始transformer里提出的编码模式，现在的大多数基于transformer模型使用的都是相对位置编码。
 
 本文中，我们先介绍位置编码应该具有的性质，然后我们分别介绍绝对位置编码和相对位置编码，我们将着重关注苏剑林老师提出来的RoPE。最后，我们将简单介绍一下LLaMA4使用的NoPE和Qwen系列使用的YARN
 
@@ -184,22 +184,24 @@ $$
 前面介绍了绝对位置编码，每个位置的位置编码是固定的。与之相对的，我们自然会想到，是否存在相对位置编码？与绝对位置编码相比，相对位置编码更能够体现上下文之间的联系。
 但是，一个问题就是，绝对位置编码也蕴含了相对信息，我们如何定义相对位置编码？
 
-# RoPE
+## Alibi
 
-RoPE由苏剑林老师提出，最早应用于LLaMA架构，后续被大多数模型所采用。
+## RoPE
+
+RoPE由苏剑林老师提出，最早应用于LLaMA架构（没有确认），后续被大多数模型所采用。
 
 之前的PE大多数关注于加性位置编码，也就是**假设位置编码的形式为 $\bm{x}+\bm{p}$**, 基于这种假设，已有的工作基本都集中于优化下面的Q和K的内积
 
 $$
-\langle W_Q\bm{x}_m+\bm{p}_m, W_K\bm{x}_n + \bm{p}_n\rangle
+\langle f_q(\bm{x}_q, m)+\bm{m}, f_k(\bm{x}_k, n) + \bm{p}_n\rangle
 $$
 
-这里 $f_q(\bm{x}_m, m)=W_q\bm{x}_m+\bm{q}_m$, $f_q(\bm{x}_n, n)=W_q\bm{x}_n+\bm{q}_n$
+这里 $f_q(\bm{x}_q, m)=W_q\bm{x}_q+\bm{q}_m$, $f_k(\bm{x}_k, n)=W_k\bm{x}_k+\bm{q}_n$
 
 而RoPE里面，作者使用了一个不同的假设，也就是**假设内积应该仅包含两者的相对信息**，也就是
 
 $$
-\langle f_q(\bm{x}_m, m), f_q(\bm{x}_n, n)\rangle := g(\bm{x}_m,\bm{x}_n, m-n)
+\langle f_q(\bm{x}_q, m), f_q(\bm{x}_k, n)\rangle := g(\bm{x}_q,\bm{x}_k, m-n)
 $$
 
 这里的 $f$ 和 $g$都是未知函数。我们的目标就是从这个公式中推导出一个合适的位置编码出来。
@@ -207,40 +209,122 @@ $$
 不失一般性，我们可以假设
 
 $$
-f_q(\bm{x}_m,0) = \bm{x}_m,\quad  f_q(\bm{x}_n, 0) = \bm{x}_n
+f_q(\bm{x}_q,0) = \bm{x}_q,\quad  f_q(\bm{x}_k, 0) = \bm{x}_k
 $$
 
 这个假设代表初始条件下，我们不对输入做任何改变，也就是不增加位置信息。
 
 ## 2D推导
 
-RoPE直接使用复平面来进行推导，实际上在实数平面上也是一样的。我们假设 $d=2$, 注意到二维平面上的每个点都可以表示为如下形式
+与RoPE一样，我们直接使用复平面来进行推导。我们假设 $d=2$, 注意到二维平面上的每个点都可以表示为如下形式
 
 $$
-\bm{z} = (x_1,x_2) = (r\cos\theta,r\sin\theta)
+\bm{z} = (x,y) = re^{i\theta}
 $$
 其中 ($\mathrm{atan2}$ 定义参考[维基百科](https://en.wikipedia.org/wiki/Polar_coordinate_system))
 $$
-r = \|\bm{z}\|_2 = \sqrt{x_1^2+x_2^2},\quad  \theta = \mathrm{atan2}(y, x)
+r = \|\bm{z}\|_2 = \sqrt{x^2+y^2}\in\mathbb{R},\quad  \theta = \mathrm{atan2}(y, x)\in\mathbb{R},
 $$
 
-现在，对于三个向量 $f_q(\bm{x}_m, m)$, $f_q(\bm{x}_n, n)$, $g(\bm{x}_m,\bm{x}_n, m-n)$ 我们可以写出其极坐标形式：
+现在，对于三个向量 $f_q(\bm{x}_q, m)$, $f_q(\bm{x}_k, n)$, $g(\bm{x}_q,\bm{x}_k, m-n)$ 我们可以写出其极坐标形式：
 
 $$
 \begin{aligned}
-    f_q(\bm{x}_m,m) &:= (r_1\cos\theta_1, r_1\sin\theta_1)\\
-    f_q(\bm{x}_n, n) &:= (r_2\cos\theta_2, r_2\sin\theta_2)\\
-    g(\bm{x}_m,\bm{x}_n, m-n) &:= (r_3\cos\theta_3, r_3\sin\theta_3)
+    f_q(\bm{x}_q,m) &:= r_q(\bm{x}_q,m)e^{i\theta_q(\bm{x}_q,m)}\\
+    f_k(\bm{x}_k, n) &:= r_k(\bm{x}_k, n)e^{i\theta_k(\bm{x}_k, n)}\\
+    g(\bm{x}_q,\bm{x}_k, m-n) &:= r_g(\bm{x}_q,\bm{x}_k, m-n)e^{i\theta_g(\bm{x}_q,\bm{x}_k, m-n)}
 \end{aligned}
 $$
 
-我们计算内积得到：
+我们计算内积并比较同类项得到：
 
 $$
-\langle f_q(\bm{x}_m, m), f_q(\bm{x}_n, n)\rangle = 
+\begin{aligned}
+    r_g(\bm{x}_q,\bm{x}_k, m-n) &:= r_q(\bm{x}_q,m)r_k(\bm{x}_k, n)\\
+    \theta_g(\bm{x}_q,\bm{x}_k, m-n) &:= \theta_q(\bm{x}_q,m)-\theta_k(\bm{x}_k, n)
+\end{aligned}\tag{3}
 $$
 
-带入初始条件得到
+我们接下来分别推导 $r_g(\bm{x}_q,\bm{x}_k, m-n)$ 和 $\theta_g(\bm{x}_q,\bm{x}_k, m-n)$的形式
+
+### $r_g(\bm{x}_q,\bm{x}_k, m-n)$
+
+我们令 $m=n=0$ 可以得到初始条件
+
+$$
+r_g(\bm{x}_q,\bm{x}_k, 0) = r_q(\bm{x}_q,0)r_k(\bm{x}_k, 0)=\|\bm{q}\|_2\|\bm{k}\|_2
+$$
+
+我们再令 $n=0$,得到
+
+$$
+r_g(\bm{x}_q,\bm{x}_k, m) = r_q(\bm{x}_q,m)r_k(\bm{x}_k, 0)=r_q(\bm{x}_q,m)\|\bm{k}\|_2=\frac{r_g(\bm{x}_q,\bm{x}_k, m-n)}{r_k(\bm{x}_k, n)}\|\bm{k}\|_2
+$$
+
+这里最后一个等式带入了原始等式(2)，注意到左侧与$n$无关，因此我们选取 $n=1$, 得到
+
+$$
+r_g(\bm{x}_q,\bm{x}_k, m) = \frac{r_g(\bm{x}_q,\bm{x}_k, m-1)}{r_k(\bm{x}_k, 1)}\|\bm{k}\|_2 =\cdots= r_g(\bm{x}_q,\bm{x}_k, 0)\left(\frac{\|\bm{k}\|_2 }{r_k(\bm{x}_k, 1)}\right)^{m+1}
+$$
+
+令 $m=0$ 我们有
+
+$$
+r_k(\bm{x}_k, 1) = \|\bm{k}\|_2.
+$$
+
+因此我们最终的表达式为：
+
+$$
+r_g(\bm{x}_q,\bm{x}_k, m) = r_g(\bm{x}_q,\bm{x}_k, 0) = \|\bm{q}\|_2\|\bm{k}\|_2.
+$$
+
+### $\theta_g(\bm{x}_q,\bm{x}_k, m-n)$
+
+令 $m=n=0$, 我们得到初始条件
+
+$$
+\theta_g(\bm{x}_q,\bm{x}_k, 0) = \theta_q(\bm{x}_q,0)-\theta_k(\bm{x}_k, 0)=\theta_q-\theta_k
+$$
+
+令 $n=1$, 我们有
+
+$$
+\begin{aligned}
+    \theta_g(\bm{x}_q,\bm{x}_k, m-1) &= \theta_q(\bm{x}_q,m)-\theta_k(\bm{x}_k, 1)\\
+    &=\theta_g(\bm{x}_q,\bm{x}_k, m-n)  + \theta_k(\bm{x}_k, n)-\theta_k(\bm{x}_k, 1)
+\end{aligned}
+$$
+
+这里我们带入了公式(3)，注意到公式左边与 $n$ 无关，因此在公式右侧我们令 $n=0$, 得到
+
+$$
+ \theta_g(\bm{x}_q,\bm{x}_k, m-1) = \theta_g(\bm{x}_q,\bm{x}_k, m)+ \theta_k(\bm{x}_k, 0)-\theta_k(\bm{x}_k, 1)
+$$
+
+分别令 $m=1,2,\dots$并相加这些等式，我们得到
+
+$$
+\theta_g(\bm{x}_q,\bm{x}_k, 0) = \theta_g(\bm{x}_q,\bm{x}_k, m) + m(\theta_k(\bm{x}_k, 0)-\theta_k(\bm{x}_k, 1))
+$$
+
+即
+
+$$
+\theta_g(\bm{x}_q,\bm{x}_k, m) = m(\theta_k(\bm{x}_k, 1)-\theta_k(\bm{x}_k, 0))+\theta_g(\bm{x}_q,\bm{x}_k, 0)
+$$
+
+我们记 $\theta:= \theta_k(\bm{x}_k, 1)-\theta_k(\bm{x}_k, 0)=\theta_g(x_q,x_k,1)$, $\gamma:=\theta_g(\bm{x}_q,\bm{x}_k, 0)$, 就得到最终表达式：
+
+$$
+\theta_g(\bm{x}_q,\bm{x}_k, m) = m\theta + \gamma.
+$$
+
+# Alibi
+
+除了RoPE之外，我们还有
+
+# RoPE代码实现与理解
 
 ## naive实现
 
@@ -601,10 +685,6 @@ state_dict = {
     ...
 }
 ```
-
-# Alibi
-
-除了RoPE之外，我们还有
 
 # 结论
 
