@@ -12,7 +12,7 @@ math: true
 
 # Tokenizer总结
 
-## 1. Introduction
+## Introduction
 
 在自然语言处理中，tokenizer的作用是将一个文本序列通过一个字典转化为一个token id的序列。我们回顾图片分类任务，模型在预测的时候，实际上预测的是类别对应的id，而不是类别本身。tokenizer做的事情就是提供一个类似于从类别到对应id的字典。
 
@@ -56,11 +56,11 @@ print(token_ids)
 接下来, 我们将简单介绍一下word tokenizer, character tokenizer以及byte tokenizer, 并分析它们各自的不足。
 然后, 我们介绍现代大语言模型中使用最多的BPE tokenizer。最后, 我们介绍一些sub-word tokenizer。
 
-## 2. Training-free tokenizer
+## Training-free tokenizer
 
 本节我们将要介绍word tokenizer, character tokenizer以及byte tokenizer, 它们的特点就是简单易懂, 不需要额外的规则和学习.
 
-### 2.1 Word tokenizer
+### Word tokenizer
 
 给定一个文本序列, 我们现在需要将其转化为一个token序列。一个比较自然的想法是, 我们按照空格将序列拆分成若干个单词, 这样每个单词的语义都能比较好地保留。下面是一个例子：
 
@@ -85,7 +85,7 @@ word tokenizer的缺点为：
 
 既然基于word的tokenizer有OOV的问题，我们能否想办法解决这个问题呢？答案是可以的, 我们可以使用 character tokenizer。
 
-### 2.2 Character tokenizer
+### Character tokenizer
 
 Character tokenizer的基本思想是使用字符而不是单词来编码文本序列。其实现方式如下：
 
@@ -104,7 +104,7 @@ character tokenizer的词表大小取决于我们的编码方式，UTF-8的编�
 2. 和word tokenizer一样, 很多character非常罕见, 会降低词表的利用率
 3. token序列的上下文语义信息较差
 
-### 2.3 Byte tokenizer
+### Byte tokenizer
 
 我们发现, character tokenizer和word tokenizer的词表都很大, 我们能否想办法降低词表大小, 提升每个token的利用率呢？答案是使用Byte tokenizer.
 
@@ -133,7 +133,7 @@ byte tokenizer的词表很小, 其词表大小为 `256`, 这是因为一个byte�
 1. 产生的token序列过长, 增加了transformer的计算量
 2. 没有上下文语义信息
 
-### 2.4 总结
+### 总结
 
 我们总结一下word tokenizer, character tokenizer以及byte tokenizer三者各自的特点:
 
@@ -149,9 +149,9 @@ byte tokenizer的词表很小, 其词表大小为 `256`, 这是因为一个byte�
 
 因此, 这三种tokenizer尽管实现起来很简单, 但是其都有各自的问题. 为了解决这些问题, 我们的做法就是折衷, 使用sub-word tokenizer, 也就是介于word tokenizer和byte tokenizer之间的方法.
 
-## 3. BPE
+## BPE
 
-### 3.1 基本原理与实现
+### 基本原理与实现
 
 实际生活中，对于出现频率比较高的词，我们会有一个简写的方式，也就是我们使用一个新的单词来表示这个词。比如在英语中，我们会使用`plz` 来代替 `please` 以及使用`how r u` 来代替`how are you`。
 BPE，即byte pair tokenizer的原理也是类似的，对于出现频率比较高的byte pair或者character pair, 我们会使用一个新的token来表示这个pair，这样就压缩了sequence的长度。
@@ -172,7 +172,7 @@ BPE算法包括以下几个步骤:
 
 实现代码见 [Github naive BPE](https://github.com/MaoSong2022/assignment1-basics/blob/main/cs336_basics/naive_bpe.py)
 
-### 3.2 高效实现
+### 高效实现
 
 BPE的原理很简单, 我们也实现了其naive版本, 但是naive版本的问题是太慢了。因此我们将要优化naive版本的效率。
 
@@ -223,9 +223,9 @@ merge之后, token序列变成了`(b'x', b'z', b'y')` (假设`best_pair`对应�
 
 其具体实现见 [Github](https://github.com/MaoSong2022/assignment1-basics/blob/main/cs336_basics/efficient_bpe.py)
 
-## 4. Other subword tokenizers
+## Other subword tokenizers
 
-### 4.1 WordPiece
+### WordPiece
 
 WordPiece是Google在预训练BERT时采用的tokenizer，WordPiece的基本思想和BPE差不多，都是从一个较小的vocab开始的。
 
@@ -248,7 +248,7 @@ $$
 
 具体实现见 [Github wordpiece](https://github.com/MaoSong2022/assignment1-basics/blob/main/cs336_basics/word_piece.py) (基于[huggingface llm course](https://huggingface.co/learn/llm-course/chapter6/4?fw=pt))。 代码实现除了选择最优pair的方式不同之外，和BPE基本一致。
 
-### 4.2 Unigram
+### Unigram
 
 Unigram也是由Google提出来的tokenizer，与BPE和wordpiece不同，unigram从一个非常大的vocab开始，然后merge token来降低vocab的size，直到达到指定大小。初始的vocab可以基于BPE算法或者使用prefix subword来构建。并且，初始vocab还包含所有的base characters来保证所有的word都可以被tokenize。
 
@@ -308,7 +308,7 @@ $$
 
 这里的乘法代表 $p(\bm{x}) = \prod_{i=1}^n p(x_i)$, 在实现的时候我们会取log变成加法，然后概率会由频率来代替。
 
-### 4.3 Subword tokenizer总结
+### Subword tokenizer总结
 
 sub-word tokenizer的对比 (来自[huggingface llm course](https://huggingface.co/learn/llm-course/chapter6/4?fw=pt))：
 
@@ -321,17 +321,17 @@ sub-word tokenizer的对比 (来自[huggingface llm course](https://huggingface.
 | Encoding | Splits into words and applies merge rules | Find the longest subword from the beginning that is in the vocab | Finds the most likely split into tokens with learned scores |
 | Model | GPT | BERT | T5 |
 
-## 5. 实践
+## 实践
 
-### 5.1 tiktoken
+### tiktoken
 
 [tiktoken](https://github.com/openai/tiktoken)是openAI提出来的一个BPE tokenizer, openAI的模型都基于这个tokenizer, 其主要用于调用GPT系列模型是对token进行计数, 我们可以在[tokenizer](https://platform.openai.com/tokenizer) 这个网站查看其分词情况.
 
-### 5.2 SentencePiece
+### SentencePiece
 
 [SentencePiece](https://github.com/google/sentencepiece)是google开源的一个无监督的text tokenizer，其实现了BPE和unigram两种算法，SentencePiece还是一个语言无关的tokenizer，使其更适合多语种大语言模型的开发。
 
-### 5.3 Tokenizer
+### Tokenizer
 
 [tokenizer](https://github.com/huggingface/tokenizers) 是huggingface推出的为基于transformer服务的tokenizer库, 其支持BPE,  wordpiece和unigram等分词算法, 使用简便. 并且, huggingface的tokenizer包括两种:
 
@@ -347,7 +347,7 @@ huggingface比较了并行处理时两者的区别:
 
 huggingface提供的tokenizer库已经非常齐全了, 如果我们要训练新的基于transformer的模型的话，建议直接使用Huggingface的`AutoTokenizer`。
 
-### 5.4 总结
+### 总结
 
 | 特性 | SentencePiece | Tokenizer | tiktoken |
 |------|--------------|-----------|----------|
@@ -359,7 +359,7 @@ huggingface提供的tokenizer库已经非常齐全了, 如果我们要训练新�
 | 是否可解码 | √ | √ | √ |
 | 是否支持多语言 | √ | √ | × |
 
-## 6. 结论
+## 结论
 
 本文中, 我们介绍了大语言模型中的tokenizer, 我们从byte level, word level到sub-word level, 再到现代大语言模型最常使用的BPE tokenizer, 并给出了其（高效版本）实现。最后, 我们介绍了一下tokenizer-free的大语言模型和huggingface的tokenizer库。在未来, 我们将继续深入了解大语言模型的基本原理和实现细节。
 
