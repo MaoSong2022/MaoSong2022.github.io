@@ -2,7 +2,7 @@
 title: Position encoding总结
 description: 从Absolute position encoding到RoPE
 date: 2025-05-19 10:46:39+0800
-lastmod: 2025-06-29 09:49:27+0800n
+lastmod: 2025-06-29 09:49:27+0800
 tags: 
     - position encoding
 categories:
