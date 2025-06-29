@@ -1,7 +1,7 @@
 ---
-title: Hands on LLM(2): Transformer
+title: Hands on LLM(2) Transformer
 description: 基于Qwen3讲解transformer的架构以及核心代码
-date: 2025-06-29 11:40:39+0800n
+date: 2025-06-29 11:40:39+0800
 tags:
   - cs336
   - transformer
