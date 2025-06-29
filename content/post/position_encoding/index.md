@@ -2,11 +2,12 @@
 title: Position encoding总结
 description: 从Absolute position encoding到RoPE
 date: 2025-05-19 10:46:39+0800
-lastmod: 2025-06-25 18:26:24+0800
+lastmod: 2025-06-29 09:49:27+0800n
 tags: 
     - position encoding
 categories:
     - LLM 
+math: true
 ---
 
 > 本文前半部分参考【参考文献1】，推荐大家看博客原文。
