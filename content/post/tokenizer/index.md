@@ -1,7 +1,8 @@
 ---
-title: Tokenizer总结
+title: Hands on LLM(2) Tokenizer
 description: Tokenizer总结与BPE的高效实现
 date: 2025-05-24 19:56:34+0800
+lastmod: 2025-06-29 11:47:22+0800
 tags: 
     - transformer
 categories:
