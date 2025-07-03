@@ -6,7 +6,7 @@ math: true
 tags: 
     - math
 categories:
-    - Large Language Model 
+    - LLM
 ---
 
 # 介绍
