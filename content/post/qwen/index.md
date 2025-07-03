@@ -80,7 +80,6 @@ RL训练：先更新value model 50 steps
 
 作者使用了self-instruct来进行SFT，基于ReAct构建数据，数据包括2000条高质量数据
 
-
 # Specialization
 
 ### code-qwen
