@@ -14,8 +14,9 @@ math: true
 
 # Introduction
 
-在[上一篇blog](https://maosong.website/p/%E5%85%B3%E4%BA%8Eattention-bias%E7%9A%84%E4%B8%80%E4%BA%9B%E6%80%9D%E8%80%83/)中, 我们介绍了Attention的两个性质，也就是在不加position encoding的情况下，Attention对于query是permutation equivariant的，对于key和value是permutation invariant的。
-但是“我爱你”和“你爱我”这两句话所表示的含义应该是不一样的，如果我们将这两句话作为key和value的时候，我们发现模型的输出是一致的,这显然是不能接受的。因此，我们就需要加入position encoding，让模型学习到语序信息，从而明白不同的语序有不同的含义。
+在 [上一篇blog](https://maosong.website/p/%E5%85%B3%E4%BA%8Eattention-bias%E7%9A%84%E4%B8%80%E4%BA%9B%E6%80%9D%E8%80%83/) 中, 我们介绍了Attention的两个性质，也就是在不加position encoding的情况下，Attention对于query是permutation equivariant的，对于key和value是permutation invariant的。
+
+但是“我爱你”和“你爱我”这两句话所表示的含义应该是不一样的，我们将这两句话作为key和value的时候，我们发现模型的输出是一致的，这显然是不能接受的。因此，我们就需要加入position encoding，让模型学习到语序信息，从而明白不同的语序有不同的含义。
 
 下面是测试代码【参考文献1】
 
@@ -51,7 +52,7 @@ print(f"Dog output identical?: {torch.allclose(dog1_out, dog2_out, atol=1e-6)}")
 
 Position encoding可以分为绝对位置编码(absolute position encoding, APE)，相对位置编码(relative position encoding, RPE)以及可学习的位置编码。可学习位置编码主要是BERT类的模型在使用，其训练成本比较高，本文不做讨论。绝对位置编码是原始transformer里提出的编码模式，现在的大多数基于transformer模型使用的都是相对位置编码。
 
-本文中，我们先介绍位置编码应该具有的性质，然后我们分别介绍绝对位置编码和相对位置编码，我们将着重关注苏剑林老师提出来的RoPE。最后，我们将简单介绍一下LLaMA4使用的NoPE和Qwen系列使用的YARN
+本文中，我们先介绍位置编码应该具有的性质，然后我们分别介绍绝对位置编码和相对位置编码，我们将着重关注苏剑林老师提出来的RoPE。
 
 # 位置编码
 
@@ -94,7 +95,7 @@ $$
 
 可以看到，这个简单的设计满足性质1，性质2，性质3，性质4.
 
-但是，注意到attention的输入$X$通常是经过Layer Normalization处理过后的，因此其按列符合正态分布，并且均值和方差一般较小。当我们加上整数位置编码之后，其token本身的信息就会被污染，也就是信噪比非常低(信噪比比较低)。一个解决方法就是我们对$PE(i)$进行normalization，也就是
+但是，注意到attention的输入$X$通常是经过Layer Normalization处理过后的，因此其按列符合正态分布，并且均值和方差一般较小。当我们加上整数位置编码之后，其token本身的信息就会被污染，也就是信噪比非常低。一个解决方法就是我们对$PE(i)$进行normalization，即
 
 $$
 PE(i)' = \frac{1}{m}PE(i) = \frac{i}{m}\mathbf{1}_{d\times 1}
@@ -104,15 +105,19 @@ $$
 
 ## 二进制位置编码
 
-既然整数位置编码的主要问题是对输入影响太大，我们能否找一个不影响输入的整数位置编码方式呢？【参考文献1】提出了二进制位置编码，因为每个token是$d$维的，因此我们可以使用二进制来表示$i$. 比如说，当$d=3$, $m=3$时，我们的位置编码分别为
+既然整数位置编码的主要问题是对输入影响太大，我们能否找一个不影响输入的整数位置编码方式呢？【参考文献1】提出了二进制位置编码，因为每个token是 $d$ 维的，因此我们可以使用 $d$ 位二进制来表示 $i$. 比如说，当 $d=3$, $m=4$ 时，我们的位置编码分别为
 
 $$
-PE(0) =p_{(000)_2} = [0, 0, 0],\  PE(1) =p_{(001)_2}= [0, 0, 1],\  PE(2) =p_{(010)_2} = [0, 1, 0]
+PE(0) =p_{(000)_2} = [0, 0, 0],\  PE(1) =p_{(001)_2}= [0, 0, 1],\  PE(2) =p_{(010)_2} = [0, 1, 0],\  PE(3) =p_{(011)_2} = [0, 1, 1]
 $$
 
-现在，我们二进制位置编码满足性质1，性质2. 对于性质3，由于$d$位二进制的表示范围为 $[0, 2^d-1]$，因此其泛化性受到$d$的影响。
+现在，我们二进制位置编码满足性质1，性质2. 对于性质3，由于 $d$ 位二进制的表示范围为 $[0, 2^d-1]$，因此其泛化性受到 $d$ 的影响。
 
-我们还发现，二进制位置编码高位，也就是$PE(i)_{0}$的变化很慢，而低位，也就是$PE(i)_{d}$变化很快，【参考文献1】画出了不同位置的值的变化情况。
+【参考文献1】画出了不同位置的值的变化情况。我们这里也模仿绘制出类似的曲线图
+
+![Binary Position Encoding](binary_position_encoding.png)
+
+我们发现，二进制位置编码高位，也就是 $PE(i)_{d}$ 的变化很慢，而低位，也就是 $PE(i)_{0}$ 变化很快，
 
 二进制位置编码解决了整数位置编码的信噪比过低和线性相关性。但是其问题是其对不同位置的token embedding产生的影响是不一样的。比如位置1和位置2的相同的token embedding之间的区别是：
 
@@ -120,7 +125,7 @@ $$
 (\bm{x}_2 + PE(2)) - (\bm{x}_1 + PE(1)) = (\bm{x}_2-\bm{x}_1)+ [0, 1, -1]
 $$
 
-一般来说, $\bm{x}_2-\bm{x}_1$比较小，因此使用二进制位置编码的问题是输入位置的微小变化（增加一个token或减少一个token）都会对最终结果产生巨大影响。因此，我们需要想办法解决这个问题
+一般来说, $\bm{x}_2-\bm{x}_1$比较小，因此使用二进制位置编码的问题是输入位置的微小变化（增加一个token或减少一个token）都会对最终结果产生巨大影响。因此，我们需要想办法解决这个问题。
 
 ## Sinusoidal
 
@@ -178,15 +183,15 @@ $$
 \end{aligned}
 $$
 
-也就是说，Sinusoidal位置编码满足线性相关性。
+也就是说，Sinusoidal位置编码满足线性相关性。对于Sinusoidal位置编码我们也可以进行可视化：
+
+![Sinusoidal Position Encoding](sinusoidal_position_encoding.png)
 
 # 相对位置编码
 
-前面介绍了绝对位置编码，每个位置的位置编码是固定的。但是绝对位置编码的问题是，模型比较难以学习相对位置关系。举个例子，我们提到上下文时，通常会使用“上一节”，“上一章”这些表示相对位置关系的词。因此，我们希望让模型学习相对位置关系而不是绝对位置关系，因为相对关系更符合我们的认知。
-
-【TODO】
-
-## Alibi
+前面介绍了绝对位置编码，每个位置的位置编码是固定的。但是绝对位置编码的问题是，模型比较难以学习相对位置关系。
+举个例子，我们提到上下文时，通常会使用“上一节”，“上一章”这些表示相对位置关系的词。
+因此，我们希望让模型学习相对位置关系而不是绝对位置关系，因为相对关系更符合我们的认知。
 
 ## RoPE
 
@@ -195,10 +200,10 @@ RoPE由苏剑林老师提出，最早应用于LLaMA架构（没有确认），�
 之前的PE大多数关注于加性位置编码，也就是**假设位置编码的形式为 $\bm{x}+\bm{p}$**, 基于这种假设，已有的工作基本都集中于优化下面的Q和K的内积
 
 $$
-\langle f_q(\bm{x}_m, m), f_k(\bm{x}_n, n) \rangle
+\langle f_q(\bm{x}_q, m), f_k(\bm{x}_k, n) \rangle
 $$
 
-这里 $f_q(\bm{x}_m, m)=W_q(\bm{x}_m+\bm{p}_m)$, $f_k(\bm{x}_n, n)=W_k(\bm{x}_n+ \bm{p}_n)$.
+这里 $f_q(\bm{x}_q, m)=W_q(\bm{x}_q+\bm{p}_m)$, $f_k(\bm{x}_k, n)=W_k(\bm{x}_k+ \bm{p}_n)$.
 
 而RoPE里面，作者使用了一个不同的假设： **假设内积应该仅包含两者的相对信息**，也就是
 
@@ -555,25 +560,6 @@ $$
 
 ```python
 def precompute_freqs_cis(dim: int, end: int, theta: float = 10000.0):
-    """
-    Precompute the frequency tensor for complex exponentials (cis) with given dimensions.
-
-    This function calculates a frequency tensor with complex exponentials using the given dimension 'dim'
-    and the end index 'end'. The 'theta' parameter scales the frequencies.
-    The returned tensor contains complex values in complex64 data type.
-
-    Args:
-        dim (int): Dimension of the frequency tensor.
-        end (int): End index for precomputing frequencies.
-        theta (float, optional): Scaling factor for frequency computation. Defaults to 10000.0.
-
-    Returns:
-        torch.Tensor: Precomputed frequency tensor with complex exponentials.
-
-    
-        
-
-    """
     freqs = 1.0 / (theta ** (torch.arange(0, dim, 2)[: (dim // 2)].float() / dim))
     t = torch.arange(end, device=freqs.device)  # type: ignore
     freqs = torch.outer(t, freqs).float()  # type: ignore
@@ -581,23 +567,6 @@ def precompute_freqs_cis(dim: int, end: int, theta: float = 10000.0):
     return freqs_cis
 
 def reshape_for_broadcast(freqs_cis: torch.Tensor, x: torch.Tensor):
-    """
-    Reshape frequency tensor for broadcasting it with another tensor.
-
-    This function reshapes the frequency tensor to have the same shape as the target tensor 'x'
-    for the purpose of broadcasting the frequency tensor during element-wise operations.
-
-    Args:
-        freqs_cis (torch.Tensor): Frequency tensor to be reshaped.
-        x (torch.Tensor): Target tensor for broadcasting compatibility.
-
-    Returns:
-        torch.Tensor: Reshaped frequency tensor.
-
-    Raises:
-        AssertionError: If the frequency tensor doesn't match the expected shape.
-        AssertionError: If the target tensor 'x' doesn't have the expected number of dimensions.
-    """
     ndim = x.ndim
     assert 0 <= 1 < ndim
     assert freqs_cis.shape == (x.shape[1], x.shape[-1])
@@ -610,22 +579,6 @@ def apply_rotary_emb(
     xk: torch.Tensor,
     freqs_cis: torch.Tensor,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
-    """
-    Apply rotary embeddings to input tensors using the given frequency tensor.
-
-    This function applies rotary embeddings to the given query 'xq' and key 'xk' tensors using the provided
-    frequency tensor 'freqs_cis'. The input tensors are reshaped as complex numbers, and the frequency tensor
-    is reshaped for broadcasting compatibility. The resulting tensors contain rotary embeddings and are
-    returned as real tensors.
-
-    Args:
-        xq (torch.Tensor): Query tensor to apply rotary embeddings.
-        xk (torch.Tensor): Key tensor to apply rotary embeddings.
-        freqs_cis (torch.Tensor): Precomputed frequency tensor for complex exponentials.
-
-    Returns:
-        Tuple[torch.Tensor, torch.Tensor]: Tuple of modified query tensor and key tensor with rotary embeddings.
-    """
     xq_ = torch.view_as_complex(xq.float().reshape(*xq.shape[:-1], -1, 2))
     xk_ = torch.view_as_complex(xk.float().reshape(*xk.shape[:-1], -1, 2))
     freqs_cis = reshape_for_broadcast(freqs_cis, xq_)
@@ -634,9 +587,11 @@ def apply_rotary_emb(
     return xq_out.type_as(xq), xk_out.type_as(xk)
 ```
 
+在LLaMA中，我们首先还是计算 $\theta_i$, 然后在计算的过程中，我们将 $(x_i,x_{i+1})$ 视作一个复数，然后 乘以 $\exp(im\theta)$, 最后再取实部得到最终的结果
+
 ## 通用实现
 
-我们可以看到，naive版本的实现与现在大语言模型所采用的实现并不一致，我们先看一下现有的大语言模型的RoPE实现，这里使用了[LLaMA的transformer代码](https://github.com/huggingface/transformers/blob/main/src/transformers/models/llama/modeling_llama.py)放在下面，
+实际上，naive版本的实现与现在大语言模型所采用的实现并不一致，我们先看一下现有的大语言模型的RoPE实现，这里我们将 [LLaMA的transformer代码](https://github.com/huggingface/transformers/blob/main/src/transformers/models/llama/modeling_llama.py) 放在下面，
 
 ```python
 def rotate_half(x):
@@ -647,25 +602,6 @@ def rotate_half(x):
 
 
 def apply_rotary_pos_emb(q, k, cos, sin, position_ids=None, unsqueeze_dim=1):
-    """Applies Rotary Position Embedding to the query and key tensors.
-
-    Args:
-        q (`torch.Tensor`): The query tensor.
-        k (`torch.Tensor`): The key tensor.
-        cos (`torch.Tensor`): The cosine part of the rotary embedding.
-        sin (`torch.Tensor`): The sine part of the rotary embedding.
-        position_ids (`torch.Tensor`, *optional*):
-            Deprecated and unused.
-        unsqueeze_dim (`int`, *optional*, defaults to 1):
-            The 'unsqueeze_dim' argument specifies the dimension along which to unsqueeze cos[position_ids] and
-            sin[position_ids] so that they can be properly broadcasted to the dimensions of q and k. For example, note
-            that cos[position_ids] and sin[position_ids] have the shape [batch_size, seq_len, head_dim]. Then, if q and
-            k have the shape [batch_size, heads, seq_len, head_dim], then setting unsqueeze_dim=1 makes
-            cos[position_ids] and sin[position_ids] broadcastable to the shapes of q and k. Similarly, if q and k have
-            the shape [batch_size, seq_len, heads, head_dim], then set unsqueeze_dim=2.
-    Returns:
-        `tuple(torch.Tensor)` comprising of the query and key tensors rotated using the Rotary Position Embedding.
-    """
     cos = cos.unsqueeze(unsqueeze_dim)
     sin = sin.unsqueeze(unsqueeze_dim)
     q_embed = (q * cos) + (rotate_half(q) * sin)
@@ -682,12 +618,6 @@ class LlamaRotaryEmbedding(torch.nn.Module):
         inv_freq = 1.0 / (self.base ** (torch.arange(0, self.dim, 2).float().to(device) / self.dim))
         self.register_buffer("inv_freq", inv_freq)
 
-        # Build here to make `torch.jit.trace` work.
-        self._set_cos_sin_cache(
-            seq_len=max_position_embeddings, device=self.inv_freq.device, dtype=torch.get_default_dtype()
-        )
-
-    def _set_cos_sin_cache(self, seq_len, device, dtype):
         self.max_seq_len_cached = seq_len
         t = torch.arange(self.max_seq_len_cached, device=device, dtype=self.inv_freq.dtype)
 
@@ -744,19 +674,9 @@ R_{\theta,m}^d=\begin{bmatrix}
 $$
 这列每一行的 $\cos$ 和 $\sin$ 都相差了 $d/2$ 列.
 
-因此，这里的区别在于，原始RoPE计算的pair为 $(x_{2i-1}, x_{2i})$, 而LLaMA里的RoPE计算的pair为 $(x_{i}, x_{i+d/2})$.
+因此，这里的区别在于，原始RoPE计算的pair为 $(x_{i}, x_{i+1})$, 而LLaMA里的RoPE计算的pair为 $(x_{i}, x_{i+d/2})$. transformers library使用这种方式，可以减少计算量，提高整体的计算效率。
 
-我们通过验证可以发现，
-
-$$
-(R_{\theta,m}^d)^TR_{\theta,n}^d = R_{\theta,n-m}^d
-$$
-
-也就是满足RoPE的性质。
-
-总之，transformer library使用这种方式，可以减少计算量，提高整体的计算效率。
-
-为了适应使用原始RoPE的架构，Huggingface对权重进行了转换，使得基于原始RoPE实现的模型也可以获得加速.
+为了适应使用LLaMA中实现的RoPE的，Huggingface对权重进行了转换，使得基于原始RoPE实现的模型也可以获得加速.
 
 假设 $d=8$，原始RoPE的pair为`[(q_0, q_1), (q_2, q_3), (q_4, q_5), (q_6, q_7)]`, 新的pair为 `[(q_0, q_4), (q_1, q_5), (q_2, q_6), (q_3, q_7)]`. 我们希望对index进行remap，我们发现一个满足条件的permutation为 `[0, 2, 4, 6, 1, 3, 5, 7]`, 也就是 `q_0->q_0`, `q_2->q_1`, ..., `q_7->q_7`.
 
@@ -781,9 +701,13 @@ state_dict = {
 
 # 结论
 
+本文中，我们回顾了位置编码，包括绝对位置编码和相对位置编码，我们着重介绍了RoPE的原理，推导以及代码实现。
+
 # 参考文献
 
-- [Is LLaMA rotary embedding implementation correct?](https://discuss.huggingface.co/t/is-llama-rotary-embedding-implementation-correct/44509/2)
-- [[LLaMA] Rotary positional embedding differs with official implementation](https://github.com/huggingface/transformers/issues/25199)
-- [RoPE blog](https://kexue.fm/archives/8130/comment-page-6#comments)
-- [RoFormer](http://arxiv.org/abs/2104.09864)
+1. [You could have designed state of the art positional encoding](https://huggingface.co/blog/designing-positional-encoding)
+2. [Is LLaMA rotary embedding implementation correct?](https://discuss.huggingface.co/t/is-llama-rotary-embedding-implementation-correct/44509/2)
+3. [[LLaMA] Rotary positional embedding differs with official implementation](https://github.com/huggingface/transformers/issues/25199)
+4. [RoPE blog](https://kexue.fm/archives/8130/comment-page-6#comments)
+5. [RoFormer](http://arxiv.org/abs/2104.09864)
+6. [位置编码之路](https://zhuanlan.zhihu.com/p/1894384438206505105)
