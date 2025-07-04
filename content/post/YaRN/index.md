@@ -14,9 +14,10 @@ categories:
 
 YaRN (Yet Another RoPE extentionN method) 时23年9月EleutherAI等提出来的一个扩展LLM上下文长度的方法，后来被Qwen系列模型所应用。
 
+
 # Preliminary
 
-作者首先回顾了一下[[RoPE]], 并使用了 $f_{W}(x_m, m, \theta_d)$ 来表示RoPE：
+作者首先回顾了一下RoPE, 具体内容请参见上一篇[blog](https://maosong.website/p/position-encoding%E6%80%BB%E7%BB%93/)。并使用了 $f_{W}(x_m, m, \theta_d)$ 来表示RoPE：
 
 $$
 f_{W}(x_m, m, \theta_{d}) = \Theta_{\theta, m}^d W x_m
@@ -147,7 +148,7 @@ $$
 
 作者发现，通过这种scaling的方式，YaRN可以在不改变代码的前提下，更改attention的机制。并且，其不增加训练和推理的cost
 
-作者将YaRN定义为结合了NTK-by-parts interpolation和上述scaling技巧的方法
+作者将YaRN定义为**结合了NTK-by-parts interpolation和上述scaling技巧的方法**
 
 对于LLaMA，作者推荐使用如下参数：
 
