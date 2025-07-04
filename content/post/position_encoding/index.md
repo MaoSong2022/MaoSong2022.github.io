@@ -2,7 +2,7 @@
 title: Position encoding总结
 description: 从Absolute position encoding到RoPE
 date: 2025-05-19 10:46:39+0800
-lastmod: 2025-06-29 09:49:27+0800
+lastmod: 2025-07-04 18:43:05+0800
 tags: 
     - position encoding
 categories:
@@ -388,6 +388,34 @@ R_{\theta,m}^d = \begin{bmatrix}
 $$
 
 我们可以验证公式(5)仍然是成立的。
+
+## RoPE的远程衰减性质
+
+我们接下来看一下结果与相对距离 $m-n$ 之间的关系， 注意到
+
+$$
+\langle f_q(\bm{x}_q,m), f_v(\bm{x}_k,m)\rangle = \bm{q}^TR_{\theta,m-n}\bm{k} = \sum_{i=1}^{d/2} \bm{q}_i^TR_{\theta, m-n}\bm{k}_i
+$$
+
+这里 $\bm{q}_i=[q_{2i},q_{2i+1}]^T$, $\bm{k}_i=[k_{2i},k_{2i+1}]^T$ 分别是对应的pair，我们考虑其中一个分量，不妨假设 $\|\bm{q}\|_2=\|\bm{k}\|_2=1$, 我们有
+
+$$
+\begin{aligned}
+\bm{q}_i^TR_{\theta, m-n}\bm{k}_i
+&\leq \bm{q}_i^TR_{\theta, m-n}\bm{q}_i\\
+&= \bm{q}_i^T\left(\frac{R_{\theta, m-n}+R_{\theta, m-n}^T}{2}\right)\bm{q}_i\\
+&\leq \lambda_{\max}\left(\frac{R_{\theta, m-n}+R_{\theta, m-n}^T}{2}\right) \\
+&= \cos (m-n)\theta_i
+\end{aligned}
+$$
+
+其中，第一个不等式是因为 两个向量相等时其内积最大，第二个不等式是由于二次型最大值为矩阵的特征值。
+
+这样我们就有
+
+$$
+\langle f_q(\bm{x}_q,m), f_v(\bm{x}_k,m)\rangle \leq \sum_{i=1}^{d/2}\cos (m-n)\theta_i.
+$$
 
 # RoPE代码实现与理解
 
