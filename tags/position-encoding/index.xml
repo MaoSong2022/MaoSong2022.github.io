@@ -1,0 +1,636 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Position Encoding on Mao Song(毛松)'s Homepage</title><link>https://maosong2022.github.io/tags/position-encoding/</link><description>Recent content in Position Encoding on Mao Song(毛松)'s Homepage</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><lastBuildDate>Fri, 04 Jul 2025 18:43:05 +0800</lastBuildDate><atom:link href="https://maosong2022.github.io/tags/position-encoding/index.xml" rel="self" type="application/rss+xml"/><item><title>Position encoding总结</title><link>https://maosong2022.github.io/p/position-encoding%E6%80%BB%E7%BB%93/</link><pubDate>Mon, 19 May 2025 10:46:39 +0800</pubDate><guid>https://maosong2022.github.io/p/position-encoding%E6%80%BB%E7%BB%93/</guid><description>&lt;blockquote>
+&lt;p>本文前半部分参考 &lt;a class="link" href="https://huggingface.co/blog/designing-positional-encoding" target="_blank" rel="noopener"
+>参考文献1&lt;/a>，推荐大家看博客原文。&lt;/p>
+&lt;/blockquote>
+&lt;h1 id="introduction">Introduction
+&lt;/h1>&lt;p>在 &lt;a class="link" href="https://maosong.website/p/%E5%85%B3%E4%BA%8Eattention-bias%E7%9A%84%E4%B8%80%E4%BA%9B%E6%80%9D%E8%80%83/" target="_blank" rel="noopener"
+>上一篇blog&lt;/a> 中, 我们介绍了 Attention 的两个性质，也就是在不加 position encoding 的情况下，Attention 对于 query 是 permutation equivariant 的，对于 key 和 value 是 permutation invariant 的。&lt;/p>
+&lt;p>但是“我爱你”和“你爱我”这两句话所表示的含义应该是不一样的，我们将这两句话作为 key 和 value 的时候，我们发现模型的输出是一致的，这显然是不能接受的。因此，我们就需要加入 position encoding，让模型学习到语序信息，从而明白不同的语序有不同的含义。&lt;/p>
+&lt;p>下面是测试代码 （来自 &lt;a class="link" href="https://huggingface.co/blog/designing-positional-encoding" target="_blank" rel="noopener"
+>参考文献1&lt;/a>）&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;span class="lnt">21
+&lt;/span>&lt;span class="lnt">22
+&lt;/span>&lt;span class="lnt">23
+&lt;/span>&lt;span class="lnt">24
+&lt;/span>&lt;span class="lnt">25
+&lt;/span>&lt;span class="lnt">26
+&lt;/span>&lt;span class="lnt">27
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">torch&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">torch.nn&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="nn">nn&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">transformers&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">AutoTokenizer&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">AutoModel&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">model_id&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s2">&amp;#34;meta-llama/Llama-3.2-1B&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">tok&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">AutoTokenizer&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">from_pretrained&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">model_id&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">model&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">AutoModel&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">from_pretrained&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">model_id&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">text&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s2">&amp;#34;The dog chased another dog&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">tokens&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">tok&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">text&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">return_tensors&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;pt&amp;#34;&lt;/span>&lt;span class="p">)[&lt;/span>&lt;span class="s2">&amp;#34;input_ids&amp;#34;&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">embeddings&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">model&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">embed_tokens&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">tokens&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">hdim&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">embeddings&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">shape&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">W_q&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Linear&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">hdim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">hdim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">bias&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="kc">False&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">W_k&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Linear&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">hdim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">hdim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">bias&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="kc">False&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">W_v&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Linear&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">hdim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">hdim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">bias&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="kc">False&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">mha&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">MultiheadAttention&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">embed_dim&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">hdim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">num_heads&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">4&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">batch_first&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="kc">True&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">with&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">no_grad&lt;/span>&lt;span class="p">():&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">for&lt;/span> &lt;span class="n">param&lt;/span> &lt;span class="ow">in&lt;/span> &lt;span class="n">mha&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">parameters&lt;/span>&lt;span class="p">():&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">init&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">normal_&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">param&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">std&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mf">0.1&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="c1"># Initialize weights to be non-negligible&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">output&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">_&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">mha&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">W_q&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">embeddings&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="n">W_k&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">embeddings&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="n">W_v&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">embeddings&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">dog1_out&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">output&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="mi">0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">dog2_out&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">output&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="mi">0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">5&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nb">print&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="sa">f&lt;/span>&lt;span class="s2">&amp;#34;Dog output identical?: &lt;/span>&lt;span class="si">{&lt;/span>&lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">allclose&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">dog1_out&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">dog2_out&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">atol&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mf">1e-6&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="si">}&lt;/span>&lt;span class="s2">&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="c1">#True&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>Position encoding 可以分为绝对位置编码 (absolute position encoding, APE)，相对位置编码 (relative position encoding, RPE) 以及可学习的位置编码。可学习位置编码主要是 BERT 类的模型在使用，其训练成本比较高，本文不做讨论。绝对位置编码是原始 transformer 里提出的编码模式，现在的大多数基于 transformer 模型使用的都是相对位置编码。&lt;/p>
+&lt;p>本文中，我们先介绍位置编码应该具有的性质，然后我们分别介绍绝对位置编码和相对位置编码，我们将着重关注苏剑林老师提出来的 RoPE。&lt;/p>
+&lt;h1 id="位置编码">位置编码
+&lt;/h1>&lt;p>在介绍位置编码之前，我们首先应该关注位置编码的性质，位置编码的目标是为输入的 token embedding 增加位置信息，那么理想的位置编码应该是怎么样的呢？&lt;/p>
+&lt;p>我们这里直接引用 &lt;a class="link" href="https://huggingface.co/blog/designing-positional-encoding" target="_blank" rel="noopener"
+>参考文献1&lt;/a> 中给定的性质：&lt;/p>
+&lt;ol>
+&lt;li>&lt;strong>性质 1&lt;/strong>: token sequence 中每个位置的位置编码都是唯一的。这个很好理解，如果不唯一的话，那么根据前面推导的性质，这两个位置的 attention 输出就完全一致了&lt;/li>
+&lt;li>&lt;strong>性质 2&lt;/strong>: 线性相关性。也就是说，如果我们知道了位置 $p$ 处的位置编码，那么理想情况下，我们应该能比较简单地得到 $p+k$ 处的位置编码，理想情况下，我们应该有 $PE(p+k)=W_kPE(p)$.&lt;/li>
+&lt;li>&lt;strong>性质 3&lt;/strong>: 泛化到长上下文中去。我们希望位置编码不仅在 8K 的上下文起作用，还希望位置编码能够泛化到 32K 的上下文&lt;/li>
+&lt;li>&lt;strong>性质 4&lt;/strong>: 生成模式是固定的。固定的模式有助于模型更好地学习位置相关的信息&lt;/li>
+&lt;li>&lt;strong>性质 5&lt;/strong>: 可以扩展到多维。我们希望位置编码可以从文本扩展到图片再到视频，也就是从 $1D$ 到 $nD$.&lt;/li>
+&lt;/ol>
+&lt;h1 id="绝对位置编码">绝对位置编码
+&lt;/h1>&lt;p>绝对位置编码依照其名称，其思想就是为每个位置的 token 分配一个固定的位置信息，也就是对于输入的 hidden states $\bm{x}=[\bm{x}_1,\dots,\ \bm{x}_m]\in\mathbb{R}^{m\times d}$, 我们有&lt;/p>
+$$
+\bm{x}_i' = \bm{x}_i + p_i, i=1,\dots, m
+$$&lt;p>这里，$p_i\in\mathbb{R}^d$. 我们的 attention 就变成了&lt;/p>
+$$
+\mathrm{Attn}(X) = \mathrm{softmax}\left(\frac{(Q+P)(K+P)^T}{\sqrt{d}}\right)V\in\mathbb{R}^{m\times d}
+$$&lt;p>这里&lt;/p>
+$$
+P = [p_1,\dots,p_m]\in\mathbb{R}^{m\times d}， Q= W_QX\in\mathbb{R}^{m\times d}, K=W_KX, V=W_VX\in\mathbb{R}^{n\times d}
+$$&lt;h2 id="整数位置编码">整数位置编码
+&lt;/h2>&lt;p>一个最简单的想法就是我们使用正整数来标记 token 所在的位置，也就是&lt;/p>
+$$
+PE(i) = [i, \dots, i]=i\mathbf{1}_{d\times 1}\in\mathbb{R}^d,\ i=1,\dots,m
+$$&lt;p>可以看到，这个简单的设计满足性质 1，性质 2，性质 3，性质 4.&lt;/p>
+&lt;p>但是，注意到 attention 的输入 $X$ 通常是经过 Layer Normalization 处理过后的，因此其按列符合正态分布，并且均值和方差一般较小。当我们加上整数位置编码之后，其 token 本身的信息就会被污染，也就是信噪比非常低。一个解决方法就是我们对 $PE(i)$ 进行 normalization，即&lt;/p>
+$$
+PE(i)' = \frac{1}{m}PE(i) = \frac{i}{m}\mathbf{1}_{d\times 1}
+$$&lt;p>现在所有的位置编码的值都比较小，但是我们发现新的位置编码不满足性质 2 了，这是因为现在位置编码还和 sequence 长度有关，我们从位置 $p$ 到位置 $p+k$ 不仅取决于 $k$ 还取决于 sequence 长度 $m$&lt;/p>
+&lt;h2 id="二进制位置编码">二进制位置编码
+&lt;/h2>&lt;p>既然整数位置编码的主要问题是对输入影响太大，我们能否找一个不影响输入的整数位置编码方式呢？ &lt;a class="link" href="https://huggingface.co/blog/designing-positional-encoding" target="_blank" rel="noopener"
+>参考文献1&lt;/a> 提出了二进制位置编码，因为每个 token 是 $d$ 维的，因此我们可以使用 $d$ 位二进制来表示 $i$. 比如说，当 $d=3$, $m=4$ 时，我们的位置编码分别为&lt;/p>
+$$
+PE(0) =p_{(000)_2} = [0, 0, 0],\ PE(1) =p_{(001)_2}= [0, 0, 1],\ PE(2) =p_{(010)_2} = [0, 1, 0],\ PE(3) =p_{(011)_2} = [0, 1, 1]
+$$&lt;p>现在，我们二进制位置编码满足性质 1，性质 2. 对于性质 3，由于 $d$ 位二进制的表示范围为 $[0, 2^d-1]$，因此其泛化性受到 $d$ 的影响。&lt;/p>
+&lt;p>&lt;a class="link" href="https://huggingface.co/blog/designing-positional-encoding" target="_blank" rel="noopener"
+>参考文献1&lt;/a> 画出了不同位置的值的变化情况。我们这里也模仿绘制出类似的曲线图&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/position-encoding%E6%80%BB%E7%BB%93/RoPE_binary_position_encoding.png"
+width="1400"
+height="800"
+srcset="https://maosong2022.github.io/p/position-encoding%E6%80%BB%E7%BB%93/RoPE_binary_position_encoding_hu2257952624178844849.png 480w, https://maosong2022.github.io/p/position-encoding%E6%80%BB%E7%BB%93/RoPE_binary_position_encoding_hu2340593386986551550.png 1024w"
+loading="lazy"
+alt="Binary Position Encoding"
+class="gallery-image"
+data-flex-grow="175"
+data-flex-basis="420px"
+>&lt;/p>
+&lt;p>我们发现，二进制位置编码高位，也就是 $PE(i)&lt;em>{d}$ 的变化很慢，而低位，也就是 $PE(i)&lt;/em>{0}$ 变化很快，&lt;/p>
+&lt;p>二进制位置编码解决了整数位置编码的信噪比过低和线性相关性。但是其问题是其对不同位置的 token embedding 产生的影响是不一样的。比如位置 1 和位置 2 的相同的 token embedding 之间的区别是：&lt;/p>
+$$
+(\bm{x}_2 + PE(2)) - (\bm{x}_1 + PE(1)) = (\bm{x}_2-\bm{x}_1)+ [0, 1, -1]
+$$&lt;p>一般来说, $\bm{x}_2-\bm{x}_1$ 比较小，因此使用二进制位置编码的问题是输入位置的微小变化（增加一个 token 或减少一个 token）都会对最终结果产生巨大影响。因此，我们需要想办法解决这个问题。&lt;/p>
+&lt;h2 id="sinusoidal">Sinusoidal
+&lt;/h2>&lt;p>前面提到二进制位置编码的问题是相邻 token 之间变化太大，不够光滑。因此我们想要增加一个光滑性质，也就是说我们希望：&lt;/p>
+&lt;ol>
+&lt;li>位置编码值在 $[-1, 1]$ 之间，防止对 token embedding 产生影响&lt;/li>
+&lt;li>相邻 token 的位置编码尽可能相近，即 $|PE(k+p)-PE(p)| \leq \delta |k|$, 其中 $\delta&amp;gt;0$ 是一个比较小的数。&lt;/li>
+&lt;li>与二进制一样，高位的变化比较慢，低位的变化比较快&lt;/li>
+&lt;/ol>
+&lt;p>一个想法就是利用三角函数 $\sin$ 或者 $\cos$，三角函数满足前两个性质， 对于第三个性质，我们可以通过控制频率来满足。这样我们得到的位置编码就具有如下形式：&lt;/p>
+$$
+PE(p, i) = \sin\left(\frac{p}{\theta^{i/d}}\right)
+$$&lt;p>其中 $\theta$ 是我们的超参数。&lt;/p>
+&lt;p>我们现在来推导一下上面位置编码的线性相关性：&lt;/p>
+$$
+PE(p+k) = \sin\left(\frac{p+k}{\theta^{i/d}}\right)=PE(p)\cos\left(\frac{k}{\theta^{i/d}}\right) + \cos\left(\frac{p}{\theta^{i/d}}\right)\sin\left(\frac{k}{\theta^{i/d}}\right)
+$$&lt;p>我们发现，$\sin$ 位置编码不满足线性相关性。但是出现的 $\cos$ 给了我们启发，也就是我们可以同时使用 $\sin$ 和 $\cos$ 来完成位置编码，这也是原始 transformer 里提出来的 Sinusoidal 位置编码，其形式为：&lt;/p>
+$$
+\begin{aligned}
+PE(p, 2i) &amp;= \sin\left(\frac{p}{\theta^{2i/d}}\right)\\
+PE(p, 2i+1) &amp;= \cos\left(\frac{p}{\theta^{2i/d}}\right)
+\end{aligned}
+$$&lt;p>现在，记 $\omega_i=1/\theta^{2i/d}$, 我们再推导一下线性相关性，就得到：&lt;/p>
+$$
+\begin{aligned}
+\begin{bmatrix}
+PE(p+k, 2i)\\
+PE(p+k, 2i+1)\\
+\end{bmatrix}&amp;=\begin{bmatrix}
+\sin \omega_i(p+k)\\
+\cos \omega_i(p+k)
+\end{bmatrix}\\
+&amp;=\begin{bmatrix}
+\sin \omega_i(\omega_ip)\cos(\omega_ik)+\cos w_i(\omega_ip)\sin(\omega_ik)\\
+\cos \omega_i(\omega_ip)\cos(\omega_ik)-\sin w_i(\omega_ip)\sin(\omega_ik)
+\end{bmatrix}\\
+&amp;= \begin{bmatrix}
+\cos(\omega_ik)&amp; \sin(\omega_ik)\\
+-\sin(\omega_ik)&amp; \cos(\omega_ik)
+\end{bmatrix}\begin{bmatrix}
+PE(p, 2i)\\
+PE(p, 2i+1)\\
+\end{bmatrix}
+\end{aligned}
+$$&lt;p>也就是说，Sinusoidal 位置编码满足线性相关性。对于 Sinusoidal 位置编码我们也可以进行可视化：&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/position-encoding%E6%80%BB%E7%BB%93/RoPE_sinusoidal_position_encoding.png"
+width="1400"
+height="800"
+srcset="https://maosong2022.github.io/p/position-encoding%E6%80%BB%E7%BB%93/RoPE_sinusoidal_position_encoding_hu12672545324139701707.png 480w, https://maosong2022.github.io/p/position-encoding%E6%80%BB%E7%BB%93/RoPE_sinusoidal_position_encoding_hu9945773915385487910.png 1024w"
+loading="lazy"
+alt="Sinusoidal Position Encoding"
+class="gallery-image"
+data-flex-grow="175"
+data-flex-basis="420px"
+>&lt;/p>
+&lt;h1 id="相对位置编码">相对位置编码
+&lt;/h1>&lt;p>前面介绍了绝对位置编码，每个位置的位置编码是固定的。但是绝对位置编码的问题是，模型比较难以学习相对位置关系。&lt;/p>
+&lt;p>举个例子，我们提到上下文时，通常会使用“上一节”，“上一章”这些表示相对位置关系的词。&lt;/p>
+&lt;p>因此，我们希望让模型学习相对位置关系而不是绝对位置关系，因为相对关系更符合我们的认知。&lt;/p>
+&lt;h2 id="rope">RoPE
+&lt;/h2>&lt;p>RoPE 由苏剑林老师提出，最早应用于 LLaMA 架构（没有确认），后续被大多数模型所采用。&lt;/p>
+&lt;p>之前的 PE 大多数关注于加性位置编码，也就是&lt;strong>假设位置编码的形式为 $\bm{x}+\bm{p}$&lt;/strong>, 基于这种假设，已有的工作基本都集中于优化下面的 Q 和 K 的内积&lt;/p>
+$$
+\langle f_q(\bm{x}_q, m), f_k(\bm{x}_k, n) \rangle
+$$&lt;p>这里 $f_q(\bm{x}_q, m)=W_q(\bm{x}_q+\bm{p}_m)$, $f_k(\bm{x}_k, n)=W_k(\bm{x}_k+ \bm{p}_n)$.&lt;/p>
+&lt;p>而 RoPE 里面，作者使用了一个不同的假设： &lt;strong>假设内积应该仅包含两者的相对信息&lt;/strong>，也就是&lt;/p>
+$$
+\langle f_q(\bm{x}_q, m), f_q(\bm{x}_k, n)\rangle := g(\bm{x}_q,\bm{x}_k, m-n)
+$$&lt;p>这里的 $f$ 和 $g$ 都是未知函数。我们的目标就是从这个公式中推导出一个合适的位置编码出来。&lt;/p>
+&lt;p>不失一般性，我们可以假设&lt;/p>
+$$
+f_q(\bm{x}_m,0) = \bm{x}_q,\quad f_q(\bm{x}_n, 0) = \bm{x}_k
+$$&lt;p>这个假设代表初始条件下，我们不对输入做任何改变，也就是不增加位置信息。&lt;/p>
+&lt;h2 id="2d-推导">2D 推导
+&lt;/h2>&lt;p>与 RoPE 一样，我们直接使用复平面来进行推导。&lt;/p>
+&lt;p>我们假设 $d=2$, 注意到二维平面上的每个点都可以表示为如下形式&lt;/p>
+$$
+\bm{z} = (x,y) = re^{i\theta}
+$$&lt;p>其中 ($\mathrm{atan2}$ 定义参考 &lt;a class="link" href="https://en.wikipedia.org/wiki/Polar_coordinate_system" target="_blank" rel="noopener"
+>维基百科&lt;/a>)&lt;/p>
+$$
+r = \|\bm{z}\|_2 = \sqrt{x^2+y^2}\in\mathbb{R},\quad \theta = \mathrm{atan2}(y, x)\in\mathbb{R},
+$$&lt;p>现在，对于三个向量 $f_q(\bm{x}_q, m)$, $f_q(\bm{x}_k, n)$, $g(\bm{x}_q,\bm{x}_k, m-n)$ 我们可以写出其极坐标形式：&lt;/p>
+$$
+\begin{aligned}
+f_q(\bm{x}_q,m) &amp;:= r_q(\bm{x}_q,m)e^{i\theta_q(\bm{x}_q,m)}\\
+f_k(\bm{x}_k, n) &amp;:= r_k(\bm{x}_k, n)e^{i\theta_k(\bm{x}_k, n)}\\
+g(\bm{x}_q,\bm{x}_k, m-n) &amp;:= r_g(\bm{x}_q,\bm{x}_k, m-n)e^{i\theta_g(\bm{x}_q,\bm{x}_k, m-n)}
+\end{aligned}
+$$&lt;p>我们计算内积并比较同类项得到：&lt;/p>
+$$
+\begin{aligned}
+r_g(\bm{x}_q,\bm{x}_k, m-n) &amp;:= r_q(\bm{x}_q,m)r_k(\bm{x}_k, n)\\
+\theta_g(\bm{x}_q,\bm{x}_k, m-n) &amp;:= \theta_q(\bm{x}_q,m)-\theta_k(\bm{x}_k, n)
+\end{aligned}\tag{3}
+$$&lt;p>我们接下来分别推导 $r_g(\bm{x}_q,\bm{x}_k, m-n)$ 和 $\theta_g(\bm{x}_q,\bm{x}_k, m-n)$ 的形式&lt;/p>
+&lt;h3 id="r_gbmx_qbmx_k-m-n">$r_g(\bm{x}_q,\bm{x}_k, m-n)$
+&lt;/h3>&lt;p>我们令 $m=n=0$ 可以得到初始条件&lt;/p>
+$$
+r_g(\bm{x}_q,\bm{x}_k, 0) = r_q(\bm{x}_q,0)r_k(\bm{x}_k, 0)=\|\bm{q}\|_2\|\bm{k}\|_2
+$$&lt;p>我们再令 $n=0$,得到&lt;/p>
+$$
+r_g(\bm{x}_q,\bm{x}_k, m) = r_q(\bm{x}_q,m)r_k(\bm{x}_k, 0)=r_q(\bm{x}_q,m)\|\bm{k}\|_2=\frac{r_g(\bm{x}_q,\bm{x}_k, m-n)}{r_k(\bm{x}_k, n)}\|\bm{k}\|_2
+$$&lt;p>这里最后一个等式带入了原始等式 (3)，注意到左侧与 $n$ 无关，因此右侧我们选取 $n=1$, 得到&lt;/p>
+$$
+r_g(\bm{x}_q,\bm{x}_k, m) = \frac{r_g(\bm{x}_q,\bm{x}_k, m-1)}{r_k(\bm{x}_k, 1)}\|\bm{k}\|_2 =\cdots= r_g(\bm{x}_q,\bm{x}_k, 0)\left(\frac{\|\bm{k}\|_2 }{r_k(\bm{x}_k, 1)}\right)^{m+1}
+$$&lt;p>令 $m=0$ 我们有&lt;/p>
+$$
+r_k(\bm{x}_k, 1) = \|\bm{k}\|_2.
+$$&lt;p>因此我们最终的表达式为：&lt;/p>
+$$
+r_g(\bm{x}_q,\bm{x}_k, m) = r_g(\bm{x}_q,\bm{x}_k, 0) = \|\bm{q}\|_2\|\bm{k}\|_2.
+$$&lt;p>并且，通过分别设置 $m=0$ 以及 $n=0$ 我们还可以得到&lt;/p>
+$$
+r_q(\bm{x}_q,m) = \|\bm{q}\|_2,\quad r_k(\bm{x}_k, n) = \|\bm{k}\|_2
+$$&lt;h3 id="theta_gbmx_qbmx_k-m-n">$\theta_g(\bm{x}_q,\bm{x}_k, m-n)$
+&lt;/h3>&lt;p>令 $m=n=0$, 我们得到初始条件&lt;/p>
+$$
+\theta_g(\bm{x}_q,\bm{x}_k, 0) = \theta_q(\bm{x}_q,0)-\theta_k(\bm{x}_k, 0)=\theta_q-\theta_k
+$$&lt;p>令 $n=1$, 我们有&lt;/p>
+$$
+\begin{aligned}
+\theta_g(\bm{x}_q,\bm{x}_k, m-1) &amp;= \theta_q(\bm{x}_q,m)-\theta_k(\bm{x}_k, 1)\\
+&amp;=\theta_g(\bm{x}_q,\bm{x}_k, m-n) + \theta_k(\bm{x}_k, n)-\theta_k(\bm{x}_k, 1)
+\end{aligned}
+$$&lt;p>这里我们带入了公式 (3)，注意到公式左边与 $n$ 无关，因此在公式右侧我们令 $n=0$, 得到&lt;/p>
+$$
+\theta_g(\bm{x}_q,\bm{x}_k, m-1) = \theta_g(\bm{x}_q,\bm{x}_k, m)+ \theta_k(\bm{x}_k, 0)-\theta_k(\bm{x}_k, 1)
+$$&lt;p>分别令 $m=1,2,\dots$ 并相加这些等式，我们得到&lt;/p>
+$$
+\theta_g(\bm{x}_q,\bm{x}_k, 0) = \theta_g(\bm{x}_q,\bm{x}_k, m) + m(\theta_k(\bm{x}_k, 0)-\theta_k(\bm{x}_k, 1))
+$$&lt;p>即&lt;/p>
+$$
+\theta_g(\bm{x}_q,\bm{x}_k, m) = m(\theta_k(\bm{x}_k, 1)-\theta_k(\bm{x}_k, 0))+(\theta_q-\theta_k)\tag{4}
+$$&lt;p>注意到&lt;/p>
+$$
+\theta_g(\bm{x}_q,\bm{x}_k, m) = \theta_q(\bm{x}_q,m)-\theta_k(\bm{x}_k, 0)=\theta_q(\bm{x}_q,m)-\theta_k
+$$&lt;p>带入上式我们就得到&lt;/p>
+$$
+\theta_q(\bm{x}_q,m) = m(\theta_k(\bm{x}_k, 1)-\theta_k(\bm{x}_k, 0))+\theta_q
+$$&lt;p>在 (4) 式中再令 $m=m-n$，并带入 $\theta_q(\bm{x}_q,m)$ 就有&lt;/p>
+$$
+\theta_k(\bm{x}_k,n) = n(\theta_k(\bm{x}_k, 1)-\theta_k(\bm{x}_k, 0))+\theta_k
+$$&lt;h2 id="汇总">汇总
+&lt;/h2>&lt;p>最后，我们将以上结果放在一起，就得到&lt;/p>
+$$
+f_q(\bm{x}_q,m) = \bm{q}e^{im\theta}, f_v(\bm{x}_k,m) = \bm{k}e^{in\theta}
+$$&lt;p>这里 $\theta=\theta_k(\bm{x}_k, 1)-\theta_k(\bm{x}_k, 0)$ 是一个超参数，用于控制频率。&lt;/p>
+&lt;p>我们记&lt;/p>
+$$
+R_{\theta,m} = \begin{bmatrix}
+\cos m\theta &amp; -\sin m\theta\\
+\sin m\theta &amp; \cos m\theta
+\end{bmatrix}
+$$&lt;p>则我们有：&lt;/p>
+$$
+f_q(\bm{x}_q,m) = R_{\theta,m}\bm{q}, f_v(\bm{x}_k,m) = R_{\theta,n}\bm{k}.
+$$&lt;p>并且&lt;/p>
+$$
+\langle f_q(\bm{x}_q,m), f_v(\bm{x}_k,m)\rangle = \bm{q}^TR_{\theta,m-n}\bm{k} \tag{5}
+$$&lt;h2 id="多维扩展">多维扩展
+&lt;/h2>&lt;p>上面是 2D 的情况，对于多维情况，苏剑林老师通过将两个元素组对，然后分别进行处理，得到了多维的情形：&lt;/p>
+$$
+R_{\theta,m}^d = \begin{bmatrix}
+R_{\theta_1,m} &amp; &amp; &amp;&amp; &amp; \\
+&amp; &amp; R_{\theta_2,m} &amp; &amp; &amp; \\
+&amp;&amp;&amp;&amp; \ddots &amp; \\
+&amp;&amp;&amp;&amp; &amp; R_{\theta_{d/2},m}
+\end{bmatrix}\in\mathbb{R}^{d\times d}
+$$&lt;p>我们可以验证公式 (5) 仍然是成立的。&lt;/p>
+&lt;h2 id="rope-的远程衰减性质">RoPE 的远程衰减性质
+&lt;/h2>&lt;p>我们接下来看一下结果与相对距离 $m-n$ 之间的关系， 注意到&lt;/p>
+$$
+\langle f_q(\bm{x}_q,m), f_v(\bm{x}_k,m)\rangle = \bm{q}^TR_{\theta,m-n}\bm{k} = \sum_{i=1}^{d/2} \bm{q}_i^TR_{\theta, m-n}\bm{k}_i
+$$&lt;p>这里 $\bm{q}&lt;em>i=[q&lt;/em>{2i},q_{2i+1}]^T$, $\bm{k}&lt;em>i=[k&lt;/em>{2i},k_{2i+1}]^T$ 分别是对应的 pair，我们考虑其中一个分量，不妨假设 $|\bm{q}|_2=|\bm{k}|_2=1$, 我们有&lt;/p>
+$$
+\begin{aligned}
+\bm{q}_i^TR_{\theta, m-n}\bm{k}_i
+&amp;\leq \bm{q}_i^TR_{\theta, m-n}\bm{q}_i\\
+&amp;= \bm{q}_i^T\left(\frac{R_{\theta, m-n}+R_{\theta, m-n}^T}{2}\right)\bm{q}_i\\
+&amp;\leq \lambda_{\max}\left(\frac{R_{\theta, m-n}+R_{\theta, m-n}^T}{2}\right) \\
+&amp;= \cos (m-n)\theta_i
+\end{aligned}
+$$&lt;p>其中，第一个不等式是因为 两个向量相等时其内积最大，第二个不等式是由于二次型最大值为矩阵的特征值。&lt;/p>
+&lt;p>这样我们就有&lt;/p>
+$$
+\langle f_q(\bm{x}_q,m), f_v(\bm{x}_k,m)\rangle \leq \sum_{i=1}^{d/2}\cos (m-n)\theta_i.
+$$&lt;p>我们可以简单画出对应的曲线：&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/position-encoding%E6%80%BB%E7%BB%93/RoPE_long_term_decay.png"
+width="1200"
+height="600"
+srcset="https://maosong2022.github.io/p/position-encoding%E6%80%BB%E7%BB%93/RoPE_long_term_decay_hu12721434127033867948.png 480w, https://maosong2022.github.io/p/position-encoding%E6%80%BB%E7%BB%93/RoPE_long_term_decay_hu8640095232158000116.png 1024w"
+loading="lazy"
+alt="Long term decay of RoPE"
+class="gallery-image"
+data-flex-grow="200"
+data-flex-basis="480px"
+>&lt;/p>
+&lt;p>这里针对不同的配置，结果也会略微不同，具体分析可以参加知乎回答 &lt;a class="link" href="https://zhuanlan.zhihu.com/p/705492804" target="_blank" rel="noopener"
+>RoPE的远距离衰减&lt;/a>&lt;/p>
+&lt;h1 id="rope-代码实现与理解">RoPE 代码实现与理解
+&lt;/h1>&lt;h2 id="naive-实现">Naive 实现
+&lt;/h2>&lt;p>我们接下来看一下如何实现 RoPE&lt;/p>
+$$
+\Theta_m\bm{x}=\begin{bmatrix}
+\cos m\theta_0 &amp; -\sin m\theta_0 &amp; &amp;&amp;\cdots &amp;\cdots &amp;\cdots \\
+\sin m\theta_0 &amp; \cos m\theta_0 &amp; &amp;&amp;\cdots &amp;\cdots &amp;\cdots\\
+&amp; &amp; \cos m\theta_1 &amp; -\sin m\theta_1 &amp; \cdots &amp;\cdots &amp;\cdots\\
+&amp; &amp; \sin m\theta_1 &amp; \cos m\theta_1 &amp; \cdots &amp;\cdots &amp;\cdots \\
+&amp;&amp;&amp;&amp; \ddots &amp;\vdots &amp;\vdots\\
+&amp;&amp;&amp;&amp; &amp; \cos m\theta_{d/2} &amp; -\sin m\theta_{d/2}\\
+&amp;&amp;&amp;&amp; &amp; \sin m\theta_{d/2} &amp; \cos m\theta_{d/2}
+\end{bmatrix}\begin{bmatrix}
+x_1\\
+x_2\\
+\vdots \\
+x_d
+\end{bmatrix}
+$$&lt;p>在实现的时候，我们一般根据 $\sin$ 和 $\cos$ 进行分组，也就是&lt;/p>
+$$
+\Theta_m\bm{x}=\begin{bmatrix}
+\cos m\theta_0\\
+\cos m\theta_0\\
+\vdots\\
+\cos m\theta_{d/2}\\
+\cos m\theta_{d/2}\\
+\end{bmatrix}\odot \begin{bmatrix}
+x1\\
+x2\\
+\vdots\\
+x_{d-1}\\
+x_d\\
+\end{bmatrix} + \begin{bmatrix}
+\sin m\theta_0\\
+\sin m\theta_0\\
+\vdots\\
+\sin m\theta_{d/2}\\
+\sin m\theta_{d/2}\\
+\end{bmatrix}\odot
+\begin{bmatrix}
+-\ x_2\\
+x_1\\
+\vdots\\
+-x_d\\
+x_{d-1}\\
+\end{bmatrix}
+$$&lt;p>我们通常按照奇偶 index 来分别计算，然后通过重排序来得到最终的结果，实现代码如下：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="k">def&lt;/span> &lt;span class="nf">apply_rotary_pos_emb&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">sin&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">cos&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">-&amp;gt;&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">x_even&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="o">...&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="p">::&lt;/span>&lt;span class="mi">2&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="c1"># (seq_len, d_k_half)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">x_odd&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="o">...&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">::&lt;/span>&lt;span class="mi">2&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="c1"># (seq_len, d_k_half)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">odds&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">cos&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">x_even&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="n">sin&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">x_odd&lt;/span> &lt;span class="c1"># (...,seq_len, d_k_half)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">evens&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">sin&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">x_even&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">cos&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">x_odd&lt;/span> &lt;span class="c1"># (...,seq_len, d_k_half)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">stacked&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">stack&lt;/span>&lt;span class="p">((&lt;/span>&lt;span class="n">odds&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">evens&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="mi">2&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="c1"># (...,seq_len, 2, d_k_half)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">stacked_trans&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">rearrange&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">stacked&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;... seq_len double d_k_half -&amp;gt; ... seq_len d_k_half double&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span> &lt;span class="c1"># (...,seq_len, d_k_half, 2)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">out&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">rearrange&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">stacked_trans&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;... seq_len d_k_half double -&amp;gt; ... seq_len (d_k_half double)&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span> &lt;span class="c1"># (..., seq_len, d_k)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">out&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h2 id="llama-实现">LLaMA 实现
+&lt;/h2>&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;span class="lnt">21
+&lt;/span>&lt;span class="lnt">22
+&lt;/span>&lt;span class="lnt">23
+&lt;/span>&lt;span class="lnt">24
+&lt;/span>&lt;span class="lnt">25
+&lt;/span>&lt;span class="lnt">26
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="k">def&lt;/span> &lt;span class="nf">precompute_freqs_cis&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">dim&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">int&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">end&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">int&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">theta&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">float&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mf">10000.0&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">freqs&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mf">1.0&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">theta&lt;/span> &lt;span class="o">**&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">arange&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">dim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">)[:&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">dim&lt;/span> &lt;span class="o">//&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">)]&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">float&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="n">dim&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">t&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">arange&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">end&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">device&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">freqs&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">device&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="c1"># type: ignore&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">freqs&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">outer&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">t&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">freqs&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">float&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="c1"># type: ignore&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">freqs_cis&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">polar&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ones_like&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">freqs&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="n">freqs&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="c1"># complex64&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">freqs_cis&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">def&lt;/span> &lt;span class="nf">reshape_for_broadcast&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">freqs_cis&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">ndim&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ndim&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">assert&lt;/span> &lt;span class="mi">0&lt;/span> &lt;span class="o">&amp;lt;=&lt;/span> &lt;span class="mi">1&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">ndim&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">assert&lt;/span> &lt;span class="n">freqs_cis&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">shape&lt;/span> &lt;span class="o">==&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">shape&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">],&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">shape&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">])&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">shape&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="n">d&lt;/span> &lt;span class="k">if&lt;/span> &lt;span class="n">i&lt;/span> &lt;span class="o">==&lt;/span> &lt;span class="mi">1&lt;/span> &lt;span class="ow">or&lt;/span> &lt;span class="n">i&lt;/span> &lt;span class="o">==&lt;/span> &lt;span class="n">ndim&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="mi">1&lt;/span> &lt;span class="k">else&lt;/span> &lt;span class="mi">1&lt;/span> &lt;span class="k">for&lt;/span> &lt;span class="n">i&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">d&lt;/span> &lt;span class="ow">in&lt;/span> &lt;span class="nb">enumerate&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">shape&lt;/span>&lt;span class="p">)]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">freqs_cis&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">view&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="n">shape&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">def&lt;/span> &lt;span class="nf">apply_rotary_emb&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">xq&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">xk&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">freqs_cis&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">)&lt;/span> &lt;span class="o">-&amp;gt;&lt;/span> &lt;span class="n">Tuple&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">]:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">xq_&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">view_as_complex&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">xq&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">float&lt;/span>&lt;span class="p">()&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">reshape&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="n">xq&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">shape&lt;/span>&lt;span class="p">[:&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">],&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">xk_&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">view_as_complex&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">xk&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">float&lt;/span>&lt;span class="p">()&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">reshape&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="n">xk&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">shape&lt;/span>&lt;span class="p">[:&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">],&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">freqs_cis&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">reshape_for_broadcast&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">freqs_cis&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">xq_&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">xq_out&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">view_as_real&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">xq_&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">freqs_cis&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">flatten&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">3&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">xk_out&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">view_as_real&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">xk_&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">freqs_cis&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">flatten&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">3&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">xq_out&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">type_as&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">xq&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="n">xk_out&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">type_as&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">xk&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>在 LLaMA 中，我们首先还是计算 $\theta_i$, 然后在计算的过程中，我们将 $(x_i,x_{i+1})$ 视作一个复数，然后 乘以 $\exp(im\theta)$, 最后再取实部得到最终的结果&lt;/p>
+&lt;h2 id="通用实现">通用实现
+&lt;/h2>&lt;p>实际上，naive 版本的实现与现在大语言模型所采用的实现并不一致，我们先看一下现有的大语言模型的 RoPE 实现，这里我们将 &lt;a class="link" href="https://github.com/huggingface/transformers/blob/main/src/transformers/models/llama/modeling_llama.py" target="_blank" rel="noopener"
+>LLaMA的transformer代码&lt;/a> 放在下面，&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;span class="lnt">21
+&lt;/span>&lt;span class="lnt">22
+&lt;/span>&lt;span class="lnt">23
+&lt;/span>&lt;span class="lnt">24
+&lt;/span>&lt;span class="lnt">25
+&lt;/span>&lt;span class="lnt">26
+&lt;/span>&lt;span class="lnt">27
+&lt;/span>&lt;span class="lnt">28
+&lt;/span>&lt;span class="lnt">29
+&lt;/span>&lt;span class="lnt">30
+&lt;/span>&lt;span class="lnt">31
+&lt;/span>&lt;span class="lnt">32
+&lt;/span>&lt;span class="lnt">33
+&lt;/span>&lt;span class="lnt">34
+&lt;/span>&lt;span class="lnt">35
+&lt;/span>&lt;span class="lnt">36
+&lt;/span>&lt;span class="lnt">37
+&lt;/span>&lt;span class="lnt">38
+&lt;/span>&lt;span class="lnt">39
+&lt;/span>&lt;span class="lnt">40
+&lt;/span>&lt;span class="lnt">41
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="k">def&lt;/span> &lt;span class="nf">rotate_half&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s2">&amp;#34;&amp;#34;&amp;#34;Rotates half the hidden dims of the input.&amp;#34;&amp;#34;&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">x1&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="o">...&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="p">:&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">shape&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">//&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">x2&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="o">...&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">shape&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">//&lt;/span> &lt;span class="mi">2&lt;/span> &lt;span class="p">:]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">cat&lt;/span>&lt;span class="p">((&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">x2&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">x1&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="n">dim&lt;/span>&lt;span class="o">=-&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">def&lt;/span> &lt;span class="nf">apply_rotary_pos_emb&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">q&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">k&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">cos&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">sin&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">position_ids&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="kc">None&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">unsqueeze_dim&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">cos&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">cos&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">unsqueeze&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">unsqueeze_dim&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">sin&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">sin&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">unsqueeze&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">unsqueeze_dim&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">q_embed&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">q&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">cos&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">rotate_half&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">q&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">sin&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">k_embed&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">k&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">cos&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">rotate_half&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">k&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">sin&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">q_embed&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">k_embed&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">class&lt;/span> &lt;span class="nc">LlamaRotaryEmbedding&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Module&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="fm">__init__&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">dim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">max_position_embeddings&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">2048&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">base&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">10000&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">device&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="kc">None&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nb">super&lt;/span>&lt;span class="p">()&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="fm">__init__&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">dim&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">dim&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">max_position_embeddings&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">max_position_embeddings&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">base&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">base&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">inv_freq&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mf">1.0&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">base&lt;/span> &lt;span class="o">**&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">arange&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">dim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">float&lt;/span>&lt;span class="p">()&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">to&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">device&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">dim&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">register_buffer&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;inv_freq&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">inv_freq&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">max_seq_len_cached&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">seq_len&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">t&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">arange&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">max_seq_len_cached&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">device&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">device&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">dtype&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">inv_freq&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">dtype&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">freqs&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">einsum&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;i,j-&amp;gt;ij&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">t&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">inv_freq&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1"># Different from paper, but it uses a different permutation in order to obtain the same calculation&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">emb&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">cat&lt;/span>&lt;span class="p">((&lt;/span>&lt;span class="n">freqs&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">freqs&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="n">dim&lt;/span>&lt;span class="o">=-&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">register_buffer&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;cos_cached&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">emb&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">cos&lt;/span>&lt;span class="p">()[&lt;/span>&lt;span class="kc">None&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="kc">None&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="p">:,&lt;/span> &lt;span class="p">:]&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">to&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">dtype&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="n">persistent&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="kc">False&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">register_buffer&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;sin_cached&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">emb&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">sin&lt;/span>&lt;span class="p">()[&lt;/span>&lt;span class="kc">None&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="kc">None&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="p">:,&lt;/span> &lt;span class="p">:]&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">to&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">dtype&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="n">persistent&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="kc">False&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="nf">forward&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">seq_len&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="kc">None&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1"># x: [bs, num_attention_heads, seq_len, head_size]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="n">seq_len&lt;/span> &lt;span class="o">&amp;gt;&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">max_seq_len_cached&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">_set_cos_sin_cache&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">seq_len&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">seq_len&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">device&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">device&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">dtype&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">dtype&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">cos_cached&lt;/span>&lt;span class="p">[:,&lt;/span> &lt;span class="p">:,&lt;/span> &lt;span class="p">:&lt;/span>&lt;span class="n">seq_len&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="o">...&lt;/span>&lt;span class="p">]&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">to&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">dtype&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">dtype&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">sin_cached&lt;/span>&lt;span class="p">[:,&lt;/span> &lt;span class="p">:,&lt;/span> &lt;span class="p">:&lt;/span>&lt;span class="n">seq_len&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="o">...&lt;/span>&lt;span class="p">]&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">to&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">dtype&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">dtype&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>我们将上述代码翻译成公式，现在我们的 $\Theta$ 变成了 (对应 &lt;code>emb = torch.cat((freqs, freqs), dim=-1)&lt;/code>)&lt;/p>
+$$
+\Theta = [\theta_0,\dots,\theta_{d/2},\theta_0,\dots,\theta_{d/2}]^T
+$$&lt;p>实际上 $\sin$ 部分对应的向量现在变成了&lt;/p>
+$$
+[-x_{d/2+1},
+-x_{d/2+2},
+\dots,
+-x_{d},
+x_1,
+\dots,
+x_{d/2}]^T
+$$&lt;p>我们带回到原始公式，可以得到对应的 RoPE 操作变成了&lt;/p>
+$$
+R_{\theta,m}^d=\begin{bmatrix}
+\cos m\theta_0 &amp; &amp; &amp; -\sin m\theta_0 &amp; \cdots &amp;\cdots &amp;\cdots \\
+&amp; &amp; \cos m\theta_1 &amp; &amp;-\sin m\theta_1 &amp; \cdots &amp;\cdots \\
+&amp; &amp; &amp; \cos m\theta_2 &amp; &amp;-\sin m\theta_2 &amp; \cdots \\
+\vdots&amp;\vdots&amp;\vdots&amp;\vdots&amp; \vdots &amp;\vdots &amp;\vdots\\
+&amp; &amp; &amp; &amp;\cos m\theta_{d/2 - 1} &amp; &amp; -\sin m\theta_{d/2 - 1} \\
+\sin m\theta_0 &amp;&amp; &amp; \cos m\theta_0 &amp;&amp;\cdots &amp;\cdots \\
+&amp; &amp; \sin m\theta_1 &amp; &amp;\cos m\theta_1 &amp; \cdots &amp;\cdots \\
+&amp; &amp; &amp; \sin m\theta_2 &amp; &amp;\cos m\theta_2 &amp; \cdots \\
+\vdots&amp;\vdots&amp;\vdots&amp;\vdots&amp; \vdots &amp;\vdots &amp;\vdots\\
+&amp;&amp;&amp;&amp; \sin m\theta_{d/2 - 1}&amp; &amp; \cos m\theta_{d/2 - 1}
+\end{bmatrix}
+$$&lt;p>这列每一行的 $\cos$ 和 $\sin$ 都相差了 $d/2$ 列.&lt;/p>
+&lt;p>因此，这里的区别在于，原始 RoPE 计算的 pair 为 $(x_{i}, x_{i+1})$, 而 LLaMA 里的 RoPE 计算的 pair 为 $(x_{i}, x_{i+d/2})$. transformers library 使用这种方式，可以减少计算量，提高整体的计算效率。&lt;/p>
+&lt;p>为了适应使用 LLaMA 中实现的 RoPE 的，Huggingface 对权重进行了转换，使得基于原始 RoPE 实现的模型也可以获得加速.&lt;/p>
+&lt;p>假设 $d=8$，原始 RoPE 的 pair 为 &lt;code>[(q_0, q_1), (q_2, q_3), (q_4, q_5), (q_6, q_7)]&lt;/code>, 新的 pair 为 &lt;code>[(q_0, q_4), (q_1, q_5), (q_2, q_6), (q_3, q_7)]&lt;/code>. 我们希望对 index 进行 remap，我们发现一个满足条件的 permutation 为 &lt;code>[0, 2, 4, 6, 1, 3, 5, 7]&lt;/code>, 也就是 &lt;code>q_0-&amp;gt;q_0&lt;/code>, &lt;code>q_2-&amp;gt;q_1&lt;/code>, &amp;hellip;, &lt;code>q_7-&amp;gt;q_7&lt;/code>.&lt;/p>
+&lt;p>但是，如果我们在推理时这样做，就会降低整体速度，因此 Huggingface 的做法是改变 $W_Q$ 和 $W_K$ 的权重，具体来说，就是 $\Pi q=(\Pi W_Q)x$， 左边是在线转换，右侧离线转换。转换好 $W_Q$ 之后，正常计算就可以了。&lt;a class="link" href="https://github.com/huggingface/transformers/blob/e42587f596181396e1c4b63660abf0c736b10dae/src/transformers/models/llama/convert_llama_weights_to_hf.py" target="_blank" rel="noopener"
+>具体代码&lt;/a> 为&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># permute for sliced rotary&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">def&lt;/span> &lt;span class="nf">permute&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">w&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">n_heads&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">n_heads&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">dim1&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">dim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">dim2&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">dim&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">w&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">view&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">n_heads&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">dim1&lt;/span> &lt;span class="o">//&lt;/span> &lt;span class="n">n_heads&lt;/span> &lt;span class="o">//&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">dim2&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">transpose&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">reshape&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">dim1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">dim2&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">state_dict&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="sa">f&lt;/span>&lt;span class="s2">&amp;#34;model.layers.&lt;/span>&lt;span class="si">{&lt;/span>&lt;span class="n">layer_i&lt;/span>&lt;span class="si">}&lt;/span>&lt;span class="s2">.self_attn.q_proj.weight&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">permute&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">loaded&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="sa">f&lt;/span>&lt;span class="s2">&amp;#34;layers.&lt;/span>&lt;span class="si">{&lt;/span>&lt;span class="n">layer_i&lt;/span>&lt;span class="si">}&lt;/span>&lt;span class="s2">.attention.wq.weight&amp;#34;&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">),&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="sa">f&lt;/span>&lt;span class="s2">&amp;#34;model.layers.&lt;/span>&lt;span class="si">{&lt;/span>&lt;span class="n">layer_i&lt;/span>&lt;span class="si">}&lt;/span>&lt;span class="s2">.self_attn.k_proj.weight&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">permute&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">loaded&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="sa">f&lt;/span>&lt;span class="s2">&amp;#34;layers.&lt;/span>&lt;span class="si">{&lt;/span>&lt;span class="n">layer_i&lt;/span>&lt;span class="si">}&lt;/span>&lt;span class="s2">.attention.wk.weight&amp;#34;&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">),&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">...&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h1 id="结论">结论
+&lt;/h1>&lt;p>本文中，我们回顾了位置编码，包括绝对位置编码和相对位置编码，我们着重介绍了 RoPE 的原理，推导以及代码实现。&lt;/p>
+&lt;h1 id="参考文献">参考文献
+&lt;/h1>&lt;ol>
+&lt;li>&lt;a class="link" href="https://huggingface.co/blog/designing-positional-encoding" target="_blank" rel="noopener"
+>You could have designed state of the art positional encoding&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://discuss.huggingface.co/t/is-llama-rotary-embedding-implementation-correct/44509/2" target="_blank" rel="noopener"
+>Is LLaMA rotary embedding implementation correct?&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://github.com/huggingface/transformers/issues/25199" target="_blank" rel="noopener"
+>[LLaMA] Rotary positional embedding differs with official implementation&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://kexue.fm/archives/8130/comment-page-6#comments" target="_blank" rel="noopener"
+>RoPE blog&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="http://arxiv.org/abs/2104.09864" target="_blank" rel="noopener"
+>RoFormer&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://zhuanlan.zhihu.com/p/1894384438206505105" target="_blank" rel="noopener"
+>位置编码之路&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://zhuanlan.zhihu.com/p/705492804" target="_blank" rel="noopener"
+>RoPE的远距离衰减&lt;/a>&lt;/li>
+&lt;/ol></description></item></channel></rss>
