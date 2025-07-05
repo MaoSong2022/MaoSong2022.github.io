@@ -10,7 +10,7 @@ categories:
 math: true
 ---
 
-> 本文前半部分参考【参考文献1】，推荐大家看博客原文。
+> 本文前半部分参考 [参考文献1](https://huggingface.co/blog/designing-positional-encoding)，推荐大家看博客原文。
 
 # Introduction
 
@@ -18,7 +18,7 @@ math: true
 
 但是“我爱你”和“你爱我”这两句话所表示的含义应该是不一样的，我们将这两句话作为key和value的时候，我们发现模型的输出是一致的，这显然是不能接受的。因此，我们就需要加入position encoding，让模型学习到语序信息，从而明白不同的语序有不同的含义。
 
-下面是测试代码【参考文献1】
+下面是测试代码 （来自 [参考文献1](https://huggingface.co/blog/designing-positional-encoding)）
 
 ```python
 import torch
@@ -58,7 +58,7 @@ Position encoding可以分为绝对位置编码(absolute position encoding, APE)
 
 在介绍位置编码之前，我们首先应该关注位置编码的性质，位置编码的目标是为输入的token embedding增加位置信息，那么理想的位置编码应该是怎么样的呢？
 
-我们这里直接引用【参考文献1】中给定的性质：
+我们这里直接引用 [参考文献1](https://huggingface.co/blog/designing-positional-encoding)中给定的性质：
 
 1. **性质1**: token sequence中每个位置的位置编码都是唯一的。这个很好理解，如果不唯一的话，那么根据前面推导的性质，这两个位置的attention输出就完全一致了
 2. **性质2**: 线性相关性。也就是说，如果我们知道了位置$p$处的位置编码，那么理想情况下，我们应该能比较简单地得到$p+k$处的位置编码，理想情况下，我们应该有 $PE(p+k)=W_kPE(p)$.
@@ -105,7 +105,7 @@ $$
 
 ## 二进制位置编码
 
-既然整数位置编码的主要问题是对输入影响太大，我们能否找一个不影响输入的整数位置编码方式呢？【参考文献1】提出了二进制位置编码，因为每个token是 $d$ 维的，因此我们可以使用 $d$ 位二进制来表示 $i$. 比如说，当 $d=3$, $m=4$ 时，我们的位置编码分别为
+既然整数位置编码的主要问题是对输入影响太大，我们能否找一个不影响输入的整数位置编码方式呢？ [参考文献1](https://huggingface.co/blog/designing-positional-encoding) 提出了二进制位置编码，因为每个token是 $d$ 维的，因此我们可以使用 $d$ 位二进制来表示 $i$. 比如说，当 $d=3$, $m=4$ 时，我们的位置编码分别为
 
 $$
 PE(0) =p_{(000)_2} = [0, 0, 0],\  PE(1) =p_{(001)_2}= [0, 0, 1],\  PE(2) =p_{(010)_2} = [0, 1, 0],\  PE(3) =p_{(011)_2} = [0, 1, 1]
@@ -113,7 +113,7 @@ $$
 
 现在，我们二进制位置编码满足性质1，性质2. 对于性质3，由于 $d$ 位二进制的表示范围为 $[0, 2^d-1]$，因此其泛化性受到 $d$ 的影响。
 
-【参考文献1】画出了不同位置的值的变化情况。我们这里也模仿绘制出类似的曲线图
+[参考文献1](https://huggingface.co/blog/designing-positional-encoding) 画出了不同位置的值的变化情况。我们这里也模仿绘制出类似的曲线图
 
 ![Binary Position Encoding](binary_position_encoding.png)
 
@@ -444,87 +444,6 @@ $$
 \end{bmatrix}
 $$
 
-我们首先将上面的矩阵乘法给算出来，得到：
-
-$$
-\Theta_m\bm{x}=\begin{bmatrix}
-\cos m\theta_0\ x_1 - \sin m\theta_0\ x_2\\
-\sin m\theta_0\ x_1 + \cos m\theta_0\ x_2\\
-\vdots\\
-\cos m\theta_{d/2}\ x_{d-1} - \sin m\theta_{d/2}\ x_d\\
-\sin m\theta_{d/2}\ x_{d-1} + \cos m\theta_{d/2}\ x_d\\
-\end{bmatrix}:=\begin{bmatrix}
-    o_1\\
-    o_2\\
-    \vdots\\
-    o_{d-1}\\
-    ~~o_d~~
-\end{bmatrix}
-$$
-
-实现的时候，我们通常按照奇偶index来分别计算，然后通过重排序来得到最终的结果，实现代码如下：
-
-```python
-def apply_rotary_pos_emb(x: torch.Tensor, sin: torch.Tensor, cos: torch.Tensor) -> torch.Tensor:
-    """Apply rotary positional embeddings to a tensor.
-
-    This function applies rotary positional embeddings (RoPE) to the input tensor by
-    performing a rotation in 2D space for each pair of dimensions.
-
-    Args:
-        x (torch.Tensor): Input tensor to apply RoPE to. Shape is (...,seq_len, d_k)
-        sin (torch.Tensor): Sine component of rotary embeddings. Shape is (...,seq_len, d_k_half)
-        cos (torch.Tensor): Cosine component of rotary embeddings. Shape is (...,seq_len, d_k_half)
-
-    Returns:
-        torch.Tensor: Tensor with rotary positional embeddings applied. Shape matches input x.
-
-    References:
-        RoFormer: Enhanced Transformer with Rotary Position Embedding
-        https://arxiv.org/abs/2104.09864
-    """
-    x_even = x[..., ::2]  # (seq_len, d_k_half)
-    x_odd = x[..., 1::2]  # (seq_len, d_k_half)
-    odds = cos * x_even - sin * x_odd  # (...,seq_len, d_k_half)
-    evens = sin * x_even + cos * x_odd  # (...,seq_len, d_k_half)
-    stacked = torch.stack((odds, evens), -2)  # (...,seq_len, 2, d_k_half)
-    stacked_trans = rearrange(
-        stacked, "... seq_len double d_k_half -> ... seq_len d_k_half double"
-    )  # (...,seq_len, d_k_half, 2)
-    out = rearrange(
-        stacked_trans, "... seq_len d_k_half double -> ... seq_len (d_k_half double)"
-    )  # (..., seq_len, d_k)
-    return out
-```
-
-我们首先按照奇偶分别套用不同的计算公式，接下来，我们将结果stack在一起，也就是
-$$
-\begin{bmatrix}
-o_1 & o_1 & \cdots & o_{d-1} \\
-o_2 & o_4 & \cdots & o_d\\
-\end{bmatrix}
-$$
-
-第一次rearrange实际就是进行转置，我们得到：
-$$
-\begin{bmatrix}
-o_1 & o_2 \\
-o_3 & o_4 \\
-\vdots& \vdots\\
-o_{d-1} & o_d \\
-\end{bmatrix}
-$$
-
-最后，我们将结果进行展平（第二次rearrange）操作，得到
-$$
-[
-o_1,
-o_2,
-\dots,
-o_{d-1},
-o_d ]^T
-$$
-
 在实现的时候，我们一般根据$\sin$ 和$\cos$进行分组，也就是
 
 $$
@@ -555,6 +474,24 @@ x_1\\
 x_{d-1}\\
 \end{bmatrix}
 $$
+
+我们通常按照奇偶index来分别计算，然后通过重排序来得到最终的结果，实现代码如下：
+
+```python
+def apply_rotary_pos_emb(x: torch.Tensor, sin: torch.Tensor, cos: torch.Tensor) -> torch.Tensor:
+    x_even = x[..., ::2]  # (seq_len, d_k_half)
+    x_odd = x[..., 1::2]  # (seq_len, d_k_half)
+    odds = cos * x_even - sin * x_odd  # (...,seq_len, d_k_half)
+    evens = sin * x_even + cos * x_odd  # (...,seq_len, d_k_half)
+    stacked = torch.stack((odds, evens), -2)  # (...,seq_len, 2, d_k_half)
+    stacked_trans = rearrange(
+        stacked, "... seq_len double d_k_half -> ... seq_len d_k_half double"
+    )  # (...,seq_len, d_k_half, 2)
+    out = rearrange(
+        stacked_trans, "... seq_len d_k_half double -> ... seq_len (d_k_half double)"
+    )  # (..., seq_len, d_k)
+    return out
+```
 
 ## LLaMA实现
 
@@ -599,7 +536,6 @@ def rotate_half(x):
     x1 = x[..., : x.shape[-1] // 2]
     x2 = x[..., x.shape[-1] // 2 :]
     return torch.cat((-x2, x1), dim=-1)
-
 
 def apply_rotary_pos_emb(q, k, cos, sin, position_ids=None, unsqueeze_dim=1):
     cos = cos.unsqueeze(unsqueeze_dim)
@@ -680,13 +616,12 @@ $$
 
 假设 $d=8$，原始RoPE的pair为`[(q_0, q_1), (q_2, q_3), (q_4, q_5), (q_6, q_7)]`, 新的pair为 `[(q_0, q_4), (q_1, q_5), (q_2, q_6), (q_3, q_7)]`. 我们希望对index进行remap，我们发现一个满足条件的permutation为 `[0, 2, 4, 6, 1, 3, 5, 7]`, 也就是 `q_0->q_0`, `q_2->q_1`, ..., `q_7->q_7`.
 
-但是，如果我们在推理时这样做，就会降低整体速度，因此Huggingface的做法是改变$W_Q$和 $W_K$的权重，具体来说，就是 $\Pi q=(\Pi W_Q)x$， 左边是在线转换，右侧离线转换好$W_Q$之后，正常计算就可以了。[具体代码](https://github.com/huggingface/transformers/blob/e42587f596181396e1c4b63660abf0c736b10dae/src/transformers/models/llama/convert_llama_weights_to_hf.py)为
+但是，如果我们在推理时这样做，就会降低整体速度，因此Huggingface的做法是改变$W_Q$和 $W_K$的权重，具体来说，就是 $\Pi q=(\Pi W_Q)x$， 左边是在线转换，右侧离线转换。转换好$W_Q$之后，正常计算就可以了。[具体代码](https://github.com/huggingface/transformers/blob/e42587f596181396e1c4b63660abf0c736b10dae/src/transformers/models/llama/convert_llama_weights_to_hf.py)为
 
 ```python
 # permute for sliced rotary
 def permute(w, n_heads=n_heads, dim1=dim, dim2=dim):
     return w.view(n_heads, dim1 // n_heads // 2, 2, dim2).transpose(1, 2).reshape(dim1, dim2)
-
 
 state_dict = {
     f"model.layers.{layer_i}.self_attn.q_proj.weight": permute(
