@@ -12,7 +12,7 @@ math: true
 
 > 本文前半部分参考 [参考文献1](https://huggingface.co/blog/designing-positional-encoding)，推荐大家看博客原文。
 
-# Introduction
+# Position encoding总结
 
 在 [上一篇blog](https://maosong.website/p/%E5%85%B3%E4%BA%8Eattention-bias%E7%9A%84%E4%B8%80%E4%BA%9B%E6%80%9D%E8%80%83/) 中, 我们介绍了 Attention 的两个性质，也就是在不加 position encoding 的情况下，Attention 对于 query 是 permutation equivariant 的，对于 key 和 value 是 permutation invariant 的。
 
@@ -54,7 +54,7 @@ Position encoding 可以分为绝对位置编码 (absolute position encoding, AP
 
 本文中，我们先介绍位置编码应该具有的性质，然后我们分别介绍绝对位置编码和相对位置编码，我们将着重关注苏剑林老师提出来的 RoPE。
 
-# 位置编码
+## 位置编码
 
 在介绍位置编码之前，我们首先应该关注位置编码的性质，位置编码的目标是为输入的 token embedding 增加位置信息，那么理想的位置编码应该是怎么样的呢？
 
@@ -66,7 +66,7 @@ Position encoding 可以分为绝对位置编码 (absolute position encoding, AP
 4. **性质 4**: 生成模式是固定的。固定的模式有助于模型更好地学习位置相关的信息
 5. **性质 5**: 可以扩展到多维。我们希望位置编码可以从文本扩展到图片再到视频，也就是从 $1D$ 到 $nD$.
 
-# 绝对位置编码
+## 绝对位置编码
 
 绝对位置编码依照其名称，其思想就是为每个位置的 token 分配一个固定的位置信息，也就是对于输入的 hidden states $\bm{x}=[\bm{x}_1,\dots,\ \bm{x}_m]\in\mathbb{R}^{m\times d}$, 我们有
 
@@ -86,7 +86,7 @@ $$
 P = [p_1,\dots,p_m]\in\mathbb{R}^{m\times d}， Q= W_QX\in\mathbb{R}^{m\times d}, K=W_KX, V=W_VX\in\mathbb{R}^{n\times d}
 $$
 
-## 整数位置编码
+### 整数位置编码
 
 一个最简单的想法就是我们使用正整数来标记 token 所在的位置，也就是
 
@@ -104,7 +104,7 @@ $$
 
 现在所有的位置编码的值都比较小，但是我们发现新的位置编码不满足性质 2 了，这是因为现在位置编码还和 sequence 长度有关，我们从位置 $p$ 到位置 $p+k$ 不仅取决于 $k$ 还取决于 sequence 长度 $m$
 
-## 二进制位置编码
+### 二进制位置编码
 
 既然整数位置编码的主要问题是对输入影响太大，我们能否找一个不影响输入的整数位置编码方式呢？ [参考文献1](https://huggingface.co/blog/designing-positional-encoding) 提出了二进制位置编码，因为每个 token 是 $d$ 维的，因此我们可以使用 $d$ 位二进制来表示 $i$. 比如说，当 $d=3$, $m=4$ 时，我们的位置编码分别为
 
@@ -128,7 +128,7 @@ $$
 
 一般来说, $\bm{x}_2-\bm{x}_1$ 比较小，因此使用二进制位置编码的问题是输入位置的微小变化（增加一个 token 或减少一个 token）都会对最终结果产生巨大影响。因此，我们需要想办法解决这个问题。
 
-## Sinusoidal
+### Sinusoidal
 
 前面提到二进制位置编码的问题是相邻 token 之间变化太大，不够光滑。因此我们想要增加一个光滑性质，也就是说我们希望：
 
@@ -188,7 +188,7 @@ $$
 
 ![Sinusoidal Position Encoding](RoPE_sinusoidal_position_encoding.png)
 
-# 相对位置编码
+## 相对位置编码
 
 前面介绍了绝对位置编码，每个位置的位置编码是固定的。但是绝对位置编码的问题是，模型比较难以学习相对位置关系。
 
@@ -196,7 +196,7 @@ $$
 
 因此，我们希望让模型学习相对位置关系而不是绝对位置关系，因为相对关系更符合我们的认知。
 
-## RoPE
+### RoPE
 
 RoPE 由苏剑林老师提出，最早应用于 LLaMA 架构（没有确认），后续被大多数模型所采用。
 
@@ -261,7 +261,7 @@ $$
 
 我们接下来分别推导 $r_g(\bm{x}_q,\bm{x}_k, m-n)$ 和 $\theta_g(\bm{x}_q,\bm{x}_k, m-n)$ 的形式
 
-### $r_g(\bm{x}_q,\bm{x}_k, m-n)$
+#### $r_g(\bm{x}_q,\bm{x}_k, m-n)$
 
 我们令 $m=n=0$ 可以得到初始条件
 
@@ -299,7 +299,7 @@ $$
  r_q(\bm{x}_q,m) = \|\bm{q}\|_2,\quad r_k(\bm{x}_k, n) = \|\bm{k}\|_2
 $$
 
-### $\theta_g(\bm{x}_q,\bm{x}_k, m-n)$
+#### $\theta_g(\bm{x}_q,\bm{x}_k, m-n)$
 
 令 $m=n=0$, 我们得到初始条件
 
@@ -352,7 +352,7 @@ $$
 \theta_k(\bm{x}_k,n) = n(\theta_k(\bm{x}_k, 1)-\theta_k(\bm{x}_k, 0))+\theta_k
 $$
 
-## 汇总
+### 汇总
 
 最后，我们将以上结果放在一起，就得到
 
@@ -383,7 +383,7 @@ $$
 \langle f_q(\bm{x}_q,m), f_v(\bm{x}_k,m)\rangle = \bm{q}^TR_{\theta,m-n}\bm{k} \tag{5}
 $$
 
-## 多维扩展
+### 多维扩展
 
 上面是 2D 的情况，对于多维情况，苏剑林老师通过将两个元素组对，然后分别进行处理，得到了多维的情形：
 
@@ -432,9 +432,9 @@ $$
 
 这里针对不同的配置，结果也会略微不同，具体分析可以参加知乎回答 [RoPE的远距离衰减](https://zhuanlan.zhihu.com/p/705492804)
 
-# RoPE 代码实现与理解
+## RoPE 代码实现与理解
 
-## Naive 实现
+### Naive 实现
 
 我们接下来看一下如何实现 RoPE
 
@@ -646,11 +646,11 @@ state_dict = {
 }
 ```
 
-# 结论
+## 结论
 
 本文中，我们回顾了位置编码，包括绝对位置编码和相对位置编码，我们着重介绍了 RoPE 的原理，推导以及代码实现。
 
-# 参考文献
+## 参考文献
 
 1. [You could have designed state of the art positional encoding](https://huggingface.co/blog/designing-positional-encoding)
 2. [Is LLaMA rotary embedding implementation correct?](https://discuss.huggingface.co/t/is-llama-rotary-embedding-implementation-correct/44509/2)
