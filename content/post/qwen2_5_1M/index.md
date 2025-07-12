@@ -7,6 +7,7 @@ tags:
     - Qwen
 categories:
     - LLM 
+math: true
 ---
 
 
