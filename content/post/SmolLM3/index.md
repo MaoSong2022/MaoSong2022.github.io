@@ -72,7 +72,7 @@ Mid-training 的主要目标为扩展模型的上下文以及提升模型的 rea
 > [!tip] Recall
 > [Qwen2.5-1M](https://maosong.website/p/qwen2.5-1m-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/) 里也分析了长文本数据的问题，也就是大部分长文本数据依然是局部相关性强，而全局相关性弱
 
-与 [Qwen2.5](https://maosong.website/p/qwen2.5-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/) 一样，作者还是用了 [YARN](https://maosong.website/p/yarn%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/) 来在推理阶段进一步提高模型的上下文长度，作者发现模型可以处理 128K 上下文长度的文本。
+与 [Qwen2.5](https://maosong.website/p/qwen2.5-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/) 一样，作者还是用了 [YARN](https://maosong.website/p/notes-on-yarn/) 来在推理阶段进一步提高模型的上下文长度，作者发现模型可以处理 128K 上下文长度的文本。
 
 ### Reasoning Mid-training
 
@@ -138,11 +138,11 @@ $$
 2. 将 model soup 与 mid-training 的一个拥有强上下文能力的 checkpoint 结合起来，作者使用了 linear merge, APO model soup 和 mid-training checkpoint 的权重分别为 0.9 和 0.1.
 
 > [!tip] Recall
-> [Kimi-k1.5](https://maosong.website/p/kimi-k1.5-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/) 也使用了 model merging 的方法，来将 long CoT 模型的能力迁移到 short-CoT 模型上去
+> [Kimi-k1.5](https://maosong.website/p/notes-on-kimi-k1.5/) 也使用了 model merging 的方法，来将 long CoT 模型的能力迁移到 short-CoT 模型上去
 
 ## Evaluation
 
-作者首先评估了一下 base model 的表现，评估使用了 12 个 benchmark, 对比的模型包括 [Qwen3](https://maosong.website/p/qwen3-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/), Gemma3, LLaMA 3.2.  结果如下图所示
+作者首先评估了一下 base model 的表现，评估使用了 12 个 benchmark, 对比的模型包括 [Qwen3](https://maosong.website/p/notes-on-qwen3/), Gemma3, LLaMA 3.2.  结果如下图所示
 
 ![SmolLM3 base model performance](SmolLM3_base_model_performance.png)
 

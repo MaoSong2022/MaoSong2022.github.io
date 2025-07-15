@@ -12,11 +12,11 @@ math: true
 ---
 
 
-Dual Chunk Attention (DCA) 由阿里巴巴在 2024 年 9 月份提出，DCA 是一个无需训练的，扩展 LLM 上下文长度的方法，后续，DCA 被应用于 Qwen2, Qwen2.5, Qwen2.5-1M 以及 Qwen3 中，与 [YARN](https://maosong.website/p/yarn%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/) 一起作为扩展模型上下文的有效手段
+Dual Chunk Attention (DCA) 由阿里巴巴在 2024 年 9 月份提出，DCA 是一个无需训练的，扩展 LLM 上下文长度的方法，后续，DCA 被应用于 Qwen2, Qwen2.5, Qwen2.5-1M 以及 Qwen3 中，与 [YARN](https://maosong.website/p/notes-on-yarn/) 一起作为扩展模型上下文的有效手段
 
 ## Introduction
 
-提升 LLM 上下文长度的方法可以分为两类：一类是 training-free 的，包括 LM-infinite 和 StreamingLLM 等，这些方法以损失 long range dependency 为代价来保持较低的 perplexity。另一类为了保留全局信息，则是通过外插来扩展模型的上下文，主要工作我们在 [YARN](https://maosong.website/p/yarn%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/) 中已经回顾了。
+提升 LLM 上下文长度的方法可以分为两类：一类是 training-free 的，包括 LM-infinite 和 StreamingLLM 等，这些方法以损失 long range dependency 为代价来保持较低的 perplexity。另一类为了保留全局信息，则是通过外插来扩展模型的上下文，主要工作我们在 [YARN](https://maosong.website/p/notes-on-yarn/) 中已经回顾了。
 
 第二类方法的问题在于，其依赖训练，在 training-free 的 setting 下，这些方法也会导致 perplexity 的上升
 
@@ -25,7 +25,7 @@ Dual Chunk Attention (DCA) 由阿里巴巴在 2024 年 9 月份提出，DCA 是�
 通过实验，作者给出了三点关键发现：
 
 1. **Extrapolation**： DCA 可以在无需训练的情况下，将 LLM 的上下文提升到 32K，而不导致 Perplexity 大幅度增加
-2. **Orthogonality**： DCA 可以和其他方法一起使用，如 [YARN](https://maosong.website/p/yarn%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/), 这一点已经在 Qwen2.5-1M 以及 Qwen3 中得到了应用
+2. **Orthogonality**： DCA 可以和其他方法一起使用，如 [YARN](https://maosong.website/p/notes-on-yarn/), 这一点已经在 Qwen2.5-1M 以及 Qwen3 中得到了应用
 3. **Long Context Understanding**: DCA 可以在无需训练的情况下，在长上下文设置下，达到已有 SOTA 模型的表现
 
 ## Preliminary
@@ -46,7 +46,7 @@ $$
 
 ![Relative Position Visualization](DCA_relative_position_visualization.png)
 
-原始版本的 RoPE 的问题在于，在训练时，模型没有见过更长的上下文，因此其泛化性也最差，这一点在 [YARN](https://maosong.website/p/yarn%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/) 已经得到了验证
+原始版本的 RoPE 的问题在于，在训练时，模型没有见过更长的上下文，因此其泛化性也最差，这一点在 [YARN](https://maosong.website/p/notes-on-yarn/) 已经得到了验证
 
 ## Method
 

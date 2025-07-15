@@ -56,7 +56,7 @@ BPE tokenizer，最终的 tokenizer 大小为 152K
 2. log-N scaling
 3. window attention
 
-后续前两个统一成了 [YARN](https://maosong.website/p/yarn%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/).
+后续前两个统一成了 [YARN](https://maosong.website/p/notes-on-yarn/).
 
 observation: lower layer 对上下文长度扩展更敏感, 因此作者动态调整了 window size
 

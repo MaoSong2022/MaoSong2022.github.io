@@ -49,7 +49,7 @@ Qwen2.5 从以下方面提高了预训练数据的质量
 
 对于 Qwen2-5-Turbo，作者实现了渐进式上下文长度扩展策略，模型上下文长度扩展经历四个阶段：32768, 65536, 131072 到最终的 262,144. 此时，RoPE 的 base frequency 为 10,000,000. 在训练的每个阶段，作者都使用了 40% 的长文本以及 60% 的短文本，以保证在扩展模型上下文长度的同时，还能保持模型在不同上下文长度下的表现。
 
-为了提高模型在 inference 时的长上下文表现，作者使用了 [Dual Chunk Attention](https://maosong.website/p/qwen1.5%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/) 和 [YARN](https://maosong.website/p/yarn%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/) 两个技巧。通过这两个技巧，作者将 Qwen2.5-Turbo 的上锈阿文扩展到了 1M，将其他模型的上下文长度扩展到了 131072.
+为了提高模型在 inference 时的长上下文表现，作者使用了 [Dual Chunk Attention](https://maosong.website/p/qwen1.5%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/) 和 [YARN](https://maosong.website/p/notes-on-yarn/) 两个技巧。通过这两个技巧，作者将 Qwen2.5-Turbo 的上锈阿文扩展到了 1M，将其他模型的上下文长度扩展到了 131072.
 
 ### Post-training
 

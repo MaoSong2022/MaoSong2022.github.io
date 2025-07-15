@@ -20,7 +20,7 @@ categories:
 现有的RL 训练方法可以分为 value-free 和 value-based 两大类。
 其中 value-free 方法不需要使用 value model, 比如 GRPO 和 GRPO 的变体 DAPO, 这类方法通过多次采样，然后使用 leave-one-out estimate 来代替 value model. 这类方法的优点是不需要训练value model, 但是缺点是在复杂的任务中表现不是很稳定。
 
-另一方面，value-based 方法需要训练一个 value model, 比如 VC-PPO, 这类方法的优点是：
+另一方面，value-based 方法需要训练一个 value model, 比如 [VC-PPO](https://maosong.website/p/notes-on-vc-ppo/), 这类方法的优点是：
 
 1. 提供更细粒度的奖励信号
 2. 提供lower-varaince value estimation, 从而提高训练的稳定性
@@ -32,11 +32,11 @@ categories:
 2. 在heterogeneous sequence lengths during training 中表现不佳，对于短文本和长文本，我们需要考虑 bias-variance 的trade-off
 3. 在sparse reward signal 中表现不佳
 
-为了解决这些问题，字节Seed团队提出了 VAPO, 一个基于value-based 的 RL 训练方法，VAPO 通过结合 DAPO 和 VC-PPO 的优点，进一步提高了 value-based 方法的表现。
+为了解决这些问题，字节Seed团队提出了 VAPO, 一个基于value-based 的 RL 训练方法，VAPO 通过结合 DAPO 和 [VC-PPO](https://maosong.website/p/notes-on-vc-ppo/) 的优点，进一步提高了 value-based 方法的表现。
 
 # Preliminary
 
-Preliminary包括 token-level MDP, RLHF, PPO 三个部分，这部分请参考 [VC-PPO](https://maosong2022.github.io/p/vc-ppo%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/). 这里不做重复。
+Preliminary包括 token-level MDP, RLHF, PPO 三个部分，这部分请参考 [VC-PPO](https://maosong.website/p/notes-on-vc-ppo/). 这里不做重复。
 
 # VAPO
 
@@ -44,11 +44,11 @@ Preliminary包括 token-level MDP, RLHF, PPO 三个部分，这部分请参考 [
 
 ## Mitigating Value Model Bias over Long Sequences
 
-在 [VC-PPO](https://maosong2022.github.io/p/vc-ppo%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/) 中，作者提到了 value model 和 reward model 的不一致性，这种不一致性会导致 bias, 尤其是在long sequences上。 在VAPO中，作者就直接使用了 VC-PPO的做法，包括value pretraining 和 decoupled GAE 来解决这个问题。
+在 [VC-PPO](https://maosong.website/p/notes-on-vc-ppo/) 中，作者提到了 value model 和 reward model 的不一致性，这种不一致性会导致 bias, 尤其是在long sequences上。 在VAPO中，作者就直接使用了 VC-PPO的做法，包括value pretraining 和 decoupled GAE 来解决这个问题。
 
 ## Managing Heterogeneous Sequence Lengths during Training
 
-针对heterogeneous sequence的问题，作者提出了 **Length-Adaptive GAE**. 在VC-PPO中， $\lambda_{\mathrm{policy}}$ 被设置为 $0.95$. 但是当 sequence 非常长时， TD-error会迅速下降，导致GAE被一部分TD-error所主导，从而不利于模型的训练。
+针对heterogeneous sequence的问题，作者提出了 **Length-Adaptive GAE**. 在[VC-PPO](https://maosong.website/p/notes-on-vc-ppo/)中， $\lambda_{\mathrm{policy}}$ 被设置为 $0.95$. 但是当 sequence 非常长时， TD-error会迅速下降，导致GAE被一部分TD-error所主导，从而不利于模型的训练。
 
 为了解决这个问题，作者将 $\lambda_{\mathrm{policy}}$ 与 sequence 的长度 $\ell$ 联系起来，具体来说， 两者的关系如下：
 
@@ -62,7 +62,7 @@ $$
 \lambda_{\mathrm{policy}} = 1 - \frac{1}{\alpha\ell}
 $$
 
-同时，为了平衡短文本和长文本的贡献，基于 [DAPO](https://maosong2022.github.io/p/dapo%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/), 作者构建了 token-level policy gradient loss， 其具体形式如下：
+同时，为了平衡短文本和长文本的贡献，基于 [DAPO](https://maosong.website/p/notes-on-dapo/), 作者构建了 token-level policy gradient loss， 其具体形式如下：
 
 $$
 \mathcal{L}_{\mathrm{PPO}}(\theta) = \frac{1}{\sum_{t=1}^G|o_i|}\sum_{i=1}^G\sum_{t=1}^{|o_i|}\min\left(r_{i,t}(\theta)\hat{A}_{i,t},\mathrm{clip}\left(r_{i,t}(\theta), 1-\epsilon, 1+\epsilon\right)\hat{A}_{i,t}\right)
@@ -76,7 +76,7 @@ $$
 \mathcal{L}_{\mathrm{PPO}}(\theta) = \frac{1}{\sum_{t=1}^G|o_i|}\sum_{i=1}^G\sum_{t=1}^{|o_i|}\min\left(r_{i,t}(\theta)\hat{A}_{i,t},\mathrm{clip}\left(r_{i,t}(\theta), 1-\epsilon_{low}, 1+\epsilon_{high}\right)\hat{A}_{i,t}\right)
 $$
 
-Clip-Higher的介绍见[DAPO](https://maosong2022.github.io/p/dapo%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/)
+Clip-Higher的介绍见[DAPO](https://maosong.website/p/notes-on-dapo/)
 
 然后，作者还将next-token prediction loss 和 PPO loss 结合起来，来降低奖励的稀疏程度。
 
@@ -94,7 +94,7 @@ $$
 
 # Experiments
 
-模型使用Qwen-32B来进行训练, 大部分细节与VC-PPO和DAPO一致，这里不再赘述。最后与DAPO以及R1的对比结果如下：
+模型使用Qwen-32B来进行训练, 大部分细节与[VC-PPO](https://maosong.website/p/notes-on-vc-ppo/)和DAPO一致，这里不再赘述。最后与DAPO以及R1的对比结果如下：
 
 ![performance](performance.png)
 
@@ -129,10 +129,10 @@ $$
 
 # Conclusion
 
-作者在DAPO和VC-PPO的基础上，提出了VAPO，一个基于value-based 的 RL 训练方法，VAPO 通过结合 DAPO 和 VC-PPO 的优点，进一步提高了 value-based 方法的表现。 后续，作者又提出了Seed-thiking-1.5的技术报告。可以说，这一系列论文的连贯性是非常高的。
+作者在DAPO和VC-PPO的基础上，提出了VAPO，一个基于value-based 的 RL 训练方法，VAPO 通过结合 DAPO 和 [VC-PPO](https://maosong.website/p/notes-on-vc-ppo/) 的优点，进一步提高了 value-based 方法的表现。 后续，作者又提出了Seed-thiking-1.5的技术报告。可以说，这一系列论文的连贯性是非常高的。
 
 # Reference
 
 1. [Arxiv VAPO: Efficient and Reliable Reinforcement Learning for Advanced Reasoning Tasks](http://arxiv.org/abs/2504.05118)
-2. [Notes onDAPO](https://maosong2022.github.io/p/dapo%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/)
-3. [Notes on VC-PPO](https://maosong2022.github.io/p/vc-ppo%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/)
+2. [Notes onDAPO](https://maosong.website/p/notes-on-dapo/)
+3. [Notes on VC-PPO](https://maosong.website/p/notes-on-vc-ppo/)

@@ -67,7 +67,7 @@ RL 训练时，与 Qwen2.5 不一样的是，作者进使用了 offline RL，也
 
 ### Length Extrapolation
 
-与 Qwen2.5 一样，Qwen2.5-1M 也是用了 [Dual Chunk Attention](https://maosong.website/p/qwen1.5%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/) 和 [YARN](https://maosong.website/p/yarn%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/) 来在推理阶段扩展模型的上下文长度，作者做了如下实验，来对比 Qwen2.5, Qwen2.5-1M 加上 DCA 之后的影响
+与 Qwen2.5 一样，Qwen2.5-1M 也是用了 [Dual Chunk Attention](https://maosong.website/p/qwen1.5%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/) 和 [YARN](https://maosong.website/p/notes-on-yarn/) 来在推理阶段扩展模型的上下文长度，作者做了如下实验，来对比 Qwen2.5, Qwen2.5-1M 加上 DCA 之后的影响
 
 ![Qwen2.5 performance of DCA](https://fastly.jsdelivr.net/gh/bucketio/img14@main/2025/07/09/1752032237184-d7b1869c-98d0-4bfe-b492-b0d3edbe13e2.png)
 

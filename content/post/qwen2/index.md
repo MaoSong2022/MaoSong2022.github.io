@@ -21,7 +21,7 @@ categories:
 对于 dense 模型，Qwen2 在 [Qwen-LLM](https://maosong.website/p/qwen-llm%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/) 的基础上做了如下改动：
 
 1. 使用 Group Query Attention （GQA）替换 MHA，来优化 KV cache，提高 throughput
-2. 使用 [Dual Chunk Attention](https://maosong.website/p/qwen1.5%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/) 和 [YARN](https://maosong.website/p/yarn%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/) 来提高模型上下文长度和训练效率
+2. 使用 [Dual Chunk Attention](https://maosong.website/p/qwen1.5%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/) 和 [YARN](https://maosong.website/p/notes-on-yarn/) 来提高模型上下文长度和训练效率
 
 其余与 Qwen 一致，包括 SwiGLU，RoPE，RMSNorm 和 pre-normalization
 
@@ -66,7 +66,7 @@ categories:
 
 1. 加入了更多高质量的长上下文数据
 2. 将 RoPE 的 frequency 从 10,000 提升到了 1,000,000
-3. 使用了 [YARN](https://maosong.website/p/yarn%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/) 来扩展上下文长度
+3. 使用了 [YARN](https://maosong.website/p/notes-on-yarn/) 来扩展上下文长度
 4. 使用了 [Dual Chunk Attention](https://maosong.website/p/qwen1.5%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/) 来优化 attention 的计算
 
 ### Post-training

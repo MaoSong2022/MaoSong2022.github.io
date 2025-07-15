@@ -25,12 +25,12 @@ categories:
 1. SFT: 这个阶段主要使用了一些标注好的long CoT数据，初步激活模型的reasoning能力(参考KImi-VL)
 2. RL: 这个阶段使用收集到的数据使用RL算法进行训练，任务包括math, code, logic reasoning等
 
-已有PPO算法在处理Long CoT任务时，存在的问题在 [DAPO](https://maosong2022.github.io/p/dapo%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/) 中已经介绍过了，GRPO的解决方式为
+已有PPO算法在处理Long CoT任务时，存在的问题在 [DAPO](https://maosong.website/p/notes-on-dapo/) 中已经介绍过了，GRPO的解决方式为
 使用leave-one-out estimate来替换value model. 但是GRPO相比于PPO能够提供token级别的奖励来说，只能提供response level的奖励，因此限制了模型的性能。
 
 # Preliminary
 
-Preliminary包括MDP, RLHF, PPO三个部分，RLHF和PPO我们在 [DAPO](https://maosong2022.github.io/p/dapo%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/) 中已经介绍过了，这里不再赘述。
+Preliminary包括MDP, RLHF, PPO三个部分，RLHF和PPO我们在 [DAPO](https://maosong.website/p/notes-on-dapo/) 中已经介绍过了，这里不再赘述。
 
 ## Token-level MDP
 
@@ -193,4 +193,4 @@ $$
 # 参考文献
 
 - [VC-PPO](http://arxiv.org/abs/2503.01491)
-- [DAPO](https://maosong2022.github.io/p/dapo%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/)
+- [DAPO](https://maosong.website/p/notes-on-dapo/)

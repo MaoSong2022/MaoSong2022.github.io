@@ -82,7 +82,7 @@ RLHF的reward model使用Breadley-Terry model作为训练目标，text-only rewa
 
 ![Ablation of on-policy GRPO](on-policy-GRPO-ablation.png)
 
-最后，作者探讨了一下将不同任务放在一起训练导致的互相干扰问题，这个在MiMo里也提到过，核心问题就是有的任务是short CoT的，有的任务是Long CoT的，如何让模型根据任务来选择不同的reasoning length是一个需要探讨的问题，这个问题在[VC-PPO](https://maosong.website/p/vc-ppo%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/)里进行了初步的探讨。
+最后，作者探讨了一下将不同任务放在一起训练导致的互相干扰问题，这个在MiMo里也提到过，核心问题就是有的任务是short CoT的，有的任务是Long CoT的，如何让模型根据任务来选择不同的reasoning length是一个需要探讨的问题，这个问题在[VC-PPO](https://maosong.website/p/notes-on-vc-ppo/)里进行了初步的探讨。
 
 # 结论
 

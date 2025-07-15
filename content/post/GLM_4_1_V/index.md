@@ -185,7 +185,7 @@ Pre-training 由两个 stage 组成：
 
 1. Larger batch size: 使用更大的 batch size 效果更好
 2. Dynamic sampling expansion via ratio EMA: 作者定义了 naive 样本和高质量样本的比例，然后根据这个比例进行采样，来提升整体的采样效率。
-3. Force answering: 与 [Qwen3](https://maosong.website/p/qwen3-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/) 一样，对于比较难的问题，当输出的 token 数过长时，作者对模型输出进行截断，然后让模型基于已有思考过程直接输出结果。
+3. Force answering: 与 [Qwen3](https://maosong.website/p/notes-on-qwen3/) 一样，对于比较难的问题，当输出的 token 数过长时，作者对模型输出进行截断，然后让模型基于已有思考过程直接输出结果。
 4. Discard KL loss: 与 DAPO 一样，作者也移除了 KL divergence loss
 5. Clip-higher: 与 DAPO 一样，作者通过修改超参数来提高模型的探索能力
 
