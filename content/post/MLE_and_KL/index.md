@@ -1,5 +1,5 @@
 ---
-title: MLE和KL divergence之间的关系
+title: Relationship between MLE and KL divergence
 description: MLE和KL divergence之间的等价性推导
 date: 2025-06-27 11:35:33+0800
 tags: 

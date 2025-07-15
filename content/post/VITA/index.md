@@ -1,5 +1,5 @@
 ---
-title: VITA-Towards Open-Source Interactive Omni Multimodal LLM
+title: Notes on VITA
 description: The first-ever open-source Multimodal Large Language Model (MLLM) adept at simultaneous processing and analysis of Video, Image, Text, and Audio modalities, and meanwhile has an advanced multimodal interactive experience.
 date: 2024-08-13 14:36:45+0800
 math: true

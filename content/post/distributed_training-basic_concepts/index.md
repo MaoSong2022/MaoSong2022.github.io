@@ -1,5 +1,5 @@
 ---
-title: 分布式训练：基础概念
+title: Distributed training--Basic
 description: Basic concepts in distributed training
 date: 2025-05-12 10:15:17+0800
 math: true

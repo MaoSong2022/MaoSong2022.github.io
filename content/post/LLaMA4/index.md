@@ -1,5 +1,5 @@
 ---
-title: LLaMA4 blog总结
+title: Notes on LLaMA4 blog
 description: LLaMA4 blog阅读笔记
 date: 2025-04-30 10:44:19+0800
 math: true

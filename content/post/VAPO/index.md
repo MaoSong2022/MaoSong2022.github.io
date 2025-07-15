@@ -1,5 +1,5 @@
 ---
-title: VAPO学习笔记
+title: Notes on VAPO
 description: 字节Seed团队提出了VAPO, 通过结合DAPO以及VC-PPO的优点，来解决long CoT任务中的一些问题，来提高reasoning model的表现
 date: 2025-04-17 09:41:51+0800
 math: true

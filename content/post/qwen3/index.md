@@ -1,5 +1,5 @@
 ---
-title: Qwen3前瞻
+title: Notes on Qwen3 blog
 description: Qwen3系列LLM发布
 date: 2025-04-29 11:23:04+0800
 math: true

@@ -1,7 +1,8 @@
 ---
-title: YaRN学习笔记
+title: Notes on YaRN
 description: YaRN (Yet Another RoPE extentionN method) 时23年9月EleutherAI等提出来的一个扩展LLM上下文长度的方法，后来被Qwen系列模型所应用。
 date: 2025-07-03 14:40:49+0800
+lastmod: 2025-07-15 16:36:09+0800
 tags: 
     - Qwen
     - Context

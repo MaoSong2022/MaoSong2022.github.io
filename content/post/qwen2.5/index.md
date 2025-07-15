@@ -1,5 +1,5 @@
 ---
-title: Qwen2.5 技术报告总结
+title: Notes on Qwen2.5
 description: Qwen2.5 技术报告总结
 date: 2025-07-12 10:51:42+0800
 lastmod: 2025-07-12 10:51:42+0800

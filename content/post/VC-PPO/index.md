@@ -1,5 +1,5 @@
 ---
-title: VC-PPO学习笔记
+title: Notes on VC-PPO
 description: 字节Seed团队提出了 Value-Calibrated PPO (VC-PPO), 用于解决PPO的value initialization bias 以及 reward signal decay 问题
 date: 2025-04-14 17:36:15+0800
 math: true

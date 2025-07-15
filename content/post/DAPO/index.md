@@ -1,7 +1,8 @@
 ---
-title: DAPO学习笔记
+title: Notes on DAPO
 description: Notes on DAPO
 date: 2025-04-09 21:40:33+0800
+lastmod: 2025-07-15 16:36:09+0800
 math: true
 tags: 
     - RL

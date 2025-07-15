@@ -1,5 +1,5 @@
 ---
-title: 关于attention bias的一些思考
+title: Notes on attention bias
 description: 为什么transformer没有QKV bias
 date: 2025-05-22 15:25:07+0800
 tags: 

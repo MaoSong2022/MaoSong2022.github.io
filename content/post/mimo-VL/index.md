@@ -1,5 +1,5 @@
 ---
-title: MiMo-VL技术报告总结
+title: Notes on MiMo-VL
 description: MiMo-VL基于MiMo-7B，是一个多模态推理大语言模型
 date: 2025-06-05 10:51:43+0800
 math: true

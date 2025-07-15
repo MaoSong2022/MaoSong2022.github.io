@@ -1,5 +1,5 @@
 ---
-title: Phi-4技术报告总结
+title: Notes on Phi-4
 description: An brief introduction to Phi-4
 date: 2024-12-16 17:33:52+0800
 tags: 

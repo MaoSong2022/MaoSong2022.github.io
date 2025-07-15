@@ -1,5 +1,5 @@
 ---
-title: Gemma3 技术报告总结
+title: Notes on Gemma3
 description: Notes on Gemma3 technical report
 date: 2025-03-15 11:15:29+0800
 image: cover.png
@@ -10,7 +10,7 @@ categories:
     - MLLM 
 ---
 
-# TLDR
+
 
 作者提出了Gemma3系列大模型，包括1B, 4B, 12B, 27B四个size。4B, 12B, 27B三个size均支持多模态，128K的上下文长度以及140种语言。
 

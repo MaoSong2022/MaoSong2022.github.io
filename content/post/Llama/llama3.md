@@ -1,5 +1,5 @@
 ---
-title: Introduction to Llama3
+title: Notes on Llama3
 description: An brief introduction to Llama3
 date: 2024-04-22 16:22:19+0800
 tags: 

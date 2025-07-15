@@ -1,5 +1,5 @@
 ---
-title: Diffusion LLM和Autoregressive LLM的统一视角
+title: Unified perspective on dLLM and LLM
 description: MLE和KL divergence之间的等价性推导
 date: 2025-06-28 15:02:09+0800
 tags: 

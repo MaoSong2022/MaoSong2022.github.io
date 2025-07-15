@@ -1,5 +1,5 @@
 ---
-title: Qwen-LLM技术报告总结
+title: Notes on Qwen-LLM
 description: Qwen技术报告总结
 date: 2025-07-03 10:47:27+0800
 lastmod: 2025-07-12 10:32:03+0800

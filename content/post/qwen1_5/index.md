@@ -1,5 +1,5 @@
 ---
-title: Qwen1.5技术报告总结
+title: Notes on Qwen1.5
 description: Qwen在24年1月份发布了Qwen1.5，包含 0.5B, 1.8B, 4B, 7B, 14B, 32B, 72B, 以及 110B 6个size，还有一个MoE模型。
 date: 2025-07-03 17:37:39+0800
 lastmod: 2025-07-12 10:35:10+0800

@@ -1,5 +1,5 @@
 ---
-title: Git鉴权失败（authentication error）.
+title: Git authentication error
 description: Git clone authentication error.
 date: 2025-02-22 10:51:27+0800
 tags: 
