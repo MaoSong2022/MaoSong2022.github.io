@@ -16,7 +16,7 @@ categories:
 
 ## Introduction
 
-已有工作如 [MiMo-VL](https://maosong.website/p/mimo-vl%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/) 和 V-Triune 主要集中在特定的领域，目前还没有一个在所有领域都能超过 non-reasoning model 表现的多模态 reasoning model.
+已有工作如 [MiMo-VL](https://maosong.website/p/notes-on-mimo-vl/) 和 V-Triune 主要集中在特定的领域，目前还没有一个在所有领域都能超过 non-reasoning model 表现的多模态 reasoning model.
 
 基于这个目标，作者提出了 GLM-4.1V-Thinking, 一个 9B 的，用于通用领域多模态 reasoning 的 MLLM. 在预训练阶段，作者通过构建多样化的数据来提升模型的基础能力。在 post-training 阶段，作者构建了 domain-specific 的数据来让模型学会 reasoning. 最后，作者提出了 Reinforcement Learning with Curriculum Sampling (RLCS) 来扩展模型的 reasoning 能力。
 
@@ -198,7 +198,7 @@ Pre-training 由两个 stage 组成：
 
 1. 提高 cold-start SFT 阶段数据的质量
 2. 移除 KL divergence loss
-3. 使用 top-p 为 1，而不是 0.9 (如 [Qwen-LLM](https://maosong.website/p/qwen-llm%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/) 中的设置)，top-p 为 1 可以 cover 整个 vocabulary，避免某些 token 没有参与训练
+3. 使用 top-p 为 1，而不是 0.9 (如 [Qwen-LLM](https://maosong.website/p/notes-on-qwen-llm/) 中的设置)，top-p 为 1 可以 cover 整个 vocabulary，避免某些 token 没有参与训练
 4. per-sample loss 和 per-token loss 没有显著区别，但是 per-sample loss 稳定性更高
 5. 在 cold-start SFT 阶段让模型学会格式要求，而不是在 RL 阶段加入 format reward
 

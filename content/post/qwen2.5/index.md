@@ -15,7 +15,7 @@ math: true
 
 Qwen2.5 主要在以下方面进行了改进
 
-1. 模型方面，提供了更多的 size，[Qwen2](https://maosong.website/p/qwen2-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/) 中只有 0.5B, 1.5B, 7B, 72B 四个 size, 在 Qwen2.5 中，加入了 3B, 14B 和 32B 三个 size 的模型
+1. 模型方面，提供了更多的 size，[Qwen2](https://maosong.website/p/notes-on-qwen2/) 中只有 0.5B, 1.5B, 7B, 72B 四个 size, 在 Qwen2.5 中，加入了 3B, 14B 和 32B 三个 size 的模型
 2. 数据方面，pre-training 阶段使用了 18T 的 token， post-training 阶段使用了 1M 的样本
 3. 功能方面，Qwen2.5 支持更长的上下文长度（8K），支持结构化输入和输出，拥有更强的工具调用能力。
 
@@ -45,11 +45,11 @@ Qwen2.5 从以下方面提高了预训练数据的质量
 **Long context pre-training**
 为了提升模型的上下文长度，作者将 pre-training 拆分为两个 stage，第一个 stage 的上下文长度为 4096， 第二个 stage，作者将上下文长度从 4096 扩展到 32768.
 
-在提升模型上下文过程中，作者使用 ABF 技巧将 [Position Encoding](https://maosong.website/p/position-encoding%E6%80%BB%E7%BB%93/) 的 base frequency 从 10,000 提升到了 1,000,000.
+在提升模型上下文过程中，作者使用 ABF 技巧将 [Position Encoding](https://maosong.website/p/notes-on-position-encoding/) 的 base frequency 从 10,000 提升到了 1,000,000.
 
 对于 Qwen2-5-Turbo，作者实现了渐进式上下文长度扩展策略，模型上下文长度扩展经历四个阶段：32768, 65536, 131072 到最终的 262,144. 此时，RoPE 的 base frequency 为 10,000,000. 在训练的每个阶段，作者都使用了 40% 的长文本以及 60% 的短文本，以保证在扩展模型上下文长度的同时，还能保持模型在不同上下文长度下的表现。
 
-为了提高模型在 inference 时的长上下文表现，作者使用了 [Dual Chunk Attention](https://maosong.website/p/qwen1.5%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/) 和 [YARN](https://maosong.website/p/notes-on-yarn/) 两个技巧。通过这两个技巧，作者将 Qwen2.5-Turbo 的上锈阿文扩展到了 1M，将其他模型的上下文长度扩展到了 131072.
+为了提高模型在 inference 时的长上下文表现，作者使用了 [Dual Chunk Attention](https://maosong.website/p/dual-chunk-attention/) 和 [YARN](https://maosong.website/p/notes-on-yarn/) 两个技巧。通过这两个技巧，作者将 Qwen2.5-Turbo 的上锈阿文扩展到了 1M，将其他模型的上下文长度扩展到了 131072.
 
 ### Post-training
 

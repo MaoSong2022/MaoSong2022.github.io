@@ -70,9 +70,9 @@ Mid-training 的主要目标为扩展模型的上下文以及提升模型的 rea
 训练过程中，作者对 math, code 和 reasoning data 进行了上采样。作者发现，对长文本数据进行上采样并不会提高模型在 RULER 和 HELMET 上的表现。
 
 > [!tip] Recall
-> [Qwen2.5-1M](https://maosong.website/p/qwen2.5-1m-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/) 里也分析了长文本数据的问题，也就是大部分长文本数据依然是局部相关性强，而全局相关性弱
+> [Qwen2.5-1M](https://maosong.website/p/notes-on-qwen2.5-1m/) 里也分析了长文本数据的问题，也就是大部分长文本数据依然是局部相关性强，而全局相关性弱
 
-与 [Qwen2.5](https://maosong.website/p/qwen2.5-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/) 一样，作者还是用了 [YARN](https://maosong.website/p/notes-on-yarn/) 来在推理阶段进一步提高模型的上下文长度，作者发现模型可以处理 128K 上下文长度的文本。
+与 [Qwen2.5](https://maosong.website/p/notes-on-qwen2.5/) 一样，作者还是用了 [YARN](https://maosong.website/p/notes-on-yarn/) 来在推理阶段进一步提高模型的上下文长度，作者发现模型可以处理 128K 上下文长度的文本。
 
 ### Reasoning Mid-training
 

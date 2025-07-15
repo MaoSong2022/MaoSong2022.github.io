@@ -16,7 +16,7 @@ Qwen 在 2025 年 1 月提出了 Qwen2.5-1M，一个拥有 1M 上下文长度的
 
 ## Method
 
-架构上，Qwen2.5-1M 与 [Qwen2.5](https://maosong.website/p/qwen2.5-%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/) 的架构一致，Qwen2.5-1M 包括 7B，14B 两个 size，还包括一个基于 MoE 的 API 模型 Qwen2.5-Turbo，不同的点在于，Qwen2.5-1M 的上下文长度为 1M，最大生成长度为 8K
+架构上，Qwen2.5-1M 与 [Qwen2.5](https://maosong.website/p/notes-on-qwen2.5/) 的架构一致，Qwen2.5-1M 包括 7B，14B 两个 size，还包括一个基于 MoE 的 API 模型 Qwen2.5-Turbo，不同的点在于，Qwen2.5-1M 的上下文长度为 1M，最大生成长度为 8K
 
 ### Pretraining
 
@@ -67,9 +67,9 @@ RL 训练时，与 Qwen2.5 不一样的是，作者进使用了 offline RL，也
 
 ### Length Extrapolation
 
-与 Qwen2.5 一样，Qwen2.5-1M 也是用了 [Dual Chunk Attention](https://maosong.website/p/qwen1.5%E6%8A%80%E6%9C%AF%E6%8A%A5%E5%91%8A%E6%80%BB%E7%BB%93/) 和 [YARN](https://maosong.website/p/notes-on-yarn/) 来在推理阶段扩展模型的上下文长度，作者做了如下实验，来对比 Qwen2.5, Qwen2.5-1M 加上 DCA 之后的影响
+与 Qwen2.5 一样，Qwen2.5-1M 也是用了 [Dual Chunk Attention](https://maosong.website/p/dual-chunk-attention/) 和 [YARN](https://maosong.website/p/notes-on-yarn/) 来在推理阶段扩展模型的上下文长度，作者做了如下实验，来对比 Qwen2.5, Qwen2.5-1M 加上 DCA 之后的影响
 
-![Qwen2.5 performance of DCA](https://fastly.jsdelivr.net/gh/bucketio/img14@main/2025/07/09/1752032237184-d7b1869c-98d0-4bfe-b492-b0d3edbe13e2.png)
+![Qwen2.5 performance of DCA](Qwen2_5_1M_DCA.png)
 
 结果显示，Qwen2.5-1M 的表现比 Qwen2.5 更好，并且加上 DCA 之后，两者的表现都有进一步的提升。
 
@@ -98,7 +98,7 @@ Attention Recall 越高，说明选取的 critical token 越好，其 configurat
 
 作者进一步分析了 sparse attention 对 accuracy 的影响，结果如下
 
-![Qwen2.5 performance on sparsity refinement](https://fastly.jsdelivr.net/gh/bucketio/img4@main/2025/07/09/1752032266647-1f4fb000-66a3-47b2-b631-aba256a32fe1.png)
+![Qwen2.5 performance on sparsity refinement](Qwen2_5_1M_sparsity_config_performance.png)
 
 可以看到，仅使用 MInference 会导致模型性能 下降，但是加入 refinement 之后，模型的表现基本上和 full attention 差不太多。
 
@@ -116,7 +116,7 @@ Attention Recall 越高，说明选取的 critical token 越好，其 configurat
 
 BladeLLm 使用了 Dynamic Chunked pipeline parallelism 来解决这个问题，该方法通过计算复杂度来调整每个 chunk 的大小，进而使得最终的处理时间尽可能一致
 
-![Qwen2.5-1M DCPP](https://fastly.jsdelivr.net/gh/bucketio/img0@main/2025/07/09/1752032282799-7b6a3d20-4c16-4ef2-9c35-1428bcbcc8a8.png)
+![Qwen2.5-1M DCPP](Qwen2_5_1M_PP.png)
 
 **Scheduling**
 作者还在 Scheduling 上进行了优化，已有的推理引擎主要分为四个模块：API server, scheduler, model runner 以及 decoder
@@ -127,7 +127,7 @@ BladeLLm 使用了 Dynamic Chunked pipeline parallelism 来解决这个问题，
 2. Runner: 基于 Scheduler 分配的任务直接进行处理，处理完之后直接处理下一个任务
 3. Decoder：基于 token id，进行解码，然后发送给前端的 API server
 
-![Qwen2.5-1M scheduling](https://fastly.jsdelivr.net/gh/bucketio/img1@main/2025/07/09/1752032296263-31a2fb74-41a4-4992-9c70-0140f307f619.png)
+![Qwen2.5-1M scheduling](Qwen2_5_1M_PP.png)
 
 ## Evaluation
 
@@ -139,7 +139,7 @@ BladeLLm 使用了 Dynamic Chunked pipeline parallelism 来解决这个问题，
 
 Qwen2.5-1M 与 Qwen2.5 的对比表现如下
 
-![Qwen2.5-1M perofermence on RULER](https://fastly.jsdelivr.net/gh/bucketio/img13@main/2025/07/09/1752032308743-6e61cb12-d0a4-4307-afbb-f4196937f179.png)
+![Qwen2.5-1M perofermence on RULER](Qwen2_5_1M_RULER_performance.png)
 
 可以看到，相比于 Qwen2.5，Qwen2.5 模型的表现有了大幅度的提升。
 
