@@ -1,0 +1,1132 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Reasoning on Mao Song(毛松)'s Homepage</title><link>https://maosong2022.github.io/tags/reasoning/</link><description>Recent content in Reasoning on Mao Song(毛松)'s Homepage</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><lastBuildDate>Thu, 17 Jul 2025 09:37:36 +0800</lastBuildDate><atom:link href="https://maosong2022.github.io/tags/reasoning/index.xml" rel="self" type="application/rss+xml"/><item><title>Notes on V-Triune</title><link>https://maosong2022.github.io/p/notes-on-v-triune/</link><pubDate>Thu, 17 Jul 2025 09:37:36 +0800</pubDate><guid>https://maosong2022.github.io/p/notes-on-v-triune/</guid><description>&lt;p>V-Triune 探究了如何使用一套统一的 RL 训练框架，来同时提高模型的 perception 和 reasoning 能力。&lt;/p>
+&lt;h2 id="introduction">Introduction
+&lt;/h2>&lt;p>已有的 RL 训练方法主要提升模型在特定 domain 上的能力，比如 MM-Eureka, Vision-R1 等专注于提升 MLLM 的 reasoning 能力，而 R1-V, DeepPerception 等专注于提升模型的 perception 能力。&lt;/p>
+&lt;p>因此，本文的 motivation 就是，如何用一套统一的 RL 训练框架，来同时提高模型的 perception 和 reasoning 能力。&lt;/p>
+&lt;p>V-Triune 包含 3 个关键模块：&lt;/p>
+&lt;ul>
+&lt;li>Sample-Level data formatting: 即在 sample 的层面定义 reward 等信息&lt;/li>
+&lt;li>Verifier-Level Computation: 即分离 verifier 和 generator, 提高整体效率&lt;/li>
+&lt;li>Source-Level Metric Monitoring: 基于 data source 来监控模型的表现&lt;/li>
+&lt;/ul>
+&lt;p>作者还提出了 Dynamic IoU reward, 来提高训练的稳定性。&lt;/p>
+&lt;p>基于 V-Triune 和 &lt;a class="link" href="https://maosong.website/p/notes-on-qwen2.5-vl/" target="_blank" rel="noopener"
+>Qwen2.5-VL&lt;/a>, 作者提出了 Orsta,一个在 reasoning 和 perception 任务上均有提升的多模态大模型。&lt;/p>
+&lt;p>论文的主要贡献为：&lt;/p>
+&lt;ol>
+&lt;li>提出了 V-Triune, 一个统一的 RL 训练框架，来同时提高模型的 reasoning 和 perception 能力&lt;/li>
+&lt;li>在 infra 上进行了改进，提高整体的训练效率和稳定性&lt;/li>
+&lt;li>基于 V-Triune, 构建了 Orsta, 相比于 Baseline, 模型的 perception 和 reasoning 能力均有了提升。&lt;/li>
+&lt;/ol>
+&lt;h2 id="preliminary">Preliminary
+&lt;/h2>&lt;p>作者首先回顾了一下 GRPO 和 &lt;a class="link" href="https://maosong.website/p/notes-on-dapo/" target="_blank" rel="noopener"
+>DAPO&lt;/a> , 我们这里就不再赘述。&lt;/p>
+&lt;p>然后，作者介绍了一下 reward function, reward function 由两部分组成， 第一部分是 format reward, 第二部分是 accuracy reward,.&lt;/p>
+&lt;p>对于 format reward, 作者采取了和 OpenR1 相同的做法，也就是要求输出仅包含 1 个给定的 token, 这里特定的 token 为 $s_1=\texttt{&lt;think>}$, $s_2=\texttt{&lt;/think>}$, $s_3=\texttt{&lt;answer>}$, $s_4=\texttt{&lt;/answer>}$, reward 的定义如下：&lt;/p>
+$$
+R_{\mathrm{format}}(o_q) = 0.25\sum_{i=1}^4 \mathbb{1}(\mathrm{count}(o_q,s_i)=1)
+$$&lt;p>这里 $\mathbb{1}(\cdot)$ 是示性函数。&lt;/p>
+&lt;p>对于 accuracy reward, 作者根据不同的任务分别进行处理。&lt;/p>
+&lt;p>对于 reasoning 任务，reward function 的定义如下&lt;/p>
+$$
+R_{\mathrm{acc}}(\hat{a},a) = \begin{cases}
+1, &amp;\text{ if }\texttt{verify(parse($\hat{a}$), parse($a$))}\text{ is True}\\
+0, &amp;\text{ else}
+\end{cases}
+$$&lt;p>这里 $\hat{a}$, $a$ 分别是 prediction 和 ground truth.&lt;/p>
+&lt;p>对于 perception 任务，reward function 与我们要处理的子任务相关。如果是 OCR 和 counting 任务，则我们采取和 reasoning 一样的 reward function. 如果我们要处理的是 grounding 和 detection 任务，则我们可以使用 IoU 以及 mAP 两种 reward 形式。&lt;/p>
+&lt;p>IoU reward 的定义如下：&lt;/p>
+$$
+R_{\mathrm{acc}}(\hat{a},a) = \begin{cases}
+\mathrm{IoU}(\hat{a}, a), &amp;\text{ if }\mathrm{IoU}(\hat{a},a)\geq \epsilon\\
+0, &amp;\text{ else}
+\end{cases}
+$$&lt;p>这里 $\epsilon&amp;gt;0$ 为超参数， IoU 定义如下&lt;/p>
+$$
+\mathrm{IoU}(\hat{a},a) = \frac{\mathrm{Area}(\hat{a}\cap a)}{\mathrm{Area}(\hat{a}\cup a)}
+$$&lt;p>mAP 的定义如下&lt;/p>
+$$
+\mathrm{AP}_c = \int_0^1 \max_{\tilde{r}\geq r}P_c(\tilde{r}) dr,\quad mAP=\frac1C\sum_{c=1}^C \mathrm{AP}_c
+$$&lt;p>最终的 reward 是 format reward 和 accuracy reward 的加权求和：&lt;/p>
+$$
+R = \alpha_{\mathrm{acc}}R_{\mathrm{acc}} + \alpha_{\mathrm{format}}R_{\mathrm{format}}
+$$&lt;h2 id="v-triune">V-Triune
+&lt;/h2>&lt;p>V-Triune 框架如下图所示，其包含三个模块&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-v-triune/V-Triune_framework.png"
+width="1351"
+height="562"
+srcset="https://maosong2022.github.io/p/notes-on-v-triune/V-Triune_framework_hu10953460521504204366.png 480w, https://maosong2022.github.io/p/notes-on-v-triune/V-Triune_framework_hu16889825761822693623.png 1024w"
+loading="lazy"
+alt="V-Triune System"
+class="gallery-image"
+data-flex-grow="240"
+data-flex-basis="576px"
+>&lt;/p>
+&lt;h3 id="sample-level-data-formatting">Sample-Level Data Formatting
+&lt;/h3>&lt;p>核心思想就是不同的任务的 reward function 可能是不一样的，如果在 task 层面设计 reward function 的话，RL 训练就没有了 flexibility, 因此，在本文中，作者在 sample 层面设计 reward function. 具体做法就是，每个样本除了 QA 相关信息，还有 reward model 的相关参数，这样就可以更加灵活地调整不同 sample 的损失了。&lt;/p>
+&lt;h3 id="verifier-level-reward-computation">Verifier-Level Reward Computation
+&lt;/h3>&lt;p>核心思想就是构建多个不同的 Verifier, 来分别处理不同的 sample, 因为我们 reward model 也是在 sample 层面构建的，因此我们可以基于 sample 的 metadata 来动态分配对应的 verifier, 这样就提升了 veriier 的可扩展性。本文作者使用了 MathVerifier 和 DetectionVerifier 两种。&lt;/p>
+&lt;h3 id="source-level-metric-monitoring">Source-Level Metric Monitoring
+&lt;/h3>&lt;p>核心思想就是根据 sample 的 metadata 信息来监控不同的 metric, 这样可以防止训练不稳定。&lt;/p>
+&lt;h3 id="dynamic-iou-reward">Dynamic IoU Reward
+&lt;/h3>&lt;p>核心思想就是根据训练进程，动态调整 IoU 的阈值。&lt;/p>
+&lt;p>作者发现，如果将 IoU 阈值设置的比较低的话，模型很容易拿到比较高的 reward; 如果将 IoU 阈值设置的比较高的话，模型又很难拿到奖励。&lt;/p>
+&lt;p>因此，作者的解决方案就是，使用课程学习，随着训练的进行，逐步提高 IoU 的阈值。&lt;/p>
+&lt;h2 id="data">Data
+&lt;/h2>&lt;p>数据集列举如下：&lt;/p>
+&lt;ul>
+&lt;li>Math: mm_math, geometry3K, mmk12&lt;/li>
+&lt;li>Puzzle: PuzzleVQA, AlgoPuzzleQA, VisualPuzzles&lt;/li>
+&lt;li>Science: ScienceQA, SciVQA, ViRL39K (Broader STEM topics, (GradeSchool) Science)&lt;/li>
+&lt;li>Chart: ChartQAPro, ChartX, Table-VQA, ViRL39K (Tables/Diagrams/Charts)&lt;/li>
+&lt;li>Detection: V3Det, Object365&lt;/li>
+&lt;li>Grounding: D3&lt;/li>
+&lt;li>Counting: CLEVR&lt;/li>
+&lt;li>OCR: LLaVA-OV (OCR questions), EST-VQA&lt;/li>
+&lt;/ul>
+&lt;p>&lt;strong>Rule-based filtering&lt;/strong>
+对于 visual reasoning 数据，作者的过滤如下：&lt;/p>
+&lt;ul>
+&lt;li>多项选择题以及判断题，防止 reward hacking&lt;/li>
+&lt;li>答案包含特殊符号如 &amp;ldquo;=&amp;rdquo;, &amp;ldquo;[&amp;rdquo; 等的数据&lt;/li>
+&lt;li>答案字符数超过 20 个，防止答案太复杂&lt;/li>
+&lt;/ul>
+&lt;p>对于 visual perception 数据，作者过滤流程如下：&lt;/p>
+&lt;ul>
+&lt;li>Detection: 超过 10 个 bounding box 的，或者 box 占 50% 以上面积的数据，保持 single BB 和 multi BB 的比例为 1:2&lt;/li>
+&lt;li>Grounding: box 占 50% 以上面积的数据, label 过于复杂的数据&lt;/li>
+&lt;li>Counting: 保持类别平衡，仅使用英文数据&lt;/li>
+&lt;li>OCR: 保留英文数据，对 labels 进行 verify&lt;/li>
+&lt;/ul>
+&lt;p>&lt;strong>Difficulty-based filtering&lt;/strong>
+主要是移除比较简单的问题。&lt;/p>
+&lt;p>经过这两个阶段的过滤之后，得到了 &lt;strong>20.6K&lt;/strong> perception samples 以及 &lt;strong>27.1K&lt;/strong> reasoning samples. 数据保存在 Parquet 格式&lt;/p>
+&lt;h2 id="training-recipe">Training Recipe
+&lt;/h2>&lt;h3 id="disable-vit-training">Disable ViT Training
+&lt;/h3>&lt;p>作者首先发现，全量微调会导致训练崩溃。作者分析原因发现，主要是 ViT 在反向传播过程中，存在 gradient amplify 的问题，第一层与最后一层的梯度的 norm 相差 5-10 倍。作者认为有两点原因：&lt;/p>
+&lt;ol>
+&lt;li>RL 会强制要求模型的不同模态之间进行对齐&lt;/li>
+&lt;li>对比学习训练得到的 VIT 可能使得其不适合 RL 的训练。&lt;/li>
+&lt;/ol>
+&lt;p>基于这两点考虑，作者再进行训练的时候，冻结了 ViT 模块，结果如下图&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-v-triune/V-Triune-frozen-ViT.png"
+width="1383"
+height="705"
+srcset="https://maosong2022.github.io/p/notes-on-v-triune/V-Triune-frozen-ViT_hu7988052896170322526.png 480w, https://maosong2022.github.io/p/notes-on-v-triune/V-Triune-frozen-ViT_hu8856288206821860516.png 1024w"
+loading="lazy"
+alt="Analysis of ViT training instability"
+class="gallery-image"
+data-flex-grow="196"
+data-flex-basis="470px"
+>&lt;/p>
+&lt;h3 id="spurious-image-special-tokens">Spurious Image Special Tokens
+&lt;/h3>&lt;p>作者发现，模型的输出可能会包含一些 &lt;code>&amp;lt;image_pad&amp;gt;&lt;/code> 等 token, 因此，作者对输出进行了过滤，然后再进行计算。&lt;/p>
+&lt;h3 id="cot-prompt-pool">CoT Prompt Pool
+&lt;/h3>&lt;p>作者还发现，多样化的 CoT prompt 会损害模型的表现。因此，作者构建了 20 个 prompt 模版，每次随机挑选其中一个加入到 instruction 中。&lt;/p>
+&lt;h3 id="training-configuration">Training Configuration
+&lt;/h3>&lt;p>模型基于 Qwen2.5-7B-instruct 和 Qwen2.5VL-32B 来进行开发&lt;/p>
+&lt;p>作者探究了 on-policy 和 off-policy 两种配置。roll-out batch size 设置为 1024, 使用 GRPO 进行训练，GRPO 的 group size 设置为 8&lt;/p>
+&lt;p>作者还设置 $\epsilon_{high}=0.28$ 以及 $\epsilon_{low}=0.2$ 来提高 token 的采样率。作者去除了 KL divergence loss, 并且在 token 层面上进行平均&lt;/p>
+&lt;h2 id="evaluation">Evaluation
+&lt;/h2>&lt;h3 id="performance">Performance
+&lt;/h3>&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-v-triune/V-Triune-performance.png"
+width="1159"
+height="1051"
+srcset="https://maosong2022.github.io/p/notes-on-v-triune/V-Triune-performance_hu6593213700954064222.png 480w, https://maosong2022.github.io/p/notes-on-v-triune/V-Triune-performance_hu15819943646912053752.png 1024w"
+loading="lazy"
+alt="Performance of Orsta on MEGA-Bench core"
+class="gallery-image"
+data-flex-grow="110"
+data-flex-basis="264px"
+>&lt;/p>
+&lt;h3 id="analysis">Analysis
+&lt;/h3>&lt;p>&lt;strong>on-policy v.s. off-policy&lt;/strong>
+作者首先对比了以下 on-policy RL 和 off-policy RL 两种训练方式的表现， 结果如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-v-triune/V-triune-on-policy.png"
+width="1137"
+height="526"
+srcset="https://maosong2022.github.io/p/notes-on-v-triune/V-triune-on-policy_hu17883304061716859651.png 480w, https://maosong2022.github.io/p/notes-on-v-triune/V-triune-on-policy_hu14295860107519637628.png 1024w"
+loading="lazy"
+alt="Ablation on on-policy v.s. off-policy"
+class="gallery-image"
+data-flex-grow="216"
+data-flex-basis="518px"
+>&lt;/p>
+&lt;p>结果有两点发现：&lt;/p>
+&lt;ol>
+&lt;li>on-policy 的表现基本上都是比 off-policy 要好的。&lt;/li>
+&lt;li>小模型通过 RL 带来的表现提升更明显，大模型的表现则更慢&lt;/li>
+&lt;/ol>
+&lt;p>&lt;strong>generalization&lt;/strong>
+作者还评估了以下模型的泛化性，结果如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-v-triune/V-Triune-generalization.png"
+width="422"
+height="673"
+srcset="https://maosong2022.github.io/p/notes-on-v-triune/V-Triune-generalization_hu7830263504092978837.png 480w, https://maosong2022.github.io/p/notes-on-v-triune/V-Triune-generalization_hu5722992839965848528.png 1024w"
+loading="lazy"
+alt="Generalization of V-Triune"
+class="gallery-image"
+data-flex-grow="62"
+data-flex-basis="150px"
+>&lt;/p>
+&lt;p>结果发现，RL 的训练更像是对齐，而不是泛化。也就是说，模型在 in-domain 的任务上表现较好，在 OOD 的任务上表现就一般。这与已有的结论是不一样的&lt;/p>
+&lt;blockquote>
+&lt;p>[!tip] Recall
+&lt;a class="link" href="https://maosong.website/p/notes-on-magistral/" target="_blank" rel="noopener"
+>Magistral&lt;/a> 发现模型在 math domain 上进行训练，在 code domain 上的表现也会提升&lt;/p>
+&lt;/blockquote>
+&lt;p>&lt;strong>Training Dynamics&lt;/strong>
+作者还分析了不同任务不同指标随训练进行的变化情况，如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-v-triune/V-Triune-training-dynamics.png"
+width="1150"
+height="900"
+srcset="https://maosong2022.github.io/p/notes-on-v-triune/V-Triune-training-dynamics_hu15276947352141942304.png 480w, https://maosong2022.github.io/p/notes-on-v-triune/V-Triune-training-dynamics_hu12555432383874143707.png 1024w"
+loading="lazy"
+alt="V-Triune training dynamics"
+class="gallery-image"
+data-flex-grow="127"
+data-flex-basis="306px"
+>&lt;/p>
+&lt;p>结果显示，reasoning 和 OCR 任务岁训练进行其输出长度和正确率都有所提升。但是 detection 相关任务则变化不是很明显。&lt;/p>
+&lt;h3 id="ablation-study">Ablation Study
+&lt;/h3>&lt;p>作者进行了三个消融实验：&lt;/p>
+&lt;ol>
+&lt;li>训练策略：冻结 ViT, 冻结 LLM, 两者都不冻结&lt;/li>
+&lt;li>任务分解策略：仅使用 reasoning 数据进行训练，仅使用 perception 数据进行训练，同时使用两种数据进行训练。&lt;/li>
+&lt;li>learning rate: 不同的学习率&lt;/li>
+&lt;/ol>
+&lt;p>实验结果如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-v-triune/V-Triune-ablation-study.png"
+width="1146"
+height="585"
+srcset="https://maosong2022.github.io/p/notes-on-v-triune/V-Triune-ablation-study_hu17402617248809186274.png 480w, https://maosong2022.github.io/p/notes-on-v-triune/V-Triune-ablation-study_hu10212683979436721237.png 1024w"
+loading="lazy"
+alt="Ablation study"
+class="gallery-image"
+data-flex-grow="195"
+data-flex-basis="470px"
+>&lt;/p>
+&lt;p>结果发现，&lt;/p>
+&lt;ol>
+&lt;li>仅训练 ViT 对表现没有任何帮助，只有训练 LLM 才会带来性能的提升。&lt;/li>
+&lt;li>同时使用两种数据进行训练的效果是最好的，其次是仅使用 reasoning 数据进行训练，最后是仅使用 perception 数据进行训练&lt;/li>
+&lt;li>较大的学习率会损害模型的表现。&lt;/li>
+&lt;/ol>
+&lt;h2 id="conclusion">Conclusion
+&lt;/h2>&lt;p>本文中，作者提出了 V-Triune, 一个使用 RL 来同时提高 MLLM 的 reasoning 和 perception 能力的 RL 训练框架。&lt;/p>
+&lt;p>作者发现 RL 对于 VLM 来说更像是一种 Alignment 策略，而不是一种 Generalization 策略，也就是模型并没有引入新的能力，而是提升模型本身的 utility 以及 robustness.&lt;/p>
+&lt;p>作者认为本文有以下 Limitation:&lt;/p>
+&lt;ol>
+&lt;li>在 perception 任务上没有看到明显的 test-time scaling 现象。作者认为，探究使用 o3 类似的方法或许能提高模型的表现&lt;/li>
+&lt;li>探究 RL-zero 在 VLM 中的应用，也就是直接在 base model 上进行 RL 的训练。&lt;/li>
+&lt;/ol>
+&lt;h2 id="references">References
+&lt;/h2>&lt;ul>
+&lt;li>&lt;a class="link" href="http://arxiv.org/abs/2505.18129" target="_blank" rel="noopener"
+>arxiv&lt;/a>&lt;/li>
+&lt;/ul></description></item><item><title>Notes on Magistral</title><link>https://maosong2022.github.io/p/notes-on-magistral/</link><pubDate>Wed, 16 Jul 2025 11:04:04 +0800</pubDate><guid>https://maosong2022.github.io/p/notes-on-magistral/</guid><description>&lt;p>Magistral 是 Mistral 提出的一个 reasoning model 系列，主要针对 math 和 code 两个 domain&lt;/p>
+&lt;h2 id="introduction">Introduction
+&lt;/h2>&lt;p>Mistral 在 2025 年 6 月 12 日发布了 Magistral ，一个 reasoning model, 包含两个模型，一个是由纯 RL 训练得到的 &lt;em>Magistral Medium&lt;/em>, 另一个是由 SFT 和蒸馏 Magistral Medium 得到的 &lt;strong>Magistral Small&lt;/strong>&lt;/p>
+&lt;p>作者首先介绍了一下本文的贡献：&lt;/p>
+&lt;ol>
+&lt;li>介绍了如何仅使用 RL (而不是用蒸馏) 来训练 Magistral Medium&lt;/li>
+&lt;li>infra 上的改进，主要使用最新的权重来更新 generator&lt;/li>
+&lt;li>多语种能力，支持多种语言&lt;/li>
+&lt;li>系统性探究了 RLVR 的能力边界&lt;/li>
+&lt;li>开源了 Magistral small (24B)&lt;/li>
+&lt;/ol>
+&lt;h2 id="method">Method
+&lt;/h2>&lt;h3 id="rl">RL
+&lt;/h3>&lt;p>RL 算法基于 GRPO 改进，主要有以下几点：&lt;/p>
+&lt;ol>
+&lt;li>去掉了 KL Divergence loss, 这一点跟 &lt;a class="link" href="https://maosong.website/p/notes-on-dapo/" target="_blank" rel="noopener"
+>DAPO&lt;/a> 是一致的，提升模型的探索能力&lt;/li>
+&lt;li>Loss Normalization，在 sample 层面做平均，还是跟 DAPO 一致，减少不同长度输出对训练造成的影响&lt;/li>
+&lt;li>Advantage Normalization, 作者首先将每个 token 的 Advantage 定义为 $\hat{A}&lt;em>i=R_i-\mu$, 其中 $\mu$ 是每个 group 的 reward 均值， 然后在每个 mini-batch 里对 advantage 进行 Normalization (这里 $\hat{A}&lt;/em>{mean}$ 和 $\hat{A}_{std}$ 分别为 mini-batch advantage 的均值和方差)：&lt;/li>
+&lt;/ol>
+$$
+\hat{A}_{i,t}^{norm}=\frac{\hat{A}_i-\hat{A}_{mean}}{\hat{A}_{std}}
+$$&lt;ol start="4">
+&lt;li>CLIP-Higher, 跟 DAPO 一致，提高稀有 token 的被采样概率&lt;/li>
+&lt;li>Eliminating non-divsere groups, 跟 DAPO 一致，去掉过于简单和过于难的题目&lt;/li>
+&lt;/ol>
+&lt;p>最终 RL 阶段训练的损失函数为：&lt;/p>
+$$
+\mathcal{L}(\theta) = \mathbb{E}_{q\sim P(Q),\{o_i\}_{i=1}^G\sim \pi_{old}(\cdot\mid q)}\frac{1}{\sum_{i=1}^G|o_i|}\sum_{i=1}^G\sum_{t=1}^{|o_i|}\min\left[r_{i,t}(\theta)\hat{A}_{i,t}^{norm}, \mathrm{clip}(r_{i,t}(\theta), 1-\epsilon_{low}, 1+\epsilon_{high})\hat{A}_{i,t}^{norm}\right], \mathrm{s.t.}, \exists 1\leq m &lt; n \leq G, r_m\neq r_n.
+$$&lt;p>其中&lt;/p>
+$$
+r_{i,t}(\theta) = \frac{\pi_{\theta}(o_{i,t}\mid q, o_{i,&lt;t})}{\pi_{old}(o_{i,t}\mid q, o_{i,&lt;t})}
+$$&lt;h3 id="reward-shaping">Reward Shaping
+&lt;/h3>&lt;p>作者还基于四个维度来构建 reward: formatting, correctness, length, 以及 language consistency&lt;/p>
+&lt;p>&lt;strong>Formatting&lt;/strong>
+针对数学和代码问题，作者要求模型输出符合特定的格式&lt;/p>
+&lt;ul>
+&lt;li>Tag requirements: 思考过程用 &lt;code>&amp;lt;think&amp;gt;&amp;lt;/think&amp;gt;&lt;/code> 包含，且只能包含一个 tag&lt;/li>
+&lt;li>mathematical responses: 对于数学问题，结果用 &lt;code>\boxed{}&lt;/code> 包含&lt;/li>
+&lt;li>code response：包含一个 markdown block&lt;/li>
+&lt;/ul>
+&lt;blockquote>
+&lt;p>[!tip] Future
+最新的 &lt;a class="link" href="https://maosong.website/p/notes-on-glm-4.1v-thinking/" target="_blank" rel="noopener"
+>GLM-4.1V-Thinking&lt;/a> 认为，不应该在 RL 训练阶段加入 format reward&lt;/p>
+&lt;/blockquote>
+&lt;p>&lt;strong>correctness&lt;/strong>
+基于答案的正确性分配奖励&lt;/p>
+&lt;ul>
+&lt;li>math correctness：使用 rule-based verifier 进行打分，使用 parser 和 Sympy 来比较模型输出以及 ground truth&lt;/li>
+&lt;li>code correctness: 构建单元测试，评估输出代码是否能通过所有的单元测试&lt;/li>
+&lt;/ul>
+&lt;p>&lt;strong>Length penalty&lt;/strong>
+与 DAPO 一致，使用 Length penalty 来惩罚过长的回答。&lt;/p>
+&lt;p>&lt;strong>Language consistency&lt;/strong>
+减少模型混合语言输出的问题。作者的做法是将 10% 的问题从英语转化为其他语种，然后使用 fastText 进行分类，确保内容都是一个语言。作者发现，通过这个简单的修改，就提高了模型的语言跟随能力。&lt;/p>
+&lt;blockquote>
+&lt;p>[!tip] Recall
+MiMo 中也遇到了混合语言输出的问题，但是其并没有给出解决办法。&lt;/p>
+&lt;/blockquote>
+&lt;p>作者还在 system prompt 中规定了输出的格式以及语言。&lt;/p>
+&lt;blockquote>
+&lt;p>[!tip] Observation
+作者发现，RL 的训练对于 system prompt 非常的敏感，因为 system prompt 会提高 model 的 entropy, 然后提高模型的探索能力。&lt;/p>
+&lt;/blockquote>
+&lt;h2 id="data">Data
+&lt;/h2>&lt;p>数据包括 math problems 以及 code problems&lt;/p>
+&lt;h3 id="math">Math
+&lt;/h3>&lt;p>作者首先收集了 700K 样本，然后作者通过预处理以及过滤来保证数据的质量：&lt;/p>
+&lt;p>&lt;strong>format filtering&lt;/strong>
+要求问题完整，答案准确且可验证；去掉证明题和 multi-part 的问题；改写多项选择题为解答题，提高难度防止 reward hacking&lt;/p>
+&lt;p>&lt;strong>difficulty filtering&lt;/strong>
+使用两阶段的过滤策略。&lt;/p>
+&lt;ol>
+&lt;li>第一阶段使用 LLM 进行多次采样，然后去除掉比较简单或者比较复杂的&lt;/li>
+&lt;li>第二阶段使用 RL checkpoint 进行多次采样，去除掉标准答案可能会存在问题的题目&lt;/li>
+&lt;/ol>
+&lt;p>最终一共得到 &lt;strong>38K&lt;/strong> 的样本&lt;/p>
+&lt;h3 id="code">Code
+&lt;/h3>&lt;p>首先去掉没有 solution 和 test 的问题；然后去除掉标准答案不能通过所有 test 的问题。最终一共得到 &lt;strong>35K&lt;/strong> 的样本，包含 Python 和 C++ 两种语言&lt;/p>
+&lt;h2 id="training">Training
+&lt;/h2>&lt;p>训练框架如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-magistral/Magistral_data_training.png"
+width="1515"
+height="523"
+srcset="https://maosong2022.github.io/p/notes-on-magistral/Magistral_data_training_hu7985413339294341630.png 480w, https://maosong2022.github.io/p/notes-on-magistral/Magistral_data_training_hu12253124277348638876.png 1024w"
+loading="lazy"
+alt="Magistral_data_training"
+class="gallery-image"
+data-flex-grow="289"
+data-flex-basis="695px"
+>&lt;/p>
+&lt;p>对于两个模型，作者采用了不同的方式进行训练&lt;/p>
+&lt;ul>
+&lt;li>Magistral Medium: 使用 pure RL 进行训练&lt;/li>
+&lt;li>Magistral small: 使用 SFT + RL 进行训练&lt;/li>
+&lt;/ul>
+&lt;p>Magistral Medium 训练时满足的要求：&lt;/p>
+&lt;ol>
+&lt;li>dataset is not too easy: 太简单的题目对模型提升没有帮助&lt;/li>
+&lt;li>Generation length does not stop growing: 逐步提升模型的最大输出长度&lt;/li>
+&lt;li>KV-cache memory burden is not too large: 降低 batch size 来减少 KV-cache 的内存占用&lt;/li>
+&lt;/ol>
+&lt;p>Magistral small 训练&lt;/p>
+&lt;p>&lt;strong>SFT&lt;/strong>
+数据集包括两部分，一部分是 Magistral Medium 回答正确的这部分数据，第二部分是公开数据集，包括 [[OpenThoughts]] 和 [[OpenR1]] 两个数据集，作者使用 Magistral Medium 来生成回答。作者还加入了 10% 的 instruction tuning 数据来保持模型的通用能力。&lt;/p>
+&lt;p>&lt;strong>RL&lt;/strong>
+RL 的训练与 Magistral Medium 一致。&lt;/p>
+&lt;h2 id="infra">Infra
+&lt;/h2>&lt;p>作者首先介绍了一下 RL 训练的 infra, infra 主要包括三个模块：&lt;/p>
+&lt;ul>
+&lt;li>Trainers: 用于更新模型的权重&lt;/li>
+&lt;li>Generators: 用于采样，生成 roll-out&lt;/li>
+&lt;li>Verifiers: 对模型输出的结果进行打分&lt;/li>
+&lt;/ul>
+&lt;p>分布式 RL 训练的主要问题在于，不同长度的 roll-out 花费的时间不一致，作者发现，最长的 roll-out 和最短的 roll-out 的时间相差超过 5 倍以上。&lt;/p>
+&lt;p>因此，作者就提出了异步生成这个方法。具体的做法就是&lt;/p>
+&lt;ol>
+&lt;li>首先由 Generator 生成多条 roll-out&lt;/li>
+&lt;li>当 roll-out 完成之后，立马用 Verifiers 对轨迹进行打分&lt;/li>
+&lt;li>收集 roll-out 以及对应的 reward, 直到达到给定的 batch 大小&lt;/li>
+&lt;li>使用 Trainer 更新 Generator 的权重, 将更新后的权重同步给 Generator，这样其他 generator 在生成新的 token 时用的就是新的权重&lt;/li>
+&lt;/ol>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-magistral/Magistral_infra.png"
+width="1169"
+height="968"
+srcset="https://maosong2022.github.io/p/notes-on-magistral/Magistral_infra_hu16434872165372945647.png 480w, https://maosong2022.github.io/p/notes-on-magistral/Magistral_infra_hu16801221237754484869.png 1024w"
+loading="lazy"
+alt="Magistral_infra"
+class="gallery-image"
+data-flex-grow="120"
+data-flex-basis="289px"
+>&lt;/p>
+&lt;blockquote>
+&lt;p>[!tip] Recall
+MiMo 里的做法是，当我们收集到给定数量的 roll-out 之后，我们就基于这些 roll-out 更新权重，然后进行下一次采样&lt;/p>
+&lt;/blockquote>
+&lt;p>训练时，对于每个 rank, 只要其收集到足够的 roll-out, 就会进行一次梯度更新。&lt;/p>
+&lt;h2 id="evaluation">Evaluation
+&lt;/h2>&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-magistral/Magistral_performance_AIME.png"
+width="1810"
+height="1002"
+srcset="https://maosong2022.github.io/p/notes-on-magistral/Magistral_performance_AIME_hu6201950020122303348.png 480w, https://maosong2022.github.io/p/notes-on-magistral/Magistral_performance_AIME_hu17050491895656832894.png 1024w"
+loading="lazy"
+alt="Performance of Magistral Medium"
+class="gallery-image"
+data-flex-grow="180"
+data-flex-basis="433px"
+>&lt;/p>
+&lt;h2 id="ablation">Ablation
+&lt;/h2>&lt;p>&lt;strong>RL 的泛化性&lt;/strong>
+作者探究了 RL 的 cross-domain generalization 能力，实验结果如下&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Model&lt;/th>
+&lt;th>AIME’24&lt;/th>
+&lt;th>LiveCodeBench v5&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>Starting Checkpoint&lt;/td>
+&lt;td>32.2&lt;/td>
+&lt;td>22.7&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>RL (Math only)&lt;/td>
+&lt;td>62.5&lt;/td>
+&lt;td>38.3 (+15.6)&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>RL (Code only)&lt;/td>
+&lt;td>49.7 (+17.5)&lt;/td>
+&lt;td>42.7&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>可以看到，不管是使用 math 还是 code 数据单独进行训练，模型在另一个 domain 上的表现都有所提升。&lt;/p>
+&lt;blockquote>
+&lt;p>[!tip] Future
+这个结论与最新的 GLM-4.1V-Thinking 结论一致&lt;/p>
+&lt;/blockquote>
+&lt;p>&lt;strong>Distillation v.s. RL for small models&lt;/strong>
+作者探究了对于小语言模型，使用 RL 进行训练的效果更好，还是使用蒸馏的效果更好。&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-magistral/Magistral_distillation_vs_rl_performance.png"
+width="1822"
+height="934"
+srcset="https://maosong2022.github.io/p/notes-on-magistral/Magistral_distillation_vs_rl_performance_hu12804151669788107874.png 480w, https://maosong2022.github.io/p/notes-on-magistral/Magistral_distillation_vs_rl_performance_hu14645921621896337014.png 1024w"
+loading="lazy"
+alt="Performance of RL v.s. distillation"
+class="gallery-image"
+data-flex-grow="195"
+data-flex-basis="468px"
+>&lt;/p>
+&lt;blockquote>
+&lt;p>[!tip] Observation
+实验结果发现，仅使用 RL 的效果与蒸馏差不多，甚至更好&lt;/p>
+&lt;/blockquote>
+&lt;p>&lt;strong>Batch size&lt;/strong>
+作者还探究了 batch size $n_{batch}$ 以及 mini-batch size $n_{mini}$ 的影响。这里 batch size 指的是用于更新梯度的 roll-out 数量，mini-batch size 指的是计算梯度的 roll-out 数量，作者还定义了并行生成 roll-out 的数量 $n_{async}$. 当 $n_{async}&amp;raquo; n_{batch}$ 时，生成的 sequence 就很可能是 off-policy 的。作者固定 $n_{async}=4096$, 然后对比了不同的 $n_{batch}$ 和 $n_{mini}$ 对模型表现的影响，结果如下：&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-magistral/Magistral_batch_ablation.png"
+width="1602"
+height="698"
+srcset="https://maosong2022.github.io/p/notes-on-magistral/Magistral_batch_ablation_hu16454842133673153190.png 480w, https://maosong2022.github.io/p/notes-on-magistral/Magistral_batch_ablation_hu3588199010302775526.png 1024w"
+loading="lazy"
+alt="Ablation study on batch size"
+class="gallery-image"
+data-flex-grow="229"
+data-flex-basis="550px"
+>&lt;/p>
+&lt;blockquote>
+&lt;p>![tip] Observation
+当 $n_{batch}=n_{mini}$ 时，模型表现差不太多（左图）；当 $n_{batch}$ 为常数，而 $n_{mini}$ 逐渐减小时，模型表现会逐渐变差。&lt;/p>
+&lt;/blockquote>
+&lt;p>&lt;strong>Advantage normalization&lt;/strong>
+作者对比了三种针对 advantage 的 normalization 方式：&lt;/p>
+&lt;ul>
+&lt;li>mini-batch: 在每个 mini-batch 里对模型进行 normalization&lt;/li>
+&lt;li>Group normalization: 在每个 group 里进行 normalization&lt;/li>
+&lt;li>no normalization: 没有 normalization&lt;/li>
+&lt;/ul>
+&lt;p>实验结果如下&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-magistral/Magistral_normalization.png"
+width="1820"
+height="500"
+srcset="https://maosong2022.github.io/p/notes-on-magistral/Magistral_normalization_hu658871494775987334.png 480w, https://maosong2022.github.io/p/notes-on-magistral/Magistral_normalization_hu1935902630730719135.png 1024w"
+loading="lazy"
+alt="Ablation study on normalization"
+class="gallery-image"
+data-flex-grow="364"
+data-flex-basis="873px"
+>&lt;/p>
+&lt;p>作者发现，三种方式的区别并不是很大。&lt;/p>
+&lt;h2 id="analysis">Analysis
+&lt;/h2>&lt;p>&lt;strong>length dimension&lt;/strong>
+作者首先保存模型的 weight, 然后使用 PCA 进行降维，并在 2 维上进行可视化，作者对权重进行扰动，然后记录模型的 reward 以及输出长度。结果发现，模型存在一个 length dimension. 可视化结果如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-magistral/Magistral_length_dimension.png"
+width="1546"
+height="602"
+srcset="https://maosong2022.github.io/p/notes-on-magistral/Magistral_length_dimension_hu660748011264665621.png 480w, https://maosong2022.github.io/p/notes-on-magistral/Magistral_length_dimension_hu16323640694693724369.png 1024w"
+loading="lazy"
+alt="Magistral length dimension visualization"
+class="gallery-image"
+data-flex-grow="256"
+data-flex-basis="616px"
+>&lt;/p>
+&lt;p>&lt;strong>multimodal extension&lt;/strong>
+由于 Magistral medium 和 Magistral small 都是基于 MLLM 中的 LLM 开发得到的，作者还探究了更换 LLM 的 checkpoint 之后，原始 MLLM 的表现，结果发现，模型在多模态 reasoning 相关任务上的表现也得到了提升，结果如下图所示：&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-magistral/Magistral_multimodal_extention.png"
+width="1782"
+height="822"
+srcset="https://maosong2022.github.io/p/notes-on-magistral/Magistral_multimodal_extention_hu14193739507602157915.png 480w, https://maosong2022.github.io/p/notes-on-magistral/Magistral_multimodal_extention_hu12191812944879346854.png 1024w"
+loading="lazy"
+alt="Magistral multimodal performance"
+class="gallery-image"
+data-flex-grow="216"
+data-flex-basis="520px"
+>&lt;/p>
+&lt;p>&lt;strong>Impact on other capabilities&lt;/strong>
+作者还探究了 RL 训练对模型其他表现的影响，结果发现，RL 训练可以提高模型的 tool calling 和指令跟随能力，实验结果如下表所示&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Category&lt;/th>
+&lt;th>Benchmark&lt;/th>
+&lt;th>Mistral Medium 3&lt;/th>
+&lt;th>Magistral Medium&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>Function calling&lt;/td>
+&lt;td>Internal bench&lt;/td>
+&lt;td>87.2&lt;/td>
+&lt;td>87.4&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Instruction following&lt;/td>
+&lt;td>IFEval&lt;/td>
+&lt;td>86.8&lt;/td>
+&lt;td>87.4&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>&lt;strong>failed approaches&lt;/strong>
+作者还介绍了一些尝试失败的做法：&lt;/p>
+&lt;ol>
+&lt;li>partial Reward: 对于 coding 任务，作者使用 test 的通过率作为奖励，结果发现效果并不好，这是因为一些错误的解法的 test 通过率也很高&lt;/li>
+&lt;li>entropy bonus loss: 作者发现在损失函数中加入 entropy bonus loss 之后，模型的训练变得不稳定，而且效果不如使用更高的 $\epsilon_{high}$&lt;/li>
+&lt;li>作者还进一步验证在 PPO loss 中加入 KL divergence loss, 结果发现效果并不好，这与 DAPO 的结论一致&lt;/li>
+&lt;li>作者还尝试先 SFT Magistral Medium, 再进行 RL, 结果发现 RL 可以大幅度提高 SFT checkpoint 的表现。&lt;/li>
+&lt;/ol>
+&lt;h2 id="conclusion">Conclusion
+&lt;/h2>&lt;p>本文中，作者提出了 Magistral, 一个针对 math 和 code 的 reasoning model, 作者介绍了训练细节。但是，从方法层面来看，和 DAPO 区别不是很大。关键点应该是作者详细介绍了各种消融实验，为后来相关探索提供了经验。&lt;/p>
+&lt;h2 id="references">References
+&lt;/h2>&lt;ul>
+&lt;li>&lt;a class="link" href="https://arxiv.org/abs/2506.10910v1" target="_blank" rel="noopener"
+>arxiv&lt;/a>&lt;/li>
+&lt;/ul></description></item><item><title>Notes on SmolLM3</title><link>https://maosong2022.github.io/p/notes-on-smollm3/</link><pubDate>Tue, 15 Jul 2025 11:01:13 +0800</pubDate><guid>https://maosong2022.github.io/p/notes-on-smollm3/</guid><description>&lt;p>Hugging Face 在 2025 年 7 月 8 号发布了 SmolLM3, 一个 3B 的，128K 上下文，支持 6 种语言，支持 dual mode reasoning 的小语言模型。&lt;/p>
+&lt;h2 id="pre-training">Pre-training
+&lt;/h2>&lt;h3 id="architecture">Architecture
+&lt;/h3>&lt;p>SmolLM3 是一个基于 transformer 的小语言模型，其模型架构与 SmolLM2 相似，SmolLM3 做了以下改进：&lt;/p>
+&lt;ol>
+&lt;li>使用 GQA 代替 multi-head attention. 作者通过消融实验发现 GQA 和 MHA 的效果差不多，并且还可以减少 KV cache 的 size&lt;/li>
+&lt;li>NoPE: 作者使用了NoPE, 来选择性（每 4 个 layer）移除 position embedding. 这个方法可以在不损害模型短文本能力的同时，提高模型长上下文的表现&lt;/li>
+&lt;li>Intra-Document Masking: 不同的文档之间使用 attention masking 隔开&lt;/li>
+&lt;li>Training stability: 与 olmo 2 一样，作者移除了 embedding layer 的 weight decay, 来提升训练的稳定性。&lt;/li>
+&lt;/ol>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-smollm3/SmolLM3_model_atanomy.png"
+width="2554"
+height="1470"
+srcset="https://maosong2022.github.io/p/notes-on-smollm3/SmolLM3_model_atanomy_hu13998036533088262709.png 480w, https://maosong2022.github.io/p/notes-on-smollm3/SmolLM3_model_atanomy_hu8563067276937063516.png 1024w"
+loading="lazy"
+alt="SmolLM3 model atanomy"
+class="gallery-image"
+data-flex-grow="173"
+data-flex-basis="416px"
+>&lt;/p>
+&lt;h3 id="data">Data
+&lt;/h3>&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-smollm3/SmolLM3_pre-training_recipe.png"
+width="1932"
+height="1196"
+srcset="https://maosong2022.github.io/p/notes-on-smollm3/SmolLM3_pre-training_recipe_hu14656950727837741103.png 480w, https://maosong2022.github.io/p/notes-on-smollm3/SmolLM3_pre-training_recipe_hu1794311974944927812.png 1024w"
+loading="lazy"
+alt="SmolLM3 pre-training recipe"
+class="gallery-image"
+data-flex-grow="161"
+data-flex-basis="387px"
+>&lt;/p>
+&lt;p>与 SmolLM2 一样，作者使用了&lt;strong>11.2T&lt;/strong> token 进行训练，训练包括 3 个 stage。作者针对数据混合策略进行了消融实验，实验配置如下：&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Stage&lt;/th>
+&lt;th>Stable phase&lt;/th>
+&lt;th>Stable phase&lt;/th>
+&lt;th>Decay phase&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>Description&lt;/td>
+&lt;td>Base training&lt;/td>
+&lt;td>High quality injection&lt;/td>
+&lt;td>LR Decay&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Tokens&lt;/td>
+&lt;td>8T&lt;/td>
+&lt;td>2T&lt;/td>
+&lt;td>1.1T&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Web&lt;/td>
+&lt;td>85%&lt;/td>
+&lt;td>75%&lt;/td>
+&lt;td>63%&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Code&lt;/td>
+&lt;td>12%&lt;/td>
+&lt;td>15%&lt;/td>
+&lt;td>24%&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Math&lt;/td>
+&lt;td>3%&lt;/td>
+&lt;td>10%&lt;/td>
+&lt;td>13%&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>datasets&lt;/td>
+&lt;td>&lt;strong>web&lt;/strong>: FineWeb-Edu, DCLM, FineWeb2, Fineweb2-HQ&lt;br>&lt;strong>code&lt;/strong>: The Stack v2, StarCoder2 PRS, Jupyter and Kaggle notebooks, Github issues, StackExchange&lt;br>&lt;strong>math&lt;/strong>: FineMath3, InfiWebMath3+&lt;/td>
+&lt;td>Adding Stack-Edu, FineMath4+, InfiWebMath4+, MegaMath&lt;/td>
+&lt;td>upsampling of high-quality code data&lt;br>upsampling math data and introducing instruction and reasoning datasets such as OpenMathReasoning&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>其中，Web data 包含 12% 的多语种数据。&lt;/p>
+&lt;h3 id="training-recipe">Training Recipe
+&lt;/h3>&lt;p>训练过程中，作者使用了 2.36M tokens 的 batch size, 上下文长度为 4096. 优化器为 AdamW&lt;/p>
+&lt;p>作者使用了 nanotron 进行训练， datatrove 来处理数据， lighteval 来评估模型的表现。&lt;/p>
+&lt;p>模型在 384 张 H100 上训练了 24 天。分布式训练的配置如下&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-smollm3/SmolLM3_distributed_training.png"
+width="1672"
+height="1024"
+srcset="https://maosong2022.github.io/p/notes-on-smollm3/SmolLM3_distributed_training_hu7285902030689819858.png 480w, https://maosong2022.github.io/p/notes-on-smollm3/SmolLM3_distributed_training_hu8235147299335409429.png 1024w"
+loading="lazy"
+alt="SmolLM3 distributed training"
+class="gallery-image"
+data-flex-grow="163"
+data-flex-basis="391px"
+>&lt;/p>
+&lt;h2 id="mid-training">Mid-training
+&lt;/h2>&lt;p>Mid-training 的主要目标为扩展模型的上下文以及提升模型的 reasoning 能力。&lt;/p>
+&lt;h3 id="long-context-extension">Long Context Extension
+&lt;/h3>&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-smollm3/SmolLM3_long_context_training.png"
+width="1942"
+height="1128"
+srcset="https://maosong2022.github.io/p/notes-on-smollm3/SmolLM3_long_context_training_hu16383025728698209251.png 480w, https://maosong2022.github.io/p/notes-on-smollm3/SmolLM3_long_context_training_hu13112308143836602144.png 1024w"
+loading="lazy"
+alt="SmolLM3 long context training"
+class="gallery-image"
+data-flex-grow="172"
+data-flex-basis="413px"
+>&lt;/p>
+&lt;p>在预训练阶段结束之后，作者使用了额外的 &lt;strong>100B&lt;/strong> tokens 来扩展模型的上下文。作者将扩展过程分为两个 stage:&lt;/p>
+&lt;ol>
+&lt;li>Stage 1: 将模型的上下文从 4K 提升到 32K. 具体做法是将 RoPE 的 base frequency 提升到 1.5M&lt;/li>
+&lt;li>Stage 2: 将，模型的上下文从 32K 提升到 64K. 具体做法是将 RoPE 的 base frequency 提升到 5M&lt;/li>
+&lt;/ol>
+&lt;p>训练过程中，作者对 math, code 和 reasoning data 进行了上采样。作者发现，对长文本数据进行上采样并不会提高模型在 RULER 和 HELMET 上的表现。&lt;/p>
+&lt;blockquote>
+&lt;p>[!tip] Recall
+&lt;a class="link" href="https://maosong.website/p/notes-on-qwen2.5-1m/" target="_blank" rel="noopener"
+>Qwen2.5-1M&lt;/a> 里也分析了长文本数据的问题，也就是大部分长文本数据依然是局部相关性强，而全局相关性弱&lt;/p>
+&lt;/blockquote>
+&lt;p>与 &lt;a class="link" href="https://maosong.website/p/notes-on-qwen2.5/" target="_blank" rel="noopener"
+>Qwen2.5&lt;/a> 一样，作者还是用了 &lt;a class="link" href="https://maosong.website/p/notes-on-yarn/" target="_blank" rel="noopener"
+>YARN&lt;/a> 来在推理阶段进一步提高模型的上下文长度，作者发现模型可以处理 128K 上下文长度的文本。&lt;/p>
+&lt;h3 id="reasoning-mid-training">Reasoning Mid-training
+&lt;/h3>&lt;p>扩展模型上下文长度之后，作者还额外增加了一个 mid-training stage 来提高模型的 reasoning 能力。这个阶段的目标在于提升模型的通用能力。作者希望模型不针对特定的 domain, 如 math 或者 code 等。&lt;/p>
+&lt;p>训练过程中，作者使用了 &lt;strong>35B&lt;/strong> 的 token. 数据来源包括 Open-Thoughts3-1.2M 以及 NVIDIA 的 Llama-Nemetron-Post-Training-Dataset-v1.1. Reasoning trace 由 DeepSeek-R1 生成。作者使用了 ChatML 的格式，还使用了 Packing 来提升训练效率。训练持续了 4 个 epoch.&lt;/p>
+&lt;h2 id="post-training">Post-training
+&lt;/h2>&lt;p>如何构建 dual instruction model 来同时支持 reasoning 和 non-reasoning 任务并没有一个共识，大部分模型的数据都是非公开的。因此，作者就构建了一个 training pipeline, 用于提升模型在两种模式下的能力。&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-smollm3/SmolLM3_post-training_recipe.png"
+width="1796"
+height="1208"
+srcset="https://maosong2022.github.io/p/notes-on-smollm3/SmolLM3_post-training_recipe_hu5481082171162702903.png 480w, https://maosong2022.github.io/p/notes-on-smollm3/SmolLM3_post-training_recipe_hu243045709497717267.png 1024w"
+loading="lazy"
+alt="SmolLM3 post-training recipe"
+class="gallery-image"
+data-flex-grow="148"
+data-flex-basis="356px"
+>&lt;/p>
+&lt;h3 id="chat-template">Chat Template
+&lt;/h3>&lt;p>作者首先构建了一个 chat template, 用于支持 reasoning 和 non-reasoning 两种模式。该 chat template 支持用户使用 &lt;code>/think&lt;/code> 和 &lt;code>/no_think&lt;/code> flag 来控制模型的思考模式。在 non-reasoning 模式下，作者还在模型输出中 prefill 了 &lt;code>&amp;lt;think&amp;gt;\n\n&amp;lt;/think&amp;gt;&lt;/code>, 这一点与 Qwen3 一致。&lt;/p>
+&lt;p>SmolLM3 还支持工具调用，其在 chat template 中加入了两种描述方式：XLM tools 和 Python tools.&lt;/p>
+&lt;p>SmolLM3 还在 system prompt 中加入了 metadata, 如知识的截止时间，当前的 reasoning mode 等。&lt;/p>
+&lt;h3 id="sft">SFT
+&lt;/h3>&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-smollm3/SmolLM3_synthetic_SFT_data.png"
+width="1562"
+height="940"
+srcset="https://maosong2022.github.io/p/notes-on-smollm3/SmolLM3_synthetic_SFT_data_hu11130185069272692077.png 480w, https://maosong2022.github.io/p/notes-on-smollm3/SmolLM3_synthetic_SFT_data_hu3647788789608535616.png 1024w"
+loading="lazy"
+alt="SmolLM3 Synthetic SFT data"
+class="gallery-image"
+data-flex-grow="166"
+data-flex-basis="398px"
+>&lt;/p>
+&lt;p>作者针对 math, code, general reasoning, instruction following, 以及 multilinguality 这几个领域来提升模型的表现。&lt;/p>
+&lt;p>作者首先使用 reasoning mode 的 Qwen3-32B 来合成数据，合成数据的过程如上图所示。&lt;/p>
+&lt;p>最终，SFT 阶段的数据包括 &lt;strong>1.8B&lt;/strong> token, 其中 &lt;strong>1B&lt;/strong> 为 non-reasoning mode 的 token, 覆盖 12 个数据集， &lt;strong>0.8B&lt;/strong> 为 reasoning token, 覆盖 10 个数据集。作者训练了 4 个 epoch, 使用了 Packing 的技巧。&lt;/p>
+&lt;h3 id="apo">APO
+&lt;/h3>&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-smollm3/SmolLM3_synthetic_preference_data.png"
+width="1542"
+height="760"
+srcset="https://maosong2022.github.io/p/notes-on-smollm3/SmolLM3_synthetic_preference_data_hu9363143912475736506.png 480w, https://maosong2022.github.io/p/notes-on-smollm3/SmolLM3_synthetic_preference_data_hu12538931937351185121.png 1024w"
+loading="lazy"
+alt="SmolLM3 synthetic preference data"
+class="gallery-image"
+data-flex-grow="202"
+data-flex-basis="486px"
+>&lt;/p>
+&lt;p>SFT 阶段之后，作者使用了 Tulu3 的 preference dataset 用于 non-reasoning mode 的训练，然后合成了一批数据用于 reasoning mode 的训练，这批合成数据使用 Qwen3 32B 和 Qwen3 0.6B 生成得到，具体做法就是 Qwen3 32B 输出的结果定义为正样本，Qwen3 0.6B 输出的结果定义为负样本。&lt;/p>
+&lt;p>作者使用了 APO 算法来进行训练，APO 是 DPO 的一个变体， DPO 的目标函数为&lt;/p>
+$$
+\mathcal{L}_{DPO}(x,y_w,y_{l}; \theta) = -\log \sigma(r_\theta(x,y_w) - r_\theta(x, y_l))
+$$&lt;p>其中&lt;/p>
+$$
+r_\theta(x,y) = \beta\log \frac{\pi_{\theta}(y\mid x)}{\pi_{ref}(y\mid x)}
+$$&lt;p>$\beta&amp;gt;0$ 是一个超参数。APO 的目标函数如下&lt;/p>
+$$
+\mathcal{L}_{APO}(x,y_w,y_l;\theta) = -\sigma(r_\theta(x,y_w)) + \sigma(r_\theta(x,y_l))
+$$&lt;p>作者发现，模型的 reasoning 能力提升之后，其长上下文能力反而下降了。作者认为这是因为在 reasoning mid-training stage 的训练中，提升 reasoning 能力损害了模型的 long context 能力。并且，APO 的训练数据上下文长度大多都在 24K 左右。为了解决这个问题，作者提出了 Model merging 的方法&lt;/p>
+&lt;h3 id="model-merging">Model Merging
+&lt;/h3>&lt;p>作者使用 MergeKit 来完成 model merging 的任务。merge 的过程包括两步：&lt;/p>
+&lt;ol>
+&lt;li>构造一个 model soup, 包括 APO 的每个 checkpoint&lt;/li>
+&lt;li>将 model soup 与 mid-training 的一个拥有强上下文能力的 checkpoint 结合起来，作者使用了 linear merge, APO model soup 和 mid-training checkpoint 的权重分别为 0.9 和 0.1.&lt;/li>
+&lt;/ol>
+&lt;blockquote>
+&lt;p>[!tip] Recall
+&lt;a class="link" href="https://maosong.website/p/notes-on-kimi-k1.5/" target="_blank" rel="noopener"
+>Kimi-k1.5&lt;/a> 也使用了 model merging 的方法，来将 long CoT 模型的能力迁移到 short-CoT 模型上去&lt;/p>
+&lt;/blockquote>
+&lt;h2 id="evaluation">Evaluation
+&lt;/h2>&lt;p>作者首先评估了一下 base model 的表现，评估使用了 12 个 benchmark, 对比的模型包括 &lt;a class="link" href="https://maosong.website/p/notes-on-qwen3/" target="_blank" rel="noopener"
+>Qwen3&lt;/a>, Gemma3, LLaMA 3.2. 结果如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-smollm3/SmolLM3_base_model_performance.png"
+width="2992"
+height="2059"
+srcset="https://maosong2022.github.io/p/notes-on-smollm3/SmolLM3_base_model_performance_hu6476501870165868626.png 480w, https://maosong2022.github.io/p/notes-on-smollm3/SmolLM3_base_model_performance_hu9200080401812923224.png 1024w"
+loading="lazy"
+alt="SmolLM3 base model performance"
+class="gallery-image"
+data-flex-grow="145"
+data-flex-basis="348px"
+>&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-smollm3/SmolLM3_base_model_extact_performance.png"
+width="2194"
+height="954"
+srcset="https://maosong2022.github.io/p/notes-on-smollm3/SmolLM3_base_model_extact_performance_hu7414033305597534731.png 480w, https://maosong2022.github.io/p/notes-on-smollm3/SmolLM3_base_model_extact_performance_hu18133849881670103547.png 1024w"
+loading="lazy"
+alt="SmolLM3 base model performance"
+class="gallery-image"
+data-flex-grow="229"
+data-flex-basis="551px"
+>&lt;/p>
+&lt;p>模型的多语种表现如下&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-smollm3/SmolLM3_multilingual_performance.png"
+width="1600"
+height="1062"
+srcset="https://maosong2022.github.io/p/notes-on-smollm3/SmolLM3_multilingual_performance_hu8100262855846916136.png 480w, https://maosong2022.github.io/p/notes-on-smollm3/SmolLM3_multilingual_performance_hu256869903175579211.png 1024w"
+loading="lazy"
+alt="SmolLM3 multilingual performance"
+class="gallery-image"
+data-flex-grow="150"
+data-flex-basis="361px"
+>&lt;/p>
+&lt;p>Instruction (non-reasoning) 版本的评估结果如下&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-smollm3/SmolLM3_instruction_performance.png"
+width="2992"
+height="2064"
+srcset="https://maosong2022.github.io/p/notes-on-smollm3/SmolLM3_instruction_performance_hu6052638395361747764.png 480w, https://maosong2022.github.io/p/notes-on-smollm3/SmolLM3_instruction_performance_hu11311995837787702253.png 1024w"
+loading="lazy"
+alt="SmolLM3 Instruct models performance (w/o reasoning)"
+class="gallery-image"
+data-flex-grow="144"
+data-flex-basis="347px"
+>&lt;/p>
+&lt;p>Reasoning 版本的评估结果如下&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-smollm3/SmolLM3_reasoning_performance.png"
+width="2158"
+height="1208"
+srcset="https://maosong2022.github.io/p/notes-on-smollm3/SmolLM3_reasoning_performance_hu1378326931387372470.png 480w, https://maosong2022.github.io/p/notes-on-smollm3/SmolLM3_reasoning_performance_hu8158417547839893481.png 1024w"
+loading="lazy"
+alt="SmolLM3 reasoning performance"
+class="gallery-image"
+data-flex-grow="178"
+data-flex-basis="428px"
+>&lt;/p>
+&lt;p>可以看到，Qwen3-4B 的表现是最好的。而 SmolLM3 的表现在 3B 左右也是非常强劲的&lt;/p>
+&lt;h2 id="conclusion">Conclusion
+&lt;/h2>&lt;p>作者提出了 SmolLM3, 一个拥有长上下，文多语种以及 dual mode reasoning 能力的大语言模型，作者详细介绍了数据，训练以及 model merging 的技巧，来提高模型的表现。&lt;/p>
+&lt;h2 id="references">References
+&lt;/h2>&lt;ul>
+&lt;li>&lt;a class="link" href="https://huggingface.co/blog/smollm3" target="_blank" rel="noopener"
+>blog&lt;/a>&lt;/li>
+&lt;/ul></description></item><item><title>Notes on GLM-4.1V-Thinking</title><link>https://maosong2022.github.io/p/notes-on-glm-4.1v-thinking/</link><pubDate>Mon, 14 Jul 2025 10:32:04 +0800</pubDate><guid>https://maosong2022.github.io/p/notes-on-glm-4.1v-thinking/</guid><description>&lt;p>智谱 AI 在 25 年 7 月份发布了 GLM-4.1V-Thinking, 一个 9B 的多模态大语言模型，其在多个 benchmark 上达到了相同大小 MLLM 的 SOTA&lt;/p>
+&lt;h2 id="introduction">Introduction
+&lt;/h2>&lt;p>已有工作如 &lt;a class="link" href="https://maosong.website/p/notes-on-mimo-vl/" target="_blank" rel="noopener"
+>MiMo-VL&lt;/a> 和 V-Triune 主要集中在特定的领域，目前还没有一个在所有领域都能超过 non-reasoning model 表现的多模态 reasoning model.&lt;/p>
+&lt;p>基于这个目标，作者提出了 GLM-4.1V-Thinking, 一个 9B 的，用于通用领域多模态 reasoning 的 MLLM. 在预训练阶段，作者通过构建多样化的数据来提升模型的基础能力。在 post-training 阶段，作者构建了 domain-specific 的数据来让模型学会 reasoning. 最后，作者提出了 Reinforcement Learning with Curriculum Sampling (RLCS) 来扩展模型的 reasoning 能力。&lt;/p>
+&lt;p>作者主要发现如下：&lt;/p>
+&lt;ol>
+&lt;li>multi-domain RL 的泛化性非常强，在某一个 domain 上进行 RL 训练也可以提高模型在其他 domain 上的表现&lt;/li>
+&lt;li>动态选择 RL 训练的数据可以有效提高模型的表现和训练效率&lt;/li>
+&lt;li>一个 robust 以及 precise 的 reward model 对于 multi-domain RL 是至关重要的&lt;/li>
+&lt;/ol>
+&lt;h2 id="method">Method
+&lt;/h2>&lt;h3 id="architecture">Architecture
+&lt;/h3>&lt;p>GLM-4.1V-Thinking 是一个标准的 ViT-MLP-LLM 架构，其中：&lt;/p>
+&lt;ul>
+&lt;li>ViT: ViT 使用的是 AIMv2-Huge&lt;/li>
+&lt;li>MLP: 是一个 3 层的 MLP，架构为 &lt;code>linear-LayerNorm-GELU-SwiGLU&lt;/code>, 并且在进入 MLP 之前，GLM-4.1V-Thinking 还会在 spatial 上进行降采样，降采样率为 2&lt;/li>
+&lt;li>LLM: LLM 使用的是 GLM&lt;/li>
+&lt;/ul>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-glm-4.1v-thinking/GLM_4_1_V_Thinking_architecture.png"
+width="1804"
+height="988"
+srcset="https://maosong2022.github.io/p/notes-on-glm-4.1v-thinking/GLM_4_1_V_Thinking_architecture_hu14497388027985393186.png 480w, https://maosong2022.github.io/p/notes-on-glm-4.1v-thinking/GLM_4_1_V_Thinking_architecture_hu7694229193987378695.png 1024w"
+loading="lazy"
+alt="Architecture of GLM4.1V-Thinking"
+class="gallery-image"
+data-flex-grow="182"
+data-flex-basis="438px"
+>&lt;/p>
+&lt;p>与 &lt;a class="link" href="https://maosong.website/p/notes-on-qwen2.5-vl/" target="_blank" rel="noopener"
+>Qwen2.5-VL&lt;/a> 一样，作者将 encoder 的 2D convolution 替换为了 3D convolution，用于处理视频输入，然后对于 single-image inputs，GLM-4.1V-Thinking 会将输入复制，变成一个含有两帧相同图片的 video 输入&lt;/p>
+&lt;p>为了支持不同分辨率图片输入，作者进行了两点改进：&lt;/p>
+&lt;p>第一是使用了 2D RoPE 来处理不同分辨率的图片输入&lt;/p>
+&lt;p>第二是使用 bicubic interpolation 来将不同分辨率的图片适应到 encoder 的 position embedding 上。具体来讲，对一个拥有 $H_p\times W_p$ patches 的图片，每个 patch 的坐标 $(w,h)$ 首先会被 normalized 到 $[-1,1]$ 中：&lt;/p>
+$$
+g_{norm} = (w_{norm}, h_{norm}) = 2* \left(\frac{w+0.5}{W_p}, \frac{h+0.5}{H_p}\right) - 1
+$$&lt;p>然后，我们再使用 bicubic interpolation $\mathcal{I}_{bicubic}$ 将坐标映射到原始的 position embedding 上：&lt;/p>
+$$
+P_{adapted} = \mathcal{I}_{bicubic}(P_{orig}, g_{norm})
+$$&lt;p>对于视频输入，作者在每一帧之后插入了一个 time index token, 用每一帧的 timestamp string 来表示。这个做法与 &lt;a class="link" href="https://maosong.website/p/notes-on-qwen2.5-vl/" target="_blank" rel="noopener"
+>Qwen2.5-VL&lt;/a> 一样。&lt;/p>
+&lt;h3 id="pre-training">Pre-training
+&lt;/h3>&lt;h4 id="pre-training-data">Pre-training Data
+&lt;/h4>&lt;p>Pre-training 数据包括 image-caption data, interleaved image-text data, OCR data, grounding data, video data 和 instruction tuning data&lt;/p>
+&lt;p>&lt;strong>Image caption data&lt;/strong>
+Image caption data 用于提升模型的世界知识。作者从 LAION, DataComp, DNF 以及 Wukong 等数据集收集了 10B 的 image-text pairs, 然后进行数据清洗：&lt;/p>
+&lt;ol>
+&lt;li>Heuristic-based filtering: 基于规则，如 resolution, caption length 等过滤掉低质量的图片&lt;/li>
+&lt;li>Relevance filtering: 计算 CLIP score, 过滤掉低质量的数据&lt;/li>
+&lt;li>Concept-balanced resampling: 基于 MetaCLIP , 来提升数据的覆盖程度，解决长尾分布的问题。这里 &lt;a class="link" href="https://maosong.website/p/notes-on-seed1.5-vl/" target="_blank" rel="noopener"
+>Seed1.5-VL&lt;/a> 有一个类似的消融实验。&lt;/li>
+&lt;li>Factual-centered re-captioning: 通过 rewrite caption 来提升 caption 的质量和信息密度。Idefics2 通过实验发现，rewriting caption 可以提高模型的表现。作者在最终的数据集里，混合了一部分 re-caption 的数据。&lt;/li>
+&lt;/ol>
+&lt;p>&lt;strong>Interleaved image-text data&lt;/strong>
+相比于 image-caption data, interleaved image-text data 体量更大，且逻辑关系更强。但是噪声也更多，因此作者针对不同来源的数据构建了不同的数据清洗策略：&lt;/p>
+&lt;ol>
+&lt;li>Web data processing pipeline: 数据来源为 MINT, MMC4, OmniCorpus 等。作者首先基于 CLIP-score，去掉与上下文不相关的图片；然后，作者去除掉广告，二维码等低质量的图片；最后，作者将图多文少的样本也给去除掉，比如相册图片。作者还训练了一个 high-knowledge-density image classifier, 来识别信息密度高的样本。&lt;/li>
+&lt;li>Academic book processing pipeline: 作者从电子书中收集了 100M 的样本，这些电子书主要是 STEM domain，然后作者构建了一个 PDF parsing tool 来提取文档内容。&lt;/li>
+&lt;/ol>
+&lt;p>&lt;strong>OCR data&lt;/strong>
+OCR 数据包含&lt;strong>220M images&lt;/strong>, 数据集由三部分组成：&lt;/p>
+&lt;ol>
+&lt;li>Synthetic document images: 基于预训练语料，使用不同的格式来渲染文字生成不同的图片，然后基于 LAION 的图片作为背景&lt;/li>
+&lt;li>Natural scene text images: 使用 Paddle-OCR 来从图片中提取文字以及对应的 bounding box&lt;/li>
+&lt;li>Academic documents: 使用类似 Nougat 的方法来构建 PDF page-Markdown 的数据。&lt;/li>
+&lt;/ol>
+&lt;p>&lt;strong>Grounding data&lt;/strong>
+主要包含自然场景和 GUI 两个 domain 的 grounding 数据：&lt;/p>
+&lt;ol>
+&lt;li>Natural image grounding: 基于 LAION-115M 得到。作者使用 GLIPv2, 来自动化解析 caption 中的实体，然后预测对应的 bounding box, 作者将 bounding box 较少的样本去除掉。最终得到&lt;strong>40M&lt;/strong>高质量的自然场景数据&lt;/li>
+&lt;li>GUI grounding: 基于 CC 提取对应的 url, 然后使用 Playwright 来与网页进行交互，进而获取到所有的 DOM elements 与其对应的 bounding box. 最终收集到 &lt;strong>140M&lt;/strong>高质量的 QA 样本&lt;/li>
+&lt;/ol>
+&lt;p>&lt;strong>Video data&lt;/strong>
+Video data 从多个来源得到，作者使用了 fine-grained human annotation 来保证数据质量。作者还标注了 camera motion 等信息&lt;/p>
+&lt;p>为了保证数据的质量，作者进行了去重，来减少数据语义的相似性。&lt;/p>
+&lt;p>&lt;strong>Instruction tuning data&lt;/strong>
+instruction tuning data 的策略如下：&lt;/p>
+&lt;ol>
+&lt;li>Task coverage and taxonomy: 优化数据分布&lt;/li>
+&lt;li>Complex scenario augmentation: 构建复杂的指令跟随数据&lt;/li>
+&lt;li>Data contamination check: 数据污染检查&lt;/li>
+&lt;/ol>
+&lt;p>最终一共收集到 &lt;strong>50M&lt;/strong>样本，覆盖 visual perception, multimodal reasoning, GUI agent 等任务。&lt;/p>
+&lt;h4 id="pre-training-training">Pre-training Training
+&lt;/h4>&lt;p>Pre-training 由两个 stage 组成：&lt;/p>
+&lt;ol>
+&lt;li>Multimodal pre-training: 提高模型的通用多模态能力，上下文长度为 8192, global batch size 为 1536. 使用了 data packing 策略，使用了 2-way tensor parallelism&lt;/li>
+&lt;li>Long-context continue training: 提升模型在高精度图片，长视频，长上下文场景下的表现，上下文长度为 32768, 使用了 2-way tensor parallelism 和 4-way context parallelism.&lt;/li>
+&lt;/ol>
+&lt;h3 id="sft">SFT
+&lt;/h3>&lt;h4 id="sft-data">SFT Data
+&lt;/h4>&lt;p>数据包括 long CoT reasoning 数据，来让模型以标准格式输出 multi-step solution.&lt;/p>
+&lt;p>数据包括 verifiable tasks 以及 non-verifiable tasks, 覆盖中英两种语言。作者过滤了非常简单和非常困难的样本。&lt;/p>
+&lt;p>数据格式如下&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">&amp;lt;think&amp;gt; {think_content} &amp;lt;/think&amp;gt; &amp;lt;answer&amp;gt; {answer_content} &amp;lt;/answer&amp;gt;
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>对于 verifiable tasks, 输出格式为&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">&amp;lt;answer&amp;gt; &amp;lt;|begin_of_box|&amp;gt; {answer_content} &amp;lt;|end_of_box|&amp;gt; &amp;lt;/answer&amp;gt;
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>数据清洗策略包括：&lt;/p>
+&lt;ol>
+&lt;li>严格遵守格式要求&lt;/li>
+&lt;li>reasoning style 不一致或者有噪声&lt;/li>
+&lt;li>混合语言输出。&lt;/li>
+&lt;/ol>
+&lt;p>作者还使用 RL checkpoints 来生成一部分高质量数据，加入到 SFT 阶段的数据集里面。&lt;/p>
+&lt;h4 id="sft-training">SFT Training
+&lt;/h4>&lt;p>全参数微调。上下文长度为 32768， batch size 为 32.数据包括 long-form reasoning data 以及纯文本数据，包括 math, multi-turn conversation, agent planning 以及 instruction following 等.&lt;/p>
+&lt;blockquote>
+&lt;p>[!tip] Observation
+作者发现，在 SFT 阶段即使是使用带噪声的 reasoning data，模型在 RL 阶段也能继续训练。也就是说，不完美的 reasoning trace 也能提供 guidance. 但是，使用更高质量的数据可以让模型 RL 阶段的训练更稳定且表现更好。&lt;/p>
+&lt;/blockquote>
+&lt;h3 id="rl">RL
+&lt;/h3>&lt;p>与 &lt;a class="link" href="https://maosong.website/p/notes-on-seed1.5-vl/" target="_blank" rel="noopener"
+>Seed1.5-VL&lt;/a> 一样，作者在 RL 阶段结合了 RLVR 和 RLHF 两个训练目标。任务包括 STEM problem solving (such as mathematics, physics, chemistry), grounding, optical character recognition (OCR), video understanding, GUI agents, chart and document understanding, logical reasoning, and instruction following.&lt;/p>
+&lt;p>&lt;strong>Data&lt;/strong>
+作者首先构建了一个任务集合，然后基于这些任务，来过滤或者生成对应的 QA pair, 接下来作者基于难度和质量来过滤，最后作者在每个 domain 上进行 RL 的训练来保证数据的有效性。&lt;/p>
+&lt;p>&lt;strong>Reward modelling&lt;/strong>
+作者构建了一个 reward system, 用于给不同 domain 的任务进行奖励。为了探究不同 domain 的 reward 对模型整体表现的影响，作者设计了一个 low-quality reward system，实验结果如下，可以看到模型在训练后期出现了 collapse 或者 reward hacking 的情况。&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-glm-4.1v-thinking/GLM_4_1_V_reward_ablation.png"
+width="1778"
+height="876"
+srcset="https://maosong2022.github.io/p/notes-on-glm-4.1v-thinking/GLM_4_1_V_reward_ablation_hu1940628557481340942.png 480w, https://maosong2022.github.io/p/notes-on-glm-4.1v-thinking/GLM_4_1_V_reward_ablation_hu12923493226588456991.png 1024w"
+loading="lazy"
+alt="GLM-4.1V-Thinking reward ablation"
+class="gallery-image"
+data-flex-grow="202"
+data-flex-basis="487px"
+>&lt;/p>
+&lt;blockquote>
+&lt;p>[!tip] Observation
+作者发现，不同任务的不同信号奖励会对模型最终表现产生巨大影响。&lt;/p>
+&lt;/blockquote>
+&lt;p>在使用 LLM 提取模型回答的 answer 的时候，作者要求模型的最终答案为 &lt;code>&amp;lt;|begin_of_box|&amp;gt; {answer_content} &amp;lt;|end_of_box|&amp;gt;&lt;/code> 这种形式，避免大语言模型提取出错。&lt;/p>
+&lt;p>作者构建的 reward system 包含如下模块：&lt;/p>
+&lt;ol>
+&lt;li>shared verification functions: 包括格式检查等&lt;/li>
+&lt;li>domain specific modules: 与 domain 相关的模块&lt;/li>
+&lt;li>unit testing: 观测 domain 输出的分布，然后基于输出的分布来调整 reward logic&lt;/li>
+&lt;/ol>
+&lt;p>最终 reward 的 design 如下表所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-glm-4.1v-thinking/GLM_4_1_V_reward_design.png"
+width="1812"
+height="712"
+srcset="https://maosong2022.github.io/p/notes-on-glm-4.1v-thinking/GLM_4_1_V_reward_design_hu7442997355963364551.png 480w, https://maosong2022.github.io/p/notes-on-glm-4.1v-thinking/GLM_4_1_V_reward_design_hu4476507324978246593.png 1024w"
+loading="lazy"
+alt="GLM-4.1V-Thinking reward design"
+class="gallery-image"
+data-flex-grow="254"
+data-flex-basis="610px"
+>&lt;/p>
+&lt;p>&lt;strong>RLCS&lt;/strong>
+作者使用了 GRPO 来进行优化训练。作者发现，仅需 200 training steps 模型在一半以上问题的准确率就达到了 $90%$.&lt;/p>
+&lt;p>为了提升模型的训练效率，作者提出了 Reinforcement Learning with Curriculum Sampling (RLCS), 也就是将课程学习与 RL 结合起来。作者基于模型训练情况动态调整训练样本的难度，来保证每个样本对模型训练的提升都是最大的。&lt;/p>
+&lt;p>在 RLCS 训练之前，作者先使用模型评测得到每个样本的 pass@k, 然后根据结果将样本进行分类。在训练过程中，作者记录每个样本的 pass@k， 然后动态更新其分类结果。在采样的时候，作者基于难度来对样本进行加权，来降低太简单或者太难样本的采样概率。&lt;/p>
+&lt;p>作者还提出了一些提高 RL 表现的方法：&lt;/p>
+&lt;ol>
+&lt;li>Larger batch size: 使用更大的 batch size 效果更好&lt;/li>
+&lt;li>Dynamic sampling expansion via ratio EMA: 作者定义了 naive 样本和高质量样本的比例，然后根据这个比例进行采样，来提升整体的采样效率。&lt;/li>
+&lt;li>Force answering: 与 &lt;a class="link" href="https://maosong.website/p/notes-on-qwen3/" target="_blank" rel="noopener"
+>Qwen3&lt;/a> 一样，对于比较难的问题，当输出的 token 数过长时，作者对模型输出进行截断，然后让模型基于已有思考过程直接输出结果。&lt;/li>
+&lt;li>Discard KL loss: 与 DAPO 一样，作者也移除了 KL divergence loss&lt;/li>
+&lt;li>Clip-higher: 与 DAPO 一样，作者通过修改超参数来提高模型的探索能力&lt;/li>
+&lt;/ol>
+&lt;blockquote>
+&lt;p>[!tip] Observation&lt;/p>
+&lt;ol>
+&lt;li>RL 阶段的表现与 cold-start SFT 的表现并不完全相关。作者发现，cold-start SFT 取得更好的表现并不一定保证 RL 的表现就更好。&lt;/li>
+&lt;li>RL 阶段各个 domain 数据的影响是正交的，这与 cold-start SFT 阶段的结果不同。&lt;/li>
+&lt;/ol>
+&lt;/blockquote>
+&lt;p>作者还提出了一些提高训练稳定性的方法：&lt;/p>
+&lt;ol>
+&lt;li>提高 cold-start SFT 阶段数据的质量&lt;/li>
+&lt;li>移除 KL divergence loss&lt;/li>
+&lt;li>使用 top-p 为 1，而不是 0.9 (如 &lt;a class="link" href="https://maosong.website/p/notes-on-qwen-llm/" target="_blank" rel="noopener"
+>Qwen-LLM&lt;/a> 中的设置)，top-p 为 1 可以 cover 整个 vocabulary，避免某些 token 没有参与训练&lt;/li>
+&lt;li>per-sample loss 和 per-token loss 没有显著区别，但是 per-sample loss 稳定性更高&lt;/li>
+&lt;li>在 cold-start SFT 阶段让模型学会格式要求，而不是在 RL 阶段加入 format reward&lt;/li>
+&lt;/ol>
+&lt;p>&lt;strong>Infra&lt;/strong>
+在 infra 方面，作者做了如下改进：&lt;/p>
+&lt;ol>
+&lt;li>Load balancing of sequence lengths across DP ranks. 平衡每个 rank 的 sequensequence length 以及 compute load&lt;/li>
+&lt;li>Intra-rank training with sequence packing and gradient accumulation. 将 sequence packing 和 gradient accumulation 结合起来&lt;/li>
+&lt;li>Sample packing and reorganization within DP ranks. data packing&lt;/li>
+&lt;li>Dynamic sampling expansion via ratio EMA. 平衡 naive 样本和高质量样本之间的比例&lt;/li>
+&lt;/ol>
+&lt;h2 id="evaluation">Evaluation
+&lt;/h2>&lt;h3 id="performance">Performance
+&lt;/h3>&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-glm-4.1v-thinking/GLM_4_1_V_performance.png"
+width="1066"
+height="1446"
+srcset="https://maosong2022.github.io/p/notes-on-glm-4.1v-thinking/GLM_4_1_V_performance_hu4663931888132339157.png 480w, https://maosong2022.github.io/p/notes-on-glm-4.1v-thinking/GLM_4_1_V_performance_hu2656097992392796714.png 1024w"
+loading="lazy"
+alt="Performance of GLM4.1V Thinking"
+class="gallery-image"
+data-flex-grow="73"
+data-flex-basis="176px"
+>&lt;/p>
+&lt;p>可以看到，GLM-4.1V-Thinking 在多个 benchmark 上都达到了 SOTA.&lt;/p>
+&lt;h3 id="ablation-study">Ablation Study
+&lt;/h3>&lt;p>作者评估了一下不同 domain 的 RL 训练对模型整体表现的影响。作者使用不同的数据来进行训练，然后分析结果的相关性，结果如下&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-glm-4.1v-thinking/GLM_4_1_V_cross_domain_generalization.png"
+width="1226"
+height="962"
+srcset="https://maosong2022.github.io/p/notes-on-glm-4.1v-thinking/GLM_4_1_V_cross_domain_generalization_hu16221901218333137952.png 480w, https://maosong2022.github.io/p/notes-on-glm-4.1v-thinking/GLM_4_1_V_cross_domain_generalization_hu16525324023796861196.png 1024w"
+loading="lazy"
+alt="Cross-domain generalization in reinforcement learning"
+class="gallery-image"
+data-flex-grow="127"
+data-flex-basis="305px"
+>&lt;/p>
+&lt;p>实验结果发现：&lt;/p>
+&lt;ol>
+&lt;li>在某个 domain 上的训练会提高模型在其他 domain 上的表现&lt;/li>
+&lt;li>联合多个 domain 进行训练最终的表现会更好&lt;/li>
+&lt;/ol>
+&lt;p>作者还发现，不同的任务之间存在关联，如 GUI-agent 和 grounding 这两个任务是高度相关的。OCR &amp;amp; Chart 以及 GUI-agent 也是高度相关的。&lt;/p>
+&lt;h2 id="conclusion">Conclusion
+&lt;/h2>&lt;p>在本文中，作者提出了 GLM-4.1V-Thinking, 一个 9B 的通用多模态 reasoning model, 作者通过构建高质量的数据，多阶段的训练，让模型在 reasoning 和 non-reasoning 任务上均超过了已有的 SOTA 模型的表现&lt;/p>
+&lt;p>作者认为，模型有以下局限：&lt;/p>
+&lt;ol>
+&lt;li>模型并没有提升 reasoning 的质量，在某些情况下，模型结果正确，但是中间过程错误。作者分析这是因为目前只有针对结果的奖励机制。因此，未来需要能够评估中间过程的 reward model&lt;/li>
+&lt;li>RL 的训练具有不稳定性，作者发现模型对设置比较敏感，这对 RL 训练的 scaling 提出了挑战。&lt;/li>
+&lt;li>模型在复杂场景下表现依旧不太好，比如图片中有物体遮挡的情况，这些感知误差也会影响最终的 reasoning 表现。作者认为如何同时提高 perception 和 reasoning 的表现是一个需要研究的课题。&lt;/li>
+&lt;/ol>
+&lt;p>未来的工作有：&lt;/p>
+&lt;ol>
+&lt;li>如何构建更好的 reward 机制，来同时评估结果和中间过程。从而防止模型 reward hacking&lt;/li>
+&lt;li>如何基于 multimodal training 来提升模型在纯文本任务上的表现。探究 visual reasoning 和 text reasoning 如何互相促进也是一个课题&lt;/li>
+&lt;li>如何更好评估模型的表现，即如何更好评估模型的 failure modes, 比如幻觉，short reasoning 等&lt;/li>
+&lt;/ol>
+&lt;h2 id="references">References
+&lt;/h2>&lt;ul>
+&lt;li>&lt;a class="link" href="https://arxiv.org/abs/2507.01006" target="_blank" rel="noopener"
+>Arxiv&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://huggingface.co/THUDM/GLM-4.1V-9B-Thinking" target="_blank" rel="noopener"
+>Huggingface&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;h2 id="appendix">Appendix
+&lt;/h2>&lt;p>GLM-4.1V-Thinking 的 patch merger 代码&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;span class="lnt">21
+&lt;/span>&lt;span class="lnt">22
+&lt;/span>&lt;span class="lnt">23
+&lt;/span>&lt;span class="lnt">24
+&lt;/span>&lt;span class="lnt">25
+&lt;/span>&lt;span class="lnt">26
+&lt;/span>&lt;span class="lnt">27
+&lt;/span>&lt;span class="lnt">28
+&lt;/span>&lt;span class="lnt">29
+&lt;/span>&lt;span class="lnt">30
+&lt;/span>&lt;span class="lnt">31
+&lt;/span>&lt;span class="lnt">32
+&lt;/span>&lt;span class="lnt">33
+&lt;/span>&lt;span class="lnt">34
+&lt;/span>&lt;span class="lnt">35
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">class&lt;/span> &lt;span class="nc">Glm4vVisionPatchMerger&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Module&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="fm">__init__&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">dim&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">int&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">context_dim&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">int&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">hidden_act&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">str&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">bias&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">bool&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="kc">False&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">-&amp;gt;&lt;/span> &lt;span class="kc">None&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nb">super&lt;/span>&lt;span class="p">()&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="fm">__init__&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">proj&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Linear&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">dim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">dim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">bias&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">bias&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">post_projection_norm&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">LayerNorm&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">dim&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">gate_proj&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Linear&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">dim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">context_dim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">bias&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">bias&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">up_proj&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Linear&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">dim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">context_dim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">bias&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">bias&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">down_proj&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Linear&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">context_dim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">dim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">bias&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">bias&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">act1&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">GELU&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">act_fn&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">ACT2FN&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">hidden_act&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="nf">forward&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">hidden_state&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">-&amp;gt;&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">hidden_state&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">proj&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">hidden_state&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">hidden_state&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">act1&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">post_projection_norm&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">hidden_state&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">down_proj&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">act_fn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">gate_proj&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">hidden_state&lt;/span>&lt;span class="p">))&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">up_proj&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">hidden_state&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">class&lt;/span> &lt;span class="nc">Glm4vVisionModel&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="fm">__init__&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">config&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">downsample&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Conv2d&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">in_channels&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">hidden_size&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">out_channels&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">out_hidden_size&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">kernel_size&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">spatial_merge_size&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">stride&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">spatial_merge_size&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">merger&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">Glm4vVisionPatchMerger&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">dim&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">out_hidden_size&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">context_dim&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">intermediate_size&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">hidden_act&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">hidden_act&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="nf">forward&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">hidden_states&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">...&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">hidden_states&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">hidden_states&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">view&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">spatial_merge_size&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">spatial_merge_size&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">hidden_states&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">shape&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">])&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">hidden_states&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">hidden_states&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">permute&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">3&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">hidden_states&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">downsample&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">hidden_states&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">view&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">out_hidden_size&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">hidden_states&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">merger&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">hidden_states&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div></description></item><item><title>Notes on QwQ-32B</title><link>https://maosong2022.github.io/p/notes-on-qwq-32b/</link><pubDate>Sat, 08 Mar 2025 09:46:16 +0800</pubDate><guid>https://maosong2022.github.io/p/notes-on-qwq-32b/</guid><description>&lt;h1 id="introduction">Introduction
+&lt;/h1>&lt;p>通义团队在3月6号发布了QwQ-32B，一个基于RL的，32B参数的reasoning model，QwQ-32B的表现可以与DeepSeek-R1相比&lt;/p>
+&lt;h1 id="模型架构">模型架构
+&lt;/h1>&lt;p>QwQ-32B基于Qwen2.5-32B开发。主要通过基于outcome-based rewards的RL进行训练。训练过程包括两个stage&lt;/p>
+&lt;ol>
+&lt;li>Stage 1：本阶段在math和coding domain上进行RL的训练，作者使用了一个verifier来保证最终数学问题结果的正确性，使用了一个code execution server来保证最终生成代码的正确性。&lt;/li>
+&lt;li>Stage 2：本阶段在通用领域上进行RL的训练。模型基于general reward model和一些rule-based verifier进行训练。应该是类似DeepSeek-R1的规则。&lt;/li>
+&lt;/ol>
+&lt;h1 id="实验结果">实验结果
+&lt;/h1>&lt;p>实验结果如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-qwq-32b/qwq-32b-final.jpg"
+width="3035"
+height="1713"
+srcset="https://maosong2022.github.io/p/notes-on-qwq-32b/qwq-32b-final_hu8354107095607630009.jpg 480w, https://maosong2022.github.io/p/notes-on-qwq-32b/qwq-32b-final_hu6845858612094320689.jpg 1024w"
+loading="lazy"
+alt="QwQ_evaluation"
+class="gallery-image"
+data-flex-grow="177"
+data-flex-basis="425px"
+>&lt;/p>
+&lt;h1 id="reference">Reference
+&lt;/h1>&lt;ul>
+&lt;li>&lt;a class="link" href="https://qwenlm.github.io/blog/qwq-32b/" target="_blank" rel="noopener"
+>blog&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://chat.qwen.ai/?models=Qwen2.5-Plus" target="_blank" rel="noopener"
+>demo&lt;/a>&lt;/li>
+&lt;/ul></description></item></channel></rss>

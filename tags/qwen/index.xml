@@ -1,0 +1,2349 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Qwen on Mao Song(毛松)'s Homepage</title><link>https://maosong2022.github.io/tags/qwen/</link><description>Recent content in Qwen on Mao Song(毛松)'s Homepage</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><lastBuildDate>Tue, 15 Jul 2025 16:36:09 +0800</lastBuildDate><atom:link href="https://maosong2022.github.io/tags/qwen/index.xml" rel="self" type="application/rss+xml"/><item><title>Notes on Qwen2.5-1M</title><link>https://maosong2022.github.io/p/notes-on-qwen2.5-1m/</link><pubDate>Sat, 12 Jul 2025 11:00:47 +0800</pubDate><guid>https://maosong2022.github.io/p/notes-on-qwen2.5-1m/</guid><description>&lt;p>Qwen 在 2025 年 1 月提出了 Qwen2.5-1M，一个拥有 1M 上下文长度的大语言模型系列。包含 7B，14B 两个开源模型以及 API 模型 Qwen2.5-Turbo. 主要改进方法包括长上下文数据合成，渐进式预训练以及多阶段 post-training 等。作者还对 inference 进行了优化，提高了 inference 的效率。&lt;/p>
+&lt;h2 id="method">Method
+&lt;/h2>&lt;p>架构上，Qwen2.5-1M 与 &lt;a class="link" href="https://maosong.website/p/notes-on-qwen2.5/" target="_blank" rel="noopener"
+>Qwen2.5&lt;/a> 的架构一致，Qwen2.5-1M 包括 7B，14B 两个 size，还包括一个基于 MoE 的 API 模型 Qwen2.5-Turbo，不同的点在于，Qwen2.5-1M 的上下文长度为 1M，最大生成长度为 8K&lt;/p>
+&lt;h3 id="pretraining">Pretraining
+&lt;/h3>&lt;p>&lt;strong>Data&lt;/strong>
+作者首先从 CC, arxiv, book, code repositories 等 domain 收集了原始数据。但是，作者发现，原始数据的局部相关性强，但是全局相关性弱。因此，作者基于原始数据进行了增广，来提高数据的长上下文依赖关系。具体有三个任务：&lt;/p>
+&lt;ol>
+&lt;li>&lt;strong>Fill in the middle&lt;/strong>: FIM 是 openAI 提出来的一个做法，核心思想就是将填空类问题转化为 next-token-prediction 的问题。通过这种方式，作者希望提升模型理解长上下文依赖的能力&lt;/li>
+&lt;li>&lt;strong>Keyword-based and Position-based retrieval&lt;/strong>: 基于 keywords 或者 position 来找到对应的 paragraph，这个任务的目的是提高模型识别并连接相关信息的能力&lt;/li>
+&lt;li>&lt;strong>Paragraph Reordering&lt;/strong>: 对输入的 paragraphs 进行随机打乱，然后要求模型重新组织段落的关系&lt;/li>
+&lt;/ol>
+&lt;p>&lt;strong>Training&lt;/strong>
+作者将训练拆分为了 5 个 stage：&lt;/p>
+&lt;ol>
+&lt;li>stage 1 和 stage 2 与 Qwen2.5 的训练过程一致，stage 1 的上下文长度为 4096，stage 2 的上下文长度为 32768, 训练时，作者使用了 ABF 技巧来将 RoPE 的 base frequency 从 10,000 调整到了 1,000,000.&lt;/li>
+&lt;li>stage 3, stage 4 和 stage 5 分别将模型的上下文长度扩展到了 65,536 tokens, 131,072 tokens 以及 262,144 tokens, 对应的 RoPE base frequency 分别为 1M, 5M 和 10M. 训练时，作者使用了 75% 的长文本和 25% 的短文本，这样可以保证模型在短文本任务上的表现&lt;/li>
+&lt;/ol>
+&lt;p>最后，作者在评估了一下每个 stage 的表现，结果如下表所示&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Training Length&lt;/th>
+&lt;th>&lt;/th>
+&lt;th>&lt;/th>
+&lt;th>&lt;/th>
+&lt;th>RULER&lt;/th>
+&lt;th>&lt;/th>
+&lt;th>&lt;/th>
+&lt;th>&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>Avg.&lt;/td>
+&lt;td>4K&lt;/td>
+&lt;td>8K&lt;/td>
+&lt;td>16K&lt;/td>
+&lt;td>32K&lt;/td>
+&lt;td>64K&lt;/td>
+&lt;td>128K&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>32,768 Tokens&lt;/td>
+&lt;td>82.3&lt;/td>
+&lt;td>96.8&lt;/td>
+&lt;td>94.7&lt;/td>
+&lt;td>95.9&lt;/td>
+&lt;td>92.2&lt;/td>
+&lt;td>76.4&lt;/td>
+&lt;td>37.6&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>65,536 Tokens&lt;/td>
+&lt;td>86.8&lt;/td>
+&lt;td>96.5&lt;/td>
+&lt;td>95.5&lt;/td>
+&lt;td>93.6&lt;/td>
+&lt;td>92.5&lt;/td>
+&lt;td>86.7&lt;/td>
+&lt;td>56.0&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>131,072 Tokens&lt;/td>
+&lt;td>92.5&lt;/td>
+&lt;td>96.5&lt;/td>
+&lt;td>95.9&lt;/td>
+&lt;td>93.0&lt;/td>
+&lt;td>92.6&lt;/td>
+&lt;td>93.0&lt;/td>
+&lt;td>83.8&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>262,144 Tokens&lt;/td>
+&lt;td>92.7&lt;/td>
+&lt;td>95.6&lt;/td>
+&lt;td>93.8&lt;/td>
+&lt;td>93.1&lt;/td>
+&lt;td>94.1&lt;/td>
+&lt;td>91.9&lt;/td>
+&lt;td>87.6&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>可以看到，随着训练的上下文长度的提升，模型在更长上下文下的能力也有提升，说明模型具有一定的泛化性。&lt;/p>
+&lt;h3 id="post-training">Post-training
+&lt;/h3>&lt;p>Post-training 阶段与 Qwen2.5 一样，也分为了 SFT 和 RL 两个阶段。&lt;/p>
+&lt;p>在 SFT 阶段，作者从预训练预料中选择了一部分长文档的片段，然后让 Qwen2.5 来生成对应的 query，query 类型包括 summarization, information retrieval, multi-hop QA 等任务。接下来，作者使用 Qwen-Agent 框架基于全文来回答这些问题。最后，作者基于生成的 query，全文，以及模型产生的回答作为训练数据。&lt;/p>
+&lt;p>SFT 训练时，作者拆分为了两个 stage。 stage 1 作者在 32768 的上下文上进行训练，来提高模型短文本回答能力。第二个阶段，作者混合了 262,144 和 32768 上下文长度的训练数据。&lt;/p>
+&lt;p>RL 训练时，与 Qwen2.5 不一样的是，作者进使用了 offline RL，也就是 DPO。作者仅在 8192 的上下文长度上面进行训练。作者认为，长上下文的 RL 训练是非常耗时的，并且作者发现，短文本上进行 RL 的训练之后，模型在长文本上的表现也能得到提升。结果如下表所示&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Model&lt;/th>
+&lt;th>Before RL&lt;/th>
+&lt;th>After RL&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>Qwen2.5-7B-Instruct-1M&lt;/td>
+&lt;td>7.32&lt;/td>
+&lt;td>8.08 (+0.75)&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Qwen2.5-14B-Instruct-1M&lt;/td>
+&lt;td>8.56&lt;/td>
+&lt;td>8.76 (+0.20)&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Qwen2.5-Turbo&lt;/td>
+&lt;td>7.60&lt;/td>
+&lt;td>8.34 (+0.74)&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h2 id="inference">Inference
+&lt;/h2>&lt;p>前面是训练部分的优化，主要是提升模型的上下文能力。接下来，作者详细介绍了如何在 Inference 阶段提升整体的推理效率和减少内存占用。&lt;/p>
+&lt;h3 id="length-extrapolation">Length Extrapolation
+&lt;/h3>&lt;p>与 Qwen2.5 一样，Qwen2.5-1M 也是用了 &lt;a class="link" href="https://maosong.website/p/dual-chunk-attention/" target="_blank" rel="noopener"
+>Dual Chunk Attention&lt;/a> 和 &lt;a class="link" href="https://maosong.website/p/notes-on-yarn/" target="_blank" rel="noopener"
+>YARN&lt;/a> 来在推理阶段扩展模型的上下文长度，作者做了如下实验，来对比 Qwen2.5, Qwen2.5-1M 加上 DCA 之后的影响&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5-1m/Qwen2_5_1M_DCA.png"
+width="1351"
+height="764"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5-1m/Qwen2_5_1M_DCA_hu14575896826361884438.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5-1m/Qwen2_5_1M_DCA_hu2353376534919284344.png 1024w"
+loading="lazy"
+alt="Qwen2.5 performance of DCA"
+class="gallery-image"
+data-flex-grow="176"
+data-flex-basis="424px"
+>&lt;/p>
+&lt;p>结果显示，Qwen2.5-1M 的表现比 Qwen2.5 更好，并且加上 DCA 之后，两者的表现都有进一步的提升。&lt;/p>
+&lt;h3 id="sparse-attention">Sparse Attention
+&lt;/h3>&lt;p>为了进一步提高计算效率，作者基于 MInference 来加速 perfilling phase. 并结合了 前面的技巧来防止模型性能下降。&lt;/p>
+&lt;p>&lt;strong>MInference&lt;/strong>
+MInference 的主要思想就是在长上下文中，有一些 critical token 对最终结果的影响是更大的。因此我们可以识别出这些 critical token 并只计算这些 token 对应的 attention score. 这些 critical token 对应的 pattern 被称为 Vertical-Slash pattern.&lt;/p>
+&lt;p>为了识别出这个 pattern，作者首先进行离线搜索，来决定最优的 configuration。这个 configuration 决定了 attention 应该如何计算。在 Inference 阶段，MInference 首先计算最后一个 query 和前面所有 key 的 attention，然后基于 configuration 来动态选择 pattern。通过 MInference，我们可以降低 10 倍以上的内存和算力消耗。&lt;/p>
+&lt;p>&lt;strong>Integrating with Chunked prefill&lt;/strong>
+但是 MInference 的问题在于，整个 sequence 是并行处理的，这会导致内存占用持续上升。为了解决这个问题，作者提出了 chunked prefilling 的技巧，来降低 VRAM 的消耗。具体做法就是，将整个 sequence 分为若干个 chunk，然后每个 chunk 里，选取最后 64 个 token 作为 query，在每个 chunk 中分别识别出 critical token，这样就降低了 MInference 的内存占用&lt;/p>
+&lt;p>接下来，作者在集成 DCA 的时候，发现性能有所下降。作者认为，这是由于 DCA 的 position id 信息不连续所导致的，为了解决这个问题，作者在选择 critical token 的时候，使用了连续版的 position id 信息。在最终推理的时候，还是使用 DCA 本身的位置信息。&lt;/p>
+&lt;p>&lt;strong>Sparsity refinement&lt;/strong>
+前面提到，MInference 需要先进行离线搜索决定最优的 configuration，但是对于 1M token 的上下文，这个过程还是非常耗时的。因此，作者构建了一个加速离线搜索的方法，具体做法就是定义两个 attention score，一个是 full attention, 另一个是 sparse attention， 然后计算两者的差值，如果说相差比较小，则说明 critical token 抓住了全局信息，这个配置是有效的。其公式定义如下：&lt;/p>
+$$
+\mathrm{Attention\_Recall} = \exp\left(\log\sum_{0\leq j\leq i}\exp \left(\frac{q^Tk_j}{\sqrt {d}}\right) - \log\sum_{j\in\mathcal{critical}}\exp \left(\frac{q^Tk_j}{\sqrt {d}}\right)\right)
+$$&lt;p>Attention Recall 越高，说明选取的 critical token 越好，其 configuration 也就越好。&lt;/p>
+&lt;p>作者进一步分析了 sparse attention 对 accuracy 的影响，结果如下&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5-1m/Qwen2_5_1M_sparsity_config_performance.png"
+width="1151"
+height="836"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5-1m/Qwen2_5_1M_sparsity_config_performance_hu8216849468217583274.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5-1m/Qwen2_5_1M_sparsity_config_performance_hu11779227780761532015.png 1024w"
+loading="lazy"
+alt="Qwen2.5 performance on sparsity refinement"
+class="gallery-image"
+data-flex-grow="137"
+data-flex-basis="330px"
+>&lt;/p>
+&lt;p>可以看到，仅使用 MInference 会导致模型性能 下降，但是加入 refinement 之后，模型的表现基本上和 full attention 差不太多。&lt;/p>
+&lt;h3 id="inference-engine">Inference Engine
+&lt;/h3>&lt;p>&lt;strong>Kernel Optimization&lt;/strong>
+作者还对 inference engine 进行了优化，作者使用 BladeLLM 作为 Qwen2.5-1M 的推理引擎。&lt;/p>
+&lt;p>作者主要做了两点优化，第一是对 sparse attention kernel 进行了优化，提高了 sparse attention 的计算效率，结果发现，在 1M 的上下文下，BladeLLM 比 Flash Attention 要快 27.8 倍。&lt;/p>
+&lt;p>第二是针对 MoE kernel 的优化。作者发现，decoding 的表现是与 memory access speed 相关的。具体来讲，当 batch size 超过 32 之后，获取模型参数成了效率的瓶颈。因此，作者使用了一系列技巧来提高 memory access 的效率&lt;/p>
+&lt;p>&lt;strong>Pipeline parallelism&lt;/strong>
+作者还对 Chunked pipeline parallelism 进行了优化，Chunked pipeline parallelism 的问题在于，在长上下文的场景下，不同长度的 chunk 会对 attention 的计算时间产生很大影响。不同的计算时间会产生 pipeline bubbles.&lt;/p>
+&lt;p>BladeLLm 使用了 Dynamic Chunked pipeline parallelism 来解决这个问题，该方法通过计算复杂度来调整每个 chunk 的大小，进而使得最终的处理时间尽可能一致&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5-1m/Qwen2_5_1M_PP.png"
+width="1366"
+height="224"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5-1m/Qwen2_5_1M_PP_hu12616030854955023044.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5-1m/Qwen2_5_1M_PP_hu3399618306930440628.png 1024w"
+loading="lazy"
+alt="Qwen2.5-1M DCPP"
+class="gallery-image"
+data-flex-grow="609"
+data-flex-basis="1463px"
+>&lt;/p>
+&lt;p>&lt;strong>Scheduling&lt;/strong>
+作者还在 Scheduling 上进行了优化，已有的推理引擎主要分为四个模块：API server, scheduler, model runner 以及 decoder&lt;/p>
+&lt;p>已有方法的问题在于，non-GPU 的操作会占用大量时间，导致 GPU 利用率非常低。因此，作者在 BladeLLM 中进行了改进，使用了 Totally Asynchronous Generator (TAG) 的架构，主要有：&lt;/p>
+&lt;ol>
+&lt;li>Scheduler：动态分配 KV cache，类似于 speculative sampling, 而不必等前面的结果完成&lt;/li>
+&lt;li>Runner: 基于 Scheduler 分配的任务直接进行处理，处理完之后直接处理下一个任务&lt;/li>
+&lt;li>Decoder：基于 token id，进行解码，然后发送给前端的 API server&lt;/li>
+&lt;/ol>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5-1m/Qwen2_5_1M_PP.png"
+width="1366"
+height="224"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5-1m/Qwen2_5_1M_PP_hu12616030854955023044.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5-1m/Qwen2_5_1M_PP_hu3399618306930440628.png 1024w"
+loading="lazy"
+alt="Qwen2.5-1M scheduling"
+class="gallery-image"
+data-flex-grow="609"
+data-flex-basis="1463px"
+>&lt;/p>
+&lt;h2 id="evaluation">Evaluation
+&lt;/h2>&lt;p>作者主要在三个 benchmark 上进行了评测：&lt;/p>
+&lt;ol>
+&lt;li>RULER: RULER 是 Needle-in-ahaystack 任务的一个扩展笨笨，其要求模型从不相关的上下文中找到多个 &amp;ldquo;needles&amp;rdquo; 或者回答多个问题，数据最长为 128K tokens.&lt;/li>
+&lt;li>LV-Eval: LV-Eval 要求模型从上文本中同时理解多个 evidence fragments，数据最长为 256K tokens&lt;/li>
+&lt;li>Longbench-Chat: 评估模型在长上下文下与人类偏好对齐的程度，数据最长为 100K tokens&lt;/li>
+&lt;/ol>
+&lt;p>Qwen2.5-1M 与 Qwen2.5 的对比表现如下&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5-1m/Qwen2_5_1M_RULER_performance.png"
+width="1340"
+height="652"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5-1m/Qwen2_5_1M_RULER_performance_hu2041726087274462421.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5-1m/Qwen2_5_1M_RULER_performance_hu5806237305905427717.png 1024w"
+loading="lazy"
+alt="Qwen2.5-1M perofermence on RULER"
+class="gallery-image"
+data-flex-grow="205"
+data-flex-basis="493px"
+>&lt;/p>
+&lt;p>可以看到，相比于 Qwen2.5，Qwen2.5 模型的表现有了大幅度的提升。&lt;/p>
+&lt;h2 id="conclusion">Conclusion
+&lt;/h2>&lt;p>在本文中，作者提出了 Qwen2.5-1M 系列大语言模型，包括 7B，14B 两个 size，以及一个 MoE 架构的 API 模型 Qwen2.5-Turbo。作者在训练和推理两方面进行了改进，最终将模型的上下文长度扩展到了 1M。从现在的角度来看，不管是 Reasoning model 还是 agent 的训练都依赖 long Context 作为基础能力。&lt;/p>
+&lt;h2 id="references">References
+&lt;/h2>&lt;ul>
+&lt;li>&lt;a class="link" href="http://arxiv.org/abs/2501.15383" target="_blank" rel="noopener"
+>Qwen2.5-1M Technical Report&lt;/a>&lt;/li>
+&lt;/ul></description></item><item><title>Notes on Qwen2.5</title><link>https://maosong2022.github.io/p/notes-on-qwen2.5/</link><pubDate>Sat, 12 Jul 2025 10:51:42 +0800</pubDate><guid>https://maosong2022.github.io/p/notes-on-qwen2.5/</guid><description>&lt;p>2024 年 12 月 Qwen 发布了 Qwen 2.5 系列大语言模型，包括 7 个 dense 模型以及两个 MoE 模型，Qwen2.5 在 pre-training 阶段使用了 18T token 进行。在 post-training 阶段使用了 1M 的样本，还使用了 DPO 以及 GRPO 来进行 RL 的训练&lt;/p>
+&lt;p>Qwen2.5 主要在以下方面进行了改进&lt;/p>
+&lt;ol>
+&lt;li>模型方面，提供了更多的 size，&lt;a class="link" href="https://maosong.website/p/notes-on-qwen2/" target="_blank" rel="noopener"
+>Qwen2&lt;/a> 中只有 0.5B, 1.5B, 7B, 72B 四个 size, 在 Qwen2.5 中，加入了 3B, 14B 和 32B 三个 size 的模型&lt;/li>
+&lt;li>数据方面，pre-training 阶段使用了 18T 的 token， post-training 阶段使用了 1M 的样本&lt;/li>
+&lt;li>功能方面，Qwen2.5 支持更长的上下文长度（8K），支持结构化输入和输出，拥有更强的工具调用能力。&lt;/li>
+&lt;/ol>
+&lt;h2 id="method">Method
+&lt;/h2>&lt;h3 id="architecture">Architecture
+&lt;/h3>&lt;p>模型架构这方面，Qwen2.5 和 Qwen2 的模型架构是一致的，tokenizer 页没有太大变化。为了支持工具调用，作者额外增加了 18 个 control token&lt;/p>
+&lt;h3 id="pre-training">Pre-training
+&lt;/h3>&lt;p>&lt;strong>data&lt;/strong>
+Qwen2.5 从以下方面提高了预训练数据的质量&lt;/p>
+&lt;ol>
+&lt;li>Better data filtering: 使用 Qwen2-Instruct 来过滤掉质量的数据，然后从多维度对训练数据进行打分，从而提高数据的质量&lt;/li>
+&lt;li>Better math and code data: 加入了 Qwen2.5 Math 以及 Qwen2.5 Coder 的训练数据来提高模型的数学和代码能力&lt;/li>
+&lt;li>Better synthetic data: 作者使用 Qwen2-72B-Instruct 以及 Qwen2-Math-72B-Instruct 来合成 math, code, knowledge domain 的数据，然后通过过滤以及 Qwen2-Math-RM-72B 来提高数据的质量&lt;/li>
+&lt;li>Better data mixture: 作者使用 Qwen2-Instruct 来分类，然后平衡不同 domain 的数据分布。作者发现 e-commerce, social media 以及 entertainment 的数据重复性高，且大多都是机器生成的。而 technology, science 以及 academic research 等 domain 的数据质量更高。作者对不同 domain 的数据进行了上采样或者下采样。&lt;/li>
+&lt;/ol>
+&lt;p>基于这个过程，作者一共收集了&lt;strong>18T&lt;/strong> tokens&lt;/p>
+&lt;p>&lt;strong>Hyper-parameters&lt;/strong>
+作者构建了针对超参数的 scaling law，即决定最优的训练超参数如 batch size, learning rate 等&lt;/p>
+&lt;p>作者通过实验得到了 model size $N$ 以及 pre-training data size $D$ 与 learning rate $\mu_{opt}$ 和 batch size $B_{opt}$ 之间的关系。&lt;/p>
+&lt;p>&lt;strong>Long context pre-training&lt;/strong>
+为了提升模型的上下文长度，作者将 pre-training 拆分为两个 stage，第一个 stage 的上下文长度为 4096， 第二个 stage，作者将上下文长度从 4096 扩展到 32768.&lt;/p>
+&lt;p>在提升模型上下文过程中，作者使用 ABF 技巧将 &lt;a class="link" href="https://maosong.website/p/notes-on-position-encoding/" target="_blank" rel="noopener"
+>Position Encoding&lt;/a> 的 base frequency 从 10,000 提升到了 1,000,000.&lt;/p>
+&lt;p>对于 Qwen2-5-Turbo，作者实现了渐进式上下文长度扩展策略，模型上下文长度扩展经历四个阶段：32768, 65536, 131072 到最终的 262,144. 此时，RoPE 的 base frequency 为 10,000,000. 在训练的每个阶段，作者都使用了 40% 的长文本以及 60% 的短文本，以保证在扩展模型上下文长度的同时，还能保持模型在不同上下文长度下的表现。&lt;/p>
+&lt;p>为了提高模型在 inference 时的长上下文表现，作者使用了 &lt;a class="link" href="https://maosong.website/p/dual-chunk-attention/" target="_blank" rel="noopener"
+>Dual Chunk Attention&lt;/a> 和 &lt;a class="link" href="https://maosong.website/p/notes-on-yarn/" target="_blank" rel="noopener"
+>YARN&lt;/a> 两个技巧。通过这两个技巧，作者将 Qwen2.5-Turbo 的上锈阿文扩展到了 1M，将其他模型的上下文长度扩展到了 131072.&lt;/p>
+&lt;h3 id="post-training">Post-training
+&lt;/h3>&lt;p>Qwen2.5 的 post-training 分为两个大的 stage: SFT 和 RL，其中 RL 又分为两个小的 stage，分别是 offline RL 和 online RL&lt;/p>
+&lt;p>在 SFT 阶段，作者主要做了以下改进：&lt;/p>
+&lt;ol>
+&lt;li>Long-sequence generation: 作者将 Qwen2.5 的输出长度提升到了 8192, 为了扩展模型输出的长度，作者构建了 Long-response 数据集，然后基于 back-translation 来生成对应的 query，最后使用 Qwen2 来过滤低质量的数据&lt;/li>
+&lt;li>Math: 作者在 SFT 阶段加入了 Qwen2.5-Math 的 CoT 数据，包括公开数据集，K12 问题集一集合成数据等。作者通过 rejection sampling 以及 annotated answers 来生成 CoT 过程&lt;/li>
+&lt;li>Code: 作者加入了 Qwen2.5-Coder 的 SFT 数据，作者基于多个 agent 来生成多样化高质量的 Instruction, 然后还从 code-related QA website 以及 Github 上获取数据来扩展数据集。对于最终的数据，作者使用了 sandbox 来保证代码的质量&lt;/li>
+&lt;li>Instruction following: 作者构建了一个基于 code 的验证框架，让 LLM 同时生成 Instruction 和对应的验证代码，验证的单元测试。最后，通过 rejection sampling 来得到最终的数据集&lt;/li>
+&lt;li>Structured Data Understanding: 作者还构建了针对 tabular QA, fact verification, error correction 以及 structured understanding 等数据集。作者在回答中加入 CoT，作者提高了模型对 structured data 的理解能力&lt;/li>
+&lt;li>Logical Reasoning: 作者构建了 70,000 个不同 domain 的 query，有多种格式，覆盖了 analogical reasoning, causal reasoning 等 domain&lt;/li>
+&lt;li>Cross-Lingual Transfer: 作者使用了一个翻译模型，来将 Instruction 转换到 low-resource language 上，进而提高模型在对应语种上的表现&lt;/li>
+&lt;li>Robust System Instruction: 作者构建了不同的 system prompt 用于提升 system prompt 的多样性。作者发现，使用不同的 system prompt 可以减少模型的 variance, 提高模型的 robustness.&lt;/li>
+&lt;li>Response Filtering: 作者使用了多种自动化标注方法来保证最终 response 的质量&lt;/li>
+&lt;/ol>
+&lt;p>最终，作者一共收集到 &lt;strong>1M&lt;/strong> 的 SFT 样本，模型训练了两个 epoch&lt;/p>
+&lt;p>在 RL 阶段，作者首先基于 SFT model 来进行采样，然后将高质量的回答作为正样本，低质量的回答作为负样本，通过这个过程，一共采集到了&lt;strong>150K&lt;/strong>的样本。最后，作者使用 DPO 来进行训练。&lt;/p>
+&lt;p>然后，作者进行了 online stage 的 RL 训练，这一阶段主要是对齐模型与人类的价值观。这一阶段的数据包括公开数据集，私有数据集。作者使用不同的 checkpoint 来进行采样，然后作者使用 GRPO 来进行训练.&lt;/p>
+&lt;h3 id="long-cotnext-fine-tuning">Long Cotnext Fine-tuning
+&lt;/h3>&lt;p>作者还针对 Qwen2.5-Turbo 做了额外的 post-training, 来进一步提高其在长上下文下的表现。&lt;/p>
+&lt;p>在 SFT 阶段，作者使用了一个两阶段方法，第一阶段仅在短文本上进行训练（上下文长度为 32768），这一阶段的训练数据与其他 Qwen2.5 的模型训练数据相同。第二个阶段，作者混合了短文本和长文本（262144）来进行训练，来提高模型在长上下文情景下的指令跟随能力&lt;/p>
+&lt;p>在 RL 阶段，作者使用了和其他 Qwen2.5 模型相同的训练策略。作者认为：&lt;/p>
+&lt;ol>
+&lt;li>长上下文下训练 RL 代价很大&lt;/li>
+&lt;li>reward model 更偏向于长文本&lt;/li>
+&lt;li>RL 尽管只在短文本上进行训练，其还是可以提高模型在长上下文下的表现。&lt;/li>
+&lt;/ol>
+&lt;h2 id="evaluation">Evaluation
+&lt;/h2>&lt;p>我们仅关注 instruction 版本的 72B,32B 和 7B 模型&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5/Qwen2_5_72b_instruct_performance.png"
+width="1112"
+height="757"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5/Qwen2_5_72b_instruct_performance_hu5527761188674703842.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5/Qwen2_5_72b_instruct_performance_hu735810909869176757.png 1024w"
+loading="lazy"
+alt="Performance of Qwen2.5 72B"
+class="gallery-image"
+data-flex-grow="146"
+data-flex-basis="352px"
+>&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5/Qwen2_5_32b_instruct_performance.png"
+width="1339"
+height="744"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5/Qwen2_5_32b_instruct_performance_hu1011682911616957757.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5/Qwen2_5_32b_instruct_performance_hu17652966028923421654.png 1024w"
+loading="lazy"
+alt="Performance of Qwen2.5 32B"
+class="gallery-image"
+data-flex-grow="179"
+data-flex-basis="431px"
+>&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5/Qwen2_5_7b_instruct_performance.png"
+width="845"
+height="746"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5/Qwen2_5_7b_instruct_performance_hu8947856737493882843.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5/Qwen2_5_7b_instruct_performance_hu14722873842278627618.png 1024w"
+loading="lazy"
+alt="Performance of Qwen2.5 7B"
+class="gallery-image"
+data-flex-grow="113"
+data-flex-basis="271px"
+>&lt;/p>
+&lt;p>可以看到，Qwen2.5 72B 模型表现和 LLaMA3.1 405B 表现差不多，其他两个 size 的模型基本上达到了 SOTA&lt;/p>
+&lt;p>最后，作者评估了一下 DCA+YaRN v.s. Full attention 的表现，结果如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5/Qwen2_5_long_context_TTFT.png"
+width="1078"
+height="958"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5/Qwen2_5_long_context_TTFT_hu13857754061205515316.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5/Qwen2_5_long_context_TTFT_hu1131685124791015540.png 1024w"
+loading="lazy"
+alt="TTFT of Qwen2.5 on long context"
+class="gallery-image"
+data-flex-grow="112"
+data-flex-basis="270px"
+>&lt;/p>
+&lt;p>可以看到，使用 DCA+YaRN 之后，模型的推理效率比 full attention 要快 3-4 倍。&lt;/p>
+&lt;h2 id="conclusion">Conclusion
+&lt;/h2>&lt;p>在本文中，作者提出了 Qwen2.5 系列大语言模型，包括 7 个 dense 模型以及两个 MoE 模型，作者详细介绍了模型的 pre-training 和 post-training. 评测结果发现 Qwen2.5 模型基本上达到了 SOTA.&lt;/p>
+&lt;p>作者认为，未来工作有：&lt;/p>
+&lt;ol>
+&lt;li>使用更多更多样化的 pre-training 和 post-training 数据&lt;/li>
+&lt;li>多模态大模型的构建，特别是 omni-modal&lt;/li>
+&lt;li>提高模型的 Reasoning 能力&lt;/li>
+&lt;/ol>
+&lt;h2 id="references">References
+&lt;/h2>&lt;ul>
+&lt;li>&lt;a class="link" href="http://arxiv.org/abs/2412.15115" target="_blank" rel="noopener"
+>Arxiv&lt;/a>&lt;/li>
+&lt;/ul></description></item><item><title>Dual Chunk Attention</title><link>https://maosong2022.github.io/p/dual-chunk-attention/</link><pubDate>Sat, 12 Jul 2025 10:41:12 +0800</pubDate><guid>https://maosong2022.github.io/p/dual-chunk-attention/</guid><description>&lt;p>Dual Chunk Attention (DCA) 由阿里巴巴在 2024 年 9 月份提出，DCA 是一个无需训练的，扩展 LLM 上下文长度的方法，后续，DCA 被应用于 Qwen2, Qwen2.5, Qwen2.5-1M 以及 Qwen3 中，与 &lt;a class="link" href="https://maosong.website/p/notes-on-yarn/" target="_blank" rel="noopener"
+>YARN&lt;/a> 一起作为扩展模型上下文的有效手段&lt;/p>
+&lt;h2 id="introduction">Introduction
+&lt;/h2>&lt;p>提升 LLM 上下文长度的方法可以分为两类：一类是 training-free 的，包括 LM-infinite 和 StreamingLLM 等，这些方法以损失 long range dependency 为代价来保持较低的 perplexity。另一类为了保留全局信息，则是通过外插来扩展模型的上下文，主要工作我们在 &lt;a class="link" href="https://maosong.website/p/notes-on-yarn/" target="_blank" rel="noopener"
+>YARN&lt;/a> 中已经回顾了。&lt;/p>
+&lt;p>第二类方法的问题在于，其依赖训练，在 training-free 的 setting 下，这些方法也会导致 perplexity 的上升&lt;/p>
+&lt;p>因此，在本文中，作者就提出了 Dual Chunk Attention (DCA) ，一个无需训练的，扩展 LLM 上下文长度的方法。DCA 的主要做法是将 attention 的计算进行分块，这样就可以提高计算效率。&lt;/p>
+&lt;p>通过实验，作者给出了三点关键发现：&lt;/p>
+&lt;ol>
+&lt;li>&lt;strong>Extrapolation&lt;/strong>： DCA 可以在无需训练的情况下，将 LLM 的上下文提升到 32K，而不导致 Perplexity 大幅度增加&lt;/li>
+&lt;li>&lt;strong>Orthogonality&lt;/strong>： DCA 可以和其他方法一起使用，如 &lt;a class="link" href="https://maosong.website/p/notes-on-yarn/" target="_blank" rel="noopener"
+>YARN&lt;/a>, 这一点已经在 Qwen2.5-1M 以及 Qwen3 中得到了应用&lt;/li>
+&lt;li>&lt;strong>Long Context Understanding&lt;/strong>: DCA 可以在无需训练的情况下，在长上下文设置下，达到已有 SOTA 模型的表现&lt;/li>
+&lt;/ol>
+&lt;h2 id="preliminary">Preliminary
+&lt;/h2>&lt;p>对于一个长度为 $L$ 的 token 序列，我们首先定义对应的 position id 如下&lt;/p>
+$$
+P_{\mathbf{q}} = [0,1,\dots,L-1],\quad P_{\mathbf{k}} = [0,1,\dots,L-1]
+$$&lt;p>然后，对于第 $i$ 个位置和第 $j$ 个位置的 token，其 attention score 定义为：&lt;/p>
+$$
+\langle f(\mathbf{q}, i), f(\mathbf{k}, j)\rangle =\langle R_{\theta,i}\mathbf{q}, R_{\theta,j}\mathbf{k}\rangle =\mathbf{q}^TR_{\theta, i-j}\mathbf{k}
+$$&lt;p>具体细节参考 &lt;a class="link" href="https://maosong.website/p/notes-on-position-encoding/" target="_blank" rel="noopener"
+>Position Encoding&lt;/a> 中的 RoPE 部分介绍。这里面的关键在于，最后的结果只与相对位置 $i-j$ 相关，而与绝对位置 $i$ 和 $j$ 无关。因此，我们可以用一个相对位置矩阵 $M\in\mathbb{R}^{L\times L}$ 来表示这个信息，其中 $M_{ij}=P_{\mathbf{q},i}- P_{\mathbf{k},j}$ 代表了第 $i$ 个位置的 query $\mathbf{q}$ 和第 $j$ 个位置的 key $\mathbf{k}$ 的相对位置信息，其示意图如下所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/dual-chunk-attention/DCA_relative_position_visualization.png"
+width="379"
+height="384"
+srcset="https://maosong2022.github.io/p/dual-chunk-attention/DCA_relative_position_visualization_hu13664291601616356431.png 480w, https://maosong2022.github.io/p/dual-chunk-attention/DCA_relative_position_visualization_hu15347633689096992470.png 1024w"
+loading="lazy"
+alt="Relative Position Visualization"
+class="gallery-image"
+data-flex-grow="98"
+data-flex-basis="236px"
+>&lt;/p>
+&lt;p>原始版本的 RoPE 的问题在于，在训练时，模型没有见过更长的上下文，因此其泛化性也最差，这一点在 &lt;a class="link" href="https://maosong.website/p/notes-on-yarn/" target="_blank" rel="noopener"
+>YARN&lt;/a> 已经得到了验证&lt;/p>
+&lt;h2 id="method">Method
+&lt;/h2>&lt;p>DCA 的关键在于将 sequence 分割为若干个 Chunk，然后将 attention 的计算拆分为三个部分：&lt;/p>
+&lt;ol>
+&lt;li>intra-chunk：负责计算每个 chunk 内部的 attention&lt;/li>
+&lt;li>inter-chunk ：负责计算 chunk 之间的 attention&lt;/li>
+&lt;li>successive-chunk：负责计算相邻两个 chunk 之间的 attention&lt;/li>
+&lt;/ol>
+&lt;p>为了更好理解 DCA，我们接下来假设 $L=12$, 这时我们有&lt;/p>
+$$
+P_{\mathbf{q}} = [0,1,\dots,11],\quad P_{\mathbf{k}} = [0,1,\dots,11]
+$$&lt;h3 id="intra-chunk-attention">Intra-Chunk Attention
+&lt;/h3>&lt;p>我们首先定义个超参数 chunk size $s&amp;gt;0$, 然后我们将我们的 sequence 分割成 $L/s$ 个 chunk，然后每个 chunk 重新进行编号，就得到了如下的 position id&lt;/p>
+$$
+P_{\mathbf{q}}^{Intra} = [0,1,\dots,L-1]\mod s,\quad P_{\mathbf{k}}^{Intra} = [0,1,\dots,L-1]\mod s
+$$&lt;p>接下来，我们定义 intra-chunk 的相对位置矩阵 $M$， 此时，我们仅在每个 chunk 内部进行计算 attention，即&lt;/p>
+$$
+M[i][j] = \begin{cases} P_{\mathbf{q},i}^{Intra} - P_{\mathbf{k},j}^{Intra},&amp;\text{if}\lfloor P_{\mathbf{q},i}/s \rfloor = \lfloor P_{\mathbf{k},j} /s\rfloor ,\\
+0,&amp;\text{otherwise}
+\end{cases}
+$$&lt;p>在上面的例子中，假设 $s=6$, 那么我们新的 position id 就变成了&lt;/p>
+$$
+\begin{aligned}
+P_{\mathbf{q}}^{Intra} = [0,1,2,3,4,5,0,1,2,3,4,5]\\
+P_{\mathbf{k}}^{Intra} = [\underbrace{0,1,2,3,4,5}_{\text{Chunk 0}},\underbrace{0,1,2,3,4,5}_{\text{Chunk 1}}]
+\end{aligned}
+$$&lt;p>对其进行可视化，我们就得到&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/dual-chunk-attention/DCA_intra_chunk_attention_visualization.png"
+width="362"
+height="386"
+srcset="https://maosong2022.github.io/p/dual-chunk-attention/DCA_intra_chunk_attention_visualization_hu11134860188566089087.png 480w, https://maosong2022.github.io/p/dual-chunk-attention/DCA_intra_chunk_attention_visualization_hu16302318955909605835.png 1024w"
+loading="lazy"
+alt="Intra Chunk Attention Visualization"
+class="gallery-image"
+data-flex-grow="93"
+data-flex-basis="225px"
+>&lt;/p>
+&lt;h3 id="inter-chunk-attention">Inter-Chunk Attention
+&lt;/h3>&lt;p>接下来，我们来看一下不同 chunk 之间如何计算彼此的 attention。在 Intra-chunk attention 计算中，我们忽略了跨 chunk 的信息，而且，由于现在的 position id 不再是单调递增的了，我们直接使用 $P_{\mathbf{q}}^{Intra}$ 和 $P_{\mathbf{k}}^{Intra}$ 给出的位置信息不对，这也是为什么我们在 Intra-chunk attention 中要求 query 和 key 在同一个 chunk 中才能计算的原因。&lt;/p>
+&lt;p>为了解决这个问题，作者构建了一个新的 position id。首先我们引入一个新的超参数 $c&amp;gt;\max_i P_{\mathbf{q},i}$, $c$ 代表了模型预训练时的上下文长度，如 4096。&lt;/p>
+&lt;p>接下来，基于 $c$, 我们定义新的 position id 如下：&lt;/p>
+$$
+P_{\mathbf{q}}^{Inter} = [c-1,c-1,\dots,c-1]\in\mathbb{R}^s,\quad P_{\mathbf{k}}^{Inter} = P_{\mathbf{k}}^{Intra}
+$$&lt;blockquote>
+&lt;p>注：这里的 $P_{\mathbf{q}}^{Inter}$ 指的是某一个 chunk 中的 position id，每个 chunk 中的 position id 都相同，请参考例子理解，后面不再赘述。&lt;/p>
+&lt;/blockquote>
+&lt;p>也就是说，在计算跨 chunk 的 attention 的时候，我们直接把 query 的 position id 设置为最大值，然后 key 的 position id 依然使用 intra-chunk 的位置信息。由于 $\max_i P_{\mathbf{k},i}=s-1$, 因此我们有&lt;/p>
+$$
+M[i][j] = P_{\mathbf{q},i}^{Inter} - P_{\mathbf{k},j}^{Inter} = c - 1 - P_{\mathbf{k},j}^{Inter}\geq c - 1 - (s- 1) \geq c-s.
+$$&lt;p>最后，我们对于 inter chunk 的位置矩阵 $M$ 定义如下：&lt;/p>
+$$
+M[i][j] = \begin{cases} P_{\mathbf{q},i}^{Inter} - P_{\mathbf{k},j}^{Inter},&amp;\text{if}\lfloor P_{\mathbf{q},i}/s \rfloor \neq \lfloor P_{\mathbf{k},j} /s\rfloor ,\\
+0,&amp;\text{otherwise}
+\end{cases}
+$$&lt;p>在上面的例子中，当 $c=10$ 时，$c-1=9$, 我们有&lt;/p>
+$$
+P_{\mathbf{q}}^{Inter}=[\underbrace{9,9,9,9,9,9}_{\text{Chunk 0}},\underbrace{9,9,9,9,9,9}_{\text{Chunk 1}}]
+$$&lt;p>对其进行可视化，得到&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/dual-chunk-attention/DCA_inter_chunk_attention_visualization.png"
+width="351"
+height="388"
+srcset="https://maosong2022.github.io/p/dual-chunk-attention/DCA_inter_chunk_attention_visualization_hu13434590375947798231.png 480w, https://maosong2022.github.io/p/dual-chunk-attention/DCA_inter_chunk_attention_visualization_hu15403771449886131066.png 1024w"
+loading="lazy"
+alt="Inter Chunk Attention Visualization"
+class="gallery-image"
+data-flex-grow="90"
+data-flex-basis="217px"
+>&lt;/p>
+&lt;h3 id="successive-chunk-attention">Successive-Chunk Attention
+&lt;/h3>&lt;p>现在我们既可以计算 intra-chunk，也可以计算 inter-block 的 attention，但是问题是对于相邻的 chunk，其位置信息不对了，从上面的可视化中，我们可以看到，当 $P_{\mathbf{q},i}=6$ , $P_{\mathbf{k},j}=5$ 时，我们有&lt;/p>
+$$
+P_{\mathbf{q},i}^{Inter} - P_{\mathbf{k},j}^{Inter}=9-5=4\neq 1 = P_{\mathbf{q},i}-P_{\mathbf{k},j}
+$$&lt;p>也就是说，inter-block 的 attention 会破坏原有的相对位置信息，因此我们就通过 successive chunk attention 来解决这个问题，使得 $P_{\mathbf{q},i}^{Inter} - P_{\mathbf{k},j}^{Inter}\approx P_{\mathbf{q},i}-P_{\mathbf{k},j}$.&lt;/p>
+&lt;p>作者发现，这个问题不是所有的 chunk 都有，而是只存在于相邻的 chunk 中，因此，作者又加入了一个超参数 $w&amp;gt;0$ 代表了 local window size，我们可以直接将其设置为 $c-s$, 通过这个 local window，我们调整对应的 position id 如下：&lt;/p>
+$$
+P_{\mathbf{q}}^{Succ} = [\overbrace{s,s+1,\dots,s+w-1}^{w \text{ elements}},c-1, \dots,c-1]\in\mathbb{R}^s,\quad P_{\mathbf{k}}^{Succ} = P_{\mathbf{k}}^{Inter}
+$$&lt;p>对于 successive chunk 的位置矩阵 $M$ 定义如下：&lt;/p>
+$$
+M[i][j] = \begin{cases} P_{\mathbf{q},i}^{Inter} - P_{\mathbf{k},j}^{Inter},&amp;\text{if}\lfloor P_{\mathbf{q},i}/s \rfloor - \lfloor P_{\mathbf{k},j} /s\rfloor=1 ,\\
+0,&amp;\text{otherwise}
+\end{cases}
+$$&lt;p>在上面的例子中，我们设置 $w=4$, 就得到&lt;/p>
+$$
+P_{\mathbf{q}}^{Succ}=[\underbrace{6,7,8,9,9,9}_{\text{Chunk 0}},\underbrace{6,7,8,9,9,9}_{\text{Chunk 1}}]
+$$&lt;p>对其进行可视化，得到&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/dual-chunk-attention/DCA_successive_chunk_attention_visualization.png"
+width="388"
+height="388"
+srcset="https://maosong2022.github.io/p/dual-chunk-attention/DCA_successive_chunk_attention_visualization_hu1993756046353236827.png 480w, https://maosong2022.github.io/p/dual-chunk-attention/DCA_successive_chunk_attention_visualization_hu13916683337202761882.png 1024w"
+loading="lazy"
+alt="Successive Chunk Attention Visualization"
+class="gallery-image"
+data-flex-grow="100"
+data-flex-basis="240px"
+>&lt;/p>
+&lt;h3 id="computation">Computation
+&lt;/h3>&lt;p>接下来，我们把所有的改进放在一起，就得到&lt;/p>
+$$
+M[i][j] = \begin{cases}
+P_{\mathbf{q},i}^{Intra} - P_{\mathbf{k},j},&amp;\text{if}\lfloor P_{\mathbf{q},i}/s \rfloor - \lfloor P_{\mathbf{k},j} /s\rfloor=0 ,\\
+P_{\mathbf{q},i}^{Succ} - P_{\mathbf{k},j},&amp;\text{if}\lfloor P_{\mathbf{q},i}/s \rfloor - \lfloor P_{\mathbf{k},j} /s\rfloor=1 ,\\
+P_{\mathbf{q},i}^{Inter} - P_{\mathbf{k},j},&amp;\text{if}\lfloor P_{\mathbf{q},i}/s \rfloor - \lfloor P_{\mathbf{k},j} /s\rfloor>1.
+\end{cases}
+$$&lt;p>基于上面的位置矩阵 $M$， 我们再依次计算对应的 attention score&lt;/p>
+$$
+\langle f(\mathbf{q}, i), f(\mathbf{k}, j)\rangle = \begin{cases}
+\langle f(\mathbf{q}, P_{\mathbf{q},i}^{Intra})
+, f(\mathbf{k}, P_{\mathbf{k},j})\rangle,&amp;\text{if}\lfloor P_{\mathbf{q},i}/s \rfloor - \lfloor P_{\mathbf{k},j} /s\rfloor=0 ,\\
+\langle f(\mathbf{q}, P_{\mathbf{q},i}^{Succ})
+, f(\mathbf{k}, P_{\mathbf{k},j})\rangle,&amp;\text{if}\lfloor P_{\mathbf{q},i}/s \rfloor - \lfloor P_{\mathbf{k},j} /s\rfloor=1 ,\\
+\langle f(\mathbf{q}, P_{\mathbf{q},i}^{Inter})
+, f(\mathbf{k}, P_{\mathbf{k},j})\rangle,&amp;\text{if}\lfloor P_{\mathbf{q},i}/s \rfloor - \lfloor P_{\mathbf{k},j} /s\rfloor>1.
+\end{cases}
+$$&lt;h2 id="code">Code
+&lt;/h2>&lt;p>首先是 &lt;code>RotaryEmbedding&lt;/code> 部分的修改&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;span class="lnt">21
+&lt;/span>&lt;span class="lnt">22
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="k">class&lt;/span> &lt;span class="nc">DCARotaryEmbedding&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Module&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="fm">__init__&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">max_len&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">chunk_size&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">local_window&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">max_len&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">max_len&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">chunk_size&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">chunk_size&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">local_window&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">local_window&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">inv_freq&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="o">...&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="nf">forward&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">q_t&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">arange&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">chunk_size&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">qc_t&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">q_t&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">chunk_size&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">clamp&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">max&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">chunk_size&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">k_t&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">arange&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">seq_len&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">%&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">chunk_size&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">q_freqs&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">outer&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">q_t&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">inv_freq&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="c1"># seq_len x dim/2&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">qc_freqs&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">outer&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">qc_t&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">inv_freq&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">k_freqs&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">outer&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">k_t&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">inv_freq&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="c1"># seq_len x dim/2&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">q_emb&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">cat&lt;/span>&lt;span class="p">((&lt;/span>&lt;span class="n">q_freqs&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">q_freqs&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="n">dim&lt;/span>&lt;span class="o">=-&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="c1"># seq_len x dim&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">qc_emb&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">cat&lt;/span>&lt;span class="p">((&lt;/span>&lt;span class="n">qc_freqs&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">qc_freqs&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="n">dim&lt;/span>&lt;span class="o">=-&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">k_emb&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">cat&lt;/span>&lt;span class="p">((&lt;/span>&lt;span class="n">k_freqs&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">k_freqs&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="n">dim&lt;/span>&lt;span class="o">=-&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="c1"># seq_len x dim&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1"># compute related sin, cos&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">q_sin&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">q_cos&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">qc_sin&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">qc_cos&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">k_sin&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">k_cos&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>attention 计算时的逻辑&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;span class="lnt">21
+&lt;/span>&lt;span class="lnt">22
+&lt;/span>&lt;span class="lnt">23
+&lt;/span>&lt;span class="lnt">24
+&lt;/span>&lt;span class="lnt">25
+&lt;/span>&lt;span class="lnt">26
+&lt;/span>&lt;span class="lnt">27
+&lt;/span>&lt;span class="lnt">28
+&lt;/span>&lt;span class="lnt">29
+&lt;/span>&lt;span class="lnt">30
+&lt;/span>&lt;span class="lnt">31
+&lt;/span>&lt;span class="lnt">32
+&lt;/span>&lt;span class="lnt">33
+&lt;/span>&lt;span class="lnt">34
+&lt;/span>&lt;span class="lnt">35
+&lt;/span>&lt;span class="lnt">36
+&lt;/span>&lt;span class="lnt">37
+&lt;/span>&lt;span class="lnt">38
+&lt;/span>&lt;span class="lnt">39
+&lt;/span>&lt;span class="lnt">40
+&lt;/span>&lt;span class="lnt">41
+&lt;/span>&lt;span class="lnt">42
+&lt;/span>&lt;span class="lnt">43
+&lt;/span>&lt;span class="lnt">44
+&lt;/span>&lt;span class="lnt">45
+&lt;/span>&lt;span class="lnt">46
+&lt;/span>&lt;span class="lnt">47
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="k">class&lt;/span> &lt;span class="nc">Attention&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Module&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="nf">forward&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="o">...&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">key_states&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">apply_rotary_pos_emb&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">key_states&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">k_cos&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">k_sin&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">position_ids&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">q_states_intra&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">apply_rotary_pos_emb&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">query_states&lt;/span>&lt;span class="p">[:,&lt;/span> &lt;span class="p">:,&lt;/span> &lt;span class="p">:&lt;/span>&lt;span class="n">chunk_len&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="p">:],&lt;/span> &lt;span class="n">q_cos&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">q_sin&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">position_ids&lt;/span>&lt;span class="p">[:,&lt;/span> &lt;span class="p">:&lt;/span>&lt;span class="n">chunk_len&lt;/span>&lt;span class="p">])&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">k_states_prev&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">key_states&lt;/span>&lt;span class="p">[:,&lt;/span> &lt;span class="p">:,&lt;/span> &lt;span class="p">:&lt;/span>&lt;span class="n">chunk_len&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="p">:]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">v_states_prev&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">value_states&lt;/span>&lt;span class="p">[:,&lt;/span> &lt;span class="p">:,&lt;/span> &lt;span class="p">:&lt;/span>&lt;span class="n">chunk_len&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="p">:]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1"># first chunk&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">flash_result&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">do_flash_attn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">q_states_intra&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">k_states_prev&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">v_states_prev&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">flash_results&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">append&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">flash_result&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">remain_len&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">kv_seq_len&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="n">chunk_len&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">while&lt;/span> &lt;span class="n">remain_len&lt;/span> &lt;span class="o">&amp;gt;&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">flash_per_chunk&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">begin&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">kv_seq_len&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="n">remain_len&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">curr_chunk_len&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nb">min&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">chunk_len&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">remain_len&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">end&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">begin&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">curr_chunk_len&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1"># current chunk, intra-chunk attention&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">q_states_intra&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">apply_rotary_pos_emb&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">query_states&lt;/span>&lt;span class="p">[:,&lt;/span> &lt;span class="p">:,&lt;/span> &lt;span class="n">begin&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="n">end&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="p">:],&lt;/span> &lt;span class="n">q_cos&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">q_sin&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">position_ids&lt;/span>&lt;span class="p">[:,&lt;/span> &lt;span class="n">begin&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="n">end&lt;/span>&lt;span class="p">])&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">k_states_intra&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">key_states&lt;/span>&lt;span class="p">[:,&lt;/span> &lt;span class="p">:,&lt;/span> &lt;span class="n">begin&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="n">end&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="p">:]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">v_states_intra&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">value_states&lt;/span>&lt;span class="p">[:,&lt;/span> &lt;span class="p">:,&lt;/span> &lt;span class="n">begin&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="n">end&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="p">:]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">flash_result&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">do_flash_attn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">q_states_intra&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">k_states_intra&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">v_states_intra&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">flash_per_chunk&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">append&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">flash_result&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1"># successive chunk attention&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">q_states_succ&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">apply_rotary_pos_emb&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">query_states&lt;/span>&lt;span class="p">[:,&lt;/span> &lt;span class="p">:,&lt;/span> &lt;span class="n">begin&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="n">end&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="p">:],&lt;/span> &lt;span class="n">qc_cos&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">qc_sin&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">position_ids&lt;/span>&lt;span class="p">[:,&lt;/span> &lt;span class="n">begin&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="n">end&lt;/span>&lt;span class="p">])&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">flash_result&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">do_flash_attn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">q_states_succ&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">k_states_prev&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">v_states_prev&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="kc">False&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">flash_per_chunk&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">append&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">flash_result&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1"># inter chunk attention&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="n">begin&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">k_states_prev&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">size&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mi">2&lt;/span>&lt;span class="p">))&lt;/span> &lt;span class="o">&amp;gt;&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">prev_len&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">k_states_prev&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">size&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mi">2&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">q_states_inter&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">apply_rotary_pos_emb&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">query_states&lt;/span>&lt;span class="p">[:,&lt;/span> &lt;span class="p">:,&lt;/span> &lt;span class="n">begin&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="n">end&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="p">:],&lt;/span> &lt;span class="n">qc_cos&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">qc_sin&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">position_ids&lt;/span>&lt;span class="p">[:,&lt;/span> &lt;span class="n">chunk_len&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">][:,&lt;/span> &lt;span class="kc">None&lt;/span>&lt;span class="p">]&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">repeat&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">curr_chunk_len&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">k_states_inter&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">key_states&lt;/span>&lt;span class="p">[:,&lt;/span> &lt;span class="p">:,&lt;/span> &lt;span class="p">:&lt;/span>&lt;span class="n">begin&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="n">prev_len&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="p">:]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">v_states_inter&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">value_states&lt;/span>&lt;span class="p">[:,&lt;/span> &lt;span class="p">:,&lt;/span> &lt;span class="p">:&lt;/span>&lt;span class="n">begin&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="n">prev_len&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="p">:]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">flash_result&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">do_flash_attn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">q_states_inter&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">k_states_inter&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">v_states_inter&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="kc">False&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">flash_per_chunk&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">append&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">flash_result&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">flash_results&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">append&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">flash_per_chunk&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">k_states_prev&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">k_states_intra&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">v_states_prev&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">v_states_intra&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">remain_len&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">remain_len&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="n">chunk_len&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1"># merge the final results&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">attn_output&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">merge_attn_outputs&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">flash_results&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h2 id="evaluation">Evaluation
+&lt;/h2>&lt;p>&lt;img src="https://maosong2022.github.io/p/dual-chunk-attention/DCA_perplexity_evaluation_PG19.png"
+width="1202"
+height="418"
+srcset="https://maosong2022.github.io/p/dual-chunk-attention/DCA_perplexity_evaluation_PG19_hu3658145395080134465.png 480w, https://maosong2022.github.io/p/dual-chunk-attention/DCA_perplexity_evaluation_PG19_hu3051001898983962189.png 1024w"
+loading="lazy"
+alt="Perplexity evaluation on PG19"
+class="gallery-image"
+data-flex-grow="287"
+data-flex-basis="690px"
+>&lt;/p>
+&lt;p>作者还分析了一下 DCA 的效率，结果如下&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/dual-chunk-attention/DCA_efficiency_analysis.png"
+width="1080"
+height="618"
+srcset="https://maosong2022.github.io/p/dual-chunk-attention/DCA_efficiency_analysis_hu17500792112674002539.png 480w, https://maosong2022.github.io/p/dual-chunk-attention/DCA_efficiency_analysis_hu12302726781671970184.png 1024w"
+loading="lazy"
+alt="Efficiency of DCA"
+class="gallery-image"
+data-flex-grow="174"
+data-flex-basis="419px"
+>&lt;/p>
+&lt;p>可以看到，在 Flash attention 的基础上加上 DCA 之后，内存占用和推理时间并没有发生太大变化&lt;/p>
+&lt;p>作者还分析了三种 attention 对结果的贡献，如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/dual-chunk-attention/DCA_ablation_study.png"
+width="1088"
+height="404"
+srcset="https://maosong2022.github.io/p/dual-chunk-attention/DCA_ablation_study_hu17347492874614111854.png 480w, https://maosong2022.github.io/p/dual-chunk-attention/DCA_ablation_study_hu11352242066928675166.png 1024w"
+loading="lazy"
+alt="Ablation study on three modules"
+class="gallery-image"
+data-flex-grow="269"
+data-flex-basis="646px"
+>&lt;/p>
+&lt;p>结果显示，intra block 的 perplexity 是最低的，但是其在下游任务上表现是最差的。当三者结合在一起之后，perplexity 和下游任务上的表现都是最好的。&lt;/p>
+&lt;h2 id="conclusion">Conclusion
+&lt;/h2>&lt;p>本文中，我们回顾了 Qwen 系列扩展大模型上下文的方法 Dual Chunk Attention （DCA） 通过将 attention 切分成更小的 chunk，然后将 attention 的计算分为 intra-chunk，inter-chunk 和 successive-chunk，分别处理 chunk 内部，chunk 之间以及相邻 chunk 的 attention，通过这种方式，在无需训练的情况下，我们可以有效将模型上下文长度扩展 4 倍以上。&lt;/p>
+&lt;h2 id="references">References
+&lt;/h2>&lt;ul>
+&lt;li>&lt;a class="link" href="http://arxiv.org/abs/2402.17463" target="_blank" rel="noopener"
+>Arxiv&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://github.com/HKUNLP/ChunkLlama/tree/main" target="_blank" rel="noopener"
+>Github&lt;/a>&lt;/li>
+&lt;/ul></description></item><item><title>Notes on Qwen2</title><link>https://maosong2022.github.io/p/notes-on-qwen2/</link><pubDate>Sat, 12 Jul 2025 10:36:43 +0800</pubDate><guid>https://maosong2022.github.io/p/notes-on-qwen2/</guid><description>&lt;h2 id="introduction">Introduction
+&lt;/h2>&lt;p>2024 年 9 月 Qwen 发布了 Qwen2 系列技术报告，Qwen2 系列包括 4 个 dense 模型（0.5B, 1.5B, 7B, 72B）和一个 MoE 模型（总参数 57B，激活参数 14B），作者主要在架构，数据和长上下文上进行了改进。&lt;/p>
+&lt;h2 id="method">Method
+&lt;/h2>&lt;h3 id="model">Model
+&lt;/h3>&lt;p>对于 dense 模型，Qwen2 在 &lt;a class="link" href="https://maosong.website/p/notes-on-qwen-llm/" target="_blank" rel="noopener"
+>Qwen-LLM&lt;/a> 的基础上做了如下改动：&lt;/p>
+&lt;ol>
+&lt;li>使用 Group Query Attention （GQA）替换 MHA，来优化 KV cache，提高 throughput&lt;/li>
+&lt;li>使用 &lt;a class="link" href="https://maosong.website/p/dual-chunk-attention/" target="_blank" rel="noopener"
+>Dual Chunk Attention&lt;/a> 和 &lt;a class="link" href="https://maosong.website/p/notes-on-yarn/" target="_blank" rel="noopener"
+>YARN&lt;/a> 来提高模型上下文长度和训练效率&lt;/li>
+&lt;/ol>
+&lt;p>其余与 Qwen 一致，包括 SwiGLU，RoPE，RMSNorm 和 pre-normalization&lt;/p>
+&lt;p>对于 MoE 模型，Qwen2-MoE 基于 &lt;a class="link" href="https://maosong.website/p/dual-chunk-attention/" target="_blank" rel="noopener"
+>Qwen1.5&lt;/a> 进行了改进，主要是 3 点：&lt;/p>
+&lt;ol>
+&lt;li>作者使用了更细粒度的专家个数，作者认为细粒度的专家可以提供更丰富的 combination，这一点与 olmoe 的结论相同&lt;/li>
+&lt;li>与 DeepSeek-MoE 一样，作者使用了共享专家和路由专家&lt;/li>
+&lt;li>作者使用了类似 upcycling 的方法来初始化模型。假设一共有 $n$ 个专家，每个专家的维度为 $h_E$, 原始 dense 模型的维度为 $h_{FFN}$, 那么我们会把 dense 模型的参数复制 $[nh_E/h_{FFN}]$ 次，这样就可以扩展到任意个数的 MoE 模型上。作者还对参数进行 shuffle，来提高 diversity。最后，作者还对 50% 的参数进行随机初始化，来提高模型的 capacity。&lt;/li>
+&lt;/ol>
+&lt;p>模型配置如下&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Configuration&lt;/th>
+&lt;th>0.5B&lt;/th>
+&lt;th>1.5B&lt;/th>
+&lt;th>7B&lt;/th>
+&lt;th>72B&lt;/th>
+&lt;th>57B-A14B&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>Hidden Size&lt;/td>
+&lt;td>896&lt;/td>
+&lt;td>1,536&lt;/td>
+&lt;td>3,584&lt;/td>
+&lt;td>8,192&lt;/td>
+&lt;td>3,584&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td># Layers&lt;/td>
+&lt;td>24&lt;/td>
+&lt;td>28&lt;/td>
+&lt;td>28&lt;/td>
+&lt;td>80&lt;/td>
+&lt;td>28&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td># Query Heads&lt;/td>
+&lt;td>14&lt;/td>
+&lt;td>12&lt;/td>
+&lt;td>28&lt;/td>
+&lt;td>64&lt;/td>
+&lt;td>28&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td># KV Heads&lt;/td>
+&lt;td>2&lt;/td>
+&lt;td>2&lt;/td>
+&lt;td>4&lt;/td>
+&lt;td>8&lt;/td>
+&lt;td>4&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Head Size&lt;/td>
+&lt;td>64&lt;/td>
+&lt;td>128&lt;/td>
+&lt;td>128&lt;/td>
+&lt;td>128&lt;/td>
+&lt;td>128&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Intermediate Size&lt;/td>
+&lt;td>4,864&lt;/td>
+&lt;td>8,960&lt;/td>
+&lt;td>18,944&lt;/td>
+&lt;td>29,568&lt;/td>
+&lt;td>2,560&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td># Routed Experts&lt;/td>
+&lt;td>-&lt;/td>
+&lt;td>-&lt;/td>
+&lt;td>-&lt;/td>
+&lt;td>-&lt;/td>
+&lt;td>64&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td># Activated Experts&lt;/td>
+&lt;td>-&lt;/td>
+&lt;td>-&lt;/td>
+&lt;td>-&lt;/td>
+&lt;td>-&lt;/td>
+&lt;td>8&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td># Shared Experts&lt;/td>
+&lt;td>-&lt;/td>
+&lt;td>-&lt;/td>
+&lt;td>-&lt;/td>
+&lt;td>-&lt;/td>
+&lt;td>8&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Embedding Tying&lt;/td>
+&lt;td>True&lt;/td>
+&lt;td>True&lt;/td>
+&lt;td>False&lt;/td>
+&lt;td>False&lt;/td>
+&lt;td>False&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Vocabulary Size&lt;/td>
+&lt;td>151,646&lt;/td>
+&lt;td>151,646&lt;/td>
+&lt;td>151,646&lt;/td>
+&lt;td>151,646&lt;/td>
+&lt;td>151,646&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td># Trained Tokens&lt;/td>
+&lt;td>12T&lt;/td>
+&lt;td>7T&lt;/td>
+&lt;td>7T&lt;/td>
+&lt;td>7T&lt;/td>
+&lt;td>4.5T&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="pre-training">Pre-training
+&lt;/h3>&lt;p>预训练阶段的数据基于 Qwen 和 Qwen1.5，数据处理策略如下：&lt;/p>
+&lt;ol>
+&lt;li>使用基于 heuristic 和 model-based 方法来过滤掉低质量的数据&lt;/li>
+&lt;li>加入了 code， math 和 multilingual 的数据&lt;/li>
+&lt;li>平衡了各个类别的数据分布&lt;/li>
+&lt;/ol>
+&lt;p>初始数据包括 12T token，经过过滤得到 7T token。作者发现，使用 12T token 进行训练，模型的表现不如使用 7B token 训练得到的模型效果好。因此除了 0.5B 的模型，其他模型使用的都是 7T 的 token&lt;/p>
+&lt;p>对于 MoE 模型，作者使用了额外的 4.5T token 来进行预训练。&lt;/p>
+&lt;p>在训练过程中，作者还加入了 multi-task instruction 数据，来提高模型的上下文学习能力和指令跟随能力。&lt;/p>
+&lt;p>作者还将 Qwen2 模型系列的上下文长度从 4096 扩展到 32768，扩展过程中作了三个改动：&lt;/p>
+&lt;ol>
+&lt;li>加入了更多高质量的长上下文数据&lt;/li>
+&lt;li>将 RoPE 的 frequency 从 10,000 提升到了 1,000,000&lt;/li>
+&lt;li>使用了 &lt;a class="link" href="https://maosong.website/p/notes-on-yarn/" target="_blank" rel="noopener"
+>YARN&lt;/a> 来扩展上下文长度&lt;/li>
+&lt;li>使用了 &lt;a class="link" href="https://maosong.website/p/dual-chunk-attention/" target="_blank" rel="noopener"
+>Dual Chunk Attention&lt;/a> 来优化 attention 的计算&lt;/li>
+&lt;/ol>
+&lt;h3 id="post-training">Post-training
+&lt;/h3>&lt;p>post-training 包括 SFT 和 RLHF 两个阶段&lt;/p>
+&lt;p>数据包括 SFT 数据和 RLHF 使用的偏好数据&lt;/p>
+&lt;p>数据标注过程有：&lt;/p>
+&lt;ol>
+&lt;li>使用 InsTag 对数据进行打标&lt;/li>
+&lt;li>选取高质量的 instruction&lt;/li>
+&lt;li>构建了一个 self-evolution 策略，来扩展 instruction 数据&lt;/li>
+&lt;li>请人类来标注数据&lt;/li>
+&lt;/ol>
+&lt;p>作者还合成了一些数据，合成数据的过程如下：&lt;/p>
+&lt;ol>
+&lt;li>rejection sampling：对 LLM 进行多次采样，然后保留结论正确的数据作为 SFT 数据，以正确和错误的数据对作为偏好数据&lt;/li>
+&lt;li>Execution feedback：对于代码任务，使用 Python 来验证答案的正确性&lt;/li>
+&lt;li>Data Repurposing：对于写作类任务，以文档为输入，让 LLM 生成对应的 instruction&lt;/li>
+&lt;li>Constitutional Feeback：基于预设的 principle 来生成回答&lt;/li>
+&lt;/ol>
+&lt;p>最终，SFT 数据包括 500, 000 条样本&lt;/p>
+&lt;p>RLHF 的训练包括 offline stage 和 online stage，offline stage 就是用收集到的偏好数据。在 online stage，作者使用 reward model 来给输出的回答进行打分，然后再使用 DPO 进行训练。&lt;/p>
+&lt;p>与 Qwen 不同，Qwen2 中作者使用了 Online Merging Optimizer 来解决因为 alignment 导致的性能降低&lt;/p>
+&lt;h2 id="conclusion">Conclusion
+&lt;/h2>&lt;p>本文提出了 Qwen2 系列，在 Qwen2 中，首次使用了 MQA 代替 MHA，Qwen2 在上下文上做出了初步探索&lt;/p>
+&lt;h2 id="references">References
+&lt;/h2>&lt;ul>
+&lt;li>&lt;a class="link" href="https://arxiv.org/abs/2407.10671" target="_blank" rel="noopener"
+>Qwen2 tech report&lt;/a>&lt;/li>
+&lt;/ul></description></item><item><title>Notes on Qwen1.5</title><link>https://maosong2022.github.io/p/notes-on-qwen1.5/</link><pubDate>Thu, 03 Jul 2025 17:37:39 +0800</pubDate><guid>https://maosong2022.github.io/p/notes-on-qwen1.5/</guid><description>&lt;p>Qwen 在 24 年 1 月份发布了 Qwen1.5，包含 0.5B, 1.8B, 4B, 7B, 14B, 32B, 72B, 以及 110B 6 个 size，还有一个 MoE 模型。&lt;/p>
+&lt;h2 id="介绍">介绍
+&lt;/h2>&lt;p>Qwen1.5 的主要特点：&lt;/p>
+&lt;ol>
+&lt;li>支持 12 中语言&lt;/li>
+&lt;li>统一支持 32768 tokens 上下文长度 。&lt;/li>
+&lt;li>提供 量化版本 （Int4、Int8、AWQ、GGUF）以适应低资源环境或部署需求。&lt;/li>
+&lt;/ol>
+&lt;p>训练过程使用了 DPO 以及 PPO 来进行对齐&lt;/p>
+&lt;h2 id="qwen15-moe">Qwen1.5-MoE
+&lt;/h2>&lt;p>Qwen1.5-MoE 的激活参数为 2.7B，一共包含 64 个专家，其中激活 4 个专家，共享 4 个专家&lt;/p>
+&lt;p>相比于 Qwen1.5-7B，去训练的 FLOPS 降低了 75%，inference 的速度提高了 174%&lt;/p>
+&lt;p>Qwen1.5-MoE 采用了改进的 MoE 架构，主要优化包括：&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>细粒度专家（Fine-grained experts）&lt;/strong> ：通过将 FFN 层划分为多个片段，构建更多专家而不增加参数总量。&lt;/li>
+&lt;li>&lt;strong>初始化策略（Upcycling）&lt;/strong> ：基于 Qwen-1.8B 初始化模型，并引入随机性以加速收敛。&lt;/li>
+&lt;li>&lt;strong>路由机制（Routing Mechanism）&lt;/strong> ：在每个 MoE 层中使用 64 个专家，其中 4 个共享专家始终激活，60 个路由专家中有 4 个被激活，提高了灵活性和效率。&lt;/li>
+&lt;/ul>
+&lt;h2 id="效率对比">效率对比
+&lt;/h2>&lt;p>作者对比了 throughput (requests processed per second) 以及 tokens per second (TPS):&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Model&lt;/th>
+&lt;th>Throughput&lt;/th>
+&lt;th>TPS&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>Qwen1.5-7B-Chat&lt;/td>
+&lt;td>1.15&lt;/td>
+&lt;td>2298.89&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Qwen1.5-MoE-A2.7B-Chat&lt;/td>
+&lt;td>2.01&lt;/td>
+&lt;td>4010.27&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h2 id="references">References
+&lt;/h2>&lt;ul>
+&lt;li>&lt;a class="link" href="https://qwenlm.github.io/blog/qwen-moe/" target="_blank" rel="noopener"
+>Qwen1.5 MoE&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://qwenlm.github.io/blog/qwen1.5/" target="_blank" rel="noopener"
+>Qwen 1.5&lt;/a>&lt;/li>
+&lt;/ul></description></item><item><title>Notes on YaRN</title><link>https://maosong2022.github.io/p/notes-on-yarn/</link><pubDate>Thu, 03 Jul 2025 14:40:49 +0800</pubDate><guid>https://maosong2022.github.io/p/notes-on-yarn/</guid><description>&lt;h1 id="introduction">Introduction
+&lt;/h1>&lt;p>YaRN (Yet Another RoPE extentionN method) 时23年9月EleutherAI等提出来的一个扩展LLM上下文长度的方法，后来被Qwen系列模型所应用。&lt;/p>
+&lt;h1 id="preliminary">Preliminary
+&lt;/h1>&lt;p>作者首先回顾了一下RoPE, 具体内容请参见上一篇&lt;a class="link" href="https://maosong.website/p/notes-on-position-encoding/" target="_blank" rel="noopener"
+>blog&lt;/a>。并使用了 $f_{W}(x_m, m, \theta_d)$ 来表示RoPE：&lt;/p>
+$$
+f_{W}(x_m, m, \theta_{d}) = \Theta_{\theta, m}^d W x_m
+$$&lt;p>其中 $\Theta_{\theta, m}^d\in\mathbb{R}^{d\times d}$ 是多维旋转矩阵, $\theta_d=[\theta_{0,d},\dots,\theta_{(d-2)/2,d}]\in\mathbb{R}^{d/2}$, $\theta_{i,d}=\theta^{2i/d}$, $\theta&amp;gt;0$ 是一个超参数，RoPE中设置为 $\theta=10000$, $W\in{W_q,W_k}\subset\mathbb{R}^{d\times d}$ 是对应的query/key projection layer的权重矩阵， $x\in\mathbb{R}^{d}$ 是输入的hidden states.&lt;/p>
+&lt;p>接下来，作者定义了两个新的变量：&lt;/p>
+&lt;p>&lt;strong>scaling factor&lt;/strong>
+假设预训练的上下文长度为 $L$, 扩展的上下文长度为 $L&amp;rsquo;&amp;gt;L$, 则我们定义scaling factor 为&lt;/p>
+$$
+s = \frac{L'}{L}
+$$&lt;p>易知 $s&amp;gt;1$.&lt;/p>
+&lt;p>&lt;strong>wavelength&lt;/strong>
+我们将 $\lambda_d$ 定义为 $i$-th 维的RoPE embedding对应的 wavelength：&lt;/p>
+$$
+\lambda_{i,d} = \frac{2\pi}{\theta_{i,d}} = 2\pi\theta^{2i/d}, \ i=0,\dots,(d-2)/2
+$$&lt;p>wavelength描述了对于第$i$ 个维度，RoPE旋转一周 ($2\pi$) 所需要的上下文长度。&lt;/p>
+&lt;h1 id="unified-perspective-on-related-work">Unified Perspective on Related Work
+&lt;/h1>&lt;p>基于 $f_{W}(x_m, m, \theta_d)$, 作者统一了已有的扩展上下文长度的方法，作者将不同的扩展方法使用一个通用函数 $f_W(x_m,g(m), h(\theta_d))$ 来表示，这里 $g(m)$ 和 $h(\theta_d)$ 分别代表了不同的长度外推方法所使用的变换。&lt;/p>
+&lt;h2 id="position-interpolation">Position Interpolation
+&lt;/h2>&lt;p>Position Interpolation (PI) 的核心思想在于，我们可以通过Interpolation，将超过预训练长度的文本给压缩到当前最大长度，以此来避免RoPE外推产生的问题，其对应的公式为&lt;/p>
+$$
+f'_W(x_m,m,\theta_d) = f_W(x_m, \frac{mL}{L'}, \theta_d)
+$$&lt;p>其中 $L&amp;rsquo;&amp;gt;L$ 为我们扩展之后的上下文长度， $L$ 为我们预训练的上下文长度。使用通用函数表示的话，我们有&lt;/p>
+$$
+g(m) = \frac{m}{s},\quad h(\theta_d) = \theta_d
+$$&lt;h2 id="ntk-aware-interpolation">NTK-aware Interpolation
+&lt;/h2>&lt;p>PI的问题是，并没有考虑不同维度的wavelength。
+基于NTK理论，DNN当输入维度比较低，且embedding缺少高频内容时，模型就会很难学习到高频信息。对应到RoPE里面，输入的token position id是低位信息（1维），而输出的RoPE是一个 $d$ 维的复杂向量。因此，当输入token非常相似却距离非常近时，RoPE就会丢失高频的细节信息&lt;/p>
+&lt;p>因此，为了解决这个问题，作者对不同的维度使用了不同的缩放策略：&lt;strong>维度比较小时，其缩放的更多，维度比较大是，其缩放的更少。&lt;/strong>&lt;/p>
+&lt;p>基于这个策略，作者提出了NTK-aware interpolation，其定义如下：&lt;/p>
+$$
+g(m) = m, \quad h(\theta_{i,d}) = \theta'^{-2i/d}, i=0,\dots,(d-2)/2
+$$&lt;p>其中&lt;/p>
+$$
+\theta' = \theta\cdot s^{\frac{d}{d-2}}
+$$&lt;p>实际中，这种方法会产生out-of-bound的值，因此最终结果会比PI要差一点，为了解决这个问题，一般会使用比 $s$ 更大的scaling factor.&lt;/p>
+&lt;blockquote>
+&lt;p>上式的推导基于一个简单的假设：我们希望最后一个维度的wavelength在scaling之后，是线性变化的，即 $\theta&amp;rsquo;&lt;em>{(d-2)/2,d}=s\theta&lt;/em>{(d-2)/2,d}$, 求解之后，我们就得到了上面的定义&lt;/p>
+&lt;/blockquote>
+&lt;p>PI 和NTK-aware interpolation的问题在于，我们对不同的维度的处理都是一样的。这类不在乎wavelength的方法被称为&lt;strong>blind interpolation methods&lt;/strong>, 接下来要介绍的就是基于wavelength的方法，即&lt;strong>target interpolation methods&lt;/strong>.&lt;/p>
+&lt;h2 id="ntk-by-parts-interpolation">NTK-by-parts Interpolation
+&lt;/h2>&lt;p>与NTK-aware interpolation， NTK-by-parts interpolation基于wavelength来考虑不同维度上所做的变换。&lt;/p>
+&lt;p>对于低维度，其 $\theta_{i,d}$ 非常大，因此旋转一周所需要的上下文长度也非常大。实际上就导致某些维度的embedding并不是均匀分布的，（比如说只有 $0\sim\pi$ 这个区间的embedding），这个时候，模型就只能访问到绝对位置信息，而访问不到相对位置信息。
+另外，当我们对所有的维度都进行scale的时候，所有的token都会与彼此更加靠近，这损害了模型对于局部信息的获取能力。
+基于这些认知，作者基于wavelength，对不同的维度分别进行处理：&lt;/p>
+&lt;ol>
+&lt;li>如果wavelength远小于上下文长度 $L$， 则我们不做任何处理&lt;/li>
+&lt;li>如果wavelength等于或者大于上下文长度 $L$， 则我们使用NTK-aware interpolation 进行处理&lt;/li>
+&lt;li>对于中间的其他维度，我们进行了一个trade off&lt;/li>
+&lt;/ol>
+&lt;p>作者定义了一个ratio $r$ 来描述原始上下文长度 $L$ 和 wavelength 之间的关系&lt;/p>
+$$
+r(i,d) = \frac{L}{\lambda_{i,d}} = \frac{L}{2\pi\theta'^{2i/d}}
+$$&lt;p>基于这个ratio，我们可以定义上面的三种处理方式对应的权重&lt;/p>
+$$
+\gamma(r) = \begin{cases}
+0, &amp;\text{if } r &lt; \alpha\\
+1, &amp;\text{if } r > \beta\\
+\frac{r-\alpha}{\beta-\alpha}, &amp;\text{otherwise}
+\end{cases}
+$$&lt;p>其中， $\beta&amp;gt;\alpha&amp;gt;0$ 是超参数， $r&amp;lt;\alpha$, $r&amp;lt;\beta$ 分别代表了上面的第1种，第2种情况。&lt;/p>
+&lt;p>最后，NTK-by-parts interpolation的定义如下&lt;/p>
+$$
+g(m) = m, \quad h(\theta_i) = \left(1-\gamma(r(i,d)\right)\frac{\theta_i}{s} + \gamma(r(i,d))\theta_i
+$$&lt;p>作者通过实验发现，在LLaMA上，$\alpha=1$ 和 $\beta=32$ 是一个比较好的选择&lt;/p>
+&lt;h2 id="dynamic-ntk-interpolation">Dynamic NTK Interpolation
+&lt;/h2>&lt;p>在实际中，一个经常遇到的场景就是sequence length会从1逐步上升到最大上下文长度，比如说inference的时候。对于这种情况，我们有两种解决方法：&lt;/p>
+&lt;ol>
+&lt;li>在整个inference周期中，RoPE的scaling factor都设置为 $s=K&amp;rsquo;/L$, 其中$L&amp;rsquo;$ 是扩展后的上下文长度&lt;/li>
+&lt;li>在每次foward的过程汇总，都更新sclaing factor $s=\max(1, \ell&amp;rsquo;/L)$, 这里 $\ell&amp;rsquo;$ 是当前sequence的长度&lt;/li>
+&lt;/ol>
+&lt;p>作者发现，方案1在sequence长度小于 $L$的时候性能会下降，并且当上下文长度超过 $L&amp;rsquo;$ 时，性能下降的更快。
+但是，方案2可以让模型的性能下降曲线更平缓。因此，作者将这种inference-time方法称为 &lt;strong>Dynamic Scaling method&lt;/strong>, 当其与NTK-aware方法结合时，就得到了 &lt;strong>Dynamic NTK interpolation&lt;/strong>&lt;/p>
+&lt;p>作者通过实验发现，Dynamic NTK interpolation在$L&amp;rsquo;=L$ 时，效果非常好&lt;/p>
+&lt;h1 id="yarn">YaRN
+&lt;/h1>&lt;p>在YaRN中，作者针对Dynamic NTK interpolation做了进一步改进，也就是在计算attention softmax时，加入了一个温度参数 $t&amp;gt;0$, 这样attention的计算就变成了&lt;/p>
+$$
+\mathrm{Attn}(Q, K, V) = \mathrm{softmax}\left(\frac{QK^T}{t\sqrt{d}}\right)V
+$$&lt;p>作者发现，通过这种scaling的方式，YaRN可以在不改变代码的前提下，更改attention的机制。并且，其不增加训练和推理的cost&lt;/p>
+&lt;p>作者将YaRN定义为&lt;strong>结合了NTK-by-parts interpolation和上述scaling技巧的方法&lt;/strong>&lt;/p>
+&lt;p>对于LLaMA，作者推荐使用如下参数：&lt;/p>
+$$
+\sqrt{\frac{1}{t}} = 0.1\ln(s) + 1.
+$$&lt;p>实验结果如下&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-yarn/YaRN_temperature_ablation.png"
+width="1049"
+height="528"
+srcset="https://maosong2022.github.io/p/notes-on-yarn/YaRN_temperature_ablation_hu8422727462868015211.png 480w, https://maosong2022.github.io/p/notes-on-yarn/YaRN_temperature_ablation_hu48072328224348277.png 1024w"
+loading="lazy"
+alt="Ablation study on temperature"
+class="gallery-image"
+data-flex-grow="198"
+data-flex-basis="476px"
+>&lt;/p>
+&lt;p>作者发现：&lt;/p>
+&lt;ol>
+&lt;li>对于合适的 $t$, 扩展上下文之后，perplexity会变的更好&lt;/li>
+&lt;li>最好的$t$ 对于不同的位置和样本提升都是一样的&lt;/li>
+&lt;/ol>
+&lt;h1 id="evaluation">Evaluation
+&lt;/h1>&lt;p>实验结果如下&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Extension Method&lt;/th>
+&lt;th>Trained Tokens&lt;/th>
+&lt;th>Context Window&lt;/th>
+&lt;th>&lt;/th>
+&lt;th>&lt;/th>
+&lt;th>&lt;/th>
+&lt;th>Evaluation Context Window Size&lt;/th>
+&lt;th>&lt;/th>
+&lt;th>&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>2048&lt;/td>
+&lt;td>4096&lt;/td>
+&lt;td>6144&lt;/td>
+&lt;td>8192&lt;/td>
+&lt;td>10240&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>PI (s = 2)&lt;/td>
+&lt;td>1B&lt;/td>
+&lt;td>8k&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>3.92&lt;/td>
+&lt;td>3.51&lt;/td>
+&lt;td>3.51&lt;/td>
+&lt;td>3.34&lt;/td>
+&lt;td>8.07&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>NTK ($\theta$ = 20k)&lt;/td>
+&lt;td>1B&lt;/td>
+&lt;td>8k&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>4.20&lt;/td>
+&lt;td>3.75&lt;/td>
+&lt;td>3.74&lt;/td>
+&lt;td>3.59&lt;/td>
+&lt;td>6.24&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>YaRN (s = 2)&lt;/td>
+&lt;td>400M&lt;/td>
+&lt;td>8k&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>&lt;strong>3.91&lt;/strong>&lt;/td>
+&lt;td>&lt;strong>3.50&lt;/strong>&lt;/td>
+&lt;td>&lt;strong>3.51&lt;/strong>&lt;/td>
+&lt;td>3.35&lt;/td>
+&lt;td>&lt;strong>6.04&lt;/strong>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>可以看到，YaRN使用的数据更少，并且当模型扩展到10240的时候，其表现下降的最慢，这说明了YaRN在扩展上下文长度时的有效性&lt;/p>
+&lt;p>原始RoPE，dynamic-PI和dynamic-YaRN的对比&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-yarn/YaRN_comparison_RoPE_PI.png"
+width="1154"
+height="573"
+srcset="https://maosong2022.github.io/p/notes-on-yarn/YaRN_comparison_RoPE_PI_hu1868026857572428582.png 480w, https://maosong2022.github.io/p/notes-on-yarn/YaRN_comparison_RoPE_PI_hu6691787302659616423.png 1024w"
+loading="lazy"
+alt="Comparison with RoPE and PI"
+class="gallery-image"
+data-flex-grow="201"
+data-flex-basis="483px"
+>&lt;/p>
+&lt;p>可以看到，RoPE的上下文扩展能力很差，Dynamic-YaRN的表现最好。&lt;/p>
+&lt;h1 id="code">Code
+&lt;/h1>&lt;p>YaRN的实现在&lt;a class="link" href="https://github.com/huggingface/transformers/blob/main/src/transformers/modeling_rope_utils.py" target="_blank" rel="noopener"
+>HuggingFace/src/transformers/modeling_rope_utils.py&lt;/a> 里的 &lt;code>_compute_yarn_parameters&lt;/code> 函数里，其返回 &lt;code>inv_freq&lt;/code> 以及 &lt;code>attention_factor&lt;/code> 两个量，前者代表了 $\theta_d$, 后者代表 $t\sqrt{d}$.&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;span class="lnt">21
+&lt;/span>&lt;span class="lnt">22
+&lt;/span>&lt;span class="lnt">23
+&lt;/span>&lt;span class="lnt">24
+&lt;/span>&lt;span class="lnt">25
+&lt;/span>&lt;span class="lnt">26
+&lt;/span>&lt;span class="lnt">27
+&lt;/span>&lt;span class="lnt">28
+&lt;/span>&lt;span class="lnt">29
+&lt;/span>&lt;span class="lnt">30
+&lt;/span>&lt;span class="lnt">31
+&lt;/span>&lt;span class="lnt">32
+&lt;/span>&lt;span class="lnt">33
+&lt;/span>&lt;span class="lnt">34
+&lt;/span>&lt;span class="lnt">35
+&lt;/span>&lt;span class="lnt">36
+&lt;/span>&lt;span class="lnt">37
+&lt;/span>&lt;span class="lnt">38
+&lt;/span>&lt;span class="lnt">39
+&lt;/span>&lt;span class="lnt">40
+&lt;/span>&lt;span class="lnt">41
+&lt;/span>&lt;span class="lnt">42
+&lt;/span>&lt;span class="lnt">43
+&lt;/span>&lt;span class="lnt">44
+&lt;/span>&lt;span class="lnt">45
+&lt;/span>&lt;span class="lnt">46
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">def&lt;/span> &lt;span class="nf">get_mscale&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">scale&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="n">scale&lt;/span> &lt;span class="o">&amp;lt;=&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="mf">1.0&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="mf">0.1&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">math&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">log&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">scale&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="mf">1.0&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">def&lt;/span> &lt;span class="nf">find_correction_dim&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">num_rotations&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">dim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">base&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">max_position_embeddings&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s2">&amp;#34;&amp;#34;&amp;#34;Inverse dimension formula to find the dimension based on the number of rotations&amp;#34;&amp;#34;&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">dim&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">math&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">log&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">max_position_embeddings&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">num_rotations&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="mi">2&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">math&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">pi&lt;/span>&lt;span class="p">)))&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="mi">2&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">math&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">log&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">base&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">def&lt;/span> &lt;span class="nf">find_correction_range&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">low_rot&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">high_rot&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">dim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">base&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">max_position_embeddings&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s2">&amp;#34;&amp;#34;&amp;#34;Find dimension range bounds based on rotations&amp;#34;&amp;#34;&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">low&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">math&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">floor&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">find_correction_dim&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">low_rot&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">dim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">base&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">max_position_embeddings&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">high&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">math&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ceil&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">find_correction_dim&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">high_rot&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">dim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">base&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">max_position_embeddings&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="nb">max&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">low&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="nb">min&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">high&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">dim&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">def&lt;/span> &lt;span class="nf">linear_ramp_factor&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">min&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nb">max&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">dim&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="nb">min&lt;/span> &lt;span class="o">==&lt;/span> &lt;span class="nb">max&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nb">max&lt;/span> &lt;span class="o">+=&lt;/span> &lt;span class="mf">0.001&lt;/span> &lt;span class="c1"># Prevent singularity&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">linear_func&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">arange&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">dim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">dtype&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">float32&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="nb">min&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nb">max&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="nb">min&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">ramp_func&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">clamp&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">linear_func&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">ramp_func&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">class&lt;/span> &lt;span class="nc">YaRNRotaryEmbedding&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Module&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="fm">__init__&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">config&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">beta_fast&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;beta_fast&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="ow">or&lt;/span> &lt;span class="mi">32&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">beta_slow&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;beta_slow&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="ow">or&lt;/span> &lt;span class="mi">1&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">dim&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">config&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s2">&amp;#34;head_dim&amp;#34;&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">factor&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">max_position_embeddings&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="n">original_max_position_embeddings&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">pos_freqs&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">base&lt;/span> &lt;span class="o">**&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">arange&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">dim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="n">dim&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">inv_freq_extrapolation&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mf">1.0&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="n">pos_freqs&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">inv_freq_interpolation&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mf">1.0&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">factor&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">pos_freqs&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">low&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">high&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">find_correction_range&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">beta_fast&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">beta_slow&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">dim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">base&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">original_max_position_embeddings&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1"># Get n-dimensional rotational scaling corrected for extrapolation&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">inv_freq_extrapolation_factor&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mi">1&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="n">linear_ramp_factor&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">low&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">high&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">dim&lt;/span> &lt;span class="o">//&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">inv_freq&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">inv_freq_interpolation&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="mi">1&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="n">inv_freq_extrapolation_factor&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">inv_freq_extrapolation&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">inv_freq_extrapolation_factor&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">attention_factor&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">get_mscale&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">factor&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="nf">forward&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">position_ids&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">...&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">cos&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">sin&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>实际的transformers代码中，Qwen使用的还是默认的RoPE，在inference时如果我们需要扩展上下文，可以通过修改config的形式：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">transformers&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">pipeline&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">model_name_or_path&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s2">&amp;#34;Qwen/Qwen3-8B&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">generator&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">pipeline&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s2">&amp;#34;text-generation&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">model_name_or_path&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">torch_dtype&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;auto&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">device_map&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;auto&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">model_kwargs&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s2">&amp;#34;max_position_embeddings&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="mi">131072&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s2">&amp;#34;rope_scaling&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s2">&amp;#34;rope_type&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s2">&amp;#34;yarn&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s2">&amp;#34;factor&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="mf">4.0&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s2">&amp;#34;original_max_position_embeddings&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="mi">32768&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">},&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h1 id="conclusion">Conclusion
+&lt;/h1>&lt;p>在本文中，作者首先构建了一个统一的表征不同上下文长度扩展的形式，接下来作者分析了不同上下文长度扩展的不足，并提出了YaRN这种上下文长度扩展方式，结果发现，YaRN不仅在短上下文长度下面表现很好，当上下文长度扩展之后，其表现依然非常优秀。&lt;/p>
+&lt;h1 id="references">References
+&lt;/h1>&lt;ul>
+&lt;li>&lt;a class="link" href="http://arxiv.org/abs/2309.00071" target="_blank" rel="noopener"
+>arxiv YaRN&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://arxiv.org/pdf/2306.15595" target="_blank" rel="noopener"
+>arxiv PI&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://qwen.readthedocs.io/en/latest/inference/transformers.html#enabling-long-context" target="_blank" rel="noopener"
+>Qwen documentation&lt;/a>&lt;/li>
+&lt;/ul></description></item><item><title>Notes on Qwen-LLM</title><link>https://maosong2022.github.io/p/notes-on-qwen-llm/</link><pubDate>Thu, 03 Jul 2025 10:47:27 +0800</pubDate><guid>https://maosong2022.github.io/p/notes-on-qwen-llm/</guid><description>&lt;p>Qwen 在 23 年 9 月份发布了 Qwen 系列大语言模型，包括 1.8B， 7B，14B 三个 size，训练过程使用了 3T token. 作者还基于 Qwen，构建了 Code-Qwen-Chat，Math-Qwen-Chat 等系列领域大语言模型。&lt;/p>
+&lt;h2 id="pre-training">Pre-training
+&lt;/h2>&lt;h3 id="data">Data
+&lt;/h3>&lt;p>数据一共使用了 &lt;strong>3T token&lt;/strong>，主要是 public web documents, encyclopedia, books, codes, etc，覆盖了中文和英文两种语言&lt;/p>
+&lt;p>数据处理：&lt;/p>
+&lt;ol>
+&lt;li>语言识别&lt;/li>
+&lt;li>去重，包括 MinHash 和 LSH 算法&lt;/li>
+&lt;li>质量过滤，包括基于规则和和基于 ML 的方法&lt;/li>
+&lt;li>上采样，特定数据会进行上采样&lt;/li>
+&lt;li>加入指令数据，提高模型的 zero-shot 和 few-shot 表现&lt;/li>
+&lt;/ol>
+&lt;h3 id="tokenization">Tokenization
+&lt;/h3>&lt;p>BPE tokenizer，最终的 tokenizer 大小为 152K&lt;/p>
+&lt;h3 id="architecture">Architecture
+&lt;/h3>&lt;p>模型架构基于 LLaMA， 改动：&lt;/p>
+&lt;ol>
+&lt;li>tie embdding: input embdding 和 output embdding 使用的权重相同&lt;/li>
+&lt;li>position encoding:RoPE, inverse frequency 的精度为 FP32&lt;/li>
+&lt;li>bias: 取消了大部分的 bias，增加了 QKV bias，来提高模型的外推能力&lt;/li>
+&lt;li>Pre-Norm &amp;amp; RMSNorm&lt;/li>
+&lt;li>Activation function: SwiGLU&lt;/li>
+&lt;/ol>
+&lt;h3 id="training">Training
+&lt;/h3>&lt;ul>
+&lt;li>上下文长度：2048&lt;/li>
+&lt;li>attention：flash attention&lt;/li>
+&lt;li>optimizer：AdamW， $\beta_1=0.9$, $\beta_2=0.95$, $\epsilon=10^{-8}$.&lt;/li>
+&lt;li>data type: BF16&lt;/li>
+&lt;/ul>
+&lt;h3 id="context-extention">Context Extention
+&lt;/h3>&lt;p>使用了三个技巧：&lt;/p>
+&lt;ol>
+&lt;li>NTK-aware position interpolation&lt;/li>
+&lt;li>log-N scaling&lt;/li>
+&lt;li>window attention&lt;/li>
+&lt;/ol>
+&lt;p>后续前两个统一成了 &lt;a class="link" href="https://maosong.website/p/notes-on-yarn/" target="_blank" rel="noopener"
+>YARN&lt;/a>.&lt;/p>
+&lt;p>observation: lower layer 对上下文长度扩展更敏感, 因此作者动态调整了 window size&lt;/p>
+&lt;h2 id="post-training">Post-training
+&lt;/h2>&lt;p>包括 SFT 和 RLHF 两个阶段&lt;/p>
+&lt;h3 id="sft">SFT
+&lt;/h3>&lt;p>data： 使用了 ChatML 格式&lt;/p>
+&lt;h3 id="rlhf">RLHF
+&lt;/h3>&lt;p>PPO 算法&lt;/p>
+&lt;p>reward model 构建：基于 Qwen-base model&lt;/p>
+&lt;p>RL 训练：先更新 value model 50 steps&lt;/p>
+&lt;p>发现：top-p 设置为 0.9 比设置为 1.0 更好&lt;/p>
+&lt;h3 id="tool-use-and-agent">Tool-use and Agent
+&lt;/h3>&lt;p>作者使用了 self-instruct 来进行 SFT，基于 ReAct 构建数据，数据包括 2000 条高质量数据&lt;/p>
+&lt;h2 id="specialization">Specialization
+&lt;/h2>&lt;h3 id="code-qwen">Code-Qwen
+&lt;/h3>&lt;p>code-qwen 基于 qwen continue Pretraining 得到，然后基于 code-qwen 进行 sft 得到 code-qwen-chat，包括 7B 和 14B 两个 size&lt;/p>
+&lt;h3 id="math-qwen">Math-Qwen
+&lt;/h3>&lt;p>基于 qwen 直接 SFT 得到，包括 7B 和 14B 两个 size&lt;/p>
+&lt;h2 id="conclusion">Conclusion
+&lt;/h2>&lt;p>作者在本文中介绍了 Qwen 系列大语言模型，模型使用了 3T token，作者介绍了训练的细节以及如何扩展到领域大语言模型 Code-Qwen 和 Math-Qwen&lt;/p>
+&lt;h2 id="references">References
+&lt;/h2>&lt;ul>
+&lt;li>&lt;a class="link" href="https://spaces.ac.cn/archives/9444" target="_blank" rel="noopener"
+>Length exploration&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://arxiv.org/abs/2309.16609" target="_blank" rel="noopener"
+>Arxiv&lt;/a>&lt;/li>
+&lt;/ul></description></item><item><title>Notes on Qwen3</title><link>https://maosong2022.github.io/p/notes-on-qwen3/</link><pubDate>Thu, 15 May 2025 14:48:11 +0800</pubDate><guid>https://maosong2022.github.io/p/notes-on-qwen3/</guid><description>&lt;p>Qwen 在 2025 年 5 月发布了 Qwen3 系列大语言模型，Qwen3 包括 6 个 dense 模型和 2 个 MoE 模型，主要亮点为多语种能力，自适应快慢思考能力以及支持用户设置 thinking budget.&lt;/p>
+&lt;p>Qwen3 包括 6 个 dense 模型和 2 个 MoE 模型，其旗舰模型是一个 235B 的 MoE 模型，激活参数为 22B. Qwen3 系列的主要亮点如下:&lt;/p>
+&lt;ol>
+&lt;li>快慢思考融合，模型原生支持在 reasoning/non-reasoning 模式之间切换&lt;/li>
+&lt;li>Reasoning budget, 用户可以指定思考需要的 budget，来平衡 latency 和 performance&lt;/li>
+&lt;li>Distillation, 使用蒸馏的方法训练小模型，大幅度提高模型的表现&lt;/li>
+&lt;li>多语种支持，相比于 Qwen2.5，Qwen3 支持 119 中语言和方言&lt;/li>
+&lt;/ol>
+&lt;h2 id="method">Method
+&lt;/h2>&lt;h3 id="model">Model
+&lt;/h3>&lt;p>Qwen3 的 dense 模型的架构与 &lt;a class="link" href="https://maosong.website/p/notes-on-qwen2.5/" target="_blank" rel="noopener"
+>Qwen2.5&lt;/a> 基本一致，包括使用 GQA , SwiGLU, RoPE, RMSNorm 和 pre-normalization. Qwen3 进一步移除了 QKV bias, 然 后加入了 QK-Norm 来提高训练的稳定性。&lt;/p>
+&lt;p>Qwen3 的 MoE 架构使用了 128 个专家，激活专家个数为 8 个。与 Qwen2.5-MoE 不同，Qwen3 里没有使用 shard experts。并且，Qwen3 加入了 global-batch load balancing loss,来提高 expert 的特化程度。&lt;/p>
+&lt;p>在 tokenizer 方面，Qwen 系列的 tokenizer 一直都是一样的，这也是 Qwen 系列领先的一点。&lt;/p>
+&lt;p>模型的具体参数如下两张表所示。&lt;/p>
+&lt;p>&lt;strong>MoE 架构&lt;/strong>：上下文长度为 128K，128 个专家，每个 token 由 8 个专家负责处理&lt;/p>
+&lt;ul>
+&lt;li>Qwen3-235B-A22B, 总参数 235B，激活参数 22B&lt;/li>
+&lt;li>Qwen3-30B-A3B, 总参数 30B，激活参数 3B&lt;/li>
+&lt;/ul>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Models&lt;/th>
+&lt;th>Layers&lt;/th>
+&lt;th>Heads (Q / KV)&lt;/th>
+&lt;th># Experts (Total / Activated)&lt;/th>
+&lt;th>Context Length&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>Qwen3-30B-A3B&lt;/td>
+&lt;td>48&lt;/td>
+&lt;td>32 / 4&lt;/td>
+&lt;td>128 / 8&lt;/td>
+&lt;td>128K&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Qwen3-235B-A22B&lt;/td>
+&lt;td>94&lt;/td>
+&lt;td>64 / 4&lt;/td>
+&lt;td>128 / 8&lt;/td>
+&lt;td>128K&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>&lt;strong>dense 架构&lt;/strong>: Qwen3-32B, Qwen3-14B, Qwen3-8B, Qwen3-4B, Qwen3-1.7B, and Qwen3-0.6B&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Models&lt;/th>
+&lt;th>Layers&lt;/th>
+&lt;th>Heads (Q / KV)&lt;/th>
+&lt;th>Tie Embedding&lt;/th>
+&lt;th>Context Length&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>Qwen3-0.6B&lt;/td>
+&lt;td>28&lt;/td>
+&lt;td>16 / 8&lt;/td>
+&lt;td>Yes&lt;/td>
+&lt;td>32K&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Qwen3-1.7B&lt;/td>
+&lt;td>28&lt;/td>
+&lt;td>16 / 8&lt;/td>
+&lt;td>Yes&lt;/td>
+&lt;td>32K&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Qwen3-4B&lt;/td>
+&lt;td>36&lt;/td>
+&lt;td>32 / 8&lt;/td>
+&lt;td>Yes&lt;/td>
+&lt;td>32K&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Qwen3-8B&lt;/td>
+&lt;td>36&lt;/td>
+&lt;td>32 / 8&lt;/td>
+&lt;td>No&lt;/td>
+&lt;td>128K&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Qwen3-14B&lt;/td>
+&lt;td>40&lt;/td>
+&lt;td>40 / 8&lt;/td>
+&lt;td>No&lt;/td>
+&lt;td>128K&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Qwen3-32B&lt;/td>
+&lt;td>64&lt;/td>
+&lt;td>64 / 8&lt;/td>
+&lt;td>No&lt;/td>
+&lt;td>128K&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="pre-training">Pre-training
+&lt;/h3>&lt;p>预训练数据一共包括 &lt;strong>36T token&lt;/strong>，覆盖了 119 种语言。数据包括 coding, STEM, reasoning, books, multilingual texts 以及合成数据。&lt;/p>
+&lt;p>为了扩展训练数据，作者微调了 Qwen2.5-VL 来从 PDF 文档中提取文字，然后使用 Qwen2.5 来进行修正。最终收集到了几 T 的 token。另外，作者还使用 Qwen2.5, Qwen2.5-Math, Qwen2.5-Coder 来合成不同格式的数据，包括教科书，QA，指令以及代码片段等。最后，作者加入了更多的多语种数据。&lt;/p>
+&lt;p>作者从 educational value, fields, domains 以及 safety 对数据进行了标注。在数据混合时，Qwen3 在 instance 层面进行操作。&lt;/p>
+&lt;p>预训练阶段包括 3 个 stage：&lt;/p>
+&lt;ol>
+&lt;li>General Stage (S1): 这一阶段的目的是让模型掌握世界知识，使用了 &lt;strong>30T&lt;/strong> 的 token，模型上下文长度为 4096&lt;/li>
+&lt;li>Reasoning Stage (S2): 这一阶段的目的是提高模型的推理能力，使用了 &lt;strong>5T&lt;/strong> 的高质量 token，模型上下文长度为 4096，数据包括 STEM, coding, reasoning 以及合成数据&lt;/li>
+&lt;li>Long Context Stage (S3): 这一阶段的目的是提升模型的长上下文能力，使用了&lt;strong>几百 B&lt;/strong>的 token，模型上下文长度为 32768.训练时数据混合 75% 的长文档数据，25% 的短文本数据。作者将 RoPE 的 frequency 从 10000 提升到了 1,000,000. 作者还是用 YARN 以及 Dual Chunk Attention 来提高 inference 效率&lt;/li>
+&lt;/ol>
+&lt;p>对 pre-training 的 base model 进行评测之后，作者发现：&lt;/p>
+&lt;ol>
+&lt;li>&lt;code>Qwen3-235B-A22B-Base&lt;/code> 超过了其他 base 模型的表现，包括 &lt;code>DeepSeek-V3 Base&lt;/code>, &lt;code>Llama-4-Maverick Base&lt;/code>, &lt;code>Qwen2.5-72B Base&lt;/code>&lt;/li>
+&lt;li>Qwen3-MoE 模型与相同大小的 Qwen3-Dense 模型参数相比，其只需要 1/5 的参数就可以达到相同的表现&lt;/li>
+&lt;li>Qwen3-MoE 模型与 2 倍参数量的 Qwen2.5-MoE 模型表现差不多&lt;/li>
+&lt;li>Qwen3-Dense 模型与大一个量级的 Qwen2.5-Dense 模型表现差不多&lt;/li>
+&lt;/ol>
+&lt;h3 id="post-training">Post-training
+&lt;/h3>&lt;p>Qwen3 的 post-training 如下图所示：&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-qwen3/Qwen3_post-training.png"
+width="1355"
+height="614"
+srcset="https://maosong2022.github.io/p/notes-on-qwen3/Qwen3_post-training_hu8850245799975621570.png 480w, https://maosong2022.github.io/p/notes-on-qwen3/Qwen3_post-training_hu13715759687519081896.png 1024w"
+loading="lazy"
+alt="Post-training Pipeline of Qwen3"
+class="gallery-image"
+data-flex-grow="220"
+data-flex-basis="529px"
+>&lt;/p>
+&lt;p>对于旗舰模型 (&lt;code>Qwen3-235B-A22B&lt;/code>, &lt;code>Qwen3-32B&lt;/code>) 的训练，Qwen3 使用了一个四阶段的训练 pipeline。对于轻量化模型（其他模型）的训练，Qwen3 使用了知识蒸馏。&lt;/p>
+&lt;p>旗舰模型的训练包括四个阶段，前两个阶段用于提升模型的 reasoning 能力，后两个阶段用于将 reasoning 和 non-reasoning 能力结合起来。&lt;/p>
+&lt;h4 id="flashship-model">Flashship Model
+&lt;/h4>&lt;p>&lt;strong>Stage 1 (Long CoT Cold Start)&lt;/strong>
+这个阶段的目的是让模型掌握 reasoning 的基础。这个阶段使用了数学，代码，逻辑推理和通用的 STEM 相关问题。每个问题都有参考答案或者 test-cases. 作者使用了 Qwen2.5-72B 来过滤数据，包括 non-verifiable prompts 以及太简单的 prompt. 作者认为，这一阶段应该减少训练使用的样本和训练步数。&lt;/p>
+&lt;p>&lt;strong>Stage 2 (Reasoning RL)&lt;/strong>
+这个阶段的目的是提升模型的 reasoning 能力。该阶段使用了 3,995 条过滤得到的样本，算法为 GRPO. 作者发现提高 batch size 和每个 query 的 rollouts 可以提高模型的表现。作者通过调整模型的 entropy 来控制 exploration 和 exploitation 的平衡&lt;/p>
+&lt;p>&lt;strong>Stage 3 (Thinking Mode Fusion)&lt;/strong>
+这一阶段的目的是将 non-reasoning 能力加入到之前的 reasoning 模型中。作者在第二阶段的 model 上进行了 continual SFT，然后构建了一个 chat template 用于融合两种模式。&lt;/p>
+&lt;p>reasoning 数据来源于 stage1 的 rejection sampling 和 stage 2 的模型. non-reasoning 数据来源于各种任务，如 coding, math, multilingual 等。为了保证模型的多语种能力，作者还加入了一些翻译相关的数据。&lt;/p>
+&lt;p>作者还构建了一个 chat template, 用于统一数据格式。chat template 如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-qwen3/Qwen3_chat_template.png"
+width="740"
+height="320"
+srcset="https://maosong2022.github.io/p/notes-on-qwen3/Qwen3_chat_template_hu7314460585051966683.png 480w, https://maosong2022.github.io/p/notes-on-qwen3/Qwen3_chat_template_hu9999242725563798042.png 1024w"
+loading="lazy"
+alt="chat template of Qwen3"
+class="gallery-image"
+data-flex-grow="231"
+data-flex-basis="555px"
+>&lt;/p>
+&lt;p>作者使用 &lt;code>/think&lt;/code> 和 &lt;code>/no_think&lt;/code> 来标记两种模式，对于 non-reasoning mode, 其 &lt;code>&amp;lt;think&amp;gt;&amp;lt;/think&amp;gt;&lt;/code> 会被置空。模型在默认情况下处于 reasoning mode, 因此作者加入了一些不包含 &lt;code>/think&lt;/code> 的 reasoning 数据。&lt;/p>
+&lt;p>作者发现，通过这种 Think mode fusion, 模型可以学会在 reasoning mode 和 non-reasoning mode 下进行回答，因此，模型也可以基于中间结果来给出最终的答案。 当超出 budget 之后，作者使用以下 Instruction&lt;/p>
+&lt;p>&lt;code>Considering the limit time by the user. I have to give the solution based on the thinking directly now. \n&amp;lt;/think&amp;gt;.\n\n&lt;/code>&lt;/p>
+&lt;p>来让模型直接终止思考二给出最终的答案。&lt;/p>
+&lt;p>&lt;strong>Stage 4 (General RL)&lt;/strong>
+这个阶段的目的是提升模型在不同场景下的能力。作者构建了一个 reward system 来覆盖 20 多种不同的任务。这些任务包括：instruction following, format following, preference alignment, agent ability 以及 abilities for specialized scenarios.&lt;/p>
+&lt;p>作者构建了三种不同的 rewards:&lt;/p>
+&lt;ol>
+&lt;li>Rule-based rewards: 覆盖的任务包括 instruction following 和 format following&lt;/li>
+&lt;li>Model-based rewards: 作者使用 Qwen2.5-72B 来判别答案的正确性&lt;/li>
+&lt;li>Model-based Reward without reference answer: 作者训练一个 reward model 来给模型的回答进行打分&lt;/li>
+&lt;/ol>
+&lt;h4 id="lightweight-model">Lightweight Model
+&lt;/h4>&lt;p>对于轻量化的模型，作者发现直接通过蒸馏可以有效提高学生模型的表现，并且训练效率也更高。蒸馏训练包括两个阶段：&lt;/p>
+&lt;ol>
+&lt;li>Off-policy Distillation: 这个阶段的目的是让模型拥有基本的 reasoning 能力并且可以在不同的模式中进行切换。作者使用了教师模型的 reasoning 输出和 non-reasoning 输出来蒸馏学生模型&lt;/li>
+&lt;li>On-policy Distillation: 在这个阶段，学生模型生成回答，然后基于教师模型的输出，使用 KL-divergence 来更新学生模型的参数&lt;/li>
+&lt;/ol>
+&lt;h2 id="evaluation">Evaluation
+&lt;/h2>&lt;p>&lt;strong>Thinking budget&lt;/strong>. 作者发现当我们提高 Thinking budget 之后，模型的表现是可以持续提升的。结果如下图&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-qwen3/Qwen3_thinking_budget_performance.png"
+width="1355"
+height="938"
+srcset="https://maosong2022.github.io/p/notes-on-qwen3/Qwen3_thinking_budget_performance_hu13788390577533869064.png 480w, https://maosong2022.github.io/p/notes-on-qwen3/Qwen3_thinking_budget_performance_hu12962124605035138392.png 1024w"
+loading="lazy"
+alt="Performance according to thinking budget"
+class="gallery-image"
+data-flex-grow="144"
+data-flex-basis="346px"
+>&lt;/p>
+&lt;p>&lt;strong>Efficiency of distillation&lt;/strong>. 作者发现使用 distillation 可以大幅度提高模型的表现和训练效率。下面是结果如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-qwen3/Qwen3_distillation_ablation.png"
+width="1309"
+height="200"
+srcset="https://maosong2022.github.io/p/notes-on-qwen3/Qwen3_distillation_ablation_hu2369750054666948761.png 480w, https://maosong2022.github.io/p/notes-on-qwen3/Qwen3_distillation_ablation_hu7032629541131820710.png 1024w"
+loading="lazy"
+alt="Comparison between distillation and RL"
+class="gallery-image"
+data-flex-grow="654"
+data-flex-basis="1570px"
+>&lt;/p>
+&lt;p>&lt;strong>Effects of Thinking mode fusion and RL&lt;/strong> 作者进一步探究了三个 stage 对模型表现的影响，为此，作者构建了 in-house benchmarks 来评估模型的表现，这些 benchmarks 包括：&lt;/p>
+&lt;ol>
+&lt;li>CounterFactrQA. 问题是不符合事实的，用于评估模型的幻觉&lt;/li>
+&lt;li>LengthCtrl. 有长度要求的写作任务，评估生成内容长度和给定长度之间的差别&lt;/li>
+&lt;li>ThinkFollow. 多轮对话，每轮对话随机插入 &lt;code>/think&lt;/code> 和 &lt;code>/no_think&lt;/code> flag，评估模型是否能在两种模式之间切换&lt;/li>
+&lt;li>Tooluse. 评估模型的工具调用能力&lt;/li>
+&lt;/ol>
+&lt;p>结果如下&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-qwen3/Qwen3_stage_ablation.png"
+width="1358"
+height="684"
+srcset="https://maosong2022.github.io/p/notes-on-qwen3/Qwen3_stage_ablation_hu2887782245149393248.png 480w, https://maosong2022.github.io/p/notes-on-qwen3/Qwen3_stage_ablation_hu16197092104876694984.png 1024w"
+loading="lazy"
+alt="Performance of difference stages"
+class="gallery-image"
+data-flex-grow="198"
+data-flex-basis="476px"
+>&lt;/p>
+&lt;p>结论如下：&lt;/p>
+&lt;ol>
+&lt;li>Stage3 可以提高模型在两种 reasoning mode 切换的能力，并且 stage3 还可以提高模型的通用以及 instruction following 能力&lt;/li>
+&lt;li>Stage4 进一步提高模型在两种模式下的通用，instruction following 和 agent 能力&lt;/li>
+&lt;li>Stage3 和 stage4 并没有显著提高模型在 knowledge, STEM, math 和 coding 相关任务上的表现。甚至在一些竞赛如 AIME24 上模型的表现还有所下降，作者认为这是由于我们提升了模型的通用能力而导致其特化能力下降导致的，作者认为作为一个通用模型，这是可以接受的。&lt;/li>
+&lt;/ol>
+&lt;h2 id="conclusion">Conclusion
+&lt;/h2>&lt;p>在本文中，作者提出了 Qwen3 系列大语言模型，包括 6 个 Dense 模型和 2 个 MoE 模型。Qwen3 模型标志了一个新的 SOTA，其特点主要是快慢思考结合，thinking budget，以及多语种。&lt;/p>
+&lt;p>作者认为后续工作有以下几点：&lt;/p>
+&lt;ol>
+&lt;li>使用更高质量的数据来进行预训练&lt;/li>
+&lt;li>优化模型架构和训练方式，提升模型的上下文&lt;/li>
+&lt;li>提高针对 RL 的计算资源，来进一步提高模型的 agent 能力&lt;/li>
+&lt;/ol>
+&lt;h2 id="references">References
+&lt;/h2>&lt;ul>
+&lt;li>&lt;a class="link" href="https://arxiv.org/abs/2505.09388" target="_blank" rel="noopener"
+>Arxiv&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://github.com/QwenLM/Qwen3" target="_blank" rel="noopener"
+>Github&lt;/a>&lt;/li>
+&lt;/ul></description></item><item><title>Notes on Qwen3 blog</title><link>https://maosong2022.github.io/p/notes-on-qwen3-blog/</link><pubDate>Tue, 29 Apr 2025 11:23:04 +0800</pubDate><guid>https://maosong2022.github.io/p/notes-on-qwen3-blog/</guid><description>&lt;h1 id="介绍">介绍
+&lt;/h1>&lt;p>Qwen3发布，包含两种架构的模型，每种架构均包含对应的base model和post-trained model.&lt;/p>
+&lt;p>&lt;strong>MoE架构&lt;/strong>：上下文长度为128K，128个专家，每个token由8个专家负责处理&lt;/p>
+&lt;ul>
+&lt;li>Qwen3-235B-A22B, 总参数235B，激活参数22B，&lt;/li>
+&lt;li>Qwen3-30B-A3B, 总参数30B，激活参数3B&lt;/li>
+&lt;/ul>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Models&lt;/th>
+&lt;th>Layers&lt;/th>
+&lt;th>Heads (Q / KV)&lt;/th>
+&lt;th># Experts (Total / Activated)&lt;/th>
+&lt;th>Context Length&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>Qwen3-30B-A3B&lt;/td>
+&lt;td>48&lt;/td>
+&lt;td>32 / 4&lt;/td>
+&lt;td>128 / 8&lt;/td>
+&lt;td>128K&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Qwen3-235B-A22B&lt;/td>
+&lt;td>94&lt;/td>
+&lt;td>64 / 4&lt;/td>
+&lt;td>128 / 8&lt;/td>
+&lt;td>128K&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>&lt;strong>dense架构&lt;/strong>: Qwen3-32B, Qwen3-14B, Qwen3-8B, Qwen3-4B, Qwen3-1.7B, and Qwen3-0.6B&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Models&lt;/th>
+&lt;th>Layers&lt;/th>
+&lt;th>Heads (Q / KV)&lt;/th>
+&lt;th>Tie Embedding&lt;/th>
+&lt;th>Context Length&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>Qwen3-0.6B&lt;/td>
+&lt;td>28&lt;/td>
+&lt;td>16 / 8&lt;/td>
+&lt;td>Yes&lt;/td>
+&lt;td>32K&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Qwen3-1.7B&lt;/td>
+&lt;td>28&lt;/td>
+&lt;td>16 / 8&lt;/td>
+&lt;td>Yes&lt;/td>
+&lt;td>32K&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Qwen3-4B&lt;/td>
+&lt;td>36&lt;/td>
+&lt;td>32 / 8&lt;/td>
+&lt;td>Yes&lt;/td>
+&lt;td>32K&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Qwen3-8B&lt;/td>
+&lt;td>36&lt;/td>
+&lt;td>32 / 8&lt;/td>
+&lt;td>No&lt;/td>
+&lt;td>128K&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Qwen3-14B&lt;/td>
+&lt;td>40&lt;/td>
+&lt;td>40 / 8&lt;/td>
+&lt;td>No&lt;/td>
+&lt;td>128K&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Qwen3-32B&lt;/td>
+&lt;td>64&lt;/td>
+&lt;td>64 / 8&lt;/td>
+&lt;td>No&lt;/td>
+&lt;td>128K&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h1 id="亮点">亮点
+&lt;/h1>&lt;ol>
+&lt;li>Hybrid Thinking modes
+qwen3支持两种思考模式： thinking mode 和 non-thinking mode，前者用于解决复杂的问题，后者用于解决简单的问题&lt;/li>
+&lt;li>multilingual support
+qwen3支持119中语言和方言&lt;/li>
+&lt;li>Improved agentic capabilities
+提升了qwen3的coding和agentic能力，并支持MCP&lt;/li>
+&lt;/ol>
+&lt;h1 id="训练">训练
+&lt;/h1>&lt;h2 id="pre-training">Pre-training
+&lt;/h2>&lt;p>Qwen3使用了36T token进行训练 （与之相比，Qwen2.5使用方的token数量为18T），数据来源于互联网和PDF，作者使用Qwen2.5-VL来提取内容，然后使用Qwen2.5来提升内容质量。作者还基于Qwen2.5-Math和Qwen2.5-Coder来合成数学以及代码数据&lt;/p>
+&lt;p>训练包含三个stage：&lt;/p>
+&lt;ol>
+&lt;li>上下文长度为4K tokens，训练数据为30T tokens, 目标是让模型掌握初步的语言能力和知识&lt;/li>
+&lt;li>上下文长度为4K tokens，训练数据为5T tokens,这部分数据主要是knowledge intensive的数据，比如STEM, coding和reasoning等&lt;/li>
+&lt;li>上下文长度扩展到32K tokens，训练数据主要是高质量长上下文的数据&lt;/li>
+&lt;/ol>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-qwen3-blog/qwen3-base.jpg"
+width="1554"
+height="1058"
+srcset="https://maosong2022.github.io/p/notes-on-qwen3-blog/qwen3-base_hu12486593419265846584.jpg 480w, https://maosong2022.github.io/p/notes-on-qwen3-blog/qwen3-base_hu13961341124876178588.jpg 1024w"
+loading="lazy"
+alt="performance of qwen3 base"
+class="gallery-image"
+data-flex-grow="146"
+data-flex-basis="352px"
+>&lt;/p>
+&lt;h2 id="post-training">Post-training
+&lt;/h2>&lt;p>Post-training包含四个阶段，如下图所示
+&lt;img src="https://maosong2022.github.io/p/notes-on-qwen3-blog/post-training.png"
+width="4143"
+height="1640"
+srcset="https://maosong2022.github.io/p/notes-on-qwen3-blog/post-training_hu12371199527398711262.png 480w, https://maosong2022.github.io/p/notes-on-qwen3-blog/post-training_hu2234000358067062540.png 1024w"
+loading="lazy"
+alt="post training of qwen3"
+class="gallery-image"
+data-flex-grow="252"
+data-flex-basis="606px"
+>&lt;/p>
+&lt;ul>
+&lt;li>Stage 1, Long CoT code start: 作者基于math, coding, logical reasoning, STEM等domain的Long CoT数据来微调模型，让模型拥有初步的推理能力，这和Kimi-VL是类似的&lt;/li>
+&lt;li>Stage 2, reasoning-based RL: 作者使用rule-based rewards来提供奖励，然后使用RL来训练模型，经一部提高模型的exploration和exploitation能力&lt;/li>
+&lt;li>Stage 3, thinking mode fusion: 作者混合了一部分instruction-following和Long CoT数据来提升模型的non-thinking能力，这样可以让模型在两种思考模式之间切换&lt;/li>
+&lt;li>Stage 4,general RL： 作者使用RL在20多个general-domain任务上进一步提高模型的通用能力，包括instruction following, format following以及agent capability等&lt;/li>
+&lt;/ul>
+&lt;h1 id="future-work">Future work
+&lt;/h1>&lt;p>作者希望在未来能够在模型架构和训练方式上进行提升，包括：scaling data, increasing model size, extending context length, broadening modalities, advancing RL with environmental feedback for long-horizon reasoning.&lt;/p>
+&lt;h1 id="结论">结论
+&lt;/h1>&lt;p>与Gemini2.5 pro，Kimi-VL等reaosning model不同，qwen3可以在快思考和慢思考之间进行转换。感觉未来有两个趋势，一个是如何在快思考和慢思考之间进行切换，切换的逻辑是什么？第二个就是qwen3以及qwen2.5-vl都在强调的agent能力，也就是我们不仅仅是在做一个LLM，而是逐步延伸到了agent这个层面。&lt;/p>
+&lt;h1 id="参考文献">参考文献
+&lt;/h1>&lt;ul>
+&lt;li>&lt;a class="link" href="https://qwenlm.github.io/blog/qwen3/" target="_blank" rel="noopener"
+>blog&lt;/a>&lt;/li>
+&lt;/ul></description></item><item><title>Notes on Qwen2.5 omni</title><link>https://maosong2022.github.io/p/notes-on-qwen2.5-omni/</link><pubDate>Tue, 01 Apr 2025 10:29:00 +0800</pubDate><guid>https://maosong2022.github.io/p/notes-on-qwen2.5-omni/</guid><description>&lt;h1 id="介绍">介绍
+&lt;/h1>&lt;p>2025年3月26号，Qwen团队发布了Qwen2.5 omni，Qwen2.5 omni是一个多模态模型，支持文本、音频、视频、图像等多个模态的输入，支持文本，音频的输出。
+作者提出了TMRoPE来对齐不同的模态，然后还是用了Thinker-Talker的架构来同时生成文本和音频。
+Thinker是一个大语言模型，Talker是一个dual-track自回归模型，Talker基于Thinker的hideen states来生成audio token，最后通过一个sliding-window DiT来解码audio token&lt;/p>
+&lt;p>现有omni-model存在的问题：&lt;/p>
+&lt;ol>
+&lt;li>缺乏一个系统的，联合训练多个不同模态的方法&lt;/li>
+&lt;li>需要处理不同模态输出时互相干扰的问题&lt;/li>
+&lt;li>不能实时理解或者流式输出多模态信息&lt;/li>
+&lt;/ol>
+&lt;p>Qwen2.5 omni的解决方法：&lt;/p>
+&lt;ol>
+&lt;li>使用TMRoPE来对齐不同的模态。作者将audio以及video frame按照时间顺序组织成一个交替的架构，然后使用TMRoPE来对齐&lt;/li>
+&lt;li>使用Thinker-Talker的架构来同时生成文本和音频。Thinker负责文本输出，Talker负责音频的流式输出。&lt;/li>
+&lt;li>在multimodal encoder中使用Block-wise streaming处理技巧来实现实时理解；在输出时，实现了一个dual-track自回归架构来生成audio token，以及一个DiT模型来解码audio token&lt;/li>
+&lt;/ol>
+&lt;p>Qwen2.5 omni的贡献：&lt;/p>
+&lt;ol>
+&lt;li>提出了Qwen2.5-omni,可以实时理解多模态信息，并流式输出文本和音频&lt;/li>
+&lt;li>提出了TMRoPE，一个可以对齐不同模态的RoPE算法&lt;/li>
+&lt;li>提出了Thinker-Talker的架构，来完成实时理解和音频输出&lt;/li>
+&lt;li>在多个benchmark上取得了SOTA&lt;/li>
+&lt;/ol>
+&lt;h1 id="架构">架构
+&lt;/h1>&lt;h2 id="总览">总览
+&lt;/h2>&lt;p>Qwen2.5-omni的架构如下图所示
+&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5-omni/architecture.png"
+width="1346"
+height="1110"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5-omni/architecture_hu13856471526692175307.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5-omni/architecture_hu13696785578383343851.png 1024w"
+loading="lazy"
+alt="architecture of Qwen2.5-omni"
+class="gallery-image"
+data-flex-grow="121"
+data-flex-basis="291px"
+>&lt;/p>
+&lt;p>其中Talker类似于人的嘴，负责基于脑中的信息来生成对话；Thinker类似于人的大脑，负责理解输入的信息，并生成对话的上下文。&lt;/p>
+&lt;h2 id="输入">输入
+&lt;/h2>&lt;ul>
+&lt;li>text: Qwen的tokenizer&lt;/li>
+&lt;li>audio： Qwen2-Audio的tokenizer&lt;/li>
+&lt;li>vision： Qwen2.5-VL的vision tokenizer&lt;/li>
+&lt;/ul>
+&lt;p>视频以及TMRoPE。 对于视频来说，Qwen2.5-omni采取了和Qwen2.5-VL一样的MRoPE算法。只是这里的temporal ID对应40ms&lt;/p>
+&lt;p>音频：对于音频来说，Qwen2.5-omni也是以40ms进行采样然后encoding。&lt;/p>
+&lt;p>视频+音频：对于视频+音频来说，Qwen2.5-omni将视频和音频的token进行交替的排列，来保证时间上信息一致&lt;/p>
+&lt;h2 id="输出">输出
+&lt;/h2>&lt;ul>
+&lt;li>Text：text由Thinker直接输出，这和LLM的输出方式是一样的。&lt;/li>
+&lt;li>Speech：Qwen2.5-omni首先构建了&lt;code>qwen-tts-tokenizer&lt;/code>，一个speech codec，用于表示speech的关键信息。
+然后基于这些关键信息，Talker通过自回归的方式生成audio tokens以及text tokens。&lt;/li>
+&lt;/ul>
+&lt;h2 id="流式输出">流式输出
+&lt;/h2>&lt;p>对于流式输出来说，现在的模型存在latency，具体影响因素如下：&lt;/p>
+&lt;ol>
+&lt;li>处理多模态输入的延迟&lt;/li>
+&lt;li>TTFT （time to first token）&lt;/li>
+&lt;li>将第一段speech token解码为audio的时间&lt;/li>
+&lt;li>模型架构导致的latency，如模型参数等&lt;/li>
+&lt;/ol>
+&lt;p>为了解决这个问题，Qwen2.5-omni采取了以下措施：&lt;/p>
+&lt;ol>
+&lt;li>Support prefilling. 作者修改了audio以及vision encoder来在temporal dimension上支持block-wise attention.
+具体来讲，audio encoder只关注2秒内的信息，而vision encoder和Qwen2.5-VL一样，使用了一个MLP patch merger来压缩视觉token&lt;/li>
+&lt;li>Streaming Codec generation. 为了提高流式输出的效率，作者还是用了基于Flow-Matching的DiT，输出的code收线使用Flow-Matching转化为一个mel-spectrogram.
+然后再通过一个BigVGAN来重建得到对应的waveform. 作者在这里修改了DiT的attention，将其receptive field 限制为4个block，包括lookback of 2 blocks以及lookahead of 1 block.&lt;/li>
+&lt;/ol>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5-omni/DiT-sliding-window.png"
+width="410"
+height="433"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5-omni/DiT-sliding-window_hu6563920421928967677.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5-omni/DiT-sliding-window_hu2093921625058248866.png 1024w"
+loading="lazy"
+alt="Sliding Window DiT"
+class="gallery-image"
+data-flex-grow="94"
+data-flex-basis="227px"
+>&lt;/p>
+&lt;h1 id="pre-training">Pre Training
+&lt;/h1>&lt;p>模型参数初始化：&lt;/p>
+&lt;ul>
+&lt;li>LLM： 从Qwen2.5进行初始化&lt;/li>
+&lt;li>vision encoder：从Qwen2.5-VL的vision encoder进行初始化&lt;/li>
+&lt;li>audio encoder：从Whisper-large-v3进行初始化&lt;/li>
+&lt;/ul>
+&lt;p>Pretraining和Qwen2.5-VL的训练过程类似，分成了3个stage：&lt;/p>
+&lt;ol>
+&lt;li>冻结LLM的参数，仅训练vision encoder和audio encoder， 该阶段使用了audio-text以及image-text pairs来进行训练。 数据：image-text, video-text, video-audio, audio-text以及text corpus，
+跟Qwen2-Audio类似，作者将hierarchical tags用自然语言prompt进行替换&lt;/li>
+&lt;li>训练所有参数，使用更多的多模态数据进行训练。数据包括800B token的image和Video相关数据，300B token的audio数据，100B token的video-audio相关数据。&lt;/li>
+&lt;li>将模型的上下文扩展到32K。前两个阶段的上下文长度为8192，本阶段使用了long video data等数据来将模型的上下文扩展到32K。&lt;/li>
+&lt;/ol>
+&lt;h1 id="post-training">Post Training
+&lt;/h1>&lt;h2 id="thinker">Thinker
+&lt;/h2>&lt;p>数据格式为ChatML，数据类型包括pure text-based dialogue data, visual-modality conversation data, audio-modality conversation data and mix-modality conversation data.&lt;/p>
+&lt;h2 id="talker">Talker
+&lt;/h2>&lt;p>包括三个阶段&lt;/p>
+&lt;ol>
+&lt;li>ICL training: 训练Talker学习context continuation&lt;/li>
+&lt;li>DPO training: 提升speech generation的stability&lt;/li>
+&lt;li>multi-speaker instruction fine-tuning: 提升模型的naturalness和controllability&lt;/li>
+&lt;/ol>
+&lt;h1 id="evaluation">Evaluation
+&lt;/h1>&lt;p>Qwen2.5-omni在两类benchmark上进行来的评测，分别时多模态理解（X-&amp;gt;text）以及音频生成(X-&amp;gt; Speech)&lt;/p>
+&lt;p>我们这里主要关注一下speech understanding以及speech generation的benchmark.&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5-omni/audio-to-text-performance.png"
+width="1093"
+height="1125"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5-omni/audio-to-text-performance_hu3995772258484959637.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5-omni/audio-to-text-performance_hu12796047373868839849.png 1024w"
+loading="lazy"
+alt="Audio-to-Text Performance"
+class="gallery-image"
+data-flex-grow="97"
+data-flex-basis="233px"
+>&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5-omni/zero-shot-speech-generation.png"
+width="904"
+height="685"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5-omni/zero-shot-speech-generation_hu4247592615732321508.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5-omni/zero-shot-speech-generation_hu2294091350184113498.png 1024w"
+loading="lazy"
+alt="Speech Generation Performance"
+class="gallery-image"
+data-flex-grow="131"
+data-flex-basis="316px"
+>&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5-omni/single-speaker-speech-generation.png"
+width="864"
+height="513"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5-omni/single-speaker-speech-generation_hu18113694195638600776.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5-omni/single-speaker-speech-generation_hu13691510460279495977.png 1024w"
+loading="lazy"
+alt="single speaker speech generation"
+class="gallery-image"
+data-flex-grow="168"
+data-flex-basis="404px"
+>&lt;/p>
+&lt;h1 id="总结">总结
+&lt;/h1>&lt;p>Qwen2.5-omni相当于是结合了Qwen2.5-VL以及Mini-omni，跟mini-omni2的输入输出是类似的。不同的点在于，Qwen2.5-omni使用了Thinker-Talker的架构，然后还使用了TMRoPE来对齐不同的模态。总的来说，感觉模型还是更偏重于audio的理解与生成。&lt;/p>
+&lt;h1 id="reference">Reference
+&lt;/h1>&lt;ul>
+&lt;li>&lt;a class="link" href="http://arxiv.org/abs/2503.20215" target="_blank" rel="noopener"
+>Qwen2.5-omni&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://arxiv.org/abs/2408.16725" target="_blank" rel="noopener"
+>Mini-omni&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://arxiv.org/pdf/2410.11190" target="_blank" rel="noopener"
+>Mini-omni2&lt;/a>&lt;/li>
+&lt;/ul></description></item><item><title>Overview of Qwen-VL series</title><link>https://maosong2022.github.io/p/overview-of-qwen-vl-series/</link><pubDate>Sun, 09 Mar 2025 15:11:29 +0800</pubDate><guid>https://maosong2022.github.io/p/overview-of-qwen-vl-series/</guid><description>&lt;h1 id="timeline">Timeline
+&lt;/h1>&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>时间&lt;/th>
+&lt;th>模型系列&lt;/th>
+&lt;th>Feature&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>2023.08&lt;/td>
+&lt;td>Qwen-VL&lt;/td>
+&lt;td>Vision-centric understanding&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>Multi-lingual&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>Multi-image&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>Fine-grained visual understanding&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>2024.09&lt;/td>
+&lt;td>Qwen2-VL&lt;/td>
+&lt;td>Image understanding&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>Video understanding (20min)&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>Agent capability&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>Multilingual support&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>2025.02&lt;/td>
+&lt;td>Qwen2.5-VL&lt;/td>
+&lt;td>Document parsing&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>Object grounding&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>Long video understadning and grouding (1 hour)&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>Agent functionality&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h1 id="models">Models
+&lt;/h1>&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>&lt;/th>
+&lt;th>name&lt;/th>
+&lt;th>size&lt;/th>
+&lt;th>Vision&lt;/th>
+&lt;th>Adapter&lt;/th>
+&lt;th>LLM&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>1.0&lt;/td>
+&lt;td>Qwen-VL&lt;/td>
+&lt;td>9.6B&lt;/td>
+&lt;td>ViT(1.9B)&lt;/td>
+&lt;td>Cross-attention(0.08B)&lt;/td>
+&lt;td>Qwen-LLM(7B)&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>2.0&lt;/td>
+&lt;td>Qwen2-VL-2B&lt;/td>
+&lt;td>2B&lt;/td>
+&lt;td>ViT(675M)&lt;/td>
+&lt;td>MLP(0.0341B)&lt;/td>
+&lt;td>Qwen2-LLM(1.5B)&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>Qwen2-VL-7B&lt;/td>
+&lt;td>7B&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>MLP(0.0446B)&lt;/td>
+&lt;td>Qwen2-LLM(7.6B)&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>Qwen2-VL-72B&lt;/td>
+&lt;td>72B&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>MLP(0.0682B)&lt;/td>
+&lt;td>Qwen2-LLM(72B)&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>2.5&lt;/td>
+&lt;td>Qwen2.5-VL-3B&lt;/td>
+&lt;td>3B&lt;/td>
+&lt;td>ViT(675M)&lt;/td>
+&lt;td>MLP(0.1817B)&lt;/td>
+&lt;td>Qwen2.5-LLM(3B)&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>Qwen2.5-VL-7B&lt;/td>
+&lt;td>7B&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>MLP(0.3179B)&lt;/td>
+&lt;td>Qwen2.5-LLM(7.6B)&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>Qwe2.5n-VL-72B&lt;/td>
+&lt;td>72B&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>MLP(0.7267B)&lt;/td>
+&lt;td>Qwen2.5-LLM(72B)&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>Remark&lt;/p>
+&lt;ul>
+&lt;li>Qwen2-VL的MLP使用的是LayerNorm&lt;/li>
+&lt;li>Qwen2.5-VL的MLP使用的是RMSNorm&lt;/li>
+&lt;li>出了Qwen-VL之外，所有模型均有对应的Instruct版本，这里为了方便没有列出。Qwen-VL对应的是Qwen-VL-chat。&lt;/li>
+&lt;/ul>
+&lt;h1 id="data--training">Data &amp;amp; training
+&lt;/h1>&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Model series&lt;/th>
+&lt;th>stage&lt;/th>
+&lt;th>data&lt;/th>
+&lt;th>Vision&lt;/th>
+&lt;th>Adapter&lt;/th>
+&lt;th>LLM&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>Qwen-VL&lt;/td>
+&lt;td>pretraining&lt;/td>
+&lt;td>1.4B&lt;/td>
+&lt;td>✅&lt;/td>
+&lt;td>✅&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>Multi-task pretraining&lt;/td>
+&lt;td>96.8M&lt;/td>
+&lt;td>✅&lt;/td>
+&lt;td>✅&lt;/td>
+&lt;td>✅&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>SFT&lt;/td>
+&lt;td>350K&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>✅&lt;/td>
+&lt;td>✅&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Qwen2-VL&lt;/td>
+&lt;td>pretraining&lt;/td>
+&lt;td>600b tokens&lt;/td>
+&lt;td>✅？&lt;/td>
+&lt;td>✅？&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>Multi-task pretraining&lt;/td>
+&lt;td>800b tokens&lt;/td>
+&lt;td>✅？&lt;/td>
+&lt;td>✅？&lt;/td>
+&lt;td>✅？&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>SFT&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>✅？&lt;/td>
+&lt;td>✅？&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Qwen2.5-VL&lt;/td>
+&lt;td>Visual Pre-Training&lt;/td>
+&lt;td>1.5T token&lt;/td>
+&lt;td>✅？&lt;/td>
+&lt;td>✅？&lt;/td>
+&lt;td>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>Multimodal Pre-Training&lt;/td>
+&lt;td>2T token&lt;/td>
+&lt;td>✅&lt;/td>
+&lt;td>✅&lt;/td>
+&lt;td>✅&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>Long-Context Pre-Training&lt;/td>
+&lt;td>0.6T token&lt;/td>
+&lt;td>✅？&lt;/td>
+&lt;td>✅？&lt;/td>
+&lt;td>✅？&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>SFT&lt;/td>
+&lt;td>2M samples&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>✅&lt;/td>
+&lt;td>✅&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>DPO&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>&lt;/td>
+&lt;td>✅&lt;/td>
+&lt;td>✅&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>Remark&lt;/p>
+&lt;ol>
+&lt;li>Qwen2-VL按照技术报告的说法是follow了Qwen-VL的训练方式，因此这里也使用了同样的表示&lt;/li>
+&lt;li>带问号的地方代表不确定，为个人猜测。请谨慎参考。&lt;/li>
+&lt;li>难以确定的原因是Qwen-VL系列将projection layer和ViT作为一个模块，因此比较难区分是否训练了projection layer&lt;/li>
+&lt;/ol>
+&lt;p>技术报告的训练框架图&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/overview-of-qwen-vl-series/qwen-vl-training.png"
+width="1908"
+height="868"
+srcset="https://maosong2022.github.io/p/overview-of-qwen-vl-series/qwen-vl-training_hu10403710283858859645.png 480w, https://maosong2022.github.io/p/overview-of-qwen-vl-series/qwen-vl-training_hu10541227880671039729.png 1024w"
+loading="lazy"
+alt="qwen-vl-training"
+class="gallery-image"
+data-flex-grow="219"
+data-flex-basis="527px"
+>&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/overview-of-qwen-vl-series/qwen2-5-training.png"
+width="1354"
+height="468"
+srcset="https://maosong2022.github.io/p/overview-of-qwen-vl-series/qwen2-5-training_hu9762734632441640035.png 480w, https://maosong2022.github.io/p/overview-of-qwen-vl-series/qwen2-5-training_hu16613519819175232642.png 1024w"
+loading="lazy"
+alt="qwen2-5-training"
+class="gallery-image"
+data-flex-grow="289"
+data-flex-basis="694px"
+>&lt;/p>
+&lt;p>References&lt;/p>
+&lt;ul>
+&lt;li>&lt;a class="link" href="https://arxiv.org/pdf/2308.12966" target="_blank" rel="noopener"
+>Qwen-VL&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://arxiv.org/pdf/2409.12191" target="_blank" rel="noopener"
+>Qwen2-VL&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://arxiv.org/pdf/2502.13923" target="_blank" rel="noopener"
+>Qwen2.5-VL&lt;/a>&lt;/li>
+&lt;/ul></description></item><item><title>Notes on QwQ-32B</title><link>https://maosong2022.github.io/p/notes-on-qwq-32b/</link><pubDate>Sat, 08 Mar 2025 09:46:16 +0800</pubDate><guid>https://maosong2022.github.io/p/notes-on-qwq-32b/</guid><description>&lt;h1 id="introduction">Introduction
+&lt;/h1>&lt;p>通义团队在3月6号发布了QwQ-32B，一个基于RL的，32B参数的reasoning model，QwQ-32B的表现可以与DeepSeek-R1相比&lt;/p>
+&lt;h1 id="模型架构">模型架构
+&lt;/h1>&lt;p>QwQ-32B基于Qwen2.5-32B开发。主要通过基于outcome-based rewards的RL进行训练。训练过程包括两个stage&lt;/p>
+&lt;ol>
+&lt;li>Stage 1：本阶段在math和coding domain上进行RL的训练，作者使用了一个verifier来保证最终数学问题结果的正确性，使用了一个code execution server来保证最终生成代码的正确性。&lt;/li>
+&lt;li>Stage 2：本阶段在通用领域上进行RL的训练。模型基于general reward model和一些rule-based verifier进行训练。应该是类似DeepSeek-R1的规则。&lt;/li>
+&lt;/ol>
+&lt;h1 id="实验结果">实验结果
+&lt;/h1>&lt;p>实验结果如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-qwq-32b/qwq-32b-final.jpg"
+width="3035"
+height="1713"
+srcset="https://maosong2022.github.io/p/notes-on-qwq-32b/qwq-32b-final_hu8354107095607630009.jpg 480w, https://maosong2022.github.io/p/notes-on-qwq-32b/qwq-32b-final_hu6845858612094320689.jpg 1024w"
+loading="lazy"
+alt="QwQ_evaluation"
+class="gallery-image"
+data-flex-grow="177"
+data-flex-basis="425px"
+>&lt;/p>
+&lt;h1 id="reference">Reference
+&lt;/h1>&lt;ul>
+&lt;li>&lt;a class="link" href="https://qwenlm.github.io/blog/qwq-32b/" target="_blank" rel="noopener"
+>blog&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://chat.qwen.ai/?models=Qwen2.5-Plus" target="_blank" rel="noopener"
+>demo&lt;/a>&lt;/li>
+&lt;/ul></description></item><item><title>Notes on Qwen2.5 VL</title><link>https://maosong2022.github.io/p/notes-on-qwen2.5-vl/</link><pubDate>Tue, 04 Mar 2025 10:46:42 +0800</pubDate><guid>https://maosong2022.github.io/p/notes-on-qwen2.5-vl/</guid><description>&lt;h1 id="introduction">Introduction
+&lt;/h1>&lt;p>2025年2月20号Qwen团队发布了Qwen2.5 VL技术报告，Qwen2.5 VL包括3B，7B， 72B三个size。Qwen2.5-VL主要在架构，数据上进行了改进。通过评测，Qwen2.5-VL在多个benchmark上取得了SOTA。&lt;/p>
+&lt;p>Qwen2.5 VL认为已有模型的缺点为：&lt;/p>
+&lt;ul>
+&lt;li>计算复杂度高&lt;/li>
+&lt;li>上下文理解能力有限&lt;/li>
+&lt;li>细粒度visual perception能力不足&lt;/li>
+&lt;li>在不同上下文长度下表现不一致&lt;/li>
+&lt;/ul>
+&lt;p>Qwen2.5 VL的贡献为：&lt;/p>
+&lt;ol>
+&lt;li>使用了一个从零开始训练的ViT作为vision encoder，并且在ViT中使用了window attention，来提高计算效率&lt;/li>
+&lt;li>使用了dynamic FPS sampling，用于处理不同采样率的视频输入&lt;/li>
+&lt;li>将MRoPE扩展到了temporal domain上，进一步提高了模型在与时间相关任务上的表现&lt;/li>
+&lt;li>使用了更高质量的数据集，其中预训练阶段使用了4.1T的token&lt;/li>
+&lt;/ol>
+&lt;p>Qwen2.5 VL的主要亮点为：&lt;/p>
+&lt;ul>
+&lt;li>优秀的document parsing能力&lt;/li>
+&lt;li>精确的object grounding能力&lt;/li>
+&lt;li>针对长视频的理解和细粒度grounding能力&lt;/li>
+&lt;li>针对UI的agent functionality&lt;/li>
+&lt;/ul>
+&lt;h1 id="模型架构">模型架构
+&lt;/h1>&lt;h2 id="总览">总览
+&lt;/h2>&lt;p>Qwen2.5 VL和Qwen2 VL的架构基本一致，包括Vision Encoder，Language Encoder，以及projector layer三个部分，其架构图如下：&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/architecture.png"
+width="1345"
+height="889"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/architecture_hu17125015043072785911.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5-vl/architecture_hu16983634930428889570.png 1024w"
+loading="lazy"
+alt="Qwen2.5 VL架构图"
+class="gallery-image"
+data-flex-grow="151"
+data-flex-basis="363px"
+>&lt;/p>
+&lt;ul>
+&lt;li>LLM： 使用Qwen2.5 LLM作为LLM，并且将1D-RoPE升级为了MRoPE&lt;/li>
+&lt;li>Vision Encoder： 使用一个从零开始训练的ViT架构，patch_size为14，position embedding为2D-RoPE， attention为window attention和self-attention的混合，其中，只有四层使用的是self-attention.对于输入的图片，ViT会将图片resize到28的整数倍。&lt;/li>
+&lt;li>Projector Layer： 使用的是一个两层的MLP&lt;/li>
+&lt;/ul>
+&lt;p>模型的参数配置如下图&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/model_config.png"
+width="1180"
+height="861"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/model_config_hu6133933021768467739.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5-vl/model_config_hu685888814144466819.png 1024w"
+loading="lazy"
+alt="Qwen2.5 VL模型参数配置"
+class="gallery-image"
+data-flex-grow="137"
+data-flex-basis="328px"
+>&lt;/p>
+&lt;h2 id="vision-encoder">Vision Encoder
+&lt;/h2>&lt;p>Vision encoder的主要改进点为：&lt;/p>
+&lt;ol>
+&lt;li>使用了window attention来提升计算效率，window attention的size为 $112\times 112$， 对应为 $8\times 8$ 个patch. 这样做的好处是可以不用对图片做scaling&lt;/li>
+&lt;li>使用了2D RoPE来捕捉空间信息，使用3D RoPE来捕捉视频输入的时间信息&lt;/li>
+&lt;li>与LLM的结构进行对齐，包括使用RMSNorm替换LayerNorm，使用SwiGLU替换ReLU&lt;/li>
+&lt;/ol>
+&lt;h2 id="输入处理">输入处理
+&lt;/h2>&lt;p>对于图片输入，Qwen2.5 VL使用原始图片的空间信息来构建坐标，而不是将坐标normalize到[0, 1000]之间，这样让模型可以处理不同精度的图片输入。&lt;/p>
+&lt;p>对于视频输入，因为使用了3D RoPE，因此Qwen2.5 VL可以处理不同帧率的视频输入，这样就避免了不同帧率视频对模型视频理解带来的影响。这一点和Apollo里的想法是一样的。具体来说，Qwen2.5 VL首先将连续的两帧group到了一起，然后使用了temporal ID来将position和视频所对应的时间进行对齐。这里可以看Qwen2.5 VL的代码：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">Temporal (Time): 3 patches, representing different segments of the video in time.
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">Height: 2 patches, dividing each frame vertically.
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">Width: 2 patches, dividing each frame horizontally.
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">We also have some important parameters:
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">fps (Frames Per Second): The video&amp;#39;s frame rate, set to 1. This means one frame is processed each second.
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">tokens_per_second: This is a crucial parameter. It dictates how many &amp;#34;time-steps&amp;#34; or &amp;#34;temporal tokens&amp;#34; are conceptually packed into a one-second interval of the video. In this case, we have 25 tokens per second. So each second of the video will be represented with 25 separate time points. It essentially defines the temporal granularity.
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">temporal_patch_size: The number of frames that compose one temporal patch. Here, it&amp;#39;s 2 frames.
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">interval: The step size for the temporal position IDs, calculated as tokens_per_second * temporal_patch_size / fps. In this case, 25 * 2 / 1 = 50. This means that each temporal patch will be have a difference of 50 in the temporal position IDs.
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">input_ids: [V V V V V V V V V V V V T T T T T], here V is for vision.
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">vision temporal position_ids: [0, 0, 0, 0, 50, 50, 50, 50, 100, 100, 100, 100]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">vision height position_ids: [0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">vision width position_ids: [0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">text temporal position_ids: [101, 102, 103, 104, 105]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">text height position_ids: [101, 102, 103, 104, 105]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">text width position_ids: [101, 102, 103, 104, 105]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">Here we calculate the text start position_ids as the max vision position_ids plus 1.
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>这里&lt;code>fps&lt;/code>为1，表示每一帧对应一秒，&lt;code>tokens_per_second&lt;/code>为25，表示每秒包含25个token，&lt;code>temporal_patch_size&lt;/code>为2，表示每个temporal patch包含2个frame。因此一个patch里面，就包含了2frame, 对应50tokens. 然后前面提到连续两帧会被group到一起，因此每个temporal patch对应4个spatial patches. 其position_ids为：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="p">[(&lt;/span>&lt;span class="n">t&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">t&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">t&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">t&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">)]&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h1 id="训练">训练
+&lt;/h1>&lt;h2 id="预训练">预训练
+&lt;/h2>&lt;h3 id="数据">数据
+&lt;/h3>&lt;p>预训练阶段使用了4.1T的token，包括image captions, interleaved image-text data, optical character recognition (OCR) data, visual knowledge (e.g., celebrity, landmark, flora, and fauna identification), multi-modal academic questions, localization data, document parsing data, video descriptions, video localization, and agent-based interaction data. 作者详细介绍了以下几种数据：&lt;/p>
+&lt;ul>
+&lt;li>Interleaved image-text data： 主要1. 提高模型的上下文学习能力；2. 保持模型的text-only能力；3.包含一些通用信息。数据清洗包括：1. 基于text-only quality过滤； 2. 基于image-text相关性过滤；3. 基于image-text互补程度过滤；4.基于information density balance过滤.&lt;/li>
+&lt;li>Grounding data：作者使用了Grounding DINO, SAM等模型来生成一些grounding data.为了提升模型在open-vocabulary detection上的能力，作者将训练数据集扩展到了1万个object category上，作者还使用了一些point-based object grounding data来提升模型的能力&lt;/li>
+&lt;li>Document Parsing data：作者基于text,image, music sheets和chemical formulas合成了一些HTML格式的数据，然后根据tag和bounding box来提升模型document parsing的能力&lt;/li>
+&lt;li>OCR data：作者使用了开源，合成和in-house的数据集，数据集主要提到multi-lingual以及1M的chart-type数据&lt;/li>
+&lt;li>Video data：作者通过pipeline构建了long video caption来提升模型长视频的理解能力&lt;/li>
+&lt;li>Agent data：作者收集了一些mobile device和网页的screenshots,然后基于agent框架来合成控制轨迹&lt;/li>
+&lt;/ul>
+&lt;h3 id="训练-1">训练
+&lt;/h3>&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/pretraining.png"
+width="1217"
+height="428"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/pretraining_hu13120081010368224081.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5-vl/pretraining_hu851622592674460936.png 1024w"
+loading="lazy"
+alt="Qwen2.5 VL预训练阶段"
+class="gallery-image"
+data-flex-grow="284"
+data-flex-basis="682px"
+>&lt;/p>
+&lt;p>如上图所示，Qwen2.5 VL的预训练阶段包括了三个阶段：&lt;/p>
+&lt;ol>
+&lt;li>Visual Pretraining:这一阶段使用了image-caption, knowledge, OCR数据集，旨在提升ViT提取视觉特征的能力&lt;/li>
+&lt;li>multimodal pretraining:这一阶段在第一阶段的基础上增加了pure-text, interleaved data, VQA, Video grounding, agent data, 旨在提升模型处理复杂视觉信息的能力&lt;/li>
+&lt;li>long-context pretraining: 这一阶段，在第二阶段的基础上，增加了long video, long agent, long document data，旨在提升模型处理长上下文的能力&lt;/li>
+&lt;/ol>
+&lt;h2 id="后训练">后训练
+&lt;/h2>&lt;h3 id="数据-1">数据
+&lt;/h3>&lt;p>SFT阶段使用大概2M的样本进行训练，其中纯文本和多模态数据占比为1:1，语言主要是中文和英文。&lt;/p>
+&lt;p>为了保证数据质量，作者提供了一个数据清洗的pipeline，包括：&lt;/p>
+&lt;ol>
+&lt;li>domain-specific categorization: 作者基于Qwen2-VL-72B构建了Qwen2-VL-Instag，用于将QA pair分为8个大类别，30个小类别&lt;/li>
+&lt;li>Domain-tailed filtering:作者使用了rule-based和model-based方法来提升数据的质量
+&lt;ul>
+&lt;li>rule-based filtering: 重复性检测，格式检测等&lt;/li>
+&lt;li>model-based filtering: 使用基于Qwen2.5-VL训练的reward model来从多个维度评估QA pair的质量&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ol>
+&lt;p>为了进一步提升模型的推理能力，作者还是用了rejection sampling来refine 数据集。&lt;/p>
+&lt;h3 id="训练-2">训练
+&lt;/h3>&lt;p>post-training阶段分为SFT和DPO两个小阶段，这个阶段都会冻结VIT. SFT阶段使用大多数的训练数据，而DPO阶段专注于image-text data和pure text data，以更好地进行对齐。具体做法就是基于Grounding truth，使用checkpoint来评估数据的质量，然后只保留答案正确的数据来训练。&lt;/p>
+&lt;h1 id="评测">评测
+&lt;/h1>&lt;ol>
+&lt;li>通用VQA
+&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/general_vqa.png"
+width="1356"
+height="656"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/general_vqa_hu892650520576289201.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5-vl/general_vqa_hu9870708508441533774.png 1024w"
+loading="lazy"
+alt="通用VQA"
+class="gallery-image"
+data-flex-grow="206"
+data-flex-basis="496px"
+>&lt;/li>
+&lt;li>文档理解和OCR
+&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/document_understanding.png"
+width="1358"
+height="655"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/document_understanding_hu17694059179260147209.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5-vl/document_understanding_hu7262732638369499565.png 1024w"
+loading="lazy"
+alt="文档理解和OCR"
+class="gallery-image"
+data-flex-grow="207"
+data-flex-basis="497px"
+>&lt;/li>
+&lt;li>空间理解
+&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/grounding.png"
+width="1324"
+height="714"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/grounding_hu5967843440894939227.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5-vl/grounding_hu13144193697505905228.png 1024w"
+loading="lazy"
+alt="空间理解"
+class="gallery-image"
+data-flex-grow="185"
+data-flex-basis="445px"
+>&lt;/li>
+&lt;li>视频理解和Grounding
+&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/video.png"
+width="1320"
+height="672"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/video_hu2773206847940642085.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5-vl/video_hu9652119302145499627.png 1024w"
+loading="lazy"
+alt="视频理解和Grounding"
+class="gallery-image"
+data-flex-grow="196"
+data-flex-basis="471px"
+>&lt;/li>
+&lt;li>Agent
+&lt;img src="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/agent.png"
+width="1374"
+height="337"
+srcset="https://maosong2022.github.io/p/notes-on-qwen2.5-vl/agent_hu14999408161773977095.png 480w, https://maosong2022.github.io/p/notes-on-qwen2.5-vl/agent_hu8333246447475526185.png 1024w"
+loading="lazy"
+alt="Agent"
+class="gallery-image"
+data-flex-grow="407"
+data-flex-basis="978px"
+>&lt;/li>
+&lt;/ol>
+&lt;h1 id="reference">Reference
+&lt;/h1>&lt;ul>
+&lt;li>&lt;a class="link" href="https://github.com/QwenLM/Qwen2.5-VL" target="_blank" rel="noopener"
+>Github&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://arxiv.org/abs/2502.13923" target="_blank" rel="noopener"
+>Paper&lt;/a>&lt;/li>
+&lt;/ul></description></item></channel></rss>
