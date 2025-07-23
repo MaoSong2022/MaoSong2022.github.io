@@ -2,6 +2,7 @@
 title: LLM Parameter Computation
 description: 计算LLM的参数量
 date: 2025-07-22 10:50:47+0800
+lastmod: 2025-07-23 09:43:17+0800
 math: true
 tags: 
     - distributed training
@@ -148,23 +149,23 @@ class Qwen3Attention:
 - Query projection: $W_{Q}\in\mathbb{R}^{hh_d\times d}$, $b_Q\in\mathbb{R}^{hh_d}$
 - Key projection: $W_K\in\mathbb{R}^{h_{kv}h_d\times d}$, $b_K\in\mathbb{R}^{h_{kv}h_d}$
 - Value projection: $W_V\in\mathbb{R}^{h_{kv}h_d\times d}$, $b_V\in\mathbb{R}^{h_{kv}h_d}$
-- output projection: $W_O\in\mathbb{R}^{d\times hh_d}$, $b_{O}\in\mathbb{R}^{d}$
-- RMSNorm：前文已经提到过，两个 normalization (query norm 以及 key norm) 的总参数量为 $2d$.
+- output projection: $W_O\in\mathbb{R}^{d\times hh_d}$
+- RMSNorm：前文已经提到过，两个 normalization (query norm 以及 key norm) 的总参数量为 $2h_d$.
 
 因此， `Qwen3Attention` 部分的总参数量为
 
 $$
-\mathrm{parameter}(\texttt{Qwen3Attention}) = hh_{d}d + 2h_{kv}h_dd +dhh_d + 2d = 2hh_dd + 2h_{kv}h_dd + 2d
+\mathrm{parameter}(\texttt{Qwen3Attention}) = hh_{d}d + 2h_{kv}h_dd +dhh_d + 2h_d = 2hh_dd + 2h_{kv}h_dd + 2h_d
 $$
 
-分别代表 $W_Q, W_K, W_V,W_O$ 和 两个 normalization layer 的参数量。
+分别代表 $W_Q, W_O, W_K,W_V$ 和 两个 normalization layer 的参数量。
 
 注意，这里我们没有加入 bias, 这是因为 QKV bias 在 Qwen3 中被取消，取而代之的是两个 normalization.
 
 如果我们查看 `Qwen2Attention` 的代码，我们可以得到 `Qwen2Attention` 的总参数量为
 
 $$
-\mathrm{parameter}(\texttt{Qwen2Attention}) = 2hh_{d}d + 2h_{kv}h_dd +2h_{kv}h_d+2hh_d+2h_{kv}h_d
+\mathrm{parameter}(\texttt{Qwen2Attention}) = 2hh_{d}d + 2h_{kv}h_dd +h_{kv}h_d+hh_d+h_{kv}h_d
 $$
 
 分别代表 $W_Q, W_K, W_V,W_O$ 和 $b_Q,b_K, b_V$ 的参数量。
@@ -176,8 +177,7 @@ $$
 \mathrm{parameter}(\texttt{Qwen3ForCausalLM}) &=d|V| + \mathrm{parameter}(\texttt{Qwen3Model})\\
 &=2d|V| + N*\mathrm{parameter}(\texttt{Qwen3DecoderLayer}) + d\\
 &= N*(2d + \mathrm{parameter}(\texttt{Qwen3MLP}) + \mathrm{parameter}(\texttt{Qwen3Attention})) + d(2|V|+1)\\
-&= N*(2d+3dd_{ff}+2hh_{d}d + 2h_{kv}h_dd + 2d) + d(2|V|+1)\\
-&= N*(4d+3dd_{ff}+2hh_{d}d + 2h_{kv}h_dd) + d(2|V|+1)
+&= N*(2d+3dd_{ff}+2hh_{d}d + 2h_{kv}h_dd + 2h_d) + d(2|V|+1)\\
 \end{aligned}
 $$
 
@@ -210,7 +210,7 @@ $$
 根据上式，最终的参数量为
 
 $$
-\mathrm{parameter}(\texttt{Qwen3-32B}) = 32.76276224*10^9\approx 32.8B
+\mathrm{parameter}(\texttt{Qwen3-32B}) = 32.762123264*10^9\approx 32.8B
 $$
 
 我们使用 `Qwen3-32B` 的 `index.json` 可以得到其真实的参数量为
@@ -313,7 +313,7 @@ $$
 实际总参数量为
 
 $$
-470187269120/2 = 235093634560.0
+470187269120/2 = 235093634560.0\approx 235B
 $$
 
 可以看到，计算结果与实际相符。
