@@ -2,15 +2,15 @@
 title: Notes on Kimi k1.5
 description: An brief introduction to Kimi k1.5
 date: 2025-02-08 10:09:52+0800
+lastmod: 2025-07-24 10:56:50+0800
 math: true
 tags: 
     - kimi
+    - Reasoning
 categories:
     - MLLM 
-    - Reasoning
 ---
 
-# 介绍
 
 论文提出了Kimi k1.5， 一个基于强化学习训练的多模态推理模型。作者介绍了Kimi k1.5的训练方法，以及infra上的优化。作者的主要贡献如下：
 
@@ -19,11 +19,11 @@ categories:
 3. 作者发现可以通过long context scaling和policy optimization来提升模型的推理能力。
 4. 作者提出了long2short的推理方法，可以有效提升short CoT模型的推理能力。
 
-# 模型架构
+## Architecture
 
 论文中包括两个模型，一个是k1.5 base model， 其是一个多模态大模型。另一个是Kimi-1.5 reasoning model（简称为k1.5），k1.5是基于kimi-1.5 base model， 通过强化学习训练得到的推理模型。
 
-## Kimi-1.5 base model
+### Kimi-1.5 base model
 
 k1.5 base model是一个基于transformer的多模态大模型，论文没有给出详细的模型结构，只有如下的示意图
 
@@ -35,7 +35,7 @@ k1.5 base model的训练包括三个阶段：
 2. Vision-language cooldown stage: 这一阶段的目的是让模型保持多模态理解能力。作者发现，使用合成数据可以提高模型在这一阶段的表现。因此，作者使用闭源大语言模型，基于math, knowledge和code domain的pretraining data来合成了一些QA pair数据对，然后讲这些QA pair数据对加入到训练数据中。
 3. Long-context activation stage: 这一阶段的目的是让模型在长上下文的数据上进行训练，以提升模型在长上下文上的理解能力。这一阶段包含了40%的full attention data以及60%的partial attention data。其中，full attention data是基于真实数据和合成的QA以及summary数据得到的，partial attention data是在cooldown data找那个通过均匀采样得到的。这一阶段，模型的上下文长度从4096逐步增加到131072。
 
-## Kimi k1.5
+### Kimi k1.5
 
 Kimi k1.5是基于k1.5 base model， 通过进一步训练得到的推理模型。k1.5的训练包括四个阶段：
 
@@ -44,9 +44,9 @@ Kimi k1.5是基于k1.5 base model， 通过进一步训练得到的推理模型�
 3. long-CoT SFT： 这一步的目的是让模型能够像人类一样进行推理，能够掌握最基本的推理策略，即：planning，evaluation，reflection和exploration。从而为RL训练提供一个良好的初始化。
 4. RL：这一步就是通过RL来提高模型的推理能力。我们在下一节中进行详细的介绍。
 
-# RL
+## RL
 
-## 问题定义
+### Problem Definition
 
 给定一个训练数据集 $\mathcal{D} = \{(x_i, y_i^\star)\}_ {i=1}^n$， 其中 $x_ i$ 是问题， $y_{i}^\star$ 是ground truth。我们希望找到一个模型 $\pi_{\theta}$ ，来解决这个问题。通常问题比较难，因此我们使用chain of thought（CoT）的方法来解决这个问题。具体做法就是让模型输出中间步骤 $z=(z_1, z_2, ..., z_m)$， 来连接问题 $x_i$ 和答案 $y$。其中， $z_j$ 是模型在第 $j$ 步的推理结果，即 $z_t\sim\pi_{\theta}(x_i, z_{<t})$, $y\sim \pi_{\theta}(x_i, z)$。
 
@@ -56,7 +56,7 @@ $$
 \max_{\theta} \mathbb{E}_ {(x, y^\star)\sim\mathcal{D},(y,z,)\sim\pi_{\theta}}  r_{\phi}(x, y, y^\star)
 $$
 
-## Policy Optimization
+### Policy Optimization
 
 作者使用了online policy mirror descent来解决上面提到的优化问题。在每个iteration中，存在一个reference model $\pi_{\theta_r}$ ， 以及一个当前要更新的模型 $\pi_{\theta}$ 。online policy mirror descent要解决的优化问题为：
 
@@ -125,7 +125,7 @@ $$
 > Remark
 > 作者还探究了为什么不使用value network。作者认为，在强化学习中，value network通常用于评估当前状态的价值，但是在reasoning model中，训练的目的是让模型能够充分探索，以提高模型在不同任务中的泛化性。因此，作者认为使用value network可能会限制模型的探索能力。
 
-## Training Strategy
+### Training Strategy
 
 作者提出了两个提高采样效率的方法：
 
@@ -166,22 +166,22 @@ $$
 
 该框架的主要优势在于使用Kubernetes Sidecar containers来在一个pod中共享所有的GPU资源。这样就避免了资源分配不均的问题。
 
-# 数据
+## 数据
 
-## 数据处理
+### 数据处理
 
 1. RL prompt set. 作者认为prompt的quality和diversity对RL训练至关重要。因此作者基于diverse coverage, balanced difficuty以及accurate evaluation来构建了一个RL prompt set。对于多样性，作者确保数据集覆盖多个domain。对于平衡难度，作者通过多次采样，根据通过率来给每个样本的难易程度打分。对于准确性，作者筛掉了多选题，正确题和证明题，确保模型能够生成正确的推理步骤。最后，作者还让模型进行猜测，如果模型猜测的正确率比较高，那么就认为该样本是easy-to-hack的，就会筛掉。
 2. Test Case Generation for Coding. 作者使用[CYaRon](https://github.com/luogu-dev/cyaron)来生成coding任务的测试用例。通过与Kimi k1.5结合，作者构建了一个包含323个测试用例的训练集。
 3. Reward modeling for Math. 作者使用了两种方法来提高reward model的准确性。第一个是classic RM，作者基于InstructGPT，构造了大约800K的数据训练了一个value-head based RM。模型会基于问题，参考答案和模型生成的答案来判断模型生成的答案是否正确。第二个是Chain of Thought RM，作者基于收集的800k CoT数据对kimi进行了finetune，然后对模型生成的推理步骤进行打分。最终发现，Chain of Thought RM的效果更好。因此，作者在RL训练中使用了Chain of Thought RM。
 4. Vision RL Data。 作者从三个方面构建了vision RL数据集：real-world data, synthetic visual reasoning data以及text-rendered data.
 
-## 数据集
+### 数据集
 
 1. pretraining：其中，纯文本数据包括Engligh, Chinese, Code, math reasoning以及Knowledge这5个领域。多模态数据包括captioning, image-text interleaving, OCR, Knowledge以及QA数据集等。附录B介绍了数据集的来源和处理过程。
 2. SFT： vanilla SFT数据集包含1M的纯文本数据，其中包含500K的general QA数据，200K的coding数据，200K的数学和科学数据，5K的创作写作数据以及20K的长上下文任务（总结，QA，翻译和写作等）。作者还构建了1M的图文数据，包括chart理解，OCR，grounding，visual coding, visual reasoning以及visual aided math/science problems等
 3. long-CoT SFT：该阶段的数据基于refined RL prompt set，使用了prompt engineering来构建了一个少量但高质量的long-CoT数据集。用于将reasoning能力内化到模型中。
 
-# Long2short
+## Long2short
 
 为了降低推理成本，作者提出了long2short的推理方法。该方法通过将长上下文推理转化为短上下文推理，让模型能够更加高效的完成推理。作者尝试了几种方法来实现long2short：
 
@@ -190,7 +190,7 @@ $$
 3. DPO：通过对同一个问题进行多次采样，选择最短的正确的回答作为正样本，最长的回答作为负样本，然后使用DPO进行训练。
 4. Long2short RL：作者在RL阶段，选择一个在performance和token efficiency之间达到平衡的模型作为 base model，然后加入了一个long2short RL训练阶段。该阶段，作者加入了length penalty以及降低了maximum rollout length来鼓励模型生成更短的推理步骤。
 
-## Length penalty
+### Length penalty
 
 Length penalty的目的是降低模型的overthinking和训练成本。作者加入了一个length reward，对于问题 $x$ 和采样的回答 $(y_i,z_i)$ ，回答 $(y_i,z_i)$ 的length定义为 $len(x_i)=\text{length}([z_i, y_i])$ length reward定义为：
 
@@ -209,9 +209,9 @@ $$
 
 也就是说，当回答正确时，我们鼓励模型生成更长的推理步骤。反之，我们鼓励模型生成更短的推理步骤。
 
-# 实验
+## 实验
 
-## 实验结果
+### 实验结果
 
 1. K1.5在long-CoT任务上的表现
 
@@ -228,7 +228,7 @@ $$
 
 ![Long2short](k1-5-long2short.png)
 
-## 消融实验
+### 消融实验
 
 1. Scaling of model size and context length. 作者探究了模型大小和上下文长度对模型推理能力的影响，结果在图8里面。结果发现
    1. 小模型可以通过Long CoT来达到大模型的效果
@@ -237,7 +237,7 @@ $$
 2. Effects of using negative gradients. 作者探究了使用负梯度对模型推理能力的影响。作者与ReST方法进行了对比，结果在图10里面。结果发现，ReST回到只模型产生更长的推理步骤。作者认为，选取合适的优化方法，可以有效提升模型的推理能力。
 3. Sampling strategies. 作者还探究了采样策略对模型推理能力的影响。作者与均匀采样进行了对比，结果在图9里面。结果发现，论文提出的采样策略可以有效提升模型的推理能力。
 
-# 结论
+## 结论
 
 作者提出了Kimi k1.5，一个基于强化学习训练的多模态推理模型。作者介绍了Kimi k1.5的训练方法，数据集，infra上的优化以及long2short的推理方法。作者的主要贡献在于：
 
@@ -247,6 +247,6 @@ $$
 
 论文的问题在于对于多模态的内容介绍较少，感觉还是更倾向于文本推理任务。
 
-# 参考文献
+## 参考文献
 
 - [Kimi k1.5: Scaling Reinforcement Learning with LLMs](http://arxiv.org/abs/2501.12599)
