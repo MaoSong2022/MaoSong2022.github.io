@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Agent on Mao Song(毛松)'s Homepage</title><link>https://maosong2022.github.io/tags/agent/</link><description>Recent content in Agent on Mao Song(毛松)'s Homepage</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><lastBuildDate>Sun, 14 Apr 2024 12:38:04 +0800</lastBuildDate><atom:link href="https://maosong2022.github.io/tags/agent/index.xml" rel="self" type="application/rss+xml"/><item><title>What's next for AI agentic workflows</title><link>https://maosong2022.github.io/p/whats-next-for-ai-agentic-workflows/</link><pubDate>Sun, 14 Apr 2024 12:38:04 +0800</pubDate><guid>https://maosong2022.github.io/p/whats-next-for-ai-agentic-workflows/</guid><description>&lt;img src="https://maosong2022.github.io/p/whats-next-for-ai-agentic-workflows/agent_performance.png" alt="Featured image of post What's next for AI agentic workflows" />&lt;p>In AI Ascent, Andrew Ng shared his opinion about the agentic workflow, specifically, his talk focused on designs and future works on agentic workflows.&lt;/p>
+&lt;h1 id="what-is-agent">What is Agent
+&lt;/h1>&lt;p>LLM based agents can be classified into two categories: non-agentic and agentic.&lt;/p>
+&lt;ul>
+&lt;li>Non-agentic workflow requires LLM do something in a sequence of steps, usually this requires the &amp;ldquo;zero-shot&amp;rdquo; learning ability of LLM.&lt;/li>
+&lt;li>Agentic workflow requires LLM do something step by step, and revise its action by thinking or reflection.&lt;/li>
+&lt;/ul>
+&lt;p>Andrew then posts an image shows the agentic workflow can improve the performance of LLM on HumanEval benchmark.&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/whats-next-for-ai-agentic-workflows/agent_performance.png"
+width="3706"
+height="1730"
+srcset="https://maosong2022.github.io/p/whats-next-for-ai-agentic-workflows/agent_performance_hu9429534153792096942.png 480w, https://maosong2022.github.io/p/whats-next-for-ai-agentic-workflows/agent_performance_hu5054130303720915832.png 1024w"
+loading="lazy"
+alt="Comparisons of agent performance"
+class="gallery-image"
+data-flex-grow="214"
+data-flex-basis="514px"
+>&lt;/p>
+&lt;h1 id="agentic-design-reasoning-design-pattern">Agentic Design Reasoning Design Pattern
+&lt;/h1>&lt;p>Agentic design pattern can be divided into following kinds. Where the first two design patterns are robust and the latter two are emerging.&lt;/p>
+&lt;h3 id="reflection">Reflection
+&lt;/h3>&lt;ul>
+&lt;li>Self-Refine: Iterative Refinement with Self-Feedback&lt;/li>
+&lt;li>Reflexion: Language Agents with Verbal Reinforcement Learning&lt;/li>
+&lt;/ul>
+&lt;h2 id="tool-use">Tool Use
+&lt;/h2>&lt;ul>
+&lt;li>Gorilla: Large Language Model Connected with Massive APIs&lt;/li>
+&lt;li>MM-REACT: Prompting ChatGPT for Multimodal Reasoning and Action&lt;/li>
+&lt;/ul>
+&lt;h2 id="planning">Planning
+&lt;/h2>&lt;ul>
+&lt;li>Chain-of-Thought Prompting Elicits Reasoning in Large Language Models&lt;/li>
+&lt;li>HuggingGPT: Solving AI Tasks with ChatGPT and its Friends in Hugging Face&lt;/li>
+&lt;/ul>
+&lt;h2 id="multi-agent-collaboration">Multi-agent collaboration
+&lt;/h2>&lt;ul>
+&lt;li>Communicative Agents for Software Development&lt;/li>
+&lt;li>AutoGen: Enabling Next-Gen LLM Applications via Multi-Agent Conversation&lt;/li>
+&lt;/ul>
+&lt;h1 id="future-perspective">Future Perspective
+&lt;/h1>&lt;ul>
+&lt;li>The set of tasks that AI can do expand dramatically because of agentic workflows.&lt;/li>
+&lt;li>We have to get used to delegating tasks to AI agent and wait patiently for response.&lt;/li>
+&lt;li>Fast token generation is important. Generating more tokens even from a a lower quality LLM can achieve a good result.&lt;/li>
+&lt;/ul>
+&lt;h1 id="reference">Reference
+&lt;/h1>&lt;ul>
+&lt;li>&lt;a class="link" href="https://www.youtube.com/watch?v=sal78ACtGTc&amp;amp;list=PLOhHNjZItNnOoPxOF3dmq30UxYqFuxXKn" target="_blank" rel="noopener"
+>What&amp;rsquo;s next for AI agentic workflows ft. Andrew Ng of AI Fund&lt;/a>&lt;/li>
+&lt;/ul></description></item></channel></rss>
