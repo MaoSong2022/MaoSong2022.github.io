@@ -20,7 +20,7 @@ Kimi-k2 是一个总参数为 1T, 激活参数为 32B 的 MoE 大语言模型，
 
 基于这个目标，作者就提出了 Kimi K2, 一个 1.04T 总参数，32B 激活参数的 MoE 模型，用于解决实现 agent Intelligence 中遇到的问题。作者主要进行了三点改进：
 
-1. MuonClip, 一个基于 Muon 的优化算法，来提高 Kimi K2 对 token 的利用效率以及提高训练的稳定性
+1. MuonClip, 一个基于 [Muon](https://maosong.website/p/notes-on-moonlight/) 的优化算法，来提高 Kimi K2 对 token 的利用效率以及提高训练的稳定性
 2. 大规模的 agentic 数据合成 pipeline: 作者构建了一个用于合成工具调用，agent 数据的 pipeline
 3. 通用的 RL 框架，作者将 RLVR 和 self-critic rubric reward mechanism 结合起来，用于提升模型的表现
 
