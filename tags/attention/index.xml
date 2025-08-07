@@ -1,0 +1,279 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Attention on Mao Song(毛松)'s Homepage</title><link>https://maosong2022.github.io/tags/attention/</link><description>Recent content in Attention on Mao Song(毛松)'s Homepage</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><lastBuildDate>Thu, 07 Aug 2025 18:08:36 +0800</lastBuildDate><atom:link href="https://maosong2022.github.io/tags/attention/index.xml" rel="self" type="application/rss+xml"/><item><title>Notes on GQA</title><link>https://maosong2022.github.io/p/notes-on-gqa/</link><pubDate>Thu, 07 Aug 2025 18:08:36 +0800</pubDate><guid>https://maosong2022.github.io/p/notes-on-gqa/</guid><description>&lt;p>Google Research 在 23 年 12 月份提出了 Group Query Attention (GQA), 一个提升 multi-head attention 效率的方法。GQA 自 &lt;a class="link" href="Qwen2.md" >Qwen2&lt;/a> 系列开始被应用。&lt;/p>
+&lt;h2 id="introduction">Introduction
+&lt;/h2>&lt;p>Multi-head attention (MHA) 的问题在于 inference 阶段，每次 decoding，都需要重新加载 attention 模块中 query layer, key layer 和 value layer 的权重，而加载权重会受带宽限制。&lt;/p>
+&lt;p>已有的工作有 &lt;a class="link" href="https://maosong.website/p/notes-on-mqa/" target="_blank" rel="noopener"
+>MQA&lt;/a>, 也就是我们把多个 head 的 key layer 以及 value layer 压缩成一个，这样对于 $h$ 个 head 的 attention，我们有 $h$ 个 query layer，$1$ 个 key layer 以及 1 个 value layer. 但是 MQA 的问题在于其会导致性能下降，而且训练过程会不稳定。&lt;/p>
+&lt;p>因此，在本文中作者就作出了两点贡献：&lt;/p>
+&lt;ol>
+&lt;li>如何将一个 MHA 模型转化为一个一个 MQA 模型&lt;/li>
+&lt;li>提出了 Group Query Attention (GQA)，在保持模型性能的同时，提高计算效率&lt;/li>
+&lt;/ol>
+&lt;h2 id="method">Method
+&lt;/h2>&lt;h3 id="uptraining">Uptraining
+&lt;/h3>&lt;p>将 MHA 模型转化为 MQA 模型分为两步：&lt;/p>
+&lt;ol>
+&lt;li>将 MHA 权重转化为 MQA 权重&lt;/li>
+&lt;li>额外的预训练&lt;/li>
+&lt;/ol>
+&lt;p>具体来讲，作者使用了一个 mean pooling 的方法，来将不同 head 的 query layer 以及 key layer 的权重转化为 MQA 对应 layer 的权重。然后作者 pre-training 若干步来让模型适应新的结构。&lt;/p>
+&lt;h3 id="gqa">GQA
+&lt;/h3>&lt;p>GQA 的思路在于在 MHA 和 MQA 之间达到一个平衡，也就是说我们将 key layer 和 value layer 进行分组，每个组内共享一个 key layer 和 value layer, 我们假设有 $h$ 个 head，$G$ 个 group，那么&lt;/p>
+&lt;ol>
+&lt;li>$G=1$ 时，所有的 head 共享一个 key layer 和一个 value layer, 此时 GQA 等价于 MQA&lt;/li>
+&lt;li>$G=H$ 时，每个 head 都有一个 key layer 和一个 value layer, 此时 GQA 等价于 MHA&lt;/li>
+&lt;li>$1&amp;lt;G&amp;lt;H$ 时，GQA 时 MQA 和 MHA 的一个 trade-off，兼顾两者的性能与效率&lt;/li>
+&lt;/ol>
+&lt;p>三者的示意图如下所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-gqa/MQA_comparison_group_query.png"
+width="2080"
+height="784"
+srcset="https://maosong2022.github.io/p/notes-on-gqa/MQA_comparison_group_query_hu16749365881659510466.png 480w, https://maosong2022.github.io/p/notes-on-gqa/MQA_comparison_group_query_hu11954291867796797564.png 1024w"
+loading="lazy"
+alt="Overview of grouped-query methods"
+class="gallery-image"
+data-flex-grow="265"
+data-flex-basis="636px"
+>&lt;/p>
+&lt;h2 id="code">Code
+&lt;/h2>&lt;p>MQA 的代码也比较好理解，我们首先定义 group size，即 &lt;code>num_key_value_heads&lt;/code>, 然后基于 group size 定义对应的 key layer &lt;code>self.k_proj&lt;/code> 和 value layer &lt;code>self.v_proj&lt;/code>.&lt;/p>
+&lt;p>计算得到 &lt;code>key_states&lt;/code> 和 &lt;code>value_states&lt;/code> 之后，在计算 attention，即 &lt;code>eager_attention_forward&lt;/code> 的时候，我们对 &lt;code>key_states&lt;/code> 和 &lt;code>value_states&lt;/code> 进行复制，即 &lt;code>repeat_kv&lt;/code>&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;span class="lnt">21
+&lt;/span>&lt;span class="lnt">22
+&lt;/span>&lt;span class="lnt">23
+&lt;/span>&lt;span class="lnt">24
+&lt;/span>&lt;span class="lnt">25
+&lt;/span>&lt;span class="lnt">26
+&lt;/span>&lt;span class="lnt">27
+&lt;/span>&lt;span class="lnt">28
+&lt;/span>&lt;span class="lnt">29
+&lt;/span>&lt;span class="lnt">30
+&lt;/span>&lt;span class="lnt">31
+&lt;/span>&lt;span class="lnt">32
+&lt;/span>&lt;span class="lnt">33
+&lt;/span>&lt;span class="lnt">34
+&lt;/span>&lt;span class="lnt">35
+&lt;/span>&lt;span class="lnt">36
+&lt;/span>&lt;span class="lnt">37
+&lt;/span>&lt;span class="lnt">38
+&lt;/span>&lt;span class="lnt">39
+&lt;/span>&lt;span class="lnt">40
+&lt;/span>&lt;span class="lnt">41
+&lt;/span>&lt;span class="lnt">42
+&lt;/span>&lt;span class="lnt">43
+&lt;/span>&lt;span class="lnt">44
+&lt;/span>&lt;span class="lnt">45
+&lt;/span>&lt;span class="lnt">46
+&lt;/span>&lt;span class="lnt">47
+&lt;/span>&lt;span class="lnt">48
+&lt;/span>&lt;span class="lnt">49
+&lt;/span>&lt;span class="lnt">50
+&lt;/span>&lt;span class="lnt">51
+&lt;/span>&lt;span class="lnt">52
+&lt;/span>&lt;span class="lnt">53
+&lt;/span>&lt;span class="lnt">54
+&lt;/span>&lt;span class="lnt">55
+&lt;/span>&lt;span class="lnt">56
+&lt;/span>&lt;span class="lnt">57
+&lt;/span>&lt;span class="lnt">58
+&lt;/span>&lt;span class="lnt">59
+&lt;/span>&lt;span class="lnt">60
+&lt;/span>&lt;span class="lnt">61
+&lt;/span>&lt;span class="lnt">62
+&lt;/span>&lt;span class="lnt">63
+&lt;/span>&lt;span class="lnt">64
+&lt;/span>&lt;span class="lnt">65
+&lt;/span>&lt;span class="lnt">66
+&lt;/span>&lt;span class="lnt">67
+&lt;/span>&lt;span class="lnt">68
+&lt;/span>&lt;span class="lnt">69
+&lt;/span>&lt;span class="lnt">70
+&lt;/span>&lt;span class="lnt">71
+&lt;/span>&lt;span class="lnt">72
+&lt;/span>&lt;span class="lnt">73
+&lt;/span>&lt;span class="lnt">74
+&lt;/span>&lt;span class="lnt">75
+&lt;/span>&lt;span class="lnt">76
+&lt;/span>&lt;span class="lnt">77
+&lt;/span>&lt;span class="lnt">78
+&lt;/span>&lt;span class="lnt">79
+&lt;/span>&lt;span class="lnt">80
+&lt;/span>&lt;span class="lnt">81
+&lt;/span>&lt;span class="lnt">82
+&lt;/span>&lt;span class="lnt">83
+&lt;/span>&lt;span class="lnt">84
+&lt;/span>&lt;span class="lnt">85
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="k">def&lt;/span> &lt;span class="nf">repeat_kv&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">hidden_states&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">n_rep&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">int&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">-&amp;gt;&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">batch&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">num_key_value_heads&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">slen&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">head_dim&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">hidden_states&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">shape&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="n">n_rep&lt;/span> &lt;span class="o">==&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">hidden_states&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">hidden_states&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">hidden_states&lt;/span>&lt;span class="p">[:,&lt;/span> &lt;span class="p">:,&lt;/span> &lt;span class="kc">None&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="p">:,&lt;/span> &lt;span class="p">:]&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">expand&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">batch&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">num_key_value_heads&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">n_rep&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">slen&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">head_dim&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">hidden_states&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">reshape&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">batch&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">num_key_value_heads&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">n_rep&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">slen&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">head_dim&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">def&lt;/span> &lt;span class="nf">eager_attention_forward&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">module&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Module&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">query&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">key&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">value&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">attention_mask&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">Optional&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">],&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">scaling&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">float&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">dropout&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">float&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mf">0.0&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">**&lt;/span>&lt;span class="n">kwargs&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">Unpack&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">TransformersKwargs&lt;/span>&lt;span class="p">],&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">key_states&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">repeat_kv&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">key&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">module&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">num_key_value_groups&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">value_states&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">repeat_kv&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">value&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">module&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">num_key_value_groups&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">attn_weights&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">matmul&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">query&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">key_states&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">transpose&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">2&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">3&lt;/span>&lt;span class="p">))&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">scaling&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="n">attention_mask&lt;/span> &lt;span class="ow">is&lt;/span> &lt;span class="ow">not&lt;/span> &lt;span class="kc">None&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">causal_mask&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">attention_mask&lt;/span>&lt;span class="p">[:,&lt;/span> &lt;span class="p">:,&lt;/span> &lt;span class="p">:,&lt;/span> &lt;span class="p">:&lt;/span> &lt;span class="n">key_states&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">shape&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mi">2&lt;/span>&lt;span class="p">]]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">attn_weights&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">attn_weights&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">causal_mask&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">attn_weights&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">functional&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">softmax&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">attn_weights&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">dim&lt;/span>&lt;span class="o">=-&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">dtype&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">float32&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">to&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">query&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">dtype&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">attn_weights&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">functional&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">dropout&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">attn_weights&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">dropout&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">training&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">module&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">training&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">attn_output&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">matmul&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">attn_weights&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">value_states&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">attn_output&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">attn_output&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">transpose&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">contiguous&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">attn_output&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">attn_weights&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">class&lt;/span> &lt;span class="nc">Qwen3Attention&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Module&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="fm">__init__&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">config&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">Qwen3Config&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">layer_idx&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">int&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nb">super&lt;/span>&lt;span class="p">()&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="fm">__init__&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">head_dim&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nb">getattr&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">config&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;head_dim&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">hidden_size&lt;/span> &lt;span class="o">//&lt;/span> &lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">num_attention_heads&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">scaling&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">head_dim&lt;/span>&lt;span class="o">**-&lt;/span>&lt;span class="mf">0.5&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">q_proj&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Linear&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">hidden_size&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">num_attention_heads&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">head_dim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">bias&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">attention_bias&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">k_proj&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Linear&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">hidden_size&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">num_key_value_heads&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">head_dim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">bias&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">attention_bias&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">v_proj&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Linear&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">hidden_size&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">num_key_value_heads&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">head_dim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">bias&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">attention_bias&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">o_proj&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Linear&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">num_attention_heads&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">head_dim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">hidden_size&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">bias&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">attention_bias&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="nf">forward&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">hidden_states&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">position_embeddings&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">tuple&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">],&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">attention_mask&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">Optional&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">],&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">past_key_value&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">Optional&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">Cache&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="kc">None&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">cache_position&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">Optional&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">LongTensor&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="kc">None&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">**&lt;/span>&lt;span class="n">kwargs&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">Unpack&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">FlashAttentionKwargs&lt;/span>&lt;span class="p">],&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span> &lt;span class="o">-&amp;gt;&lt;/span> &lt;span class="nb">tuple&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">Optional&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">],&lt;/span> &lt;span class="n">Optional&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="nb">tuple&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">]]]:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">input_shape&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">hidden_states&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">shape&lt;/span>&lt;span class="p">[:&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">hidden_shape&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="n">input_shape&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">head_dim&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">query_states&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">q_norm&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">q_proj&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">hidden_states&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">view&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">hidden_shape&lt;/span>&lt;span class="p">))&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">transpose&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">key_states&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">k_norm&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">k_proj&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">hidden_states&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">view&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">hidden_shape&lt;/span>&lt;span class="p">))&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">transpose&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">value_states&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">v_proj&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">hidden_states&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">view&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">hidden_shape&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">transpose&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">cos&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">sin&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">position_embeddings&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">query_states&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">key_states&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">apply_rotary_pos_emb&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">query_states&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">key_states&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">cos&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">sin&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">attn_output&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">attn_weights&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">eager_attention_forward&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">query_states&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">key_states&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">value_states&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">attention_mask&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">dropout&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mf">0.0&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">scaling&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">scaling&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">sliding_window&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">sliding_window&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="c1"># diff with Llama&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">**&lt;/span>&lt;span class="n">kwargs&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">attn_output&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">attn_output&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">reshape&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="n">input_shape&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">contiguous&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">attn_output&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">o_proj&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">attn_output&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">attn_output&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">attn_weights&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h2 id="conclusion">Conclusion
+&lt;/h2>&lt;p>本文中，作者提出了一个解决 multi-query attention 的 uptraining 方法，以及提出了 GQA，一个结合 MHA 表现和 MQA 效率的新型注意力机制。&lt;/p>
+&lt;h2 id="references">References
+&lt;/h2>&lt;ul>
+&lt;li>&lt;a class="link" href="https://arxiv.org/abs/2305.13245" target="_blank" rel="noopener"
+>arxiv&lt;/a>&lt;/li>
+&lt;/ul></description></item><item><title>Notes on MQA</title><link>https://maosong2022.github.io/p/notes-on-mqa/</link><pubDate>Thu, 07 Aug 2025 18:06:37 +0800</pubDate><guid>https://maosong2022.github.io/p/notes-on-mqa/</guid><description>&lt;p>Google 在 2019 年提出了 multi-query attention (MQA), 用于解决 MQA 内存带宽瓶颈问题。&lt;/p>
+&lt;h2 id="method">Method
+&lt;/h2>&lt;h3 id="background">Background
+&lt;/h3>&lt;p>对于 multi-head attention, 我们假设其 hidden size 为 $d$, 有 $h$ 个 heads, 每个 head 的 size 为 $d_h=d/h$, 输入 sequence 长度为 $n$, batch size 为 $d$. 则总的 arithmetic operations 为 $O(bnd^2)$. 总的内存访问量为 $O(bnd + bhn^2+d^2)$, 第一项是 $Q,K,V$ 的内存占用（$Q,K,V$ 分别是 query, key 和 value layer 的输出），第二项是 attention score 的占用，第三项是 query, key 和 value layer 的权重。&lt;/p>
+&lt;p>因此，其 &lt;strong>Memory Access Ratio&lt;/strong> (MAR), 也就是内存访问量 与 arithmetic operations 之比为&lt;/p>
+$$
+O\left(\frac1k + \frac{1}{bn}\right)
+$$&lt;p>对于现代的 GPU 来说，其一般算力比较强，但是内存访问带宽相对较慢，因此我们希望 MAR 越低越好，以充分发挥 GPU 的算力。&lt;/p>
+&lt;h3 id="mha-analysis">MHA Analysis
+&lt;/h3>&lt;p>在训练的时候，由于我们知道 ground truth sequence, 因此我们可以并行计算。但是在 inference 的时候，我们只能 token-by-token 进行计算，因此我们分析一下 token-by-token 场景下的 MAR&lt;/p>
+&lt;p>我们整体的 arithmetic operations 还是 $O(bnd^2)$.&lt;/p>
+&lt;p>但是，现在我们要调用 $n$ 次 multi-head attention, 因此我们总的内存访问量为 $O(bn^2d + nd^2)$, 第一项是 $K$ 和 $V$ , 第二项是 query, key 和 value layer 的权重。&lt;/p>
+&lt;p>这种情况下，MAR 就变成了&lt;/p>
+$$
+O\left(\frac{n}{d} + \frac{1}{b}\right)
+$$&lt;p>当 $n\approx d$ 或者 $b\approx 1$ 时，MAR 就非常接近于 1，意味着内存带宽成了一个主要的瓶颈。为了解决这个问题，我们有两种做法：&lt;/p>
+&lt;ol>
+&lt;li>提升 batch size $b$, 也就是同时 inference 多次&lt;/li>
+&lt;li>降低 $K$ 和 $V$ 的大小&lt;/li>
+&lt;/ol>
+&lt;h3 id="mqa">MQA
+&lt;/h3>&lt;p>MQA 的做法就是第二种，也就是降低 $K$ 和 $V$ 的大小，但是 $K,V$ 分别是 key 和 value layer 的输出，要降低输出大小，我们就必须改变 key 和 value layer 的 size。基于这个考虑，作者在所有的 head 上共享了一个 key 和 value layer，也就是说，原来&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">k_proj&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Linear&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">hidden_size&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">num_heads&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">head_dim&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="c1"># (d, n*d_h)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">v_proj&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Linear&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">hidden_size&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">num_heads&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">head_dim&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="c1"># (d, n*d_h)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>现在在 MQA 里，其变成了&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">k_proj&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Linear&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">hidden_size&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">head_dim&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="c1"># (d, n*d_h)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">v_proj&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Linear&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">hidden_size&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">head_dim&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="c1"># (d, n*d_h)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h3 id="mqa-analysis">MQA Analysis
+&lt;/h3>&lt;p>我们还是在 token-by-token 的场景下进行分析。&lt;/p>
+&lt;p>我们整体的 arithmetic operations 还是 $O(bnd^2)$.&lt;/p>
+&lt;p>调用 $n$ 次 multi-query attention 的总的内存访问量为 $O(bnd +bn^2d_h+ nd^2)$, 第一项是 $q$ , 第二项是 $K$ 和 $V$ , 第三项是是 query, key 和 value layer 的权重。&lt;/p>
+&lt;p>此时，MAR 变成了&lt;/p>
+$$
+O\left(\frac{1}{d} + \frac{n}{dh}+\frac{1}{b}\right)
+$$&lt;p>现在，我们就将 $n/d$ 这一项给降低了 $h$ 倍。如果我们的 batch size 足够大的话，理论上 MQA 应该能极大提高整体的计算效率。&lt;/p>
+&lt;h2 id="conclusion">Conclusion
+&lt;/h2>&lt;p>MQA 为了追求极致的内存带宽占用，选择使用单一的 key 和 value, 来极大提高 inference 的 decoding 效率，但是后来在 GQA 中验证发现，MQA 虽然非常高效，但是其表现比较差，这也是后来没有得以应用的原因。&lt;/p>
+&lt;h2 id="references">References
+&lt;/h2>&lt;ul>
+&lt;li>&lt;a class="link" href="https://arxiv.org/pdf/1911.02150" target="_blank" rel="noopener"
+>Arxiv&lt;/a>&lt;/li>
+&lt;/ul></description></item></channel></rss>
