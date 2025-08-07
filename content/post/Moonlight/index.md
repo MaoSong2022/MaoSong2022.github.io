@@ -152,7 +152,11 @@ $$
 
 ### SFT with Muon
 
-作者还在 SFT 阶段验证了 Muon optimizer 的有效性。结论主要有两个：
+作者还在 SFT 阶段验证了 Muon optimizer 的有效性。实验结果如下图所示
+
+![Performance of Muon on SFT stage](Moonlight-SFT-performance.png)
+
+结论主要有两个：
 
 1. 预训练阶段与 SFT 阶段使用不同的优化器时，模型表现没有明显区别
 2. SFT 阶段使用 Muon 可以达到与 AdamW 差不多的表现，但是最好还是在 pre-training 阶段使用 Muon
