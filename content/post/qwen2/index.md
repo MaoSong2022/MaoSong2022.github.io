@@ -20,7 +20,7 @@ categories:
 
 对于 dense 模型，Qwen2 在 [Qwen-LLM](https://maosong.website/p/notes-on-qwen-llm/) 的基础上做了如下改动：
 
-1. 使用 Group Query Attention （GQA）替换 MHA，来优化 KV cache，提高 throughput
+1. 使用 [Group Query Attention (GQA)](https://maosong.website/p/notes-on-gqa/) 替换 MHA，来优化 KV cache，提高 throughput
 2. 使用 [Dual Chunk Attention](https://maosong.website/p/dual-chunk-attention/) 和 [YARN](https://maosong.website/p/notes-on-yarn/) 来提高模型上下文长度和训练效率
 
 其余与 Qwen 一致，包括 SwiGLU，RoPE，RMSNorm 和 pre-normalization
@@ -97,7 +97,7 @@ RLHF 的训练包括 offline stage 和 online stage，offline stage 就是用收
 
 ## Conclusion
 
-本文提出了 Qwen2 系列，在 Qwen2 中，首次使用了 MQA 代替 MHA，Qwen2 在上下文上做出了初步探索
+本文提出了 Qwen2 系列，在 Qwen2 中，首次使用了 GQA 代替 MHA，Qwen2 在上下文上做出了初步探索
 
 ## References
 

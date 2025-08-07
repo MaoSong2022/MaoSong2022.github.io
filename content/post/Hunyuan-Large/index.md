@@ -26,7 +26,7 @@ Hunyuan-Large 主要在三个方向进行了改进：
 
 ### Architecture
 
-Hunyuan-Large 是一个基于 MoE 的 transformer 架构，attention 部分使用了 GQA, position encoding 使用了 RoPE, MLP 的激活函数为 SwiGLU. 在 MoE layer 中，Hunyuan-Large 使用了 shared experts. 最终，模型的配置如下图所示
+Hunyuan-Large 是一个基于 MoE 的 transformer 架构，attention 部分使用了 [GQA](https://maosong.website/p/notes-on-gqa/), position encoding 使用了 RoPE, MLP 的激活函数为 SwiGLU. 在 MoE layer 中，Hunyuan-Large 使用了 shared experts. 最终，模型的配置如下图所示
 
 ![Configuration of Hunyuan-Large](hunyuan-large-architecture-config.png)
 
@@ -47,7 +47,7 @@ $$
 
 第一个 $2$ 是因为同时缓存 K 和 V, 第二个 $2$ 是因为一般使用 `bfloat16` 数据格式。
 
-对于 CLA, 因为连续两层共享相同的 KV cache，因此结果除以 2; 对于 MHA, $h_{kv}=h$; 对于 MQA, $h_{kv}=1$. 最后，KV cache 的内存占用如下表所示
+对于 CLA, 因为连续两层共享相同的 KV cache，因此结果除以 2; 对于 MHA, $h_{kv}=h$; 对于 [MQA](https://maosong.website/p/notes-on-mqa/), $h_{kv}=1$. 最后，KV cache 的内存占用如下表所示
 
 | Attention Mechanism | KV Cache Memory    |
 | ------------------- | ------------------ |

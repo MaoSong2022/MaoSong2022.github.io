@@ -17,7 +17,7 @@ Google Research 在 23 年 12 月份提出了 Group Query Attention (GQA), 一�
 
 Multi-head attention (MHA) 的问题在于 inference 阶段，每次 decoding，都需要重新加载 attention 模块中 query layer, key layer 和 value layer 的权重，而加载权重会受带宽限制。
 
-已有的工作有 [MQA](MQA.md), 也就是我们把多个 head 的 key layer 以及 value layer 压缩成一个，这样对于 $h$ 个 head 的 attention，我们有 $h$ 个 query layer，$1$ 个 key layer 以及 1 个 value layer. 但是 MQA 的问题在于其会导致性能下降，而且训练过程会不稳定。
+已有的工作有 [MQA](https://maosong.website/p/notes-on-mqa/), 也就是我们把多个 head 的 key layer 以及 value layer 压缩成一个，这样对于 $h$ 个 head 的 attention，我们有 $h$ 个 query layer，$1$ 个 key layer 以及 1 个 value layer. 但是 MQA 的问题在于其会导致性能下降，而且训练过程会不稳定。
 
 因此，在本文中作者就作出了两点贡献：
 

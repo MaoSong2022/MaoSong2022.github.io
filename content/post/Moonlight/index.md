@@ -87,7 +87,7 @@ $$
 而 Adam 和 AdamW 的 RMS 都在 $1$ 附近。作者认为 RMS 也会影响模型表现：
 
 1. 当 $\max(A,B)$ 过大时，如 dense MLP matrix, 其更新就会变得很小，限制了模型的表现
-2. 当 $\max(A,B)$ 过小时，如 GQA 中的 KV head 或者 DeepSeek-V3 中的 MLA, 更新又会变得很大，导致训练不稳定。
+2. 当 $\max(A,B)$ 过小时，如 [GQA](https://maosong.website/p/notes-on-gqa/) 中的 KV head 或者 DeepSeek-V3 中的 MLA, 更新又会变得很大，导致训练不稳定。
 
 因此，作者就提出了一个 rescaling 的技巧，来消除 Muon optimizer 的影响。
 

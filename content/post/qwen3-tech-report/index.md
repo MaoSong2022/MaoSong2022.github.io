@@ -24,7 +24,7 @@ Qwen3 包括 6 个 dense 模型和 2 个 MoE 模型，其旗舰模型是一个 2
 
 ### Model
 
-Qwen3 的 dense 模型的架构与 [Qwen2.5](https://maosong.website/p/notes-on-qwen2.5/) 基本一致，包括使用 GQA , SwiGLU, RoPE, RMSNorm 和 pre-normalization. Qwen3 进一步移除了 QKV bias, 然 后加入了 QK-Norm 来提高训练的稳定性。
+Qwen3 的 dense 模型的架构与 [Qwen2.5](https://maosong.website/p/notes-on-qwen2.5/) 基本一致，包括使用 [GQA](https://maosong.website/p/notes-on-gqa/) , SwiGLU, RoPE, RMSNorm 和 pre-normalization. Qwen3 进一步移除了 QKV bias, 然 后加入了 QK-Norm 来提高训练的稳定性。
 
 Qwen3 的 MoE 架构使用了 128 个专家，激活专家个数为 8 个。与 Qwen2.5-MoE 不同，Qwen3 里没有使用 shard experts。并且，Qwen3 加入了 global-batch load balancing loss,来提高 expert 的特化程度。
 
