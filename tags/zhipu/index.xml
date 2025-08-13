@@ -1,0 +1,867 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Zhipu on Mao Song(毛松)'s Homepage</title><link>https://maosong2022.github.io/tags/zhipu/</link><description>Recent content in Zhipu on Mao Song(毛松)'s Homepage</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><lastBuildDate>Wed, 13 Aug 2025 12:27:48 +0800</lastBuildDate><atom:link href="https://maosong2022.github.io/tags/zhipu/index.xml" rel="self" type="application/rss+xml"/><item><title>Notes on GLM-4.5</title><link>https://maosong2022.github.io/p/notes-on-glm-4.5/</link><pubDate>Wed, 13 Aug 2025 12:27:48 +0800</pubDate><guid>https://maosong2022.github.io/p/notes-on-glm-4.5/</guid><description>&lt;p>智谱 AI 提出了 GLM4.5, 包含 GLM4.5 和 GLM-4.5-Air,两个 MoE LLM. 模型大小分别为 355B-A22B 和 106B-A12B, GLM4.5 主要关注 agentic, reasoning 以及 coding 三个领域。&lt;/p>
+&lt;h2 id="introduction">Introduction
+&lt;/h2>&lt;p>作者认为，通用模型有三个关键能力，即 ARC：&lt;/p>
+&lt;ol>
+&lt;li>Agent: 与外部工具以及真实世界进行交互&lt;/li>
+&lt;li>Reasoning: 解决数学和科学领域的复杂问题&lt;/li>
+&lt;li>Coding: 解决真实世界软件工程相关问题&lt;/li>
+&lt;/ol>
+&lt;p>已有的商业模型如 o1/o3, Claude Sonnet 4 已经在 ARC 上达到了非常好的表现，但是开源模型仍然比较稀缺&lt;/p>
+&lt;p>基于这个目标，作者就提出了 GLM4.5 和 GLM-4.5-Air, 来统一完成三个不同的目标。&lt;/p>
+&lt;h2 id="method">Method
+&lt;/h2>&lt;h2 id="pre-training">Pre-training
+&lt;/h2>&lt;h3 id="architecture">Architecture
+&lt;/h3>&lt;p>GLM-4.5 是一个基于 MoE 架构的 LLM, 架构与 DeepSeek-MoE 相似，作者做了如下几点改变：&lt;/p>
+&lt;ol>
+&lt;li>在 MoE layer 中，使用了 loss-free balance routing, 然后使用了 sigmoid function 作为 routing score 的 normalization.&lt;/li>
+&lt;li>与 &lt;a class="link" href="https://maosong.website/p/notes-on-kimi-k2/" target="_blank" rel="noopener"
+>Kimi-k2&lt;/a> 和 DeepSeek-V3 相比，作者降低了 head dimension, 提升了 number of layers. 作者认为更深的模型更有利于提高模型的 Reasoning 表现&lt;/li>
+&lt;li>attention 上，作者使用了 &lt;a class="link" href="https://maosong.website/p/notes-on-gqa/" target="_blank" rel="noopener"
+>GQA&lt;/a>, 对于 #RoPE, 作者使用了 partial RoPE, 只旋转每个 token 的前半部分， 作者还将 attention heads 的个数增加到了 2.5 倍，作者发现增加 attention heads 可以提高模型的 Reasoning 表现&lt;/li>
+&lt;li>作者还使用了 &lt;a class="link" href="https://maosong.website/p/notes-on-qk-norm/" target="_blank" rel="noopener"
+>QK-Norm&lt;/a> 来防止 attention logits 爆炸&lt;/li>
+&lt;li>作者还使用了一个 MoE layer 作为 MTP layer 来支持 speculative decoding.&lt;/li>
+&lt;/ol>
+&lt;p>模型与 DeepSeek-V3 和 Kimi-k2 的对比如下&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Model&lt;/th>
+&lt;th>GLM-4.5&lt;/th>
+&lt;th>GLM-4.5-Air&lt;/th>
+&lt;th>Step 3&lt;/th>
+&lt;th>Kimi K2&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>Date&lt;/td>
+&lt;td>2025/8/8&lt;/td>
+&lt;td>2025/8/8&lt;/td>
+&lt;td>2025/7/25&lt;/td>
+&lt;td>2025/7/28&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td># Total Parameters&lt;/td>
+&lt;td>355B&lt;/td>
+&lt;td>106B&lt;/td>
+&lt;td>316B&lt;/td>
+&lt;td>1043B&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td># Activated Parameters&lt;/td>
+&lt;td>32B&lt;/td>
+&lt;td>12B&lt;/td>
+&lt;td>38B&lt;/td>
+&lt;td>32B&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td># Dense Layers&lt;/td>
+&lt;td>3&lt;/td>
+&lt;td>1&lt;/td>
+&lt;td>5&lt;/td>
+&lt;td>1&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td># MoE Layers&lt;/td>
+&lt;td>89&lt;/td>
+&lt;td>45&lt;/td>
+&lt;td>56&lt;/td>
+&lt;td>60&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td># MTP Layers&lt;/td>
+&lt;td>1&lt;/td>
+&lt;td>1&lt;/td>
+&lt;td>0&lt;/td>
+&lt;td>0&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Hidden Dim&lt;/td>
+&lt;td>5120&lt;/td>
+&lt;td>4096&lt;/td>
+&lt;td>7168&lt;/td>
+&lt;td>7168&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Dense Intermediate Dim&lt;/td>
+&lt;td>12288&lt;/td>
+&lt;td>10944&lt;/td>
+&lt;td>18432&lt;/td>
+&lt;td>18432&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>MoE Intermediate Dim&lt;/td>
+&lt;td>1536&lt;/td>
+&lt;td>1408&lt;/td>
+&lt;td>5120&lt;/td>
+&lt;td>2048&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Attention&lt;/td>
+&lt;td>GQA&lt;/td>
+&lt;td>GQA&lt;/td>
+&lt;td>MFA&lt;/td>
+&lt;td>MLA&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Attention Head Dim&lt;/td>
+&lt;td>128&lt;/td>
+&lt;td>128&lt;/td>
+&lt;td>256&lt;/td>
+&lt;td>192&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td># Attention Heads&lt;/td>
+&lt;td>96&lt;/td>
+&lt;td>96&lt;/td>
+&lt;td>64&lt;/td>
+&lt;td>64&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td># Key-Value Heads&lt;/td>
+&lt;td>8&lt;/td>
+&lt;td>8&lt;/td>
+&lt;td>1&lt;/td>
+&lt;td>64&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>scoring&lt;/td>
+&lt;td>sigmoid&lt;/td>
+&lt;td>sigmoid&lt;/td>
+&lt;td>softmax&lt;/td>
+&lt;td>softmax&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td># Experts (total)&lt;/td>
+&lt;td>160&lt;/td>
+&lt;td>128&lt;/td>
+&lt;td>48&lt;/td>
+&lt;td>384&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td># Experts Active Per Token&lt;/td>
+&lt;td>8&lt;/td>
+&lt;td>8&lt;/td>
+&lt;td>3&lt;/td>
+&lt;td>8&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td># Shared Experts&lt;/td>
+&lt;td>1&lt;/td>
+&lt;td>1&lt;/td>
+&lt;td>1&lt;/td>
+&lt;td>1&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>QK-Norm&lt;/td>
+&lt;td>Yes&lt;/td>
+&lt;td>No&lt;/td>
+&lt;td>No&lt;/td>
+&lt;td>No&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="pre-training-data">Pre-training Data
+&lt;/h3>&lt;p>预训练数据包括四个方面&lt;/p>
+&lt;ol>
+&lt;li>Web: 过滤低质量数据和使用模版产生的数据&lt;/li>
+&lt;li>Multilingual: 基于 webpages 和 Fineweb-2&lt;/li>
+&lt;li>Code: 基于 GitHub 和其他代码平台，作者使用了 [[Fill in the middle]] 来训练模型。&lt;/li>
+&lt;li>Math &amp;amp; Scirence: 训练一个 classifier 来给数据进行打分。&lt;/li>
+&lt;/ol>
+&lt;p>最终，预训练数据一共包括 &lt;strong>23T token&lt;/strong>.&lt;/p>
+&lt;h3 id="pre-training-recipe">Pre-training Recipe
+&lt;/h3>&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-glm-4.5/GLM4_5-pre-training.png"
+width="1173"
+height="406"
+srcset="https://maosong2022.github.io/p/notes-on-glm-4.5/GLM4_5-pre-training_hu3166061419089618432.png 480w, https://maosong2022.github.io/p/notes-on-glm-4.5/GLM4_5-pre-training_hu7846610875110494798.png 1024w"
+loading="lazy"
+alt="Pre-training recipe of GLM4.5"
+class="gallery-image"
+data-flex-grow="288"
+data-flex-basis="693px"
+>&lt;/p>
+&lt;p>预训练包括 2 个阶段:&lt;/p>
+&lt;ol>
+&lt;li>Pre-training: 使用网页数据进行训练&lt;/li>
+&lt;li>Mid-training: 加入 code, math, science 数据进行训练，在这个阶段，作者使用了 repo-level 的 code 数据，合成的 reasoning 数据以及长上下文数据。作者将模型上下文从 4K 扩展到 32K，然后在扩展到 128K.&lt;/li>
+&lt;/ol>
+&lt;p>作者在 pre-training 的时候使用了 random truncation, 在 mid-training 的时候使用了 best-fit packing 技巧&lt;/p>
+&lt;p>训练时，与 Kimi-k2 一样，作者使用了 &lt;a class="link" href="https://maosong.website/p/notes-on-moonlight/" target="_blank" rel="noopener"
+>Muon&lt;/a> 作为优化器。作者使用了 cosine decay schedule. batch size 从 16M token 到 64M token.&lt;/p>
+&lt;h2 id="post-training">Post-training
+&lt;/h2>&lt;p>Post-training 分为两个阶段：&lt;/p>
+&lt;ul>
+&lt;li>Stage 1, Expert Training. 构建 agent, reasoning, General chat 三个 domain 的专家模型&lt;/li>
+&lt;li>Stage 2, Unified Training. 使用 self-distillation 来汇总多个模型的能力&lt;/li>
+&lt;/ul>
+&lt;p>训练框架如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-glm-4.5/GLM4.5-post-training-framework.png"
+width="1337"
+height="1001"
+srcset="https://maosong2022.github.io/p/notes-on-glm-4.5/GLM4.5-post-training-framework_hu6853955760118926496.png 480w, https://maosong2022.github.io/p/notes-on-glm-4.5/GLM4.5-post-training-framework_hu15055473525730948009.png 1024w"
+loading="lazy"
+alt="Post-training of GLM4.5"
+class="gallery-image"
+data-flex-grow="133"
+data-flex-basis="320px"
+>&lt;/p>
+&lt;h3 id="sft">SFT
+&lt;/h3>&lt;p>两个 stage 都由 SFT 开始，&lt;/p>
+&lt;ul>
+&lt;li>在 Stage 1 里，SFT 的目标是让 expert model 掌握初步的 chat, reasoning 以及 tool-use 的能力。作者使用了一小部分包含 CoT 的 SFT 数据进行训练&lt;/li>
+&lt;li>在 Stage 2 中，SFT 的目标是将不同的 expert model 蒸馏到一个模型中，作者使用了百万级的数据，包含 reasoning 任务和通用的 chat 数据，来训练模型的 hybrid reasoning 能力&lt;/li>
+&lt;/ul>
+&lt;p>在训练模型的 tool-use 能力是，作者发现，function call 在 code 场景下会出现混淆，提高了模型的学习成本。因此，作者的解决方法是使用了类似 XML 的 special token tags&lt;/p>
+&lt;blockquote>
+&lt;p>Recall
+与之相反，Kimi-K2 认为模板应该尽可能简洁，因此 Kimi 采取了 TypeScript 作为 function call 的语言&lt;/p>
+&lt;/blockquote>
+&lt;p>从专家模型进行采样是，作者进行了数据过滤。还对数据进行了分级结果发现，使用难题进行训练可以提升模型 $2%\sim4%$ 的表现，多次采样也可以提高模型的表现&lt;/p>
+&lt;p>Agentic SFT 数据的构建包括四个步骤：&lt;/p>
+&lt;ol>
+&lt;li>Agentic Framework and Tool Collection: 收集 MCP 和 tool API&lt;/li>
+&lt;li>Task Synthesis: 合成不同的 agentic 任务&lt;/li>
+&lt;li>Trajectory Generation: 采样生成的 rollout&lt;/li>
+&lt;li>Quality Filtering: 过滤低质量的数据&lt;/li>
+&lt;/ol>
+&lt;h3 id="rl">RL
+&lt;/h3>&lt;h4 id="reasoning-rl">Reasoning RL
+&lt;/h4>&lt;p>这个阶段使用了 GRPO 算法进行训练，与 &lt;a class="link" href="https://maosong.website/p/notes-on-dapo/" target="_blank" rel="noopener"
+>DAPO&lt;/a> 一样，作者去除了损失函数中的 KL divergence。&lt;/p>
+&lt;p>首先，作者探究了课程学习对模型表现的影响，结果发现，课程学习可以有效提高模型的性能。因此，作者构建了一个 2 阶段的课程学习框架。实验结果如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-glm-4.5/GLM4.5-curriculum-RL.png"
+width="995"
+height="504"
+srcset="https://maosong2022.github.io/p/notes-on-glm-4.5/GLM4.5-curriculum-RL_hu15212439347355957989.png 480w, https://maosong2022.github.io/p/notes-on-glm-4.5/GLM4.5-curriculum-RL_hu10130863368084009164.png 1024w"
+loading="lazy"
+alt="Performance of curriculum RL"
+class="gallery-image"
+data-flex-grow="197"
+data-flex-basis="473px"
+>&lt;/p>
+&lt;p>可以看到，在第二个阶段，模型可以进一步通过更难的题目获得提升。&lt;/p>
+&lt;p>其次，作者探究了以下渐进式扩展模型上下文对模型表现的影响。DeepScaleR 认为，逐步提高模型的上下文长度，可以有效提高模型的表现。但是，本文确认为这种方法会损害模型的性能，原因在于，模型在 SFT 阶段的上下文长度就是 64K, 如果我们降低模型的上下文长度，这会导致训练数据分布不一致，从而影响模型的长上下文表现。因此作者直接在 64K 的上下文上进行训练。&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-glm-4.5/GLM4.5-multi-stage-context-extension.png"
+width="1159"
+height="453"
+srcset="https://maosong2022.github.io/p/notes-on-glm-4.5/GLM4.5-multi-stage-context-extension_hu8500596761537484178.png 480w, https://maosong2022.github.io/p/notes-on-glm-4.5/GLM4.5-multi-stage-context-extension_hu4453680687905474818.png 1024w"
+loading="lazy"
+alt="Ablation on progressive context extension"
+class="gallery-image"
+data-flex-grow="255"
+data-flex-basis="614px"
+>&lt;/p>
+&lt;p>接下来，作者探究了以下采样温度对模型表现的影响，温度太低会导致模型探索能力下降，太高的话会导致输出质量下降。因此作者动态调整采样温度来平衡模型的性能以及探索能力。&lt;/p>
+&lt;blockquote>
+&lt;p>[!tip]
+Kimi-K2 认为随着 RL 训练的进行，我们应该逐步降低采样温度来稳定模型的表现&lt;/p>
+&lt;/blockquote>
+&lt;p>最后，作者分析了以下 code 以及 Science RL 中的一些问题。对于 code RL, 作者发现，我们应该在 sequence 层面而不是 token 层面进行平均。对于 Science RL, 作者强调了高质量数据的重要性。实验结果如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-glm-4.5/GLM4.5-code-science-RL.png"
+width="1146"
+height="450"
+srcset="https://maosong2022.github.io/p/notes-on-glm-4.5/GLM4.5-code-science-RL_hu12963305608509671776.png 480w, https://maosong2022.github.io/p/notes-on-glm-4.5/GLM4.5-code-science-RL_hu15562279798747579185.png 1024w"
+loading="lazy"
+alt="Ablation on Code and Science RL"
+class="gallery-image"
+data-flex-grow="254"
+data-flex-basis="611px"
+>&lt;/p>
+&lt;h4 id="agent-rl">Agent RL
+&lt;/h4>&lt;p>作者主要关注 web-search 以及 code generation 两个任务。对于 web-search, 作者构建了一个数据合成 pipeline, 用于生成 multi-step reasoning 的 QA 数据。构建过程包括基于知识图谱的 multi-hop reasoning 和 human-in-the-loop 的内容提取。对于 code generation, 作者基于 GitHub 的 PR 以及 issues 构建了 benchmark&lt;/p>
+&lt;p>RL 的训练目标如下&lt;/p>
+$$
+\mathcal{L}(\theta) = \mathbb{E}_{x\sim\mathcal{D}}\left[\frac1K\sum_{i=1}^K(r(x,y_i) - \bar{r}(x))\right]
+$$&lt;p>其中 $(x,y_i)$ 是基于 $\pi_{\mathrm{old}}$ 采样的 trace, $\bar{r}(x) = 1/k\sum_{i=1}^Kr(x,y_i)$ 是平均的 reward. 计算损失时，只有模型的回答参与计算。&lt;/p>
+&lt;p>作者发现，通过训练模型的 web-search 以及 code generation 能分，模型在 tool-use 以及 coding 任务上的表现也有了提升。作者还是用了 format penalty 来保证模型输出格式的正确性。如果格式不对的话，模型获得的奖励是 0&lt;/p>
+&lt;blockquote>
+&lt;p>Recall
+在 &lt;a class="link" href="https://maosong.website/p/notes-on-glm-4.1v-thinking/" target="_blank" rel="noopener"
+>GLM-4.V-Thinking&lt;/a> 中，作者认为应该在 cold-start SFT 阶段让模型学会格式要求，而不是在 RL 阶段加入 format reward&lt;/p>
+&lt;/blockquote>
+&lt;p>由于 agent RL 的训练比较耗时，为了提高训练效率。作者首先基于 SFT 模型进行 agent RL 训练，训练到一定步数之后，作者使用 self-distillation 来将能力蒸馏回 SFT model, 接下来再基于 Self-distillation 后的 SFT 模型来进行 agent RL 训练&lt;/p>
+&lt;blockquote>
+&lt;p>Recall
+&lt;a class="link" href="https://maosong.website/p/notes-on-seed1.5-vl/" target="_blank" rel="noopener"
+>Seed1.5-VL&lt;/a> 和 LlaMA3.2 都提到了使用 multi-round SFT-RL 的形式来提高模型的表现&lt;/p>
+&lt;/blockquote>
+&lt;p>作者还发现，随着交互轮数的提升，模型的表现也有相应提升。实验结果如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-glm-4.5/GLM4.5-interaction-turns.png"
+width="696"
+height="428"
+srcset="https://maosong2022.github.io/p/notes-on-glm-4.5/GLM4.5-interaction-turns_hu12097979109763063333.png 480w, https://maosong2022.github.io/p/notes-on-glm-4.5/GLM4.5-interaction-turns_hu17021798138852578449.png 1024w"
+loading="lazy"
+alt="Interaction turn scaling"
+class="gallery-image"
+data-flex-grow="162"
+data-flex-basis="390px"
+>&lt;/p>
+&lt;h4 id="general-rl">General RL
+&lt;/h4>&lt;p>General RL 用于提高模型的整体表现，解决潜在的问题以及提升关键能力，作者主要使用了 RLHF 和 RLAIF 两种方法&lt;/p>
+&lt;p>对于 Holistic RL, 作者收集了 5000 条 prompt, reward 基于人类反馈和 AI 反馈。人类反馈用于训练一个 reward model, 对于 AI 反馈，作者构建了 scoring rubrics. 然后作者将两种反馈结合在一起&lt;/p>
+&lt;p>对于 Instruction following RL, 作者构建了基于规则的奖励，reward model 的奖励以及 critical model 的奖励。实验结果显示，这种奖励方式可以有效降低模型的 reward hacking&lt;/p>
+&lt;p>对于 function calling RL, 作者使用了 step-wise rule-based RL 来提高模型表现。对于 end-to-end multi-turn RL, 作者训练了一个 expert model 来蒸馏专家到模型。&lt;/p>
+&lt;p>最后，对于 Pathology RL, 作者希望通过 RL 来解决潜在的问题，比如语言混合输出，重复输出以及格式错误等。作者构建了一批模型容易出错的数据，然后来训练模型。&lt;/p>
+&lt;h4 id="infra">Infra
+&lt;/h4>&lt;p>作者针对不同任务分别构建了不同的 scheduling 模式：&lt;/p>
+&lt;ul>
+&lt;li>对于通用 RL 任务，作者将 training engine 和 inference engine 放在一个 worker 来提高效率&lt;/li>
+&lt;li>对于 agentic RL 任务，作者将 training 和 inference engine 分开，来提高 data throughput&lt;/li>
+&lt;/ul>
+&lt;p>在训练时，作者使用了 BF16 精度，在推理时，作者使用了 FP8 精度来提高推理效率。&lt;/p>
+&lt;p>针对 agentic RL 任务，作者还进行了优化。与 Kimi-k2 类似，作者让 inference engine 持续产出 rollout, 然后让 training engine 来更新模型权重，最后同步到 inference engine 上&lt;/p>
+&lt;h2 id="experiments">Experiments
+&lt;/h2>&lt;p>整体表现如下图所示，GLm4.5 在 ARC benchmark 上的平均表现达到了第三名。&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-glm-4.5/GLM4.5-average_performance.png"
+width="1071"
+height="776"
+srcset="https://maosong2022.github.io/p/notes-on-glm-4.5/GLM4.5-average_performance_hu7451238329626406108.png 480w, https://maosong2022.github.io/p/notes-on-glm-4.5/GLM4.5-average_performance_hu1953441247019446580.png 1024w"
+loading="lazy"
+alt="Average performance on ARC benchmarks"
+class="gallery-image"
+data-flex-grow="138"
+data-flex-basis="331px"
+>&lt;/p>
+&lt;p>具体来看，&lt;/p>
+&lt;ol>
+&lt;li>在 agentic benchmark 上, GLM4.5 仅次于 o3 的表现&lt;/li>
+&lt;li>在 coding benchmark 上，GLM4.5 次于 Claude Opus 4 和 Claude Sonnet 4, 排第三名&lt;/li>
+&lt;li>在通用能力上，GLM&lt;/li>
+&lt;/ol>
+&lt;p>人工对比 coding agent 能力的结果如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-glm-4.5/GLM4.5-agent-coding-performance.png"
+width="1143"
+height="514"
+srcset="https://maosong2022.github.io/p/notes-on-glm-4.5/GLM4.5-agent-coding-performance_hu12062937037509217689.png 480w, https://maosong2022.github.io/p/notes-on-glm-4.5/GLM4.5-agent-coding-performance_hu10453388556220715451.png 1024w"
+loading="lazy"
+alt="Comparison of GLM4.5 aginst other models"
+class="gallery-image"
+data-flex-grow="222"
+data-flex-basis="533px"
+>&lt;/p>
+&lt;h2 id="conclusion">Conclusion
+&lt;/h2>&lt;p>作者提出了 GLM4.5， 一个基于 MoE 架构的大语言模型系列，包含 GLM4.5(355B-A22B) 和 GLM4.5-Air(106B-A12B) 两个模型，作者详细介绍了模型的架构，训练，数据和评估。&lt;/p>
+&lt;h2 id="references">References
+&lt;/h2>&lt;ul>
+&lt;li>&lt;a class="link" href="http://arxiv.org/abs/2508.06471" target="_blank" rel="noopener"
+>arxiv&lt;/a>&lt;/li>
+&lt;/ul></description></item><item><title>Notes on Keye-VL</title><link>https://maosong2022.github.io/p/notes-on-keye-vl/</link><pubDate>Wed, 23 Jul 2025 11:11:43 +0800</pubDate><guid>https://maosong2022.github.io/p/notes-on-keye-vl/</guid><description>&lt;p>Keye-VL 是快手在 25 年 7 月份提出的一个 8B 的多模态大模型，其亮点为短视频理解能力。预训练包括 4 个 stage，使用了 600B token，后训练包括 2 个 stage，用于提升模型的 reasoning 和 non-reasoning 能力。&lt;/p>
+&lt;h2 id="introduction">Introduction
+&lt;/h2>&lt;p>作者首先回顾了已有的 MLLM 工作，然后强调理解短视频仍然是一个很难的任务，特别是要求模型基于 video 和 audio 来理解视频。因此，在本文中，作者提出了 Kwai Keye-VL，一个 8B 的多模态大模型，主要用于短视频理解任务。&lt;/p>
+&lt;h2 id="method">Method
+&lt;/h2>&lt;h3 id="architecture">Architecture
+&lt;/h3>&lt;p>Keye-VL 是一个标准的 ViT-MLP-LLM 的架构，其中，ViT 是 SigLIP-400M-384-14, MLP 是一个基于 SwiGLU 的 2 层 MLP，使用了和 &lt;a class="link" href="https://maosong.website/p/notes-on-qwen2.5-vl/" target="_blank" rel="noopener"
+>Qwen2.5-VL&lt;/a> 一样的 patch merge 方法，LLM 使用的是 Qwen3-8B，模型架构示意图如下&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-keye-vl/Keye-VL-architecture.png"
+width="1371"
+height="1000"
+srcset="https://maosong2022.github.io/p/notes-on-keye-vl/Keye-VL-architecture_hu8715583027172451106.png 480w, https://maosong2022.github.io/p/notes-on-keye-vl/Keye-VL-architecture_hu3357172034037663162.png 1024w"
+loading="lazy"
+alt="Keye-VL model architecture"
+class="gallery-image"
+data-flex-grow="137"
+data-flex-basis="329px"
+>&lt;/p>
+&lt;p>作者针对 ViT 和 visual encoding 分别做了如下改进&lt;/p>
+&lt;h4 id="navit">NaViT
+&lt;/h4>&lt;p>作者实现了 native resolution ViT，来处理不同分辨率的图片。&lt;/p>
+&lt;p>具体做法为，作者基于 SigLIP-400M-384-14 来初始化 ViT。&lt;/p>
+&lt;p>然后，作者首先采用了 interpolation 来将 ViT 的 position encoding 扩展到不同的图片精度下面去。&lt;/p>
+&lt;p>接下来，作者提出了 2D RoPE 来进一步提升 position encoding 的表现。&lt;/p>
+&lt;p>最后，作者加入了 NaViT 的 packing 技巧来继续预训练 ViT.&lt;/p>
+&lt;p>在 ViT 预训练的过程中，作者使用了 &lt;strong>500B&lt;/strong> 的 token&lt;/p>
+&lt;h4 id="visual-encoding">Visual Encoding
+&lt;/h4>&lt;p>为了提升模型理解图片和视频的能力，作者针对图片和视频进行了进一步的处理。&lt;/p>
+&lt;p>对于不同精度的图片，作者将最大 token 个数设置为 16384。&lt;/p>
+&lt;p>对于视频，作者将每帧的 token 数限制在 $[128,768]$, 每个视频的最大 token 个数设置为 24576&lt;/p>
+&lt;p>对于提取的 frames，作者重新计算了 FPS, 然后在 3D RoPE 中让时间维度与真实时间严格对齐。&lt;/p>
+&lt;h3 id="pre-training">Pre-training
+&lt;/h3>&lt;h4 id="data">Data
+&lt;/h4>&lt;p>预训练数据一共包括 600B token，覆盖了 6 个类别：&lt;/p>
+&lt;ul>
+&lt;li>Image caption: 包括中英文数据，来源为 LAION, DataComp 以及 Coyo. 作者基于 CLIP 来计算相速度，然后过滤掉相似度比较低的数据，作者还对数据进行了 re-caption，实验发现 re-caption 可以提高模型的细粒度图片理解能力&lt;/li>
+&lt;li>OCR &amp;amp; VQA: 数据包括开源数据和合成数据。合成数据包括 Synthesis 和 Rendering 两个方法，第一是基于 text-dense image 构建 OCR 数据以及基于 image-caption pair 数据使用 MLLM 构建 VQA 数据。第二是使用字体渲染工具合成高质量的 OCR 数据&lt;/li>
+&lt;li>Grounding &amp;amp; Counting: Grounding 数据主要包括 RefCoCo, VisualGenome, TolokaVQA, Counting 数据包括 PixMo. 作者仍然使用 CLIP 对数据进行过滤&lt;/li>
+&lt;li>Interleaved text-image data: 作者发现图文交错数据可以提供通用知识，并且还可以提高模型的视觉语言对齐能力，第三就是提升模型的泛化能力。作者主要从 academic PDF 以及结构化知识中提取对应的数据。作者基于 Garbled character recognition, low-resolution/broken image filtering 以及 text-image similarity validation 来保证数据的质量&lt;/li>
+&lt;li>Video understanding: 作者使用 Qwen2.5-omni 从 interleaved video-asr 来将视频数据转化图文交错数据， 然后基于 ASR 的结果进行 recaption，最后对每一帧进行 OCR. 作者还构建了 Frame-level re-ordering 以及 multiple video matching 两个任务来提高模型的上下文理解能力&lt;/li>
+&lt;li>Pure Text: 未提及&lt;/li>
+&lt;/ul>
+&lt;p>对于源数据，作者进行了数据清洗：&lt;/p>
+&lt;ol>
+&lt;li>使用 CLIP 对数据进行打分，然后过滤掉低质量的数据&lt;/li>
+&lt;li>使用开源的 MLLM 作为 discriminator 来选择高质量的数据&lt;/li>
+&lt;li>去重&lt;/li>
+&lt;/ol>
+&lt;h4 id="training-recipe">Training Recipe
+&lt;/h4>&lt;p>预训练包括 4 个 stage：&lt;/p>
+&lt;ul>
+&lt;li>Stage 0: 使用 SigLIP 损失函数来继续训练 ViT&lt;/li>
+&lt;li>Stage 1: cross-modal Alignment，仅训练 MLP&lt;/li>
+&lt;li>Stage 2: multi-task pre-training, 解冻所有参数，使用 Multi-task 数据来训练模型&lt;/li>
+&lt;li>Stage 3: annealing, 在高质量数据集上进行 fine-tune，进一步提升模型的能力&lt;/li>
+&lt;/ul>
+&lt;p>作者发现，预训练后的模型在下游任务上的表现对训练数据配比非常敏感。为了解决这个问题，在最后一个训练阶段，作者使用了一个 merging 的技巧，来保持模型的能力。&lt;/p>
+&lt;h3 id="post-training">Post-training
+&lt;/h3>&lt;p>post-training 阶段一共包含了 2 个 step, 5 个 stage, 第一个 step 包含 2 个 stage，用于提升模型的 non-reasoning 能力。第二个 step 包含 3 个 stage, 用于提升模型的 reasoning 能力&lt;/p>
+&lt;h4 id="no-reasoning-training">No-reasoning Training
+&lt;/h4>&lt;p>第一个 step 是 non-reasoning training, 包含了 SFT 和 &lt;a class="link" href="MPO.md" >MPO&lt;/a> 两个 stage, 训练 pipeline 如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-keye-vl/Keye-VL-non-reasoning-training.png"
+width="1340"
+height="472"
+srcset="https://maosong2022.github.io/p/notes-on-keye-vl/Keye-VL-non-reasoning-training_hu4483349681294792353.png 480w, https://maosong2022.github.io/p/notes-on-keye-vl/Keye-VL-non-reasoning-training_hu13267003824404863093.png 1024w"
+loading="lazy"
+alt="Non reasoning training pipeline"
+class="gallery-image"
+data-flex-grow="283"
+data-flex-basis="681px"
+>&lt;/p>
+&lt;p>&lt;strong>SFT&lt;/strong>
+SFT 阶段一共使用了 &lt;strong>5M&lt;/strong> 的多模态 QA 样本，为了提升数据的多样性，作者使用 TaskGalaxy 来将数据分类为 70,000 种任务类型，然后作者对每条数据，使用 MLLM 评估问题的难度，来过滤掉过于简单的问题。最后，作者请人类来进行标注，保证数据的可靠性。&lt;/p>
+&lt;p>&lt;strong>MPO&lt;/strong>
+训练方面，作者使用了 MPO 进行训练。
+数据方面，作者使用了：&lt;/p>
+&lt;ol>
+&lt;li>400,000 开源的数据，作者主要进行了去重以及过滤低质量的数据&lt;/li>
+&lt;li>50,000 偏好数据，基于 MM-RLHF 和 MMPR 等数据构建，然后构建高质量的 negative examples&lt;/li>
+&lt;li>10,000 条 self-improvement 样本：基于 benchmark 和人类反馈，使用 SFT model 的回答作为 chosen samples, 然后基于 reward model 或者 rule-based rewards 评估模型输出，选择分数最低的座位 rejected samples&lt;/li>
+&lt;li>90,000 纯文本样本： in-house data&lt;/li>
+&lt;li>30,000 人类标注样本：使用开源和闭源模型进行回答，然后请人类进行排序&lt;/li>
+&lt;/ol>
+&lt;h4 id="reasoning-training">Reasoning Training
+&lt;/h4>&lt;p>第二个 step 是 reasoning training, 包含了 CoT Cold-Start, Mix-Mode RL 和 Iterative Alignment 三个 stage, 训练 pipeline 如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-keye-vl/Keye-VL-reasoning-training.png"
+width="1358"
+height="596"
+srcset="https://maosong2022.github.io/p/notes-on-keye-vl/Keye-VL-reasoning-training_hu3508552858551465121.png 480w, https://maosong2022.github.io/p/notes-on-keye-vl/Keye-VL-reasoning-training_hu15300135858013059770.png 1024w"
+loading="lazy"
+alt="Non reasoning training pipeline"
+class="gallery-image"
+data-flex-grow="227"
+data-flex-basis="546px"
+>&lt;/p>
+&lt;p>&lt;strong>CoT cold-start&lt;/strong>
+作者收集了如下数据：&lt;/p>
+&lt;ul>
+&lt;li>330, 000 条 non-reasoning 样本：和第一个 step 的数据分布类似，但是不重合&lt;/li>
+&lt;li>230,000 reasoning 样本：作者构建了一个 data construction pipeline,用于保证 long-CoT 的正确性&lt;/li>
+&lt;li>20,000 automatic reasoning 样本：作者基于 MMPR, MM-Eureka 以及 OpenR1-math 来收集数据，基于这些模型来训练模型自动化决定是否要进行 reasoning&lt;/li>
+&lt;li>100,000 agentic reasoning 样本：训练模型的 &amp;ldquo;think with image&amp;rdquo; 能力。基于 3M QA pairs，作者使用 Qwen2.5-72B 来识别需要进行 manipulating 的问题，然后生成对应的代码。接下来作者构建了一部分 OCR 数据，让模型学会 constrast enhancement 或者 rotation 操作。最后对于数学问题，作者让 Gemini-2.5-Pro 生成对应的思考过程，再让 GPT-4o 将对应的计算转换为可执行的代码。&lt;/li>
+&lt;li>32, 000 Video data: 包含了 24,000 条 thinking samples 和 80,000 条 non-thinking samples&lt;/li>
+&lt;/ul>
+&lt;p>训练时，所有样本混在一起进行训练。作者认为，将日常使用的 SFT 数据和 reasoning 数据放在一起训练，可以保持模型在通用场景下的能力。&lt;/p>
+&lt;p>&lt;strong>Mix-Mode RL&lt;/strong>
+训练数据主要包括 4 个任务：&lt;/p>
+&lt;ol>
+&lt;li>Multimodal perception: 复杂文本识别和 counting 任务&lt;/li>
+&lt;li>Multimodal reasoning: MMPR 和 MM-Eureka&lt;/li>
+&lt;li>Text-based mathematical reasoning: 数学推理问题&lt;/li>
+&lt;li>Agentic reasoning: 从 DeepEyes 中获取的 47,000 条样本&lt;/li>
+&lt;/ol>
+&lt;p>作者使用了 GRPO 来训练，reward 基于 MLLM 进行，包括最终结果和思考过程。&lt;/p>
+&lt;p>作者还使用 RL 来提高模型的短视频理解能力。作者发现 RL 训练之后，模型的短视频理解能力有了大幅度的提升。&lt;/p>
+&lt;p>&lt;strong>Iterative Alignment&lt;/strong>
+这一步主要解决模型的重复性输出，或者 reasoning logic 不对的问题。作者使用了 rejection-sampling 数据，包括 instruction following, OCR, mathematics, charts, counting 等。&lt;/p>
+&lt;p>作者基于 Rule-based score 和 model-based score 来进行打分，最后使用 MPO 算法进行训练。通过这个过程，模型的输出格式和动态思考能力都有了提升。&lt;/p>
+&lt;h2 id="evaluation">Evaluation
+&lt;/h2>&lt;p>作者首先评估了 ViT 的表现，主要有两点：&lt;/p>
+&lt;ol>
+&lt;li>在 SigLIP 的基础上加入 1D interpolation 之后，模型的表现所有下降，作者认为这是由于 1D 的 position encoding 无法识别 2D 的 patch 排列导致的&lt;/li>
+&lt;li>加入 2D RoPE 之后，ViT 与 SigLIP 的表现持平&lt;/li>
+&lt;/ol>
+&lt;p>接下来是 Keye-VL 在公开 benchmark 上的表现，如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-keye-vl/Keye-VL-performance.png"
+width="1068"
+height="1161"
+srcset="https://maosong2022.github.io/p/notes-on-keye-vl/Keye-VL-performance_hu2244647248615998183.png 480w, https://maosong2022.github.io/p/notes-on-keye-vl/Keye-VL-performance_hu12384064493261148122.png 1024w"
+loading="lazy"
+alt="Performance of Keye-VL"
+class="gallery-image"
+data-flex-grow="91"
+data-flex-basis="220px"
+>&lt;/p>
+&lt;p>作者还构建了一个内部的 benchmark, 用于进一步评估模型的能力。&lt;/p>
+&lt;p>已有 benchmark 的问题：&lt;/p>
+&lt;ol>
+&lt;li>contamination&lt;/li>
+&lt;li>多语种覆盖不足：大部分 benchmark 都是英文的&lt;/li>
+&lt;li>任务和 domain 覆盖不足：大部分 benchmark 只考虑基本的 perception 和 reasoning 能力&lt;/li>
+&lt;li>任务难度和评估格式单调&lt;/li>
+&lt;/ol>
+&lt;p>构建 benchmark 的原则：&lt;/p>
+&lt;ol>
+&lt;li>在中文场景下的真实用户需求，open ended QA, 包括短视频理解能力&lt;/li>
+&lt;li>细粒度的评估&lt;/li>
+&lt;li>多样性高&lt;/li>
+&lt;li>没有 contamination&lt;/li>
+&lt;li>多角度评估策略: 正确性，相关性，理解性，流畅性和创造性&lt;/li>
+&lt;/ol>
+&lt;p>结果如下：&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-keye-vl/Keye-VL-performance-internal.png"
+width="1339"
+height="559"
+srcset="https://maosong2022.github.io/p/notes-on-keye-vl/Keye-VL-performance-internal_hu13798451161994777213.png 480w, https://maosong2022.github.io/p/notes-on-keye-vl/Keye-VL-performance-internal_hu3362434457835284134.png 1024w"
+loading="lazy"
+alt="Performance of Keye-VL on the internal benchmark"
+class="gallery-image"
+data-flex-grow="239"
+data-flex-basis="574px"
+>&lt;/p>
+&lt;p>分析：&lt;/p>
+&lt;ol>
+&lt;li>Keye-VL 在 OCR 等任务上的表现有所不足，其细粒度的识别能力也有所不足，会认错人。有时候还会忽略掉一些信息&lt;/li>
+&lt;li>描述 temporal action 时会出现不稳定性，模型对镜头的感知能力不足。需要准确定位时间等&lt;/li>
+&lt;li>在需要逻辑链条和数学计算时，模型能力不足，对于特定 domain 上的任务会出现事实性错误。写作时，模型倾向于输出通用的回答，而不是定制化的回答。&lt;/li>
+&lt;/ol>
+&lt;h2 id="discussion">Discussion
+&lt;/h2>&lt;p>作者讨论了两点关键发现：&lt;/p>
+&lt;ol>
+&lt;li>reasoning 和 non-reasoning 的数据可以互相促进彼此的表现，这与 ERNIE 4.5 的发现一致。&lt;/li>
+&lt;li>作者认为通过 mix-mode 的训练，模型在简单和复杂任务上的表现都可以提升，因此作者使用了混合数据来进行训练，结果发现效果很好。&lt;/li>
+&lt;/ol>
+&lt;h2 id="conclusion">Conclusion
+&lt;/h2>&lt;p>本文中，作者提出了 Keye-VL 8B，一个短视频理解能力出色的多模态大模型，作者详细介绍了 pre-training 和 post-training. 其中，mix-mode training 可以有效提高模型的表现。&lt;/p>
+&lt;p>作者认为 Keye-VL 有如下改进的地方：&lt;/p>
+&lt;ol>
+&lt;li>并没有优化 video encoder 或者是改进 video encoding 的策略&lt;/li>
+&lt;li>Keye-VL 的视觉感知能力有进一步的提升空间，其 &amp;ldquo;reasoning with image&amp;rdquo; 能力依然落后于领先的 reasoning model&lt;/li>
+&lt;li>使用一个额外的 MLLM 作为 reward model 会极大消耗算力，如何构建一个更可靠更高效的 reward model 需要进一步探索。&lt;/li>
+&lt;/ol>
+&lt;h2 id="reference">Reference
+&lt;/h2>&lt;ul>
+&lt;li>&lt;a class="link" href="http://arxiv.org/abs/2507.01949" target="_blank" rel="noopener"
+>Arxiv&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://github.com/Kwai-Keye/Keye/tree/main" target="_blank" rel="noopener"
+>Github&lt;/a>&lt;/li>
+&lt;/ul></description></item><item><title>Notes on GLM-4.1V-Thinking</title><link>https://maosong2022.github.io/p/notes-on-glm-4.1v-thinking/</link><pubDate>Mon, 14 Jul 2025 10:32:04 +0800</pubDate><guid>https://maosong2022.github.io/p/notes-on-glm-4.1v-thinking/</guid><description>&lt;p>智谱 AI 在 25 年 7 月份发布了 GLM-4.1V-Thinking, 一个 9B 的多模态大语言模型，其在多个 benchmark 上达到了相同大小 MLLM 的 SOTA&lt;/p>
+&lt;h2 id="introduction">Introduction
+&lt;/h2>&lt;p>已有工作如 &lt;a class="link" href="https://maosong.website/p/notes-on-mimo-vl/" target="_blank" rel="noopener"
+>MiMo-VL&lt;/a> 和 V-Triune 主要集中在特定的领域，目前还没有一个在所有领域都能超过 non-reasoning model 表现的多模态 reasoning model.&lt;/p>
+&lt;p>基于这个目标，作者提出了 GLM-4.1V-Thinking, 一个 9B 的，用于通用领域多模态 reasoning 的 MLLM. 在预训练阶段，作者通过构建多样化的数据来提升模型的基础能力。在 post-training 阶段，作者构建了 domain-specific 的数据来让模型学会 reasoning. 最后，作者提出了 Reinforcement Learning with Curriculum Sampling (RLCS) 来扩展模型的 reasoning 能力。&lt;/p>
+&lt;p>作者主要发现如下：&lt;/p>
+&lt;ol>
+&lt;li>multi-domain RL 的泛化性非常强，在某一个 domain 上进行 RL 训练也可以提高模型在其他 domain 上的表现&lt;/li>
+&lt;li>动态选择 RL 训练的数据可以有效提高模型的表现和训练效率&lt;/li>
+&lt;li>一个 robust 以及 precise 的 reward model 对于 multi-domain RL 是至关重要的&lt;/li>
+&lt;/ol>
+&lt;h2 id="method">Method
+&lt;/h2>&lt;h3 id="architecture">Architecture
+&lt;/h3>&lt;p>GLM-4.1V-Thinking 是一个标准的 ViT-MLP-LLM 架构，其中：&lt;/p>
+&lt;ul>
+&lt;li>ViT: ViT 使用的是 AIMv2-Huge&lt;/li>
+&lt;li>MLP: 是一个 3 层的 MLP，架构为 &lt;code>linear-LayerNorm-GELU-SwiGLU&lt;/code>, 并且在进入 MLP 之前，GLM-4.1V-Thinking 还会在 spatial 上进行降采样，降采样率为 2&lt;/li>
+&lt;li>LLM: LLM 使用的是 GLM&lt;/li>
+&lt;/ul>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-glm-4.1v-thinking/GLM_4_1_V_Thinking_architecture.png"
+width="1804"
+height="988"
+srcset="https://maosong2022.github.io/p/notes-on-glm-4.1v-thinking/GLM_4_1_V_Thinking_architecture_hu14497388027985393186.png 480w, https://maosong2022.github.io/p/notes-on-glm-4.1v-thinking/GLM_4_1_V_Thinking_architecture_hu7694229193987378695.png 1024w"
+loading="lazy"
+alt="Architecture of GLM4.1V-Thinking"
+class="gallery-image"
+data-flex-grow="182"
+data-flex-basis="438px"
+>&lt;/p>
+&lt;p>与 &lt;a class="link" href="https://maosong.website/p/notes-on-qwen2.5-vl/" target="_blank" rel="noopener"
+>Qwen2.5-VL&lt;/a> 一样，作者将 encoder 的 2D convolution 替换为了 3D convolution，用于处理视频输入，然后对于 single-image inputs，GLM-4.1V-Thinking 会将输入复制，变成一个含有两帧相同图片的 video 输入&lt;/p>
+&lt;p>为了支持不同分辨率图片输入，作者进行了两点改进：&lt;/p>
+&lt;p>第一是使用了 2D RoPE 来处理不同分辨率的图片输入&lt;/p>
+&lt;p>第二是使用 bicubic interpolation 来将不同分辨率的图片适应到 encoder 的 position embedding 上。具体来讲，对一个拥有 $H_p\times W_p$ patches 的图片，每个 patch 的坐标 $(w,h)$ 首先会被 normalized 到 $[-1,1]$ 中：&lt;/p>
+$$
+g_{norm} = (w_{norm}, h_{norm}) = 2* \left(\frac{w+0.5}{W_p}, \frac{h+0.5}{H_p}\right) - 1
+$$&lt;p>然后，我们再使用 bicubic interpolation $\mathcal{I}_{bicubic}$ 将坐标映射到原始的 position embedding 上：&lt;/p>
+$$
+P_{adapted} = \mathcal{I}_{bicubic}(P_{orig}, g_{norm})
+$$&lt;p>对于视频输入，作者在每一帧之后插入了一个 time index token, 用每一帧的 timestamp string 来表示。这个做法与 &lt;a class="link" href="https://maosong.website/p/notes-on-qwen2.5-vl/" target="_blank" rel="noopener"
+>Qwen2.5-VL&lt;/a> 一样。&lt;/p>
+&lt;h3 id="pre-training">Pre-training
+&lt;/h3>&lt;h4 id="pre-training-data">Pre-training Data
+&lt;/h4>&lt;p>Pre-training 数据包括 image-caption data, interleaved image-text data, OCR data, grounding data, video data 和 instruction tuning data&lt;/p>
+&lt;p>&lt;strong>Image caption data&lt;/strong>
+Image caption data 用于提升模型的世界知识。作者从 LAION, DataComp, DNF 以及 Wukong 等数据集收集了 10B 的 image-text pairs, 然后进行数据清洗：&lt;/p>
+&lt;ol>
+&lt;li>Heuristic-based filtering: 基于规则，如 resolution, caption length 等过滤掉低质量的图片&lt;/li>
+&lt;li>Relevance filtering: 计算 CLIP score, 过滤掉低质量的数据&lt;/li>
+&lt;li>Concept-balanced resampling: 基于 MetaCLIP , 来提升数据的覆盖程度，解决长尾分布的问题。这里 &lt;a class="link" href="https://maosong.website/p/notes-on-seed1.5-vl/" target="_blank" rel="noopener"
+>Seed1.5-VL&lt;/a> 有一个类似的消融实验。&lt;/li>
+&lt;li>Factual-centered re-captioning: 通过 rewrite caption 来提升 caption 的质量和信息密度。Idefics2 通过实验发现，rewriting caption 可以提高模型的表现。作者在最终的数据集里，混合了一部分 re-caption 的数据。&lt;/li>
+&lt;/ol>
+&lt;p>&lt;strong>Interleaved image-text data&lt;/strong>
+相比于 image-caption data, interleaved image-text data 体量更大，且逻辑关系更强。但是噪声也更多，因此作者针对不同来源的数据构建了不同的数据清洗策略：&lt;/p>
+&lt;ol>
+&lt;li>Web data processing pipeline: 数据来源为 MINT, MMC4, OmniCorpus 等。作者首先基于 CLIP-score，去掉与上下文不相关的图片；然后，作者去除掉广告，二维码等低质量的图片；最后，作者将图多文少的样本也给去除掉，比如相册图片。作者还训练了一个 high-knowledge-density image classifier, 来识别信息密度高的样本。&lt;/li>
+&lt;li>Academic book processing pipeline: 作者从电子书中收集了 100M 的样本，这些电子书主要是 STEM domain，然后作者构建了一个 PDF parsing tool 来提取文档内容。&lt;/li>
+&lt;/ol>
+&lt;p>&lt;strong>OCR data&lt;/strong>
+OCR 数据包含&lt;strong>220M images&lt;/strong>, 数据集由三部分组成：&lt;/p>
+&lt;ol>
+&lt;li>Synthetic document images: 基于预训练语料，使用不同的格式来渲染文字生成不同的图片，然后基于 LAION 的图片作为背景&lt;/li>
+&lt;li>Natural scene text images: 使用 Paddle-OCR 来从图片中提取文字以及对应的 bounding box&lt;/li>
+&lt;li>Academic documents: 使用类似 Nougat 的方法来构建 PDF page-Markdown 的数据。&lt;/li>
+&lt;/ol>
+&lt;p>&lt;strong>Grounding data&lt;/strong>
+主要包含自然场景和 GUI 两个 domain 的 grounding 数据：&lt;/p>
+&lt;ol>
+&lt;li>Natural image grounding: 基于 LAION-115M 得到。作者使用 GLIPv2, 来自动化解析 caption 中的实体，然后预测对应的 bounding box, 作者将 bounding box 较少的样本去除掉。最终得到&lt;strong>40M&lt;/strong>高质量的自然场景数据&lt;/li>
+&lt;li>GUI grounding: 基于 CC 提取对应的 url, 然后使用 Playwright 来与网页进行交互，进而获取到所有的 DOM elements 与其对应的 bounding box. 最终收集到 &lt;strong>140M&lt;/strong>高质量的 QA 样本&lt;/li>
+&lt;/ol>
+&lt;p>&lt;strong>Video data&lt;/strong>
+Video data 从多个来源得到，作者使用了 fine-grained human annotation 来保证数据质量。作者还标注了 camera motion 等信息&lt;/p>
+&lt;p>为了保证数据的质量，作者进行了去重，来减少数据语义的相似性。&lt;/p>
+&lt;p>&lt;strong>Instruction tuning data&lt;/strong>
+instruction tuning data 的策略如下：&lt;/p>
+&lt;ol>
+&lt;li>Task coverage and taxonomy: 优化数据分布&lt;/li>
+&lt;li>Complex scenario augmentation: 构建复杂的指令跟随数据&lt;/li>
+&lt;li>Data contamination check: 数据污染检查&lt;/li>
+&lt;/ol>
+&lt;p>最终一共收集到 &lt;strong>50M&lt;/strong>样本，覆盖 visual perception, multimodal reasoning, GUI agent 等任务。&lt;/p>
+&lt;h4 id="pre-training-training">Pre-training Training
+&lt;/h4>&lt;p>Pre-training 由两个 stage 组成：&lt;/p>
+&lt;ol>
+&lt;li>Multimodal pre-training: 提高模型的通用多模态能力，上下文长度为 8192, global batch size 为 1536. 使用了 data packing 策略，使用了 2-way tensor parallelism&lt;/li>
+&lt;li>Long-context continue training: 提升模型在高精度图片，长视频，长上下文场景下的表现，上下文长度为 32768, 使用了 2-way tensor parallelism 和 4-way context parallelism.&lt;/li>
+&lt;/ol>
+&lt;h3 id="sft">SFT
+&lt;/h3>&lt;h4 id="sft-data">SFT Data
+&lt;/h4>&lt;p>数据包括 long CoT reasoning 数据，来让模型以标准格式输出 multi-step solution.&lt;/p>
+&lt;p>数据包括 verifiable tasks 以及 non-verifiable tasks, 覆盖中英两种语言。作者过滤了非常简单和非常困难的样本。&lt;/p>
+&lt;p>数据格式如下&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">&amp;lt;think&amp;gt; {think_content} &amp;lt;/think&amp;gt; &amp;lt;answer&amp;gt; {answer_content} &amp;lt;/answer&amp;gt;
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>对于 verifiable tasks, 输出格式为&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">&amp;lt;answer&amp;gt; &amp;lt;|begin_of_box|&amp;gt; {answer_content} &amp;lt;|end_of_box|&amp;gt; &amp;lt;/answer&amp;gt;
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>数据清洗策略包括：&lt;/p>
+&lt;ol>
+&lt;li>严格遵守格式要求&lt;/li>
+&lt;li>reasoning style 不一致或者有噪声&lt;/li>
+&lt;li>混合语言输出。&lt;/li>
+&lt;/ol>
+&lt;p>作者还使用 RL checkpoints 来生成一部分高质量数据，加入到 SFT 阶段的数据集里面。&lt;/p>
+&lt;h4 id="sft-training">SFT Training
+&lt;/h4>&lt;p>全参数微调。上下文长度为 32768， batch size 为 32.数据包括 long-form reasoning data 以及纯文本数据，包括 math, multi-turn conversation, agent planning 以及 instruction following 等.&lt;/p>
+&lt;blockquote>
+&lt;p>[!tip] Observation
+作者发现，在 SFT 阶段即使是使用带噪声的 reasoning data，模型在 RL 阶段也能继续训练。也就是说，不完美的 reasoning trace 也能提供 guidance. 但是，使用更高质量的数据可以让模型 RL 阶段的训练更稳定且表现更好。&lt;/p>
+&lt;/blockquote>
+&lt;h3 id="rl">RL
+&lt;/h3>&lt;p>与 &lt;a class="link" href="https://maosong.website/p/notes-on-seed1.5-vl/" target="_blank" rel="noopener"
+>Seed1.5-VL&lt;/a> 一样，作者在 RL 阶段结合了 RLVR 和 RLHF 两个训练目标。任务包括 STEM problem solving (such as mathematics, physics, chemistry), grounding, optical character recognition (OCR), video understanding, GUI agents, chart and document understanding, logical reasoning, and instruction following.&lt;/p>
+&lt;p>&lt;strong>Data&lt;/strong>
+作者首先构建了一个任务集合，然后基于这些任务，来过滤或者生成对应的 QA pair, 接下来作者基于难度和质量来过滤，最后作者在每个 domain 上进行 RL 的训练来保证数据的有效性。&lt;/p>
+&lt;p>&lt;strong>Reward modelling&lt;/strong>
+作者构建了一个 reward system, 用于给不同 domain 的任务进行奖励。为了探究不同 domain 的 reward 对模型整体表现的影响，作者设计了一个 low-quality reward system，实验结果如下，可以看到模型在训练后期出现了 collapse 或者 reward hacking 的情况。&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-glm-4.1v-thinking/GLM_4_1_V_reward_ablation.png"
+width="1778"
+height="876"
+srcset="https://maosong2022.github.io/p/notes-on-glm-4.1v-thinking/GLM_4_1_V_reward_ablation_hu1940628557481340942.png 480w, https://maosong2022.github.io/p/notes-on-glm-4.1v-thinking/GLM_4_1_V_reward_ablation_hu12923493226588456991.png 1024w"
+loading="lazy"
+alt="GLM-4.1V-Thinking reward ablation"
+class="gallery-image"
+data-flex-grow="202"
+data-flex-basis="487px"
+>&lt;/p>
+&lt;blockquote>
+&lt;p>[!tip] Observation
+作者发现，不同任务的不同信号奖励会对模型最终表现产生巨大影响。&lt;/p>
+&lt;/blockquote>
+&lt;p>在使用 LLM 提取模型回答的 answer 的时候，作者要求模型的最终答案为 &lt;code>&amp;lt;|begin_of_box|&amp;gt; {answer_content} &amp;lt;|end_of_box|&amp;gt;&lt;/code> 这种形式，避免大语言模型提取出错。&lt;/p>
+&lt;p>作者构建的 reward system 包含如下模块：&lt;/p>
+&lt;ol>
+&lt;li>shared verification functions: 包括格式检查等&lt;/li>
+&lt;li>domain specific modules: 与 domain 相关的模块&lt;/li>
+&lt;li>unit testing: 观测 domain 输出的分布，然后基于输出的分布来调整 reward logic&lt;/li>
+&lt;/ol>
+&lt;p>最终 reward 的 design 如下表所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-glm-4.1v-thinking/GLM_4_1_V_reward_design.png"
+width="1812"
+height="712"
+srcset="https://maosong2022.github.io/p/notes-on-glm-4.1v-thinking/GLM_4_1_V_reward_design_hu7442997355963364551.png 480w, https://maosong2022.github.io/p/notes-on-glm-4.1v-thinking/GLM_4_1_V_reward_design_hu4476507324978246593.png 1024w"
+loading="lazy"
+alt="GLM-4.1V-Thinking reward design"
+class="gallery-image"
+data-flex-grow="254"
+data-flex-basis="610px"
+>&lt;/p>
+&lt;p>&lt;strong>RLCS&lt;/strong>
+作者使用了 GRPO 来进行优化训练。作者发现，仅需 200 training steps 模型在一半以上问题的准确率就达到了 $90%$.&lt;/p>
+&lt;p>为了提升模型的训练效率，作者提出了 Reinforcement Learning with Curriculum Sampling (RLCS), 也就是将课程学习与 RL 结合起来。作者基于模型训练情况动态调整训练样本的难度，来保证每个样本对模型训练的提升都是最大的。&lt;/p>
+&lt;p>在 RLCS 训练之前，作者先使用模型评测得到每个样本的 pass@k, 然后根据结果将样本进行分类。在训练过程中，作者记录每个样本的 pass@k， 然后动态更新其分类结果。在采样的时候，作者基于难度来对样本进行加权，来降低太简单或者太难样本的采样概率。&lt;/p>
+&lt;p>作者还提出了一些提高 RL 表现的方法：&lt;/p>
+&lt;ol>
+&lt;li>Larger batch size: 使用更大的 batch size 效果更好&lt;/li>
+&lt;li>Dynamic sampling expansion via ratio EMA: 作者定义了 naive 样本和高质量样本的比例，然后根据这个比例进行采样，来提升整体的采样效率。&lt;/li>
+&lt;li>Force answering: 与 &lt;a class="link" href="https://maosong.website/p/notes-on-qwen3/" target="_blank" rel="noopener"
+>Qwen3&lt;/a> 一样，对于比较难的问题，当输出的 token 数过长时，作者对模型输出进行截断，然后让模型基于已有思考过程直接输出结果。&lt;/li>
+&lt;li>Discard KL loss: 与 DAPO 一样，作者也移除了 KL divergence loss&lt;/li>
+&lt;li>Clip-higher: 与 DAPO 一样，作者通过修改超参数来提高模型的探索能力&lt;/li>
+&lt;/ol>
+&lt;blockquote>
+&lt;p>[!tip] Observation&lt;/p>
+&lt;ol>
+&lt;li>RL 阶段的表现与 cold-start SFT 的表现并不完全相关。作者发现，cold-start SFT 取得更好的表现并不一定保证 RL 的表现就更好。&lt;/li>
+&lt;li>RL 阶段各个 domain 数据的影响是正交的，这与 cold-start SFT 阶段的结果不同。&lt;/li>
+&lt;/ol>
+&lt;/blockquote>
+&lt;p>作者还提出了一些提高训练稳定性的方法：&lt;/p>
+&lt;ol>
+&lt;li>提高 cold-start SFT 阶段数据的质量&lt;/li>
+&lt;li>移除 KL divergence loss&lt;/li>
+&lt;li>使用 top-p 为 1，而不是 0.9 (如 &lt;a class="link" href="https://maosong.website/p/notes-on-qwen-llm/" target="_blank" rel="noopener"
+>Qwen-LLM&lt;/a> 中的设置)，top-p 为 1 可以 cover 整个 vocabulary，避免某些 token 没有参与训练&lt;/li>
+&lt;li>per-sample loss 和 per-token loss 没有显著区别，但是 per-sample loss 稳定性更高&lt;/li>
+&lt;li>在 cold-start SFT 阶段让模型学会格式要求，而不是在 RL 阶段加入 format reward&lt;/li>
+&lt;/ol>
+&lt;p>&lt;strong>Infra&lt;/strong>
+在 infra 方面，作者做了如下改进：&lt;/p>
+&lt;ol>
+&lt;li>Load balancing of sequence lengths across DP ranks. 平衡每个 rank 的 sequensequence length 以及 compute load&lt;/li>
+&lt;li>Intra-rank training with sequence packing and gradient accumulation. 将 sequence packing 和 gradient accumulation 结合起来&lt;/li>
+&lt;li>Sample packing and reorganization within DP ranks. data packing&lt;/li>
+&lt;li>Dynamic sampling expansion via ratio EMA. 平衡 naive 样本和高质量样本之间的比例&lt;/li>
+&lt;/ol>
+&lt;h2 id="evaluation">Evaluation
+&lt;/h2>&lt;h3 id="performance">Performance
+&lt;/h3>&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-glm-4.1v-thinking/GLM_4_1_V_performance.png"
+width="1066"
+height="1446"
+srcset="https://maosong2022.github.io/p/notes-on-glm-4.1v-thinking/GLM_4_1_V_performance_hu4663931888132339157.png 480w, https://maosong2022.github.io/p/notes-on-glm-4.1v-thinking/GLM_4_1_V_performance_hu2656097992392796714.png 1024w"
+loading="lazy"
+alt="Performance of GLM4.1V Thinking"
+class="gallery-image"
+data-flex-grow="73"
+data-flex-basis="176px"
+>&lt;/p>
+&lt;p>可以看到，GLM-4.1V-Thinking 在多个 benchmark 上都达到了 SOTA.&lt;/p>
+&lt;h3 id="ablation-study">Ablation Study
+&lt;/h3>&lt;p>作者评估了一下不同 domain 的 RL 训练对模型整体表现的影响。作者使用不同的数据来进行训练，然后分析结果的相关性，结果如下&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-glm-4.1v-thinking/GLM_4_1_V_cross_domain_generalization.png"
+width="1226"
+height="962"
+srcset="https://maosong2022.github.io/p/notes-on-glm-4.1v-thinking/GLM_4_1_V_cross_domain_generalization_hu16221901218333137952.png 480w, https://maosong2022.github.io/p/notes-on-glm-4.1v-thinking/GLM_4_1_V_cross_domain_generalization_hu16525324023796861196.png 1024w"
+loading="lazy"
+alt="Cross-domain generalization in reinforcement learning"
+class="gallery-image"
+data-flex-grow="127"
+data-flex-basis="305px"
+>&lt;/p>
+&lt;p>实验结果发现：&lt;/p>
+&lt;ol>
+&lt;li>在某个 domain 上的训练会提高模型在其他 domain 上的表现&lt;/li>
+&lt;li>联合多个 domain 进行训练最终的表现会更好&lt;/li>
+&lt;/ol>
+&lt;p>作者还发现，不同的任务之间存在关联，如 GUI-agent 和 grounding 这两个任务是高度相关的。OCR &amp;amp; Chart 以及 GUI-agent 也是高度相关的。&lt;/p>
+&lt;h2 id="conclusion">Conclusion
+&lt;/h2>&lt;p>在本文中，作者提出了 GLM-4.1V-Thinking, 一个 9B 的通用多模态 reasoning model, 作者通过构建高质量的数据，多阶段的训练，让模型在 reasoning 和 non-reasoning 任务上均超过了已有的 SOTA 模型的表现&lt;/p>
+&lt;p>作者认为，模型有以下局限：&lt;/p>
+&lt;ol>
+&lt;li>模型并没有提升 reasoning 的质量，在某些情况下，模型结果正确，但是中间过程错误。作者分析这是因为目前只有针对结果的奖励机制。因此，未来需要能够评估中间过程的 reward model&lt;/li>
+&lt;li>RL 的训练具有不稳定性，作者发现模型对设置比较敏感，这对 RL 训练的 scaling 提出了挑战。&lt;/li>
+&lt;li>模型在复杂场景下表现依旧不太好，比如图片中有物体遮挡的情况，这些感知误差也会影响最终的 reasoning 表现。作者认为如何同时提高 perception 和 reasoning 的表现是一个需要研究的课题。&lt;/li>
+&lt;/ol>
+&lt;p>未来的工作有：&lt;/p>
+&lt;ol>
+&lt;li>如何构建更好的 reward 机制，来同时评估结果和中间过程。从而防止模型 reward hacking&lt;/li>
+&lt;li>如何基于 multimodal training 来提升模型在纯文本任务上的表现。探究 visual reasoning 和 text reasoning 如何互相促进也是一个课题&lt;/li>
+&lt;li>如何更好评估模型的表现，即如何更好评估模型的 failure modes, 比如幻觉，short reasoning 等&lt;/li>
+&lt;/ol>
+&lt;h2 id="references">References
+&lt;/h2>&lt;ul>
+&lt;li>&lt;a class="link" href="https://arxiv.org/abs/2507.01006" target="_blank" rel="noopener"
+>Arxiv&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://huggingface.co/THUDM/GLM-4.1V-9B-Thinking" target="_blank" rel="noopener"
+>Huggingface&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;h2 id="appendix">Appendix
+&lt;/h2>&lt;p>GLM-4.1V-Thinking 的 patch merger 代码&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;span class="lnt">21
+&lt;/span>&lt;span class="lnt">22
+&lt;/span>&lt;span class="lnt">23
+&lt;/span>&lt;span class="lnt">24
+&lt;/span>&lt;span class="lnt">25
+&lt;/span>&lt;span class="lnt">26
+&lt;/span>&lt;span class="lnt">27
+&lt;/span>&lt;span class="lnt">28
+&lt;/span>&lt;span class="lnt">29
+&lt;/span>&lt;span class="lnt">30
+&lt;/span>&lt;span class="lnt">31
+&lt;/span>&lt;span class="lnt">32
+&lt;/span>&lt;span class="lnt">33
+&lt;/span>&lt;span class="lnt">34
+&lt;/span>&lt;span class="lnt">35
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">class&lt;/span> &lt;span class="nc">Glm4vVisionPatchMerger&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Module&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="fm">__init__&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">dim&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">int&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">context_dim&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">int&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">hidden_act&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">str&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">bias&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">bool&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="kc">False&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">-&amp;gt;&lt;/span> &lt;span class="kc">None&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nb">super&lt;/span>&lt;span class="p">()&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="fm">__init__&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">proj&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Linear&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">dim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">dim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">bias&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">bias&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">post_projection_norm&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">LayerNorm&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">dim&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">gate_proj&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Linear&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">dim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">context_dim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">bias&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">bias&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">up_proj&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Linear&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">dim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">context_dim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">bias&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">bias&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">down_proj&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Linear&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">context_dim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">dim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">bias&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">bias&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">act1&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">GELU&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">act_fn&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">ACT2FN&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">hidden_act&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="nf">forward&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">hidden_state&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">-&amp;gt;&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">hidden_state&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">proj&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">hidden_state&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">hidden_state&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">act1&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">post_projection_norm&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">hidden_state&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">down_proj&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">act_fn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">gate_proj&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">hidden_state&lt;/span>&lt;span class="p">))&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">up_proj&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">hidden_state&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">class&lt;/span> &lt;span class="nc">Glm4vVisionModel&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="fm">__init__&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">config&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">downsample&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Conv2d&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">in_channels&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">hidden_size&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">out_channels&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">out_hidden_size&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">kernel_size&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">spatial_merge_size&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">stride&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">spatial_merge_size&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">merger&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">Glm4vVisionPatchMerger&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">dim&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">out_hidden_size&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">context_dim&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">intermediate_size&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">hidden_act&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">hidden_act&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="nf">forward&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">hidden_states&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">...&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">hidden_states&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">hidden_states&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">view&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">spatial_merge_size&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">spatial_merge_size&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">hidden_states&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">shape&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">])&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">hidden_states&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">hidden_states&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">permute&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">3&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">hidden_states&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">downsample&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">hidden_states&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">view&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">out_hidden_size&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">hidden_states&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">merger&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">hidden_states&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div></description></item></channel></rss>
