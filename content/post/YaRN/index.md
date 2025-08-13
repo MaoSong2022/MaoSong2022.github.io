@@ -12,12 +12,11 @@ math: true
 ---
 
 
-# Introduction
+## Introduction
 
 YaRN (Yet Another RoPE extentionN method) 时23年9月EleutherAI等提出来的一个扩展LLM上下文长度的方法，后来被Qwen系列模型所应用。
 
-
-# Preliminary
+## Preliminary
 
 作者首先回顾了一下RoPE, 具体内容请参见上一篇[blog](https://maosong.website/p/notes-on-position-encoding/)。并使用了 $f_{W}(x_m, m, \theta_d)$ 来表示RoPE：
 
@@ -47,11 +46,11 @@ $$
 
 wavelength描述了对于第$i$ 个维度，RoPE旋转一周 ($2\pi$) 所需要的上下文长度。
 
-# Unified Perspective on Related Work
+## Unified Perspective on Related Work
 
 基于 $f_{W}(x_m, m, \theta_d)$, 作者统一了已有的扩展上下文长度的方法，作者将不同的扩展方法使用一个通用函数 $f_W(x_m,g(m), h(\theta_d))$  来表示，这里 $g(m)$ 和 $h(\theta_d)$ 分别代表了不同的长度外推方法所使用的变换。
 
-## Position Interpolation
+### Position Interpolation
 
 Position Interpolation (PI) 的核心思想在于，我们可以通过Interpolation，将超过预训练长度的文本给压缩到当前最大长度，以此来避免RoPE外推产生的问题，其对应的公式为
 
@@ -65,7 +64,7 @@ $$
 g(m) = \frac{m}{s},\quad h(\theta_d) = \theta_d
 $$
 
-## NTK-aware Interpolation
+### NTK-aware Interpolation
 
 PI的问题是，并没有考虑不同维度的wavelength。
 基于NTK理论，DNN当输入维度比较低，且embedding缺少高频内容时，模型就会很难学习到高频信息。对应到RoPE里面，输入的token position id是低位信息（1维），而输出的RoPE是一个 $d$ 维的复杂向量。因此，当输入token非常相似却距离非常近时，RoPE就会丢失高频的细节信息
@@ -90,7 +89,7 @@ $$
 
 PI 和NTK-aware interpolation的问题在于，我们对不同的维度的处理都是一样的。这类不在乎wavelength的方法被称为**blind interpolation methods**, 接下来要介绍的就是基于wavelength的方法，即**target interpolation methods**.
 
-## NTK-by-parts Interpolation
+### NTK-by-parts Interpolation
 
 与NTK-aware interpolation， NTK-by-parts interpolation基于wavelength来考虑不同维度上所做的变换。
 
@@ -128,7 +127,7 @@ $$
 
 作者通过实验发现，在LLaMA上，$\alpha=1$ 和 $\beta=32$ 是一个比较好的选择
 
-## Dynamic NTK Interpolation
+### Dynamic NTK Interpolation
 
 在实际中，一个经常遇到的场景就是sequence length会从1逐步上升到最大上下文长度，比如说inference的时候。对于这种情况，我们有两种解决方法：
 
@@ -140,7 +139,7 @@ $$
 
 作者通过实验发现，Dynamic NTK interpolation在$L'=L$ 时，效果非常好
 
-# YaRN
+## YaRN
 
 在YaRN中，作者针对Dynamic NTK interpolation做了进一步改进，也就是在计算attention softmax时，加入了一个温度参数 $t>0$, 这样attention的计算就变成了
 
@@ -167,7 +166,7 @@ $$
 1. 对于合适的 $t$, 扩展上下文之后，perplexity会变的更好
 2. 最好的$t$ 对于不同的位置和样本提升都是一样的
 
-# Evaluation
+## Evaluation
 
 实验结果如下
 
@@ -186,7 +185,7 @@ $$
 
 可以看到，RoPE的上下文扩展能力很差，Dynamic-YaRN的表现最好。
 
-# Code
+## Code
 
 YaRN的实现在[HuggingFace/src/transformers/modeling_rope_utils.py](https://github.com/huggingface/transformers/blob/main/src/transformers/modeling_rope_utils.py) 里的 `_compute_yarn_parameters` 函数里，其返回 `inv_freq` 以及 `attention_factor` 两个量，前者代表了 $\theta_d$, 后者代表 $t\sqrt{d}$.
 
@@ -262,11 +261,11 @@ generator = pipeline(
 )
 ```
 
-# Conclusion
+## Conclusion
 
 在本文中，作者首先构建了一个统一的表征不同上下文长度扩展的形式，接下来作者分析了不同上下文长度扩展的不足，并提出了YaRN这种上下文长度扩展方式，结果发现，YaRN不仅在短上下文长度下面表现很好，当上下文长度扩展之后，其表现依然非常优秀。
 
-# References
+## References
 
 - [arxiv YaRN](http://arxiv.org/abs/2309.00071)
 - [arxiv PI](https://arxiv.org/pdf/2306.15595)
