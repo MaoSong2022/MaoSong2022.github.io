@@ -37,7 +37,7 @@ GLM-4.5 是一个基于 MoE 架构的 LLM,  架构与 DeepSeek-MoE 相似，作�
 1. 在 MoE layer 中，使用了 loss-free balance routing, 然后使用了 sigmoid function 作为 routing score 的 normalization.
 2. 与 [Kimi-k2](https://maosong.website/p/notes-on-kimi-k2/) 和 DeepSeek-V3 相比，作者降低了 head dimension, 提升了 number of layers. 作者认为更深的模型更有利于提高模型的 Reasoning 表现
 3. attention 上，作者使用了 [GQA](https://maosong.website/p/notes-on-gqa/), 对于 #RoPE, 作者使用了 partial RoPE, 只旋转每个 token 的前半部分， 作者还将 attention heads 的个数增加到了 2.5 倍，作者发现增加 attention heads 可以提高模型的 Reasoning 表现
-4. 作者还使用了 QK-Norm 来防止 attention logits 爆炸
+4. 作者还使用了 [QK-Norm](https://maosong.website/p/notes-on-qk-norm/) 来防止 attention logits 爆炸
 5. 作者还使用了一个 MoE layer 作为 MTP layer 来支持 speculative decoding.
 
 模型与 DeepSeek-V3 和 Kimi-k2 的对比如下
