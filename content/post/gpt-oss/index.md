@@ -3,6 +3,7 @@ title: Notes on gpt-oss
 description: openAI 发布了 gpt-oss 大语言模型，包含 120B-A5.1B 以及 20.9B-A3.6B 两个 size, 作者强调了模型的 instruction following, tool use, 以及 adaptive thinking 能力
 date: 2025-08-19 16:14:56+0800
 lastmod: 2025-08-19 16:14:56+0800
+math: true
 tags: 
     - openAI
 categories:
