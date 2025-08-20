@@ -2,7 +2,7 @@
 title: Notes on gpt-oss
 description: openAI 发布了 gpt-oss 大语言模型，包含 120B-A5.1B 以及 20.9B-A3.6B 两个 size, 作者强调了模型的 instruction following, tool use, 以及 adaptive thinking 能力
 date: 2025-08-19 16:14:56+0800
-lastmod: 2025-08-20 10:57:03+0800
+lastmod: 2025-08-20 11:24:54+0800
 math: true
 tags: 
     - openAI
@@ -75,7 +75,12 @@ $$
 
 ### Quantization
 
-为了降低模型的内存占用量，作者使用了 PTQ 来训练 MoE 的权重，使用的精度为 MXFP4, 这样每个参数由 4.25 bits 来表示。通过这个流程，gpt-oss-120B 可以部署在 80GB 内存的 GPU 上。模型各部分参数量如下表所示
+为了降低模型的内存占用量，作者使用了 PTQ 来训练 MoE 的权重，使用的精度为 MXFP4, 这样每个参数由 4.25 bits 来表示。最终，模型的参数存储格式如下：
+
+![precision format of gpt-oss](gpt-oss-precision-format.png)
+
+通过这个流程，gpt-oss-120B 可以部署在 80GB 内存的 GPU 上，gpt-oss-20B 可以部署在 16GB 内存的 GPU 上。模型各部分参数量如下表所示
+
 
 | Component         | 120b    | 20b     |
 | ----------------- | ------- | ------- |
