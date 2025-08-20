@@ -2,7 +2,7 @@
 title: Notes on gpt-oss
 description: openAI 发布了 gpt-oss 大语言模型，包含 120B-A5.1B 以及 20.9B-A3.6B 两个 size, 作者强调了模型的 instruction following, tool use, 以及 adaptive thinking 能力
 date: 2025-08-19 16:14:56+0800
-lastmod: 2025-08-19 16:14:56+0800
+lastmod: 2025-08-20 10:57:03+0800
 math: true
 tags: 
     - openAI
@@ -71,7 +71,7 @@ $$
 
 #### Attention Sink
 
-作者使用了 [[attention sink]] 来避免 window attention 在超过 kv cache size 之后，表现大幅度下降的问题。
+作者使用了 [attention sink](https://maosong.website/p/notes-on-streamingllm/) 来避免 window attention 在超过 kv cache size 之后，表现大幅度下降的问题。
 
 ### Quantization
 
