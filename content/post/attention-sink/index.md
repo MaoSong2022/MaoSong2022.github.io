@@ -1,5 +1,5 @@
 ---
-title: Notes on gpt-oss
+title: Notes on StreamingLLM
 description: 作者提出了 StreamingLLM, 一个基于 attention sink 来提高 sliding window attention 在超长上下文场景下表现的方法
 date: 2025-08-20 10:16:35+0800
 lastmod: 2025-08-20 10:16:35+0800
