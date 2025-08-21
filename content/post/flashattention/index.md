@@ -411,7 +411,7 @@ $$
 S = QK^T\in\mathbb{R}^{N\times N},\quad P = \mathrm{softmax}(S\odot \mathbb{1}_{M})\in\mathbb{R}^{N\times N},\quad O = PV\in\mathbb{R}^{N\times d}
 $$
 
-其中当 $M_{kl}=1$ 时， $(S\odot \mathbb{1}_{M})_{kl}=S_{kl}$, 否则 $(S\odot \mathbb{1}_{M})_{kl}=0$.
+其中当 $M_{kl}=1$ 时， $(S\odot \mathbb{1}_ {M})_ {kl}=S_ {kl}$, 否则 $(S\odot \mathbb{1}_ {M})_{kl}=0$.
 
 Block-sparse attention 的算法如下所示
 
