@@ -62,7 +62,7 @@ Transformer 的 attention 是一个平方度复杂度的算法，这个平方复
 2. High bandwith memory (HBM): GPU 的高速内存，访问速度较快，容量中等
 3. DRAM: CPU 内存，容量最大，但是访问速度较慢
 
-接下来作者介绍了以下 Ececution model 的概念，GPU 有多个线程来执行同一个操作（SPMD），这个操作也被称为 kernel, kernel 会从 HBM 中加载输入到 SRAM 中进行计算，然后写回 HBM.
+接下来作者介绍了 Execution model 的概念，GPU 有多个线程来执行同一个操作（SPMD），这个操作也被称为 kernel, kernel 会从 HBM 中加载输入到 SRAM 中进行计算，然后写回 HBM.
 
 对一个算法，我们可以将其归类为 compute-bound 和 memory-bound 两类， 我们可以用 arithmetic intensity 来进行区分，arithmetic intensity 定义为 arithmetic operations 与 memory access 的比率。
 
@@ -187,7 +187,7 @@ $$
 \mathcal{O}\left(\frac{N^2}{B_rB_c}B_rB_cd\right) = \mathcal{O}(N^2d)
 $$
 
-在 flashattention 的计算过程中，我们只需要保存 $(\ell, m)$ 即可，因此需要的额外内存空间为 $\mathcal{O}(n)$.
+在 flashattention 的计算过程中，我们只需要保存 $(\ell, m)$ 即可，因此需要的额外内存空间为 $\mathcal{O}(N)$.
 
 接下来，我们可以证明 flashattention 的正确性，我们使用归纳法来证明。令 $j$ 满足 $0\leq j\leq T_c$, $K_{:j}\in\mathbb{R}^{jB_c\times d}$, $V_{:j}\in\mathbb{R}^{jB_c\times d}$ 分别为 $K$ 和 $V$ 的前 $jB_c$ 行。 $S_{:, :j}=QK_{:j}^T\in\mathbb{R}^{N\times jB_c}$, $P_{:,:j}=\mathrm{softmax}(S_{:,:j})\in\mathbb{R}^{N\times jB_c}$, $m^{(j)}, \ell^{(j)}, O^{(j)}$ 分别为 $m,\ell, O$ 的第 $j$ 个元素。我们证明经过第 $j$ 次迭代后，HBM 中保存的是
 
@@ -251,7 +251,7 @@ $$
 L_i = \sum_{j=1}^N \exp\left(q_i^Tk_j\right)
 $$
 
-对任意 $i$, 计算 $L_i$ 只需要 $\mathcal{O}(n)$ 的空间复杂度。
+对任意 $i$, 计算 $L_i$ 只需要 $\mathcal{O}(N)$ 的空间复杂度。
 
 令 $v_j$ 是 $V$ 的第 $i$ 列，则输出 $O$ 的第 $i$ 列 $o_i$ 为
 
@@ -259,9 +259,9 @@ $$
 o_i = P_{i:}V = \sum_{j=1}^N P_{ij}v_j = \sum_{j=1}^N\frac{\exp(q_i^Tk_j)}{L_i}v_j
 $$
 
-这个过程中，对任意 $i$, 计算 $o_i$ 也只需要 $\mathcal{O}(n)$ 的空间复杂度。
+这个过程中，对任意 $i$, 计算 $o_i$ 也只需要 $\mathcal{O}(N)$ 的空间复杂度。
 
-因此，在 $L_i$ 已经计算好的情况下，我们可以在 $\mathcal{O}(n)$ 的空间复杂度下计算 $o_i$.
+因此，在 $L_i$ 已经计算好的情况下，我们可以在 $\mathcal{O}(N)$ 的空间复杂度下计算 $o_i$.
 
 最终，flashattention 的 forward pass 过程如下图所示
 
@@ -272,7 +272,7 @@ $$
 > Theorem 2
 > 令 $N$ 为 sequence length, $d$ 为 head dimension, $M$ 是 SRAM 的 size, 且满足 $d\leq M\leq Nd$. 则 flashattention 前向传播的内存访问开销为 $\Theta(N^2d^2M^{-1})$.
 
-证明：由 Algorithm 1（或者 Algorithm 2）可以知道，$K$ 和 $V$ 的每一个元素都只需要从 HBM 中加载一次，而每一次外层循环都会从 HBM 中加载一次 $O$ 和 $Q$, 因此总的 HBM 访问次数为 $\mathcal{O}(Nd+ndT_c)=\mathcal{O}(NdT_c)$.
+证明：由 Algorithm 1（或者 Algorithm 2）可以知道，$K$ 和 $V$ 的每一个元素都只需要从 HBM 中加载一次，而每一次外层循环都会从 HBM 中加载一次 $O$ 和 $Q$, 因此总的 HBM 访问次数为 $\mathcal{O}(Nd+NdT_c)=\mathcal{O}(NdT_c)$.
 
 接下来，我们给出每一次内层循环的内存访问开销，这是由 SRAM 的大小决定的。由于我们需要 SRAM 可以存储 $K_j\in\mathbb{R}^{B_c\times d}$ 以及 $V_j\in\mathbb{R}^{B_c\times d}$ ，我们的 block size 需要满足
 
@@ -339,7 +339,7 @@ $$
 dP_{ij} = do_i^Tv_j
 $$
 
-计算的空间复杂度也是要 $\mathcal{O}(n)$ 的
+计算的空间复杂度也是要 $\mathcal{O}(N)$ 的
 
 注意到 $P_{i:}=\mathrm{softmax}(s_{i:})$, 且 $y=\mathrm{softmax}(x)$ 的 Jacobian 是 $\mathrm{diag}(y)-yy^T$ (推导过程见 [softmax](softmax.md)), 我们有
 
@@ -353,7 +353,7 @@ $$
 D_i = P_{i:}^TdP_{i:}= \sum_{j=1}^N\frac{\exp(q_i^Tk_j)}{L_i}do_i^Tv_j = do_i^T\sum_{j=1}^N\frac{\exp(q_i^Tk_j)}{L_i}v_j = do_i^To_i
 $$
 
-$D_i$ 的空间复杂度也只需要 $\mathcal{O}(n)$.
+$D_i$ 的空间复杂度也只需要 $\mathcal{O}(N)$.
 
 则
 
@@ -381,13 +381,13 @@ $$
 dk_j = \sum_{j=1}^N dS_{ij}q_i = \sum_{j=1}^NP_{ij}(dP_{ij}-D_i)q_i = \sum_{j=1}^N\frac{\exp(q_i^Tk_j)}{L_i}(do_i^Tv_j-D_i)q_i
 $$
 
-其空间复杂度为 $\mathcal{O}(n)$.
+其空间复杂度为 $\mathcal{O}(N)$.
 
-总之，attention 的反向传播过程所需要的空间复杂度为 $\mathcal{O}(n)$.
+总之，attention 的反向传播过程所需要的空间复杂度为 $\mathcal{O}(N)$.
 
 作者发现有两点可以改进：
 
-1. attention mask 不需要存储，我们只需要保存 forward pass 时的输入，然后在 backward pass 时重新生成即可，这样只需要 $\mathcal{O}(n)$ 的空间复杂度。
+1. attention mask 不需要存储，我们只需要保存 forward pass 时的输入，然后在 backward pass 时重新生成即可，这样只需要 $\mathcal{O}(N)$ 的空间复杂度。
 2. 计算 softmax 的梯度是，如果使用公式 $D_i=P_{i:}^TdP_{i:}$ 来计算的话，由于 $P_{i:}\in\mathbb{R}^N$, 可能会导致超过 SRAM 的内存使用限制，因此，我们可以使用 $D_i=do_i^To_i$ 来避免这个问题，其中 $o_i\in\mathbb{R}^d$.
 
 最终，flashattention 的 backward pass 过程如下图所示
@@ -420,7 +420,7 @@ Block-sparse attention 的算法如下所示
 > Proposition 4
 > 令 $N$ 为 sequence length, $d$ 为 head dimension, $M$ 是 SRAM 的 size, 且满足 $d\leq M\leq Nd$. 则 block-sparse attention 的内存访问开销为 $\Theta(Nd+N^2d^2M^{-1}s)$, 其中 $s$ 是 block-sparse mask 中的非零 block 的比例
 
-证明与 Theorem 2 的证明是类似的，总的内存访问开销为 $\mathcal{O}(Nd+ndT_c)$, 但是在计算的过程中，由于 mask 矩阵的 block-sparsity, 我们实际上只需要计算一小部分 $M_{ij}\neq0$ 的情况，因此最终的内存访问开销为
+证明与 Theorem 2 的证明是类似的，总的内存访问开销为 $\mathcal{O}(Nd+NdT_c)$, 但是在计算的过程中，由于 mask 矩阵的 block-sparsity, 我们实际上只需要计算一小部分 $M_{ij}\neq0$ 的情况，因此最终的内存访问开销为
 
 $$
 \mathcal{O}\left(Nd+\frac{N^2d^2}{M}s\right)
