@@ -2,7 +2,7 @@
 title: Notes on gpt-oss
 description: openAI 发布了 gpt-oss 大语言模型，包含 120B-A5.1B 以及 20.9B-A3.6B 两个 size, 作者强调了模型的 instruction following, tool use, 以及 adaptive thinking 能力
 date: 2025-08-19 16:14:56+0800
-lastmod: 2025-08-20 11:24:54+0800
+lastmod: 2025-08-22 10:05:33+0800
 math: true
 tags: 
     - openAI
@@ -59,7 +59,7 @@ $$
 
 $$
 \begin{aligned}
-o_1&=W_1x+b1,\\
+o_1&=W_1x+b_1,\\
 o_3&=W_3x+b_3\\
 o_1&=\mathrm{clamp}(o_1,\max=\mathrm{limit})\\
 o_3&=\mathrm{clamp}(o_3,\min=-\mathrm{limit},\max=\mathrm{limit})\\
