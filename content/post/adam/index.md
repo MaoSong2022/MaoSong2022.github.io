@@ -2,7 +2,7 @@
 title: Notes on Adam
 description: 作者提出了 Adam, 一个一阶的优化方法，Adam 更加高效，且具有 scaling invariant 的性质。
 date: 2025-09-04 10:11:55+0800
-lastmod: 2025-09-04 10:20:44+0800
+lastmod: 2025-09-04 10:11:55+0800
 math: true
 tags: 
     - optimizer
