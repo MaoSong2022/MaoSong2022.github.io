@@ -2,7 +2,7 @@
 title: Notes on RNoPE-SWA
 description: 作者系统性分析了已有的 attention 机制，然后作者提出了混合的 attention 机制，来提高模型在长上下文的表现以及维持模型在短上下文场景下的表现。
 date: 2025-09-02 11:24:10+0800
-lastmod:2025-09-02 11:24:10+0800
+lastmod: 2025-09-02 11:24:10+0800
 tags:
     - position embedding
     - attention
