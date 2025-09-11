@@ -5,7 +5,7 @@ date: 2025-07-23 11:11:43+0800
 lastmod: 2025-07-23 11:11:43+0800
 math: true
 tags: 
-    - Zhipu
+    - Kuaishou
     - Reasoning
 categories:
     - MLLM 
