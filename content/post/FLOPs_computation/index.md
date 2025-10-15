@@ -342,13 +342,13 @@ def compute_flops(n, V, d, d_ff, s):
 
 首先我们看一下不同大小模型的 FLOPs 分布情况
 
-![FLOPs distribution againsy model size](LLM-FLOPs-flops_distribution.png)
+![FLOPs distribution against model size](LLM-FLOPs-flops_distribution.png)
 
 可以看到，当模型越来越大，FFN 层的算力占比越来越高，这也是为什么后来采用 MoE 架构的一个原因。
 
 接下来，我们看一下模型 FLOPs 分布情况随上下文长度变化的情况
 
-![](LLM-FLOPs-flops_vs_context.png)
+![FLOPs distribution aginst context length](LLM-FLOPs-flops_vs_context.png)
 
 可以看到，随 context length 增加，attention 的算力占比逐渐上升，这符合 attention 是一个平方复杂度的算法的结论。并且，当上下文足够长之后，计算还出现了 overflow (图像右端的突然下降)。
 
