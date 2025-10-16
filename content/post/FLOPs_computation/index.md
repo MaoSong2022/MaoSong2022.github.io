@@ -2,7 +2,7 @@
 title: LLM FLOPs Computation
 description: 计算LLM的FLOPs
 date: 2025-10-15 16:33:39+0800
-lastmod: 2025-10-16 09:42:40+0800
+lastmod: 2025-10-16 10:05:46+0800
 math: true
 categories:
     - LLM
@@ -49,7 +49,7 @@ FLOPs，floating point operations，表示浮点数运算次数，一般计算 F
 
 ## Computation
 
-我们计算训练阶段的总 FLOPs, 记为 $C$,  [Kaplan scaling law](Kaplan%20scaling%20law.md) 用 PF-days 作为单位，$1\text{ PF-Days}=10^{15}\ FLOPs$. 训练阶段包括前向阶段 (forward pass) 和反向传播阶段 (backward pass). 因此
+我们计算训练阶段的总 FLOPs, 记为 $C$,  [Kaplan scaling law](Kaplan%20scaling%20law.md) 用 PF-days 作为单位，$1\text{ PF-Days}=10^{15}\times 24\times 3600\ FLOPs$. 训练阶段包括前向阶段 (forward pass) 和反向传播阶段 (backward pass). 因此
 
 $$
 C = FLOPs(\text{forward}) + FLOPs(\text{backward})
@@ -238,7 +238,7 @@ $$
 
 这里的两项分别是对 $x$ 和 $W$ 求梯度的 FLOPs.
 
-## Overall
+### Overall
 
 将前向传播和反向传播的计算量汇总我们就得到一次前向传播和一次反向传播过程中，对于长度为 $s$ 的 token, 其 FLOPs 为 (multi-head attention, SwiGLU-FFN)
 
@@ -250,9 +250,9 @@ C &= FLOPs(\text{forward}) + FLOPs(\text{backward})\\
 \end{aligned}
 $$
 
-## Extension
+### Extension
 
-### GQA
+#### GQA
 
 GQA 与 MHA 不同的地方在于通过共享 key 和 value 来降低 KV cache 的占用，我们假设 group number 为 $g$, 则 key 和 value 的 FLOPs 现在变成了
 
@@ -268,7 +268,7 @@ $$
 
 当 $g=h$ 时，GQA 就变成了 MHA, 此时的 FLOPs 也一致。
 
-### MoE
+#### MoE
 
 MoE 是针对 Dense FFN 的一个改进，介绍见 [MoE](MoE.md), 我们假设一共有 $e$ 个路由专家，其中激活 $k$ 个。
 
@@ -282,7 +282,7 @@ $$
 FLOPs(\text{MoE}) = FLOPs(\text{router})+FLOPs(\text{expert})= \boxed{2sde+6ksdd_{ff}}
 $$
 
-## Simplification
+### Simplification
 
 我们已经得到了 transformer 的 FLOPs 计算表达式，但是其表达式比较繁琐，因此，在研究 scaling law 时，一般会进行简化。
 
