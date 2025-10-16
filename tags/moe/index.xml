@@ -1,0 +1,361 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>MoE on Mao Song(毛松)'s Homepage</title><link>https://maosong2022.github.io/tags/moe/</link><description>Recent content in MoE on Mao Song(毛松)'s Homepage</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><lastBuildDate>Fri, 29 Aug 2025 11:03:12 +0800</lastBuildDate><atom:link href="https://maosong2022.github.io/tags/moe/index.xml" rel="self" type="application/rss+xml"/><item><title>Notes on DeepSeekMoE</title><link>https://maosong2022.github.io/p/notes-on-deepseekmoe/</link><pubDate>Fri, 29 Aug 2025 11:03:12 +0800</pubDate><guid>https://maosong2022.github.io/p/notes-on-deepseekmoe/</guid><description>&lt;p>DeepSeek 在 2024 年 1 月发布了 DeepSeekMoE, 一个解决 MoE 模型 scecialization 不足以及 redundancy 问题的大模型系列。&lt;/p>
+&lt;h2 id="introduction">Introduction
+&lt;/h2>&lt;p>作者首先回顾了已有 MoE 模型的不足，主要有两点：&lt;/p>
+&lt;ol>
+&lt;li>knowledge hybridity: 已有 MoE 模型的专家个数比较少，这就导致每个专家需要掌握更多样化的知识，提高了训练难度&lt;/li>
+&lt;li>knowledge redundancy: 不同专家掌握的知识可能有重叠，从而导致了模型参数的 redundancy&lt;/li>
+&lt;/ol>
+&lt;p>为了解决这两个问题，作者提出了 DeepSeek-MoE, DeepSeek-MoE 主要做出了两点改变：&lt;/p>
+&lt;ol>
+&lt;li>Fine-Grained Expert Segmentation: 作者使用了更多的专家，来提高每个专家的 specialization, 降低训练成本&lt;/li>
+&lt;li>Shared Expert Isolation: 作者在 Routing expert 的基础上，加入了 shared expert 来学习 common knowledge.&lt;/li>
+&lt;/ol>
+&lt;p>作者在 2B-A0.6B 的模型进行了实验，结果显示模型表现超过了 GShard, 说明了 DeepSeekMoE 模型架构的有效性。&lt;/p>
+&lt;p>作者还进一步将模型 scale 到了 16B-A2.8B 和 145B-A22B, 实验结果均验证了模型的 scaling 效果。&lt;/p>
+&lt;h2 id="method">Method
+&lt;/h2>&lt;h3 id="preliminary">Preliminary
+&lt;/h3>&lt;p>作者首先回顾了 transformer 架构，transformer 的第 $\ell$ 层 decode layer 可以表示为&lt;/p>
+$$
+\begin{aligned}
+u_{1:T}^{\ell} &amp;= \mathrm{self\_attention}(h_{1:T}^{\ell-1}) + h_{1:T}^{\ell}\\
+h_t^\ell &amp;= \mathrm{FFN}(u_t^{\ell}) + u_t^{\ell}
+\end{aligned}
+$$&lt;p>其中 $T$ 是 sequence length, $h_{1:T}^{\ell-1}$ 是第 $\ell-1$ 层 decoder layer 输出的 hidden states.&lt;/p>
+&lt;p>接下来，我们可以将 dense 架构转换为 MoE 架构，MoE 架构与 dense 架构不同的地方在与 $\mathrm{FFN}$ 不再是 MLP, 而是一个 MoE 模块，其表达式如下&lt;/p>
+$$
+\begin{aligned}
+h_t^\ell &amp;= \sum_{i=1}^N\left(g_{i,t}\mathrm{FFN}_i(u_t^{\ell})\right) + u_t^{\ell}\\
+g_{i,t} &amp;= \begin{cases}
+s_{i,t,}, &amp;s_{i,t}\in\mathrm{Topk}(\{s_{j,t}\mid 1\leq j \leq N\},K)\\
+0, &amp;\text{otherwise}
+\end{cases}\\
+s_{i,t,} &amp;= \mathrm{softmax}_i({u_t^{\ell}}^Te_i^{\ell})
+\end{aligned}
+$$&lt;p>这里 $N$ 是专家的总个数， $K$ 是激活专家个数， $e_{i}^{\ell}$ 是 routing layer 的权重矩阵，$\mathrm{FFN}_i$ 是每个专家对应的 FFN.&lt;/p>
+&lt;h3 id="deepseekmoe-architecutre">DeepSeekMoE Architecutre
+&lt;/h3>&lt;p>DeepSeekMoE 架构如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-deepseekmoe/DeepSeekMoE-architecture.png"
+width="1200"
+height="586"
+srcset="https://maosong2022.github.io/p/notes-on-deepseekmoe/DeepSeekMoE-architecture_hu4792723050699036467.png 480w, https://maosong2022.github.io/p/notes-on-deepseekmoe/DeepSeekMoE-architecture_hu1111125453942995081.png 1024w"
+loading="lazy"
+alt="Architecture of DeepSeekMoE"
+class="gallery-image"
+data-flex-grow="204"
+data-flex-basis="491px"
+>&lt;/p>
+&lt;p>相比于其他 MoE 架构，DeepSeekMoE 主要做了以下几点改变。&lt;/p>
+&lt;h4 id="fine-grained-expert-segmentation">Fine-Grained Expert Segmentation
+&lt;/h4>&lt;p>作者首先解决了每个专家学习内容过多的问题。作者的做法就是将每个 expert FFN 分割为 $m$ 个更小的专家，具体做法就是将 FFN intermediate hidden size 降低为原来的 $1/m$. 这样的话就可以在不增加模型参数量的情况下提高模型的表现。修正后的 MoE 模块为&lt;/p>
+$$
+\begin{aligned}
+h_t^\ell &amp;= \sum_{i=1}^{mN}\left(g_{i,t}\mathrm{FFN}_i(u_t^{\ell})\right) + u_t^{\ell}\\
+g_{i,t} &amp;= \begin{cases}
+s_{i,t,}, &amp;s_{i,t}\in\mathrm{Topk}(\{s_{j,t}\mid 1\leq j \leq mN\},mK)\\
+0, &amp;\text{otherwise}
+\end{cases}\\
+s_{i,t,} &amp;= \mathrm{softmax}_i({u_t^{\ell}}^Te_i^{\ell})
+\end{aligned}
+$$&lt;p>可以看到，现在我们一共有 $mN$ 个专家，激活专家个数为 $mK$ 个。作者认为，通过提高专家的粒度，我们可以有效增加专家组合的可能性，这就提高了最终的组合多样性。&lt;/p>
+&lt;h4 id="shared-expert-isolation">Shared Expert Isolation
+&lt;/h4>&lt;p>接下来，作者介绍了解决不同专家学习到重复知识的问题，作者的做法是在 routing Expert 的基础上加入 Shared expert. 也就是说，有固定几个专家始终都会被激活，这部分专家复杂学习通用知识，从而减少知识冗余。增加 shared expert 之后的 MoE 模块为&lt;/p>
+$$
+\begin{aligned}
+h_t^\ell &amp;= \sum_{i=1}^{K_s}\mathrm{FFN}_i(u_t^{\ell})+\sum_{i=K_s+1}^{mN}\left(g_{i,t}\mathrm{FFN}_i(u_t^{\ell})\right) + u_t^{\ell}\\
+g_{i,t} &amp;= \begin{cases}
+s_{i,t,}, &amp;s_{i,t}\in\mathrm{Topk}(\{s_{j,t}\mid K_s+1\leq j \leq mN\},mK-K_s)\\
+0, &amp;\text{otherwise}
+\end{cases}\\
+s_{i,t,} &amp;= \mathrm{softmax}_i({u_t^{\ell}}^Te_i^{\ell})
+\end{aligned}
+$$&lt;p>此时，模型中一共包含 $K_s$ 个共享专家，$mN-K_s$ 个 routing expert, 其中激活专家个数为 $mK-K_s$.&lt;/p>
+&lt;h4 id="load-balancing-loss">Load Balancing Loss
+&lt;/h4>&lt;p>接下来，作者解决了训练时的 load imbalance 问题，作者提出了两个 loss 来分别解决不同层面的 load imbalance 问题。&lt;/p>
+&lt;p>首先，在 expert 层面，作者使用了如下的 load balancing loss:&lt;/p>
+$$
+\mathcal{L} = \alpha_1\sum_{i=1}^{N'}f_iP_i
+$$&lt;p>其中 $\alpha_1$ 是超参数，&lt;/p>
+$$
+f_i = \frac{N'}{K'T}\sum_{i=1}^{N'}\mathbb{1}(\text{Token }i \text{ selects Expert }i),\quad P_i = \frac{1}{T}\sum_{t=1}^Ts_{i,t}
+$$&lt;p>分别为以及分配给第 $i$ 个专家的 token 比例以及概率之和。$N&amp;rsquo;=mN-K_s$, $K&amp;rsquo;=mK-K_s$. $\mathbb{1}(\cdot)$ 是 indicator function.&lt;/p>
+&lt;p>其次，在 device 层面，作者也是用了 load balancing loss 来减少不同设备之间不必要的通信。作者将 routed experts 分为 $D$ 个 group $\mathcal{E}_1,\dots,\mathcal{E}_D$, 然后每个设备部署一个 group, group level 的 load balancing loss 定义如下：&lt;/p>
+$$
+\mathcal{L} = \alpha_2\sum_{i=1}^D f_i' P_i'
+$$&lt;p>其中 $\alpha_2$ 是超参数，&lt;/p>
+$$
+f_i' = \frac{1}{|\mathcal{E}_i|}\sum_{j\in\mathcal{E}_i}f_i,\quad P_i' = \sum_{j\in\mathcal{E}_i}P_i
+$$&lt;p>实际中，作者使用了一个较小的 $\alpha_1$ 来避免 routing collapse, 使用了一个较大的 $\alpha_2$ 来提高 Device 层面的负载均衡。&lt;/p>
+&lt;h3 id="training">Training
+&lt;/h3>&lt;p>作者使用了中英文数据进行训练，tokenizer 基于 BPE 算法，vocab size 为 8K. 模型训练基于 HAI-LLM.训练时使用了 TP, DP, PP, EP 等并行策略。&lt;/p>
+&lt;p>2B, 16B, 145B 模型的参数如下表所示&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Model&lt;/th>
+&lt;th>2B&lt;/th>
+&lt;th>16B&lt;/th>
+&lt;th>145B&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>total params&lt;/td>
+&lt;td>2B&lt;/td>
+&lt;td>16.4B&lt;/td>
+&lt;td>144.6B&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>activated params&lt;/td>
+&lt;td>0.3B&lt;/td>
+&lt;td>2.8B&lt;/td>
+&lt;td>22.2B&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>hidden size&lt;/td>
+&lt;td>1280&lt;/td>
+&lt;td>2048&lt;/td>
+&lt;td>4096&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>layers&lt;/td>
+&lt;td>9&lt;/td>
+&lt;td>28&lt;/td>
+&lt;td>62&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>attention heads&lt;/td>
+&lt;td>10&lt;/td>
+&lt;td>16&lt;/td>
+&lt;td>32&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>head dimension&lt;/td>
+&lt;td>128&lt;/td>
+&lt;td>128&lt;/td>
+&lt;td>128&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>routed experts&lt;/td>
+&lt;td>63&lt;/td>
+&lt;td>64&lt;/td>
+&lt;td>128&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>activated experts&lt;/td>
+&lt;td>7&lt;/td>
+&lt;td>6&lt;/td>
+&lt;td>12&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>shared experts&lt;/td>
+&lt;td>1&lt;/td>
+&lt;td>2&lt;/td>
+&lt;td>4&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>training tokens&lt;/td>
+&lt;td>100B&lt;/td>
+&lt;td>2T&lt;/td>
+&lt;td>245B&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h2 id="experiments">Experiments
+&lt;/h2>&lt;h3 id="alignment">Alignment
+&lt;/h3>&lt;p>作者针对 DeepseekMoE 16B 进行了微调，微调使用了 1.4M 的训练样本，覆盖了 math, code, QA, reasoning 等任务。&lt;/p>
+&lt;h3 id="ablation-study">Ablation Study
+&lt;/h3>&lt;p>作者在 2B 的模型上进行了 ablation study.&lt;/p>
+&lt;p>首先，作者探究了细粒度专家和共享专家的有效性，结果如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-deepseekmoe/DeepSeekMoE-ablation-experts.png"
+width="1197"
+height="552"
+srcset="https://maosong2022.github.io/p/notes-on-deepseekmoe/DeepSeekMoE-ablation-experts_hu13488373378225854754.png 480w, https://maosong2022.github.io/p/notes-on-deepseekmoe/DeepSeekMoE-ablation-experts_hu6581578019190079093.png 1024w"
+loading="lazy"
+alt="Ablation on experts"
+class="gallery-image"
+data-flex-grow="216"
+data-flex-basis="520px"
+>&lt;/p>
+&lt;p>实验结果显示，与 Gshard 相比，使用共享专家可以有效提高模型的表现。并且，使用更细粒度的专家也可以进一步提高模型的表现&lt;/p>
+&lt;p>作者海滩久了以下共享专家与路由专家的比例，作者分别使用不同的比例进行实验，结果发现共享专家：路由专家个数为 1：3 的时候模型效果最好。&lt;/p>
+&lt;p>作者海滩久了以下模型的泛化性，作者 mask 掉一部分概率最高的 routing expert, 然后从剩下的专家里进行 topK 的挑选，然后作者比较模型和 GShard 的表现，结果如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-deepseekmoe/DeepSeekMoE-ablation-expert-specialization.png"
+width="737"
+height="526"
+srcset="https://maosong2022.github.io/p/notes-on-deepseekmoe/DeepSeekMoE-ablation-expert-specialization_hu1048559941586353742.png 480w, https://maosong2022.github.io/p/notes-on-deepseekmoe/DeepSeekMoE-ablation-expert-specialization_hu16111375923387789940.png 1024w"
+loading="lazy"
+alt="Ablation study on expert specialization"
+class="gallery-image"
+data-flex-grow="140"
+data-flex-basis="336px"
+>&lt;/p>
+&lt;p>实验结果显示，DeepSeekMoE 对于 mask 操作更敏感，这说明 DeepSeekMoE 模型中专家的 specialization 更强。&lt;/p>
+&lt;p>作者还探究了 mask 掉共享专家对模型表现的影响，结果显示共享专家与路由专家之间的 overlap 很小，去掉共享专家之后，模型表现会变差。&lt;/p>
+&lt;p>作者进一步分析了共享专家与路由专家组合的有效性。作者探究 DeepSeekMoE 是否可以使用更少的路由专家来获取知识。作者通过使用不同的 activated routed experts 来进行实验，实验结果如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-deepseekmoe/DeepSeekMoE-ablation-number-activated-experts.png"
+width="730"
+height="524"
+srcset="https://maosong2022.github.io/p/notes-on-deepseekmoe/DeepSeekMoE-ablation-number-activated-experts_hu3482294733356635794.png 480w, https://maosong2022.github.io/p/notes-on-deepseekmoe/DeepSeekMoE-ablation-number-activated-experts_hu10658320898924064401.png 1024w"
+loading="lazy"
+alt="Ablation study on activated routed experts"
+class="gallery-image"
+data-flex-grow="139"
+data-flex-basis="334px"
+>&lt;/p>
+&lt;p>实验结果显示，DeepSeekMoE 仅需激活 4 个路由专家，就可以达到与 GShard 相同的表现。这说明了 DeepSeekMoE 模型中每个专家可以学习到更准确的知识。&lt;/p>
+&lt;h2 id="conclusion">Conclusion
+&lt;/h2>&lt;p>作者在本文中提出了 DeepSeekMoE 架构，来提高 MoE 模型中专家的利用效率。为了达到这一点，作者首先使用了更细粒度的专家，降低每个专家的学习成本，然后，作者使用了共享专家，来降低不同专家之间的知识冗余。作者先在 2B 的模型上验证了方法的有效性，然后作者将模型 scale 到了 16B 和 125B。结果显示模型的效果均超过了以前的工作。&lt;/p>
+&lt;h2 id="references">References
+&lt;/h2>&lt;ul>
+&lt;li>&lt;a class="link" href="http://arxiv.org/abs/2401.06066" target="_blank" rel="noopener"
+>arxiv&lt;/a>&lt;/li>
+&lt;/ul></description></item><item><title>Notes on Hunyuan-Large</title><link>https://maosong2022.github.io/p/notes-on-hunyuan-large/</link><pubDate>Wed, 06 Aug 2025 16:46:32 +0800</pubDate><guid>https://maosong2022.github.io/p/notes-on-hunyuan-large/</guid><description>&lt;p>腾讯混元提出了 Hunyuan-Large, 一个 389B-A52B 的 MoE LLM, 上下文长度为 256K.&lt;/p>
+&lt;h2 id="introduction">Introduction
+&lt;/h2>&lt;p>Hunyuan-Large 主要在三个方向进行了改进：&lt;/p>
+&lt;ol>
+&lt;li>使用了更高质量的合成数据：模型使用了 7T 的预训练数据，其中包含了 1.5T 的合成数据&lt;/li>
+&lt;li>优化了模型的架构：作者提出了 KV cache compression, recycle routing, expert-specific learning rate scaling 策略来提高模型的表现&lt;/li>
+&lt;li>探究了 MoE 模型的 scaling law: 作者探究了 MoE 模型的 scaling law&lt;/li>
+&lt;/ol>
+&lt;h2 id="pre-training">Pre-training
+&lt;/h2>&lt;h3 id="architecture">Architecture
+&lt;/h3>&lt;p>Hunyuan-Large 是一个基于 MoE 的 transformer 架构，attention 部分使用了 &lt;a class="link" href="https://maosong.website/p/notes-on-gqa/" target="_blank" rel="noopener"
+>GQA&lt;/a>, position encoding 使用了 RoPE, MLP 的激活函数为 SwiGLU. 在 MoE layer 中，Hunyuan-Large 使用了 shared experts. 最终，模型的配置如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-hunyuan-large/hunyuan-large-architecture-config.png"
+width="654"
+height="399"
+srcset="https://maosong2022.github.io/p/notes-on-hunyuan-large/hunyuan-large-architecture-config_hu7926587958527572246.png 480w, https://maosong2022.github.io/p/notes-on-hunyuan-large/hunyuan-large-architecture-config_hu112456650109780077.png 1024w"
+loading="lazy"
+alt="Configuration of Hunyuan-Large"
+class="gallery-image"
+data-flex-grow="163"
+data-flex-basis="393px"
+>&lt;/p>
+&lt;h4 id="kv-cache-compression">KV Cache Compression
+&lt;/h4>&lt;p>为了减少 KV cache 的内存开销，作者使用了两个技巧：&lt;/p>
+&lt;ol>
+&lt;li>GQA: 通过共享 KV projection 的参数，来减少内存访问次数&lt;/li>
+&lt;li>[[CLA]]: 在相邻的 layer 中共享 KV cache, 来进一步压缩 KV cache&lt;/li>
+&lt;/ol>
+&lt;p>在 Hunyuan-Large 中，作者将 GQA 的 group size 设置为 8, 然后相邻的 2 层 layer 共享 KV cache.&lt;/p>
+&lt;p>假设输入的 batch size 为 $B$, sequence 长度为 $L$, layers 个数为 $\ell$, attention heads 个数为 $h$, KV heads 个数为 $h_{kv}$, 每个 head 的 hidden size 为 $d_h$, 则每一层的 GQA 需要缓存 $K,V\in\mathbb{R}^{B\times _{kv}\times L\times d_h}$， KV cache 的总占用为&lt;/p>
+$$
+2\times B\times h_{kv}\times L\times d_h \times \ell \times 2=4BLh_{kv}d_h\ell
+$$&lt;p>第一个 $2$ 是因为同时缓存 K 和 V, 第二个 $2$ 是因为一般使用 &lt;code>bfloat16&lt;/code> 数据格式。&lt;/p>
+&lt;p>对于 CLA, 因为连续两层共享相同的 KV cache，因此结果除以 2; 对于 MHA, $h_{kv}=h$; 对于 &lt;a class="link" href="https://maosong.website/p/notes-on-mqa/" target="_blank" rel="noopener"
+>MQA&lt;/a>, $h_{kv}=1$. 最后，KV cache 的内存占用如下表所示&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Attention Mechanism&lt;/th>
+&lt;th>KV Cache Memory&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>MHA&lt;/td>
+&lt;td>$4BLhd_h\ell$&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>GQA&lt;/td>
+&lt;td>$4BLh_{kv}d_h\ell$&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>MQA&lt;/td>
+&lt;td>$4BLd_h\ell$&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>CLA&lt;/td>
+&lt;td>$2BLhd_h\ell$&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>GQA+CLA&lt;/td>
+&lt;td>$2BLh_{kv}d_h\ell$&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>可以看到，使用 GQA+CLA 之后，模型的 kv cache 占用相比于 MHA 变成了&lt;/p>
+$$
+\frac{2BLh_{kv}d_h\ell}{4BLhd_h\ell}=\frac{1}{16}
+$$&lt;p>也就是说，Hunyuan-Large 的 KV cache 内存占用下降到了 MHA 的 1/16.&lt;/p>
+&lt;h4 id="expert-routing-strategy">Expert Routing Strategy
+&lt;/h4>&lt;p>作者采用了 shared expert + activated expert 的形式，其中包含 1 个 shared expert, 然后从 16 个专家里激活 1 个专家。&lt;/p>
+&lt;p>为了解决 MoE 中 expert capacity 难以设定的问题，作者提出了一个 recycle routing 的策略，基本思想就是，当 activated expert 的容量超出限制时，会从其他没有超出容量限制的专家里重新进行激活。&lt;/p>
+&lt;h4 id="expert-specific-learning-rate-scaling">Expert Specific Learning Rate Scaling
+&lt;/h4>&lt;p>作者使用 AdamW 作为优化器，作者探讨了如何设定学习率。基于之前的工作，最优的学习率与 batch size 相关：&lt;/p>
+$$
+\epsilon_{\mathrm{opt}}(B) = \frac{2\epsilon_{\max}}{\sqrt{\frac{\mathcal{B}_{\mathrm{noise}}}{B}}+\sqrt{\frac{B}{\mathcal{B}_{\mathrm{noise}}}}}
+$$&lt;p>这里 $\epsilon_{\max}$ 是 AdamW 的学习率, $\mathcal{B}_{\mathrm{noise}}$ 是训练速度与数据使用效率的一个平衡因子。&lt;/p>
+&lt;p>但是，在 MoE 模型中，不同专家处理的 token 是不一样的。基于 load balancing loss, shared expert 和 activated expert 处理的 token 个数比例大概是 $n :1$, 其中 $n=16$ 是总的专家个数。因此，对于 shared expert, 作者使用 $\epsilon_{\mathrm{opt}}(B)$ 作为学习率，然后对于 activated expert, 作者使用 $\epsilon_{\mathrm{opt}}(B/n)$ 作为学习率。&lt;/p>
+&lt;h3 id="data">Data
+&lt;/h3>&lt;p>预训练数据包括收集和合成。收集的数据主要来自互联网，覆盖中英文两种语言。&lt;/p>
+&lt;p>合成数据包括 4 个步骤：&lt;/p>
+&lt;ol>
+&lt;li>instruction generation: 作者使用高质量的语料作为 seed, 然后生成多样的 instruction 覆盖不同的 domain&lt;/li>
+&lt;li>Instruction evolution: refine 上一步生成的 instruction&lt;/li>
+&lt;li>Response generation: 使用 specialized model 来生成回答&lt;/li>
+&lt;li>response filtering: 对生成的回答进行过滤&lt;/li>
+&lt;/ol>
+&lt;p>数据合成的流程如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-hunyuan-large/Hunyuan-large-data-synthesis.png"
+width="1126"
+height="565"
+srcset="https://maosong2022.github.io/p/notes-on-hunyuan-large/Hunyuan-large-data-synthesis_hu18416123704675275786.png 480w, https://maosong2022.github.io/p/notes-on-hunyuan-large/Hunyuan-large-data-synthesis_hu18395332435503133072.png 1024w"
+loading="lazy"
+alt="Data synthesis pipeline"
+class="gallery-image"
+data-flex-grow="199"
+data-flex-basis="478px"
+>&lt;/p>
+&lt;p>tokenizer 大小为 128K, 由 tittoken tokenizer 和额外的 28K token 组成。&lt;/p>
+&lt;h3 id="pre-training-recipe">Pre-training Recipe
+&lt;/h3>&lt;p>作者首先探究了一个针对 MoE 模型的 scaling law. 结果发现，最优的激活参数量为 58.1B, training token 个数为 5.6T. 经过平滑之后，作者最终将模型的激活参数两定为 &lt;strong>52B&lt;/strong>, 训练 token 数定为 $7T$.&lt;/p>
+&lt;p>在训练时，作者将学习率分为了 3 个 stage:&lt;/p>
+&lt;ol>
+&lt;li>warmup phase&lt;/li>
+&lt;li>gradual decay phase&lt;/li>
+&lt;li>concise annealing phase&lt;/li>
+&lt;/ol>
+&lt;p>上面的三个 stage 结束之后，作者加入了两个 stage 来扩展模型的上下文长度从 32K 扩展到 256K. 训练的数据包括 75% 的短文本和 25% 的长文本。两个 stage 训练的 token 数均为 $10B$ 左右。&lt;/p>
+&lt;h2 id="post-training">Post-training
+&lt;/h2>&lt;p>post-training 分为 SFT 和 RLHF 两个阶段。&lt;/p>
+&lt;h3 id="sft">SFT
+&lt;/h3>&lt;p>SFT 数据副高 math, coding, logical reasoning 等 domain, 包含超过 1M 的数据。&lt;/p>
+&lt;p>SFT 训练了 3 个 epoch, 学习率从 2e-5 降低到 2e-6, 为了避免 overfitting, 作者使用了 0.1 的 attention dropout 和 0.2 的 hidden dropout.&lt;/p>
+&lt;blockquote>
+&lt;p>[!tip]
+作者发现，MoE 模型可以从 dropout 中学习到更多&lt;/p>
+&lt;/blockquote>
+&lt;h3 id="rlhf">RLHF
+&lt;/h3>&lt;p>作者使用 DPO 来进行 RLHF, 作者同时使用了 offline 和 online 的数据来进行训练，前者是收集的数据，后者是当前 policy 生成的数据。与 LLaMA 3 和 Nemotron-4 一样，为了提高训练稳定性，对于 chosen reponse, 作者使用了 SFT loss.&lt;/p>
+&lt;p>作者还是用了 exponential moving average 策略来减少 reward hacking 现象，以及降低 alignment tax.&lt;/p>
+&lt;h2 id="experiment">Experiment
+&lt;/h2>&lt;p>对于 base 版本，作者对比了 LLaMA 3, Mixtral, DeepSeek-V2, 实验结果如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-hunyuan-large/Hunyuan-large-base-performance.png"
+width="1135"
+height="761"
+srcset="https://maosong2022.github.io/p/notes-on-hunyuan-large/Hunyuan-large-base-performance_hu9250287511197580218.png 480w, https://maosong2022.github.io/p/notes-on-hunyuan-large/Hunyuan-large-base-performance_hu13135794748576120680.png 1024w"
+loading="lazy"
+alt="Performance of Hunyuan-Large-Base"
+class="gallery-image"
+data-flex-grow="149"
+data-flex-basis="357px"
+>&lt;/p>
+&lt;p>Instruction 版本的表现如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-hunyuan-large/Hunyuan-large-intruction-performance.png"
+width="1178"
+height="538"
+srcset="https://maosong2022.github.io/p/notes-on-hunyuan-large/Hunyuan-large-intruction-performance_hu132719345509594511.png 480w, https://maosong2022.github.io/p/notes-on-hunyuan-large/Hunyuan-large-intruction-performance_hu9830594855642638810.png 1024w"
+loading="lazy"
+alt="Performance of Hunyuan-Large Instuct"
+class="gallery-image"
+data-flex-grow="218"
+data-flex-basis="525px"
+>&lt;/p>
+&lt;h2 id="conclusion">Conclusion
+&lt;/h2>&lt;p>作者提出了 Hunyuan-Large, 一个 389B-A52B 的 LLM, 上下文长度为 256K. 作者详细介绍了模型的架构，数据和训练方式。&lt;/p>
+&lt;h2 id="references">References
+&lt;/h2>&lt;ul>
+&lt;li>&lt;a class="link" href="https://arxiv.org/pdf/2411.02265" target="_blank" rel="noopener"
+>arxiv&lt;/a>&lt;/li>
+&lt;/ul></description></item></channel></rss>
