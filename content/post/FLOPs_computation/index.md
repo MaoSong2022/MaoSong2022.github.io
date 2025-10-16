@@ -2,7 +2,7 @@
 title: LLM FLOPs Computation
 description: 计算LLM的FLOPs
 date: 2025-10-15 16:33:39+0800
-lastmod: 2025-10-15 16:33:39+0800
+lastmod: 2025-10-16 09:42:40+0800
 math: true
 categories:
     - LLM
@@ -37,7 +37,7 @@ FLOPs，floating point operations，表示浮点数运算次数，一般计算 F
 ### Notation
 
 | Math Variable  | Code Variable         | Description              |
-| ----- | --------------------- | ------------------------ |
+| -------------- | --------------------- | ------------------------ |
 | $n$            | `num_hidden_layers`   | Transformer block 个数     |
 | $\vert V\vert$ | `vocab_size`          | 词表大小                     |
 | $d$            | `hidden_size`         | token embedding 的维度      |
@@ -66,19 +66,19 @@ decoder-only transformer 的模型架构包含三个模块：
 因此模型总的 FLOPs 为
 
 $$
-FLOPs(LLM) = FLOPs(\text{embedding}) + n*FLOPs(\mathrm{decode\_layer})+FLOPs(\mathrm{lm\_head})
+FLOPs(\text{forward}) = FLOPs(\text{embedding}) + n*FLOPs(\mathrm{decode\_layer})+FLOPs(\mathrm{lm\_head})
 $$
 
 #### Embedding & Lm Head
 
 首先，对于 embedding layer, embedding layer 本质上是一个 look up table, 计算过程中不涉及浮点数运算，因此 $\boxed{FLOPs(\text{embedding})=0}$.
 
-接下来，对于 `lm_head`, 这是一个 linear layer, 其权重大小为 $W\in\mathbb{E}^{d\times |V|}$,  输入为 $x\in\mathbb{R}^{s\times d}$, 因此 $\boxed{FLOPs(\mathrm{lm\_head})=2sd|V|}$.
+接下来，对于 `lm_head`, 这是一个 linear layer, 其权重大小为 $W\in\mathbb{R}^{d\times |V|}$,  输入为 $x\in\mathbb{R}^{s\times d}$, 因此 $\boxed{FLOPs(\mathrm{lm\_head})=2sd|V|}$.
 
 因此，我们有
 
 $$
-FLOPs(LLM) = n*FLOPs(\mathrm{decode\_layer})+ 2sd|V|
+FLOPs(\text{forward}) = n*FLOPs(\mathrm{decode\_layer})+ 2sd|V|
 $$
 
 #### Decode Layer
@@ -111,10 +111,10 @@ $$
 
 其中 $\beta,\gamma\in\mathbb{R}^d$ 是可学习的参数。
 
-对输入 $x\in\mathbb{R}^{s\times d}$,  均值仅需要 $sd$ 次加法，方差 $\mathrm{var}[x]$ 只需要 $sd(^2+d)$ 次加法，这两者的计算都可以忽略。接下来就是 scaling 和 shift, 这两者都是 element-wise 操作，包含 $sd$ 次乘法和 $sd$ 次加法，因此总的 FLOPs 为
+对输入 $x\in\mathbb{R}^{s\times d}$,  均值需要约 $sd$ 次 FLOPs，方差 $\mathrm{var}[x]$ 只需要约 $3sd$ 次 FLOPs，这两者的计算都可以忽略。接下来就是 scaling 和 shift, 这两者都是 element-wise 操作，我们这里，因此总的 FLOPs 为
 
 $$
-\boxed{FLOPs(\mathrm{normoalization}) = sd}
+\boxed{FLOPs(\mathrm{normoalization}) = 4sd}
 $$
 
 RMSNorm 的作用和 LayerNorm 是一样的，但是实现上更简单
@@ -128,13 +128,13 @@ $$
 对于 RMSNorm，其分析方式与 LayerNorm 基本一致，因此总的 FLOPs 为
 
 $$
-\boxed{FLOPs(\mathrm{normoalization}) = sd}
+\boxed{FLOPs(\mathrm{normoalization}) = 4sd}
 $$
 
 总之，不管使用哪种 normalization，其 FLOPs 都是
 
 $$
-\boxed{FLOPs(\mathrm{normoalization}) = sd}
+\boxed{FLOPs(\mathrm{normoalization}) = 4sd}
 $$
 
 #### Attention
@@ -156,7 +156,7 @@ $$
 $Q,K,V$ 计算的 FLOPs 为 $6*sd^2$.  $QK^T$ 的 FlOPs 为 $2s^2d$, $\mathrm{softmax}(\cdot)V$ 的 FLOPs 为 $2s^2d$, 最后对于 multi-head attention 还有一个 output projection layer, 其权重为 $W_O\in\mathbb{R}^{d\times d}$, 因此 FLOPs 为 $2sd^2$. 故 attention 最终的 FLOPs 为
 
 $$
-\boxed{FLOPs(\mathrm{Attention})=6sd^2+2s^2d+2s^2d+2sd^2=8sd^2+4s^2d}
+FLOPs(\mathrm{Attention})=6sd^2+2s^2d+2s^2d+2sd^2=\boxed{8sd^2+4s^2d}
 $$
 
 #### FFN
@@ -172,7 +172,7 @@ $$
 对输入 $x\in\mathbb{R}^{s\times d}$, 其 FLOPs 为
 
 $$
-\boxed{FLOPs(\mathrm{FFN_{ReLU}}) = 2sdd_{ff} + 2sd_{ff}d =4sdd_{ff}}
+FLOPs(\mathrm{FFN_{ReLU}}) = 2sdd_{ff} + 2sd_{ff}d =\boxed{4sdd_{ff}}
 $$
 
 其中第一项和第二项分别为为 $xW_1$ 与 $\max(xW_1+b_1, 0)W_2$ 的 FLOPs.
@@ -196,7 +196,7 @@ $$
 对输入 $x\in\mathbb{R}^{s\times d}$, 其 FLOPs 为
 
 $$
-\boxed{FLOPs(\mathrm{FFN_{SwiGLU}}) = 2sdd_{ff} + 2sdd_{ff} + 2sd_{ff}d = 6sdd_{ff}}
+FLOPs(\mathrm{FFN_{SwiGLU}}) = 2sdd_{ff} + 2sdd_{ff} + 2sd_{ff}d = \boxed{6sdd_{ff}}
 $$
 
 #### Summary
@@ -205,11 +205,11 @@ $$
 
 $$
 \begin{aligned}
-FLOPs(LLM) &= FLOPs(\text{embedding}) + n*FLOPs(\mathrm{decode\_layer})+FLOPs(\mathrm{lm\_head})\\
+FLOPs(\text{forward}) &= FLOPs(\text{embedding}) + n*FLOPs(\mathrm{decode\_layer})+FLOPs(\mathrm{lm\_head})\\
 &= n*FLOPs(\mathrm{decode\_layer})+2sd|V|\\
 &= n*(2*FLOPs(\mathrm{normoalization}) + FLOPs(\mathrm{Attention})+FLOPs(\mathrm{FFN}))+2sd|V|\\
-&= n*(2sd+8sd^2+4s^2d+6sdd_{ff})+2sdV\\
-&= nsd^2\left(\frac2d + 8+\frac{4s}{d}+\frac{6d_{ff}}{d}+\frac{2|V|}{nd}\right)\\
+&= n*(8sd+8sd^2+4s^2d+6sdd_{ff})+2sd|V|\\
+&= nsd^2\left(\frac8d + 8+\frac{4s}{d}+\frac{6d_{ff}}{d}+\frac{2|V|}{nd}\right)\\
 &\approx \boxed{nsd^2\left(8+\frac{4s}{d}+\frac{6d_{ff}}{d}+\frac{2|V|}{nd}\right)}
 \end{aligned}
 $$
@@ -246,7 +246,7 @@ $$
 \begin{aligned}
 C &= FLOPs(\text{forward}) + FLOPs(\text{backward})\\
 &= 3FLOPs(\mathrm{forward}) \\
-&\approx \boxed{3Lsd^2\left(8+\frac{4s}{d}+\frac{6d_{ff}}{d}+\frac{2V}{Ld}\right)}
+&\approx \boxed{3nsd^2\left(8+\frac{4s}{d}+\frac{6d_{ff}}{d}+\frac{2V}{nd}\right)}
 \end{aligned}
 $$
 
@@ -274,7 +274,7 @@ MoE 是针对 Dense FFN 的一个改进，介绍见 [MoE](MoE.md), 我们假设�
 
 Gate layer 一般是一个 linear layer, 其权重矩阵大小为 $W_{G}\in\mathbb{R}^{d\times e}$, 因此 $FLOPs(\text{router})= 2sde$.
 
-Expert layer 和前面提到的 FFN 一致，我们每次挑选出 $k$ 个专家进行计算，因此 expert 部分 $FLOPs(\text{router})=6ksdd_{ff}$.
+Expert layer 和前面提到的 FFN 一致，我们每次挑选出 $k$ 个专家进行计算，因此 expert 部分 $FLOPs(\text{expert})=6ksdd_{ff}$.
 
 从而对于 MoE 来说，FFN 部分的 FLOPs 为
 
@@ -286,7 +286,7 @@ $$
 
 我们已经得到了 transformer 的 FLOPs 计算表达式，但是其表达式比较繁琐，因此，在研究 scaling law 时，一般会进行简化。
 
-首先，在 [LLM parameter analysis](https://maosong.website/p/llm-parameter-computation/) 中，我们已经给出了 LLM 参数量 $N$ （基于 [Qwen3](https://maosong.website/p/notes-on-qwen3/)）的计算结果
+首先，在 [LLM parameter analysis](LLM%20parameter%20analysis.md) 中，我们已经给出了 LLM 参数量 $N$ （基于 [Qwen3](Qwen3.md)）的计算结果
 
 $$
 N=n*(4d+3dd_{ff}+2hh_{d}d + 2h_{kv}h_dd) + d(2|V|+1)
@@ -308,20 +308,20 @@ $$
 
 $$
 \begin{aligned}
-\mathrm{FLOPs}(LLM) &=
-3Lsd^2\left(8+\frac{4s}{d}+\frac{6d_{ff}}{d}+\frac{2V}{Ld}\right) \\
-&= 3Lsd^2\left(24+\frac{4s}{d}+\frac{2V}{Ld}\right)\\
-&\approx 72Lsd^2 \\
-&= 6sP
+C &=
+3nsd^2\left(8+\frac{4s}{d}+\frac{6d_{ff}}{d}+\frac{2|V|}{nd}\right) \\
+&= 3nsd^2\left(24+\frac{4s}{d}+\frac{2|V|}{nd}\right)\\
+&\approx 72nsd^2 \\
+&= 6sN
 \end{aligned}
 $$
 
-这里我们利用了前面的 $|V| << 12Ld$ 假设，为了简便我们还舍弃了 $4s/d$.
+这里我们利用了前面的 $|V| << 12nd$ 假设，为了简便我们还舍弃了 $4s/d$.
 
 注意到 $s$ 代表 token 序列长度，如果训练集的总 token 个数为 $D$, 则最终对于包含 $D$ tokens 的数据集和包含 $N$ 参数量的 LLM, 其训练总 FLOPs 可以近似估计为
 
 $$
-\boxed{\mathrm{FLOPs}(LLM)\approx 6ND}
+\boxed{C\approx 6ND}
 $$
 
 ## Experiments
