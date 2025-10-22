@@ -2,7 +2,7 @@
 title: LLM FLOPs Computation
 description: 计算LLM的FLOPs
 date: 2025-10-15 16:33:39+0800
-lastmod: 2025-10-16 10:05:46+0800
+lastmod: 2025-10-22 14:10:10+0800
 math: true
 categories:
     - LLM
@@ -286,7 +286,7 @@ $$
 
 我们已经得到了 transformer 的 FLOPs 计算表达式，但是其表达式比较繁琐，因此，在研究 scaling law 时，一般会进行简化。
 
-首先，在 [LLM parameter analysis](LLM%20parameter%20analysis.md) 中，我们已经给出了 LLM 参数量 $N$ （基于 [Qwen3](Qwen3.md)）的计算结果
+首先，在 [LLM parameter analysis](https://maosong.website/p/llm-parameter-computation/) 中，我们已经给出了 LLM 参数量 $N$ （基于 [Qwen3](https://maosong.website/p/notes-on-qwen3/)）的计算结果
 
 $$
 N=n*(4d+3dd_{ff}+2hh_{d}d + 2h_{kv}h_dd) + d(2|V|+1)
