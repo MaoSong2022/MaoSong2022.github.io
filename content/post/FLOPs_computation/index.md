@@ -2,7 +2,7 @@
 title: LLM FLOPs Computation
 description: 计算LLM的FLOPs
 date: 2025-10-15 16:33:39+0800
-lastmod: 2025-10-22 14:10:10+0800
+lastmod: 2025-10-23 09:43:51+0800
 math: true
 categories:
     - LLM
@@ -49,7 +49,7 @@ FLOPs，floating point operations，表示浮点数运算次数，一般计算 F
 
 ## Computation
 
-我们计算训练阶段的总 FLOPs, 记为 $C$,  [Kaplan scaling law](Kaplan%20scaling%20law.md) 用 PF-days 作为单位，$1\text{ PF-Days}=10^{15}\times 24\times 3600\ FLOPs$. 训练阶段包括前向阶段 (forward pass) 和反向传播阶段 (backward pass). 因此
+我们计算训练阶段的总 FLOPs, 记为 $C$,  [Kaplan scaling law](https://maosong.website/p/kaplan-scaling-law/) 用 PF-days 作为单位，$1\text{ PF-Days}=10^{15}\times 24\times 3600\ FLOPs$. 训练阶段包括前向阶段 (forward pass) 和反向传播阶段 (backward pass). 因此
 
 $$
 C = FLOPs(\text{forward}) + FLOPs(\text{backward})
@@ -328,7 +328,7 @@ $$
 
 ### Setting
 
-接下来我们定量分析一些模型的 FLOPs. 我们基于 [Chinchilla scaling law](Chinchilla%20scaling%20law.md) 给出的实验配置 (Table A9), 我们筛掉 `kv_size * n_heads != d_model` 的配置，$|V|=32,000$.
+接下来我们定量分析一些模型的 FLOPs. 我们基于 [Chinchilla scaling law](https://maosong.website/p/chinchilla-scaling-law/) 给出的实验配置 (Table A9), 我们筛掉 `kv_size * n_heads != d_model` 的配置，$|V|=32,000$.
 
 各部分的 FLOPs 计算代码如下
 

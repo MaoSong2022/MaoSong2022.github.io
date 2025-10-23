@@ -2,7 +2,7 @@
 title: Notes on GSPO
 description: Qwen 提出了 Group Sequence Policy Optimization (GSPO), 一个针对 GRPO 进行改进的 RL 算法。GSPO 在 sequence 层面计算 importance ratio, 避免了 token-level 计算带来的训练不稳定性。
 date: 2025-08-06 11:26:26+0800
-lastmod: 2025-08-06 11:26:26+0800
+lastmod: 2025-10-23 09:43:51+0800
 math: true
 tags: 
     - Qwen
@@ -17,7 +17,7 @@ Qwen 提出了 Group Sequence Policy Optimization (GSPO), 一个针对 GRPO 进�
 
 ## Introduction
 
-GRPO.md 的问题在于训练超大规模的 LLM 时，会出现 model collapse, [Qwen3](https://maosong.website/p/notes-on-qwen3/) 和 MiniMax-01 均对 GRPO 算法进行了改进。
+GRPO 的问题在于训练超大规模的 LLM 时，会出现 model collapse, [Qwen3](https://maosong.website/p/notes-on-qwen3/) 和 MiniMax-01 均对 GRPO 算法进行了改进。
 
 在本文中，作者认为 GRPO 算法的问题在于 Importance sampling weight 的计算是有问题的，这导致了误差随生成回答长度累积，最后被 clipping 机制放大，从而导致模型崩溃。
 

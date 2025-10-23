@@ -2,7 +2,7 @@
 title: Notes on gpt-oss
 description: openAI 发布了 gpt-oss 大语言模型，包含 120B-A5.1B 以及 20.9B-A3.6B 两个 size, 作者强调了模型的 instruction following, tool use, 以及 adaptive thinking 能力
 date: 2025-08-19 16:14:56+0800
-lastmod: 2025-08-22 10:05:33+0800
+lastmod: 2025-10-23 09:43:51+0800
 math: true
 tags: 
     - openAI
@@ -95,7 +95,7 @@ $$
 
 ### Pre-training
 
-预训练细节不多，主要是使用了 [flash attention](flash%20attention.md) 进行加速计算，使用了 Triton 进行了 kernel 的优化，gpt-oss-120b 训练了 120M H100-hours, gpt-oss-20B 的训练时间是 gpt-oss-120Bd 的十分之一左右
+预训练细节不多，主要是使用了 [flash attention](https://maosong.website/p/notes-on-flashattention/) 进行加速计算，使用了 Triton 进行了 kernel 的优化，gpt-oss-120b 训练了 120M H100-hours, gpt-oss-20B 的训练时间是 gpt-oss-120Bd 的十分之一左右
 
 ### Post-training
 
@@ -119,7 +119,7 @@ gpt-oss 系列的表现如下表所示
 
 ## Conclusion
 
-作者提出了 gpt-oss 系列大语言模型，gpt-oss 在架构上与已有的主流模型架构如 [Qwen3](Qwen3.md), [DeepSeek-V3](DeepSeek-V3.md) 等都有一定区别
+作者提出了 gpt-oss 系列大语言模型，gpt-oss 在架构上与已有的主流模型架构如 [Qwen3](https://maosong.website/p/notes-on-qwen3/), [DeepSeek-V3](DeepSeek-V3.md) 等都有一定区别
 
 ## References
 
