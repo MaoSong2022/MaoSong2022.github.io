@@ -2,7 +2,7 @@
 title: Notes on DeepSeek-LLM
 description: DeepSeek 在 2024 年 1 月 5 日发布了 DeepSeek LLM, 包括 7B 和 67B 两个 size, 作者主要强调了对于 scaling law 的探究
 date: 2025-08-26 10:53:10+0800
-lastmod: 2025-08-26 10:53:10+0800
+lastmod: 2025-10-23 09:46:58+0800
 math: true
 tags: 
     - deepseek
@@ -15,7 +15,7 @@ DeepSeek 在 2024 年 1 月 5 日发布了 DeepSeek LLM, 包括 7B 和 67B 两�
 
 ## Introduction
 
-已有的 scaling law 如 Kaplan 和 Chinchilla 介绍了 model size, dataset size, compute budget 与模型表现之间的关系。在本文中，作者进一步探究了 learning rate 和 batch size 等超参数与模型表现之间的关系。基于发现的 scaling law, 作者为不同大小的模型设置了最优的超参数。并且，作者还发现不同数据集与模型表现之间的关系。
+已有的 scaling law 如 [Kaplan](https://maosong.website/p/kaplan-scaling-law/) 和 [Chinchilla](https://maosong.website/p/chinchilla-scaling-law/) 介绍了 model size, dataset size, compute budget 与模型表现之间的关系。在本文中，作者进一步探究了 learning rate 和 batch size 等超参数与模型表现之间的关系。基于发现的 scaling law, 作者为不同大小的模型设置了最优的超参数。并且，作者还发现不同数据集与模型表现之间的关系。
 
 最终，基于这些实验结果，作者提出了 DeepSeek LLM, 模型使用 **2T token** 进行预训练，使用 1M samples 进行后训练，后训练包括 SFT 以及 DPO.
 

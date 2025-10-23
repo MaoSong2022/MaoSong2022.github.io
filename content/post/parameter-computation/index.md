@@ -2,7 +2,7 @@
 title: LLM Parameter Computation
 description: 计算LLM的参数量
 date: 2025-07-22 10:50:47+0800
-lastmod: 2025-07-23 09:43:17+0800
+lastmod: 2025-10-23 09:46:58+0800
 math: true
 tags: 
     - distributed training
@@ -13,7 +13,7 @@ categories:
 
 
 
-本文中，我们介绍一下如何计算 LLM 的参数量。我们将基于 [Qwen3](Qwen3.md) 模型架构出发，对模型架构进行拆解，然后给出 LLM 参数量计算公式。
+本文中，我们介绍一下如何计算 LLM 的参数量。我们将基于 [Qwen3](https://maosong.website/p/notes-on-qwen3/) 模型架构出发，对模型架构进行拆解，然后给出 LLM 参数量计算公式。
 
 ## Dense Model
 

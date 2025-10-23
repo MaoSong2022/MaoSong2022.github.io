@@ -1,8 +1,8 @@
 ---
 title: Notes on GQA
-description: Google Research 在 23 年 12 月份提出了 Group Query Attention (GQA), 一个提升 multi-head attention 效率的方法。GQA 自 [Qwen2](Qwen2.md) 系列开始被应用。
+description: Google Research 在 23 年 12 月份提出了 Group Query Attention (GQA), 一个提升 multi-head attention 效率的方法。GQA 自 Qwen2 系列开始被应用。
 date: 2025-08-07 18:08:36+0800
-lastmod: 2025-08-07 18:08:36+0800
+lastmod: 2025-10-23 09:46:58+0800
 math: true
 tags: 
     - attention
@@ -11,7 +11,7 @@ categories:
 ---
 
 
-Google Research 在 23 年 12 月份提出了 Group Query Attention (GQA), 一个提升 multi-head attention 效率的方法。GQA 自 [Qwen2](Qwen2.md) 系列开始被应用。
+Google Research 在 23 年 12 月份提出了 Group Query Attention (GQA), 一个提升 multi-head attention 效率的方法。GQA 自 [Qwen2](https://maosong.website/p/notes-on-qwen2/) 系列开始被应用。
 
 ## Introduction
 

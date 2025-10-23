@@ -2,7 +2,7 @@
 title: Notes on MFA
 description: 阶跃星辰等提出了 Multi-matrix Factorization Attention (MFA), 一个新型注意力机制，用于在 KV cache 限制下最大化模型的表现。
 date: 2025-08-23 16:04:34+0800
-lastmod: 2025-08-23 16:04:34+0800
+lastmod: 2025-10-23 09:46:58+0800
 math: true
 tags: 
     - attention
@@ -18,7 +18,7 @@ categories:
 
 multi-head attention (MHA) 的问题在于，其 KV cache 的内存占用（memory footprint）随 sequence length 以及 batch size 线性增长，从而成为了 LLM 在 decoding 阶段的瓶颈。
 
-为了解决 MHA 的内存占用过高问题，已有的工作如 [MQA](MQA.md), [GQA](GQA.md) 等通过共享 key, value projection 来降低 KV cache size. 而 [DeepSeek-V3](DeepSeek-V3.md) 提出的 MLA 则是通过对 key, value projection 进行 low-rank compression, 然后只存储 latents 的方法来降低 KV cache size.
+为了解决 MHA 的内存占用过高问题，已有的工作如 [MQA](https://maosong.website/p/notes-on-mqa/), [GQA](https://maosong.website/p/notes-on-gqa/) 等通过共享 key, value projection 来降低 KV cache size. 而 [DeepSeek-V3](DeepSeek-V3.md) 提出的 MLA 则是通过对 key, value projection 进行 low-rank compression, 然后只存储 latents 的方法来降低 KV cache size.
 
 但是，已有的这些方法的问题在于，当我们设置 KV cache budget 之后，它们的表现就比标准的 MHA 要差。
 
