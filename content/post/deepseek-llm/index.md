@@ -27,20 +27,20 @@ DeepSeek-LLM 的架构与 LLaMA 基本相同，作者在 67B 的模型上使用�
 
 | Params              |    7B  |   67B  |
 |---------------------|--------|--------|
-| nlayers             | 30     | 95     |
-| dmodel              | 4096   | 8192   |
-| nheads              | 32     | 64     |
-| nkv_heads           | 32     | 8      |
-| Context Length      | 4096   | 4096   |
-| Sequence Batch Size | 2304   | 4608   |
-| Learning Rate       | 4.2e-4 | 3.2e-4 |
+| $n_{\text{layers}}$             | $30$     | $95$     |
+| $d_{\text{model}}$              | $4096$   | $8192$   |
+| $n_{\text{heads}}$            | $32$     | $64$     |
+| $n_{\text{kv\_heads}}$           | $32$     | $8$      |
+| Context Length      | $4096$   | $4096$   |
+| Sequence Batch Size | $2304$   | $4608$   |
+| Learning Rate       | $4.2e-4$ | $3.2e-4$ |
 | Tokens              | 2T     | 2T     |
 
 ### Data
 
 作者主要从 Common Crawl 构建预训练数据，数据处理过程包括：去重，过滤以及 remixing 三个步骤。
 
-对于 tokenizer, 作者使用了 BBPE 算法，tokenizer 的大小设置为 100,000, 最终的 tokenizer 大小为 102400.
+对于 tokenizer, 作者使用了 [BBPE](https://maosong.website/p/hands-on-llm1-tokenizer/) 算法，tokenizer 的大小设置为 100,000, 最终的 tokenizer 大小为 102400.
 
 ### Hyper Parameters
 
@@ -67,7 +67,7 @@ DeepSeek-LLM 的架构与 LLaMA 基本相同，作者在 67B 的模型上使用�
 2. 作者使用 non-embedding FLOPs/token $M$ 来表示 model scale
 3. 预训练数据的质量对最后中的 scaling 影响很大
 
-作者首先构建了针对 batch size 和 learning rate 的 scaling law, 结果显示最优的 learning rate 和 batch size 范围都比较广。
+作者首先构建了针对 batch size 和 learning rate 的 scaling law, 结果显示最优的 learning rate 和 batch size 范围都比较广，这个结论与 [Kaplan](https://maosong.website/p/kaplan-scaling-law/) 一致。
 
 接下来，作者构建了 batch size $B$, learning rate $\eta$ 与 compute budget $C 之间的关系，实验结果如下图所示
 
@@ -90,9 +90,9 @@ $$
 N_{opt} \varpropto C^a,D_{opt} \varpropto C^b
 $$
 
-compute budget 与 model scale, data scale 之间的关系可以近似表示为 $C=6ND$,  我们用 $N_1,N_2$ 分别表示模型的 non-embedding parameter 以及 complete parameters, 则我们可以用 $6N_1$ 或者 $6N_2$ 来近似 model scale, 但是 $6N_1$ 和 $^N_2$ 军没有考虑 attention 的计算开销，因此这两种近似的误差都比较大。
+compute budget 与 model scale, data scale 之间的关系可以近似表示为 $C=6ND$, 这个公式的推导见 [LLM FLOPs computation](https://maosong.website/p/llm-flops-computation/)。我们用 $N_1,N_2$ 分别表示模型的 non-embedding parameter 以及 complete parameters, 则我们可以用 $6N_1$ 或者 $6N_2$ 来近似 model scale, 但是 $6N_1$ 和 $6N_2$ 均没有考虑 attention 的计算开销，因此这两种近似的误差都比较大。
 
-为了解决这个问题，作者提出了一个新的 model scale 表示形式，即 non-embedding FLOPS/token $M$, 其中 $M$ 包含 attention 的计算开销但是不包含 vocabulary computation. 基于这种表示，compute budget 可以近似表示为 $C=MD$. $M$ 与 $6N_1,6N_2 的区别表示如下图所示
+为了解决这个问题，作者提出了一个新的 model scale 表示形式，即 non-embedding FLOPS/token $M$, 其中 $M$ 包含 attention 的计算开销但是不包含 vocabulary computation. 基于这种表示，compute budget 可以近似表示为 $C=MD$. $M$ 与 $6N_1,6N_2$ 的区别表示如下所示
 
 $$
 \begin{aligned}
@@ -110,7 +110,7 @@ $$
 M_{opt}(C), D_{opt}(C) = {\arg\min}_{M,D\ s.t.\ C=MD} L(N,D)
 $$
 
-作者使用 IsoFLOP 曲线进行拟合，实验结果如下图所示
+作者使用了 [Chinchilla](https://maosong.website/p/chinchilla-scaling-law/) 提出来的 IsoFLOP 曲线进行拟合，实验结果如下图所示
 
 ![IsoFLOP curve and optimal model/data allocation](DeepSeek-LLM-IsoFLOP-curve.png)
 
