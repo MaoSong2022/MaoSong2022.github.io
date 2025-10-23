@@ -1,0 +1,1932 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Attention on Mao Song(毛松)'s Homepage</title><link>https://maosong2022.github.io/tags/attention/</link><description>Recent content in Attention on Mao Song(毛松)'s Homepage</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><lastBuildDate>Thu, 23 Oct 2025 09:46:58 +0800</lastBuildDate><atom:link href="https://maosong2022.github.io/tags/attention/index.xml" rel="self" type="application/rss+xml"/><item><title>Notes on RNoPE-SWA</title><link>https://maosong2022.github.io/p/notes-on-rnope-swa/</link><pubDate>Tue, 02 Sep 2025 11:24:10 +0800</pubDate><guid>https://maosong2022.github.io/p/notes-on-rnope-swa/</guid><description>&lt;p>作者系统性分析了已有的 attention 机制，然后作者提出了混合的 attention 机制，来提高模型在长上下文的表现以及维持模型在短上下文场景下的表现。&lt;/p>
+&lt;h2 id="introduction">Introduction
+&lt;/h2>&lt;p>作者首先强调了提升 LLM 上下文长度面临的问题：&lt;/p>
+&lt;ol>
+&lt;li>如何有效处理长上下文输入&lt;/li>
+&lt;li>如何训练长上下文 LLM&lt;/li>
+&lt;li>如何降低长上下文 LLM 在 inference 时的 latency 以及 memory usage&lt;/li>
+&lt;/ol>
+&lt;p>对于建模长上下文输入，我们可以从 attention 机制或者位置编码来入手。前者类似的工作有 Landmark Attention 和 Focused Transformer, 但是这些方法的问题在于训练不稳定。 &lt;a class="link" href="https://maosong.website/p/notes-on-qk-norm/" target="_blank" rel="noopener"
+>QK norm&lt;/a> 可以比较好解决 softmax 分布过于极端的问题，但是其问题在于训练时的数值不稳定性，并且可能会影响模型的长上下文能力。&lt;/p>
+&lt;p>另一方面，对于位置编码，已有的工作如 APE, AliBi, &lt;a class="link" href="https://maosong.website/p/notes-on-position-encoding/" target="_blank" rel="noopener"
+>RoPE&lt;/a> 等都可以提供位置信息。但是，这些方法很有可能回影响模型最终的 attention score 分布。另外，NoPE 探究了移除 position encoding 的可能性。&lt;/p>
+&lt;p>还有一些工作目的是降低 softmax attention 的时间复杂度和空间复杂度。比如 sliding window attention, sparse attention, &lt;a class="link" href="https://maosong.website/p/notes-on-streamingllm/" target="_blank" rel="noopener"
+>attention sink&lt;/a> 等都可以降低整体的时间/空间复杂度。但是这些方法最终的表现都有所下降。&lt;/p>
+&lt;h2 id="observation">Observation
+&lt;/h2>&lt;p>作者首先对比了以下不同方法对模型长上下文能力的影响。&lt;/p>
+&lt;p>作者训练了一个 8B 的模型，然后分别对比了三种方法：&lt;/p>
+&lt;ol>
+&lt;li>RoPE: base frequency 设置为 10,000, SFT 阶段扩展到 2M&lt;/li>
+&lt;li>QK-Norm: 在 RoPE 的基础上，对 query 和 key 先进行 normalization 再进行 RoPE&lt;/li>
+&lt;li>NoPE: 移除 attention 中的位置编码信息&lt;/li>
+&lt;/ol>
+&lt;p>作者分别评估了三种方法的表现，实验结果如下表&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Model&lt;/th>
+&lt;th>Val Loss&lt;/th>
+&lt;th>MMLU&lt;/th>
+&lt;th>HellaSwag&lt;/th>
+&lt;th>CommonsenseQA&lt;/th>
+&lt;th>ARC-E&lt;/th>
+&lt;th>ARC-C&lt;/th>
+&lt;th>Needles 65k&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>RoPE&lt;/td>
+&lt;td>1.52&lt;/td>
+&lt;td>48.55&lt;/td>
+&lt;td>73.74&lt;/td>
+&lt;td>68.30&lt;/td>
+&lt;td>81.05&lt;/td>
+&lt;td>39.13&lt;/td>
+&lt;td>9.82&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>QK-Norm&lt;/td>
+&lt;td>1.53&lt;/td>
+&lt;td>48.21&lt;/td>
+&lt;td>73.68&lt;/td>
+&lt;td>68.23&lt;/td>
+&lt;td>80.54&lt;/td>
+&lt;td>38.98&lt;/td>
+&lt;td>7.93&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>NoPE&lt;/td>
+&lt;td>1.58&lt;/td>
+&lt;td>47.61&lt;/td>
+&lt;td>72.16&lt;/td>
+&lt;td>66.42&lt;/td>
+&lt;td>76.94&lt;/td>
+&lt;td>37.12&lt;/td>
+&lt;td>9.03&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>实验结果显示，对于通用任务，RoPE 和 QK-Norm 的表现差不多，而 NoPE 的表现较差。对于长上下文任务，QK-Norm 的表现最差。&lt;/p>
+&lt;p>接下来，作者分析了三种方法的 attention 分布情况。作者将上下文分为四个 segments：&lt;/p>
+&lt;ul>
+&lt;li>begin: 开始的 10 个 token&lt;/li>
+&lt;li>needle: 与 needle 相关的 tokens&lt;/li>
+&lt;li>context: 通用的上下文 token&lt;/li>
+&lt;li>qc: question/completion token, 语文题答案相关的 token&lt;/li>
+&lt;/ul>
+&lt;p>作者将 needle 放置在 50% 深度的位置。评测的实验结果如下&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Context Length&lt;/th>
+&lt;th>Model Variants&lt;/th>
+&lt;th>begin&lt;/th>
+&lt;th>needle&lt;/th>
+&lt;th>context&lt;/th>
+&lt;th>qc&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>8k&lt;/td>
+&lt;td>RoPE&lt;/td>
+&lt;td>0.3863&lt;/td>
+&lt;td>0.0328&lt;/td>
+&lt;td>0.3809&lt;/td>
+&lt;td>0.2000&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>QK-Norm&lt;/td>
+&lt;td>0.0242&lt;/td>
+&lt;td>0.0173&lt;/td>
+&lt;td>0.8020&lt;/td>
+&lt;td>0.1565&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>NoPE&lt;/td>
+&lt;td>0.3058&lt;/td>
+&lt;td>0.0454&lt;/td>
+&lt;td>0.4501&lt;/td>
+&lt;td>0.1987&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>32k&lt;/td>
+&lt;td>RoPE&lt;/td>
+&lt;td>0.3541&lt;/td>
+&lt;td>0.0201&lt;/td>
+&lt;td>0.4343&lt;/td>
+&lt;td>0.1915&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>QK-Norm&lt;/td>
+&lt;td>0.0064&lt;/td>
+&lt;td>0.0056&lt;/td>
+&lt;td>0.8517&lt;/td>
+&lt;td>0.1364&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>NoPE&lt;/td>
+&lt;td>0.2807&lt;/td>
+&lt;td>0.0325&lt;/td>
+&lt;td>0.4981&lt;/td>
+&lt;td>0.1886&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>128k&lt;/td>
+&lt;td>RoPE&lt;/td>
+&lt;td>0.3463&lt;/td>
+&lt;td>0.0010&lt;/td>
+&lt;td>0.4751&lt;/td>
+&lt;td>0.1776&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>QK-Norm&lt;/td>
+&lt;td>0.0010&lt;/td>
+&lt;td>0.0004&lt;/td>
+&lt;td>0.8993&lt;/td>
+&lt;td>0.0994&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;/td>
+&lt;td>NoPE&lt;/td>
+&lt;td>0.0846&lt;/td>
+&lt;td>0.0073&lt;/td>
+&lt;td>0.8156&lt;/td>
+&lt;td>0.0925&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>实验结果显示：&lt;/p>
+&lt;ol>
+&lt;li>NoPE 是最关注 needle token 信息的，RoPE 次之，QK-Norm 最差&lt;/li>
+&lt;li>QK-Norm 更关注上下文信息，对其他的信息关注度较少&lt;/li>
+&lt;/ol>
+&lt;p>作者发现 QK-Norm 对初始的 token 信息关注度较少，作者认为这是因为 normalization 会让模型更关注邻近的 token 信息。为了验证这个观点，作者在不同的上下文长度下，分别计算了不同方法的 attention 分布情况，为了避免噪声，作者将开始的 10 个 token 以及最后的 $3%$ token 排除在外，实验结果如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-rnope-swa/RNoPE-SWA-8k-attention.png"
+width="700"
+height="496"
+srcset="https://maosong2022.github.io/p/notes-on-rnope-swa/RNoPE-SWA-8k-attention_hu7284298001029033696.png 480w, https://maosong2022.github.io/p/notes-on-rnope-swa/RNoPE-SWA-8k-attention_hu14355922510337803786.png 1024w"
+loading="lazy"
+alt="Attention distribution on 8K context length"
+class="gallery-image"
+data-flex-grow="141"
+data-flex-basis="338px"
+>&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-rnope-swa/RNoPE-SWA-32k-attention.png"
+width="692"
+height="482"
+srcset="https://maosong2022.github.io/p/notes-on-rnope-swa/RNoPE-SWA-32k-attention_hu3669404194925672875.png 480w, https://maosong2022.github.io/p/notes-on-rnope-swa/RNoPE-SWA-32k-attention_hu16261772671243833744.png 1024w"
+loading="lazy"
+alt="Attention distribution on 32K context length"
+class="gallery-image"
+data-flex-grow="143"
+data-flex-basis="344px"
+>&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-rnope-swa/RNoPE-SWA-128k-attention.png"
+width="693"
+height="564"
+srcset="https://maosong2022.github.io/p/notes-on-rnope-swa/RNoPE-SWA-128k-attention_hu2695619081909157132.png 480w, https://maosong2022.github.io/p/notes-on-rnope-swa/RNoPE-SWA-128k-attention_hu2021364689251498381.png 1024w"
+loading="lazy"
+alt="Attention distribution on 128K context length"
+class="gallery-image"
+data-flex-grow="122"
+data-flex-basis="294px"
+>&lt;/p>
+&lt;p>实验结果说明，相比于 softmax attention, QK-Norm 的 attention score 分布更平滑，其对于 need token 的注意力不如 RoPE, 这也说明了为什么 QK-Norm 的长上下文能力比较差。并且，QK-Norm 的 recency bias 更严重。&lt;/p>
+&lt;p>作者通过计算 RoPE 和 QK-Norm 的 attention distribution 的 entropy 来进一步说明这一点，结果如下表所示&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Model&lt;/th>
+&lt;th>8k&lt;/th>
+&lt;th>32k&lt;/th>
+&lt;th>128k&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>RoPE&lt;/td>
+&lt;td>6.02&lt;/td>
+&lt;td>6.95&lt;/td>
+&lt;td>7.62&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>QK-Norm&lt;/td>
+&lt;td>10.71&lt;/td>
+&lt;td>12.46&lt;/td>
+&lt;td>14.14&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>结果显示 QK-Norm 的熵更高，这意味着 QK-Norm 的 attention score 分布更分散，也就证明了 Qk-Norm retrieval 能力比较差。&lt;/p>
+&lt;h2 id="method">Method
+&lt;/h2>&lt;p>考虑到 NoPE 和 RopE 各自的优点，作者提出了一个混合架构，来结合 NoPE 与 RoPE. 具体做法就是 NoPE layer 和 RoPE layer 交替进行。作者将这个模型架构记为 RNoPE.&lt;/p>
+&lt;p>RNoPE 不同 layer 与不同 base frequency 产生的 attention score 分布如下&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Model&lt;/th>
+&lt;th>NoPE Layers - begin&lt;/th>
+&lt;th>NoPE Layers - needle&lt;/th>
+&lt;th>NoPE Layers - context&lt;/th>
+&lt;th>NoPE Layers - qc&lt;/th>
+&lt;th>RoPE Layers - begin&lt;/th>
+&lt;th>RoPE Layers - needle&lt;/th>
+&lt;th>RoPE Layers - context&lt;/th>
+&lt;th>RoPE Layers - qc&lt;/th>
+&lt;th>needles-128k&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>RoPE&lt;/td>
+&lt;td>-&lt;/td>
+&lt;td>-&lt;/td>
+&lt;td>-&lt;/td>
+&lt;td>-&lt;/td>
+&lt;td>0.3541&lt;/td>
+&lt;td>0.0201&lt;/td>
+&lt;td>0.4343&lt;/td>
+&lt;td>0.1915&lt;/td>
+&lt;td>7.395&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>RNoPE-10k&lt;/td>
+&lt;td>0.3275&lt;/td>
+&lt;td>0.0765&lt;/td>
+&lt;td>0.5672&lt;/td>
+&lt;td>0.0287&lt;/td>
+&lt;td>0.0049&lt;/td>
+&lt;td>0.0004&lt;/td>
+&lt;td>0.6805&lt;/td>
+&lt;td>0.3142&lt;/td>
+&lt;td>8.036&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>RNoPE-100k&lt;/td>
+&lt;td>0.3263&lt;/td>
+&lt;td>0.0778&lt;/td>
+&lt;td>0.5633&lt;/td>
+&lt;td>0.0327&lt;/td>
+&lt;td>0.0241&lt;/td>
+&lt;td>0.0005&lt;/td>
+&lt;td>0.6782&lt;/td>
+&lt;td>0.2972&lt;/td>
+&lt;td>7.461&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>RNoPE-2M&lt;/td>
+&lt;td>0.3250&lt;/td>
+&lt;td>0.0712&lt;/td>
+&lt;td>0.5735&lt;/td>
+&lt;td>0.0303&lt;/td>
+&lt;td>0.1111&lt;/td>
+&lt;td>0.0046&lt;/td>
+&lt;td>0.6233&lt;/td>
+&lt;td>0.2611&lt;/td>
+&lt;td>7.022&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>RNoPE-4M&lt;/td>
+&lt;td>0.3486&lt;/td>
+&lt;td>0.0369&lt;/td>
+&lt;td>0.5981&lt;/td>
+&lt;td>0.0165&lt;/td>
+&lt;td>0.0960&lt;/td>
+&lt;td>0.0039&lt;/td>
+&lt;td>0.6774&lt;/td>
+&lt;td>0.2227&lt;/td>
+&lt;td>6.203&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>RNoPE-10k-swa&lt;/td>
+&lt;td>0.3303&lt;/td>
+&lt;td>0.0742&lt;/td>
+&lt;td>0.5634&lt;/td>
+&lt;td>0.0321&lt;/td>
+&lt;td>-&lt;/td>
+&lt;td>-&lt;/td>
+&lt;td>-&lt;/td>
+&lt;td>-&lt;/td>
+&lt;td>9.562&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>实验结果显示，在 RNoPE 架构中，&lt;/p>
+&lt;ol>
+&lt;li>提升 base frequency 带来的增益逐渐递减&lt;/li>
+&lt;li>NoPE layer 的 retrieval 能力比较强，表现在 attention sink 现象以及对于 needle token 的 spike. 但是其 recency bias 比较弱&lt;/li>
+&lt;li>RoPE 的 retrieval 能力比较弱，但是其 attention sink 现象比较小&lt;/li>
+&lt;li>当 base frequency 增加止呕，RoPE 的 recency bias 会降低，表现在 qc token 的权重降低&lt;/li>
+&lt;/ol>
+&lt;p>作者发现，RoPE 的 receptive field 会影响 NoPE layer 的 retrieval 能力。作者总结得到两个 insight&lt;/p>
+&lt;ol>
+&lt;li>NoPE layer 对于 retrieval 任务比较擅长，而 RoPE layer 对于处理 local Information 比较擅长&lt;/li>
+&lt;li>限制 RoPE 的 receptive field 可以保证 NoPE layer 的 retrieval 能力&lt;/li>
+&lt;/ol>
+&lt;p>基于这两个 insight, 作者构建了 RNoPE-SWA 架构，RNoPE-SWA 相比于 RNoPE, 将 full attention 变成了 sliding window attention, 来避免 RoPE layer 对下游的 NoPE layer 产生影响。&lt;/p>
+&lt;p>最终，作者基于 Command R+ 构建了模型，作者去除了 QK-Norm, 对于 NoPE layer, 作者使用了 full attention, 对于 RoPE layer, 作者使用了 window size 为 4096 的 sliding window attention. 作者通过实验验证了 NoPE layer 和 RoPElayer 的比例，实验结果发现 $1:3$ 的比例是最优的。最终每 4 个 layer 为一组，前三组为 SWA, 最后一层为 full attention.&lt;/p>
+&lt;p>最终，在通用任务上评测的结果如下&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Model&lt;/th>
+&lt;th>MMLU&lt;/th>
+&lt;th>HellaSwag&lt;/th>
+&lt;th>ARC-E&lt;/th>
+&lt;th>ARC-C&lt;/th>
+&lt;th>SATEn&lt;/th>
+&lt;th>SATMath&lt;/th>
+&lt;th>GSM8K&lt;/th>
+&lt;th>Winogrande&lt;/th>
+&lt;th>MBPP&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>Baseline&lt;/td>
+&lt;td>57.5&lt;/td>
+&lt;td>75.8&lt;/td>
+&lt;td>84.6&lt;/td>
+&lt;td>48.5&lt;/td>
+&lt;td>70.0&lt;/td>
+&lt;td>30.9&lt;/td>
+&lt;td>40.9&lt;/td>
+&lt;td>68.5&lt;/td>
+&lt;td>39.1&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>RNope-SWA&lt;/td>
+&lt;td>59.5&lt;/td>
+&lt;td>76.2&lt;/td>
+&lt;td>82.5&lt;/td>
+&lt;td>48.8&lt;/td>
+&lt;td>71.9&lt;/td>
+&lt;td>30.5&lt;/td>
+&lt;td>42.7&lt;/td>
+&lt;td>69.5&lt;/td>
+&lt;td>39.3&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>在 Ruler retrieval 上评测的结果如下&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Model&lt;/th>
+&lt;th>8k&lt;/th>
+&lt;th>16k&lt;/th>
+&lt;th>32k&lt;/th>
+&lt;th>64k&lt;/th>
+&lt;th>128k&lt;/th>
+&lt;th>256k&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>Baseline&lt;/td>
+&lt;td>96.6&lt;/td>
+&lt;td>94.4&lt;/td>
+&lt;td>95.1&lt;/td>
+&lt;td>89.1&lt;/td>
+&lt;td>83.0&lt;/td>
+&lt;td>57.1&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>RNope-SWA&lt;/td>
+&lt;td>96.1&lt;/td>
+&lt;td>96.1&lt;/td>
+&lt;td>94.9&lt;/td>
+&lt;td>92.0&lt;/td>
+&lt;td>90.0&lt;/td>
+&lt;td>74.8&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>在 Ruler QA 上评测的结果如下&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Model&lt;/th>
+&lt;th>8k&lt;/th>
+&lt;th>16k&lt;/th>
+&lt;th>32k&lt;/th>
+&lt;th>64k&lt;/th>
+&lt;th>128k&lt;/th>
+&lt;th>256k&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>Baseline&lt;/td>
+&lt;td>53.5&lt;/td>
+&lt;td>50.0&lt;/td>
+&lt;td>52.5&lt;/td>
+&lt;td>45.5&lt;/td>
+&lt;td>36.0&lt;/td>
+&lt;td>30.0&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>RNope-SWA&lt;/td>
+&lt;td>55.5&lt;/td>
+&lt;td>52.5&lt;/td>
+&lt;td>55.5&lt;/td>
+&lt;td>49.0&lt;/td>
+&lt;td>46.0&lt;/td>
+&lt;td>42.5&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>实验结果说明，模型在通用任务任务上与 baseline 模型表现差不多，且长上下文能力更强&lt;/p>
+&lt;h2 id="conclusion">Conclusion
+&lt;/h2>&lt;p>作者提出了 RNope-SWA, 一个混合 NoPE, RoPE position embedding 和 sliding window attention 的 attention 机制。RNope-SWA 可以在保持模型表现的同时提高计算效率和降低 KV cache 占用。&lt;/p>
+&lt;p>尽管本文和已有的工作如 YoCo, Jamba-1.5 和 MiniMax-01 均证明了混合 attention 架构的有效性。但是，目前对于其工作机制尚缺乏一个比较系统性的理解。作者认为这是一个需要探究的方向。另外，作者还认为如何更好的汇总上下文信息与位置信息也是一个可以探究的方向。&lt;/p>
+&lt;h2 id="references">References
+&lt;/h2>&lt;ul>
+&lt;li>&lt;a class="link" href="https://arxiv.org/pdf/2501.18795" target="_blank" rel="noopener"
+>arxiv&lt;/a>&lt;/li>
+&lt;/ul></description></item><item><title>Notes on MFA</title><link>https://maosong2022.github.io/p/notes-on-mfa/</link><pubDate>Sat, 23 Aug 2025 16:04:34 +0800</pubDate><guid>https://maosong2022.github.io/p/notes-on-mfa/</guid><description>&lt;p>阶跃星辰等提出了 Multi-matrix Factorization Attention (MFA), 一个新型注意力机制，用于在 KV cache 限制下最大化模型的表现。&lt;/p>
+&lt;h2 id="introduction">Introduction
+&lt;/h2>&lt;p>multi-head attention (MHA) 的问题在于，其 KV cache 的内存占用（memory footprint）随 sequence length 以及 batch size 线性增长，从而成为了 LLM 在 decoding 阶段的瓶颈。&lt;/p>
+&lt;p>为了解决 MHA 的内存占用过高问题，已有的工作如 &lt;a class="link" href="https://maosong.website/p/notes-on-mqa/" target="_blank" rel="noopener"
+>MQA&lt;/a>, &lt;a class="link" href="https://maosong.website/p/notes-on-gqa/" target="_blank" rel="noopener"
+>GQA&lt;/a> 等通过共享 key, value projection 来降低 KV cache size. 而 &lt;a class="link" href="DeepSeek-V3.md" >DeepSeek-V3&lt;/a> 提出的 MLA 则是通过对 key, value projection 进行 low-rank compression, 然后只存储 latents 的方法来降低 KV cache size.&lt;/p>
+&lt;p>但是，已有的这些方法的问题在于，当我们设置 KV cache budget 之后，它们的表现就比标准的 MHA 要差。&lt;/p>
+&lt;p>基于以上这些发现，作者首先分析了已有 attention 机制的 modeling capacity, 然后使用一个统一的框架来表示这些 attention 机制。作者发现，attention heads 的个数以及 dimension 对模型表现有较大影响。&lt;/p>
+&lt;p>基于这个发现，作者提出了 &lt;strong>Multi-matrix Factorization Attention (MFA)&lt;/strong>, 以及其变体 &lt;strong>MFA-Key-Reuse (MFA-KR)&lt;/strong>. MFA 的主要目的是在有限的 KV cache size 下提高模型的表现。&lt;/p>
+&lt;h2 id="background">Background
+&lt;/h2>&lt;p>作者首先介绍了 GMHA 的概念，GMHA 由三部分组成：&lt;/p>
+&lt;ol>
+&lt;li>QK circuit: 决定了信息之间如何交互&lt;/li>
+&lt;li>valueoutput (VO) circuits：决定了信息如何传递&lt;/li>
+&lt;li>per-head softmax attention.&lt;/li>
+&lt;/ol>
+&lt;p>接下来，作者介绍了 Fully Parameterized Bilinear Attention (FPBA), FPBA 的定义如下：&lt;/p>
+$$
+O = \sum_{c=1}^d\left(\sum_{j=1}^N\phi\left(\frac{xW_cx_j}{H}\right)x_jU_c\right)
+$$&lt;p>其中 $\phi$ 是 softmax 函数，$d$ 是模型的 hidden dimension, $N$ 是 sequence length, $W_c,U_c\in\mathbb{R}^{d\times d}$ 每个 channel 上的参数矩阵&lt;/p>
+&lt;ol>
+&lt;li>每个 channel 都有各自的参数 $W_c, U_c$ 来获取 $x_i$ 与 $x_j$ 之间的信息&lt;/li>
+&lt;li>提高泛化性，所有 channel 的 $U_c$ 组合起来可以遍历 $d$ 维空间中的任意一个 permutation, 这样就避免来的信息损失&lt;/li>
+&lt;li>利用率高，FPBA 获取了 $x_i$ 与 $x_j$ 之间 $d$ 维空间可能的表示&lt;/li>
+&lt;/ol>
+&lt;p>基于以上这三个特点，作者认为 FPBA 是 GMHA 框架的一个 capacity upper bound. 此时每个 token 的 KV cache 占用为 $2d^2$ (key and value).&lt;/p>
+&lt;p>然后，作者分析了 MHA 及其变体与 GMHA 的关系，MHA 可以写作如下形式&lt;/p>
+$$
+\begin{aligned}
+O &amp;= \sum_{c=1}^h\left(\sum_{j=1}^N\phi\left(\frac{xQ_c(x_jK_c)^T}{\sqrt{d}}\right)x_jV_c\right)O_c^T\\
+&amp;= \sum_{c=1}^h\left(\sum_{j=1}^N\phi\left(\frac{x(Q_cK_c^T)x_j^T}{\sqrt{d}}\right)x_jV_cO_c^T\right)
+\end{aligned}
+$$&lt;p>其中 $Q_c,K_c,V_c\in\mathbb{R}^{d\times h_d}$, $O_c\in\mathbb{R}^{d\times h_d}$ 分别是 query, key, value, output projection layer 对应的权重矩阵，$n$ 是 attention head 的个数，令 $h_d$ 为每个 attention 的 head dimension，则我们有 $nh_d=d$.&lt;/p>
+&lt;p>可以看到，MHA 实际上是一个特殊的 FPBA, 其中，$W_c$ 和 $U_c$ 分别由秩为 $h_d$ 的低秩分解 $Q_cK_c^T$ 以及 $V_cO_c^T$ 近似。此时每个 token 的 KV cache 占用为 $2d$ (key and value).&lt;/p>
+&lt;p>MQA 可以看作是 GQA 的一个特殊情况。对于 GQA 来说，我们有一个 group size $g\in[1, h]$, 当 $g=1$ 时，GQA 就是 MHA. 当 $g=h$ 时，GQA 就是 MQA, 通常 $g$ 满足 $h\ %\ g=0$. GQA 的表达式与 MHA 基本相同，只是多个 head 会共享一个 $K_c$ 以及 $V_c$. 此时，每个 token 的 KV cache 占用为 $2gh_d$. 对于 MQA，其每个 token 的 KV cache 占用为 $2h_d$.&lt;/p>
+&lt;p>对于 MLA, 其表达式如下所示&lt;/p>
+$$
+\begin{aligned}
+O &amp;= \sum_{c=1}^m\left(\sum_{j=1}^N\phi\left(\frac{xS_QQ_c(x_jS_KK_c)^T}{\sqrt{d}}\right)x_jS_VV_c\right)O_c^T\\
+&amp;= \sum_{c=1}^m\left(\sum_{j=1}^N\phi\left(\frac{x(S_QQ_cK_c^TS_K^T)x_j^T}{\sqrt{d}}\right)x_jS_VV_cO_c^T\right)
+\end{aligned}
+$$&lt;p>其中，$S_Q,S_K,S_V\in\mathbb{R}^{d\times C}$ 在所有的 heads 中是共享的，$Q_c,K_c,V_c\in\mathbb{R}^{C\times h_d}$ 是每个 head 的 query, key, value projection layer 的参数， 是 latent factorization 的维度。与 FPBA 相比，我们可以看到，MLA 实际上是在 $d/m$ 个 head 上共享了参数，其中，$W_c$ 和 $U_c$ 分别由秩为 的低秩分解 $S_QQ_cK_c^TS_K^T$ 以及 $S_VV_cO_c^T$ 近似。尽管模型中 $C&amp;gt;h_d$, 但是最终的 rank 仍然是 $h_d$, 因此模型的表现也就受到了限制。&lt;/p>
+&lt;h2 id="method">Method
+&lt;/h2>&lt;p>对已有的 attention 分析之后，作者认为，要提高模型的表现，attention 需要做到亮点：&lt;/p>
+&lt;ol>
+&lt;li>最小化 KV cache 占用和参数量&lt;/li>
+&lt;li>attention 的 capacity 尽可能接近 FPBA&lt;/li>
+&lt;/ol>
+&lt;p>基于这两个原则，作者提出了 MFA, MFA 主要依赖三个策略：&lt;/p>
+&lt;ol>
+&lt;li>提升 attention heads 的 head dimension, 通过提高 head dimension, 我们可以有效提高 attention head 的表达能力&lt;/li>
+&lt;li>使用矩阵分解来降低参数量&lt;/li>
+&lt;li>使用单一的 KV head 来降低 KV cache 内存占用&lt;/li>
+&lt;/ol>
+&lt;p>最终，MFA 的表达式如下所示&lt;/p>
+$$
+\begin{aligned}
+O &amp;= \sum_{c=1}^m\left(\sum_{j=1}^N\phi\left(\frac{xS_QQ_c(x_jS_K)^T}{\sqrt{d}}\right)x_jS_V\right)O_c^T\\
+&amp;= \sum_{c=1}^m\left(\sum_{j=1}^N\left(\frac{x(S_QQ_cS_K^T)x_j^T}{\sqrt{d}}\right)x_jS_VO_c^T\right)
+\end{aligned}
+$$&lt;p>其中 $S_Q,S_K,S_V\in\mathbb{R}^{d\times C}$ 是所有的 attention head 所共享的，$Q_c,O_c\in\mathbb{R}^{C\times C}$ 是每个 head 的 query up projection 和 output projection, $C$ 是 latent factorization 的维度。&lt;/p>
+&lt;p>在 inference 的时候，由于我们只需要保存 $x_jS_K$ 和 $x_jS_V$, 因此所需要的 KV cache size 为 $2C$. 与 FPBA 相比，MFA 分别使用 $S_QQ_cS_K^T$ 和 $S_VO_c^T$ 来近似 $W_c$ 和 $U_c$, 近似矩阵的 rank 为 $C$. 由于 $C&amp;gt;d$, 因此其表达能力也更强，MFA 有如下优势：&lt;/p>
+&lt;ol>
+&lt;li>scalable head count: MFA 可以支持使用更多的 attention heads, 每增加一个 heads, 所需要的额外参数为 $2C^2$. 并且，增加 attention heads 个数不会增加 KV cache 占用&lt;/li>
+&lt;li>enhanced head expressiveness: MFA 近似矩阵的 rank 为 $C&amp;gt;d$, 因此表达能力更强&lt;/li>
+&lt;li>Compatibility with position encodings: MFA 可以无缝集成 position encoding.&lt;/li>
+&lt;/ol>
+&lt;p>为了进一步降低 MFA 的 KV cache 占用，作者提出了 MFA-Key-Reuse (MFA-KA). 核心思想是使用 $S_K$ 来表示 $S_V$, 这样可以额外降低 $50%$ 的 KV cache 占用，表示方法如下所示&lt;/p>
+$$
+S_V = S_K + \alpha\odot NS_K = (I +\mathrm{diag}(\alpha)N)S_K
+$$&lt;p>其中 $N\in\mathbb{R}^{N\times N}$, $\alpha\in\mathbb{R}^C$.&lt;/p>
+&lt;p>最终，MFA, MFA-KR 与 GQA 的对比如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-mfa/MFA-illustration.png"
+width="1352"
+height="632"
+srcset="https://maosong2022.github.io/p/notes-on-mfa/MFA-illustration_hu7660720248060629286.png 480w, https://maosong2022.github.io/p/notes-on-mfa/MFA-illustration_hu8920417942560612274.png 1024w"
+loading="lazy"
+alt="Comparison of MFA with GQA"
+class="gallery-image"
+data-flex-grow="213"
+data-flex-basis="513px"
+>&lt;/p>
+&lt;p>不同 attention 的量化对比如下表所示&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Method&lt;/th>
+&lt;th>KV Cache&lt;/th>
+&lt;th>Parameter&lt;/th>
+&lt;th>Heads&lt;/th>
+&lt;th>Factor. rank per head&lt;/th>
+&lt;th>Shared latent subspace Dim.&lt;/th>
+&lt;th>Total effec. rank&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>FPBA&lt;/td>
+&lt;td>$2d^2$&lt;/td>
+&lt;td>$2d^3$&lt;/td>
+&lt;td>$d$&lt;/td>
+&lt;td>$d$&lt;/td>
+&lt;td>$d$&lt;/td>
+&lt;td>$d^2$&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>MHA&lt;/td>
+&lt;td>$2d$&lt;/td>
+&lt;td>$4d^2$&lt;/td>
+&lt;td>$n$&lt;/td>
+&lt;td>$h_d$&lt;/td>
+&lt;td>$d$&lt;/td>
+&lt;td>$nh_d$&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>MQA&lt;/td>
+&lt;td>$2h_d$&lt;/td>
+&lt;td>$(2 + 2/n)d^2$&lt;/td>
+&lt;td>$n$&lt;/td>
+&lt;td>$h_d$&lt;/td>
+&lt;td>$h_d$&lt;/td>
+&lt;td>$nh_d$&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>GQA&lt;/td>
+&lt;td>$2gh_d$&lt;/td>
+&lt;td>$(2 + 2g/n)d^2$&lt;/td>
+&lt;td>$n$&lt;/td>
+&lt;td>$h_d$&lt;/td>
+&lt;td>$gh_d$&lt;/td>
+&lt;td>$nh_d$&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>MLA&lt;/td>
+&lt;td>$2C$&lt;/td>
+&lt;td>$5dC + d^2$&lt;/td>
+&lt;td>$m$&lt;/td>
+&lt;td>$h_d$&lt;/td>
+&lt;td>$C$&lt;/td>
+&lt;td>$mh_d$&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>MFA&lt;/td>
+&lt;td>$2C$&lt;/td>
+&lt;td>$3Cd + 2mC^2$&lt;/td>
+&lt;td>$m$&lt;/td>
+&lt;td>$C$&lt;/td>
+&lt;td>$C$&lt;/td>
+&lt;td>$mC$&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h2 id="code">Code
+&lt;/h2>&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;span class="lnt">21
+&lt;/span>&lt;span class="lnt">22
+&lt;/span>&lt;span class="lnt">23
+&lt;/span>&lt;span class="lnt">24
+&lt;/span>&lt;span class="lnt">25
+&lt;/span>&lt;span class="lnt">26
+&lt;/span>&lt;span class="lnt">27
+&lt;/span>&lt;span class="lnt">28
+&lt;/span>&lt;span class="lnt">29
+&lt;/span>&lt;span class="lnt">30
+&lt;/span>&lt;span class="lnt">31
+&lt;/span>&lt;span class="lnt">32
+&lt;/span>&lt;span class="lnt">33
+&lt;/span>&lt;span class="lnt">34
+&lt;/span>&lt;span class="lnt">35
+&lt;/span>&lt;span class="lnt">36
+&lt;/span>&lt;span class="lnt">37
+&lt;/span>&lt;span class="lnt">38
+&lt;/span>&lt;span class="lnt">39
+&lt;/span>&lt;span class="lnt">40
+&lt;/span>&lt;span class="lnt">41
+&lt;/span>&lt;span class="lnt">42
+&lt;/span>&lt;span class="lnt">43
+&lt;/span>&lt;span class="lnt">44
+&lt;/span>&lt;span class="lnt">45
+&lt;/span>&lt;span class="lnt">46
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="k">class&lt;/span> &lt;span class="nc">Step3vAttention&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Module&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="fm">__init__&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">config&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">Step3VLConfig&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">layer_idx&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nb">super&lt;/span>&lt;span class="p">()&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="fm">__init__&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">config&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">config&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">layer_idx&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">layer_idx&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">head_dim&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nb">getattr&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">config&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;head_dim&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">hidden_size&lt;/span> &lt;span class="o">//&lt;/span> &lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">num_attention_heads&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">num_key_value_heads&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mi">1&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">total_num_kv_heads&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">num_key_value_heads&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">num_attention_heads&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">num_attention_heads&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">num_key_value_groups&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">num_attention_heads&lt;/span> &lt;span class="o">//&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">num_key_value_heads&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">q_size&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nb">getattr&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">config&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;share_q_dim&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">head_dim&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">kv_size&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">num_key_value_heads&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">head_dim&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">scaling&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">head_dim&lt;/span>&lt;span class="o">**-&lt;/span>&lt;span class="mf">0.5&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">is_causal&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="kc">True&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">q_proj&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Linear&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">hidden_size&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">q_size&lt;/span> &lt;span class="p">,&lt;/span> &lt;span class="n">bias&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="kc">False&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">k_proj&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Linear&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">hidden_size&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">head_dim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">bias&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="kc">False&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">v_proj&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Linear&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">hidden_size&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">head_dim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">bias&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="kc">False&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">o_proj&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Linear&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">num_attention_heads&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">head_dim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">hidden_size&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">bias&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="kc">False&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1"># query down projection normalization&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">inter_norm&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">Step3vRMSNorm&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">q_size&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">eps&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">rms_norm_eps&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1"># query up projection&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">wq&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Linear&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">q_size&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">head_dim&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">num_attention_heads&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">bias&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="kc">False&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="nf">forward&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">hidden_states&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">position_embeddings&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">Tuple&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">],&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">attention_mask&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">Optional&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">],&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">past_key_value&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">Optional&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">Cache&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="kc">None&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">cache_position&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">Optional&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">LongTensor&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="kc">None&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">**&lt;/span>&lt;span class="n">kwargs&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">Unpack&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">FlashAttentionKwargs&lt;/span>&lt;span class="p">],&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span> &lt;span class="o">-&amp;gt;&lt;/span> &lt;span class="n">Tuple&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">Optional&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">],&lt;/span> &lt;span class="n">Optional&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">Tuple&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">]]]:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">input_shape&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">hidden_states&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">shape&lt;/span>&lt;span class="p">[:&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">query_states&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">q_proj&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">hidden_states&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">key_states&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">k_proj&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">hidden_states&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">view&lt;/span>&lt;span class="p">((&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="n">input_shape&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">head_dim&lt;/span>&lt;span class="p">))&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">transpose&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">value_states&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">v_proj&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">hidden_states&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">view&lt;/span>&lt;span class="p">((&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="n">input_shape&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">head_dim&lt;/span>&lt;span class="p">))&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">transpose&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">query_states&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">inter_norm&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">query_states&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">query_states&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">wq&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">query_states&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">view&lt;/span>&lt;span class="p">((&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="n">input_shape&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">head_dim&lt;/span>&lt;span class="p">))&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">transpose&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">cos&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">sin&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">position_embeddings&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">query_states&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">key_states&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">apply_rotary_pos_emb&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">query_states&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">key_states&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">cos&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">sin&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">...&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h2 id="conclusion">Conclusion
+&lt;/h2>&lt;p>作者在本文中提出了 MFA 以及 MFA-KR, 一个在 KV cache 有限的条件下最大限度提高 attention 表达能力的 attention 机制。&lt;/p>
+&lt;h2 id="references">References
+&lt;/h2>&lt;ul>
+&lt;li>&lt;a class="link" href="http://arxiv.org/abs/2412.19255" target="_blank" rel="noopener"
+>Multi-matrix Factorization Attention&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://huggingface.co/stepfun-ai/step3/blob/main/modeling_step3.py" target="_blank" rel="noopener"
+>Step v3 code&lt;/a>&lt;/li>
+&lt;/ul></description></item><item><title>Notes on MX-format</title><link>https://maosong2022.github.io/p/notes-on-mx-format/</link><pubDate>Thu, 21 Aug 2025 18:23:03 +0800</pubDate><guid>https://maosong2022.github.io/p/notes-on-mx-format/</guid><description>&lt;p>MX format 是一个表示数据的数据格式，在 LLM 中主要用于量化。相比于直接对整个张量进行量化，MX format 可以在更细粒度的层面控制量化，从而提高模型的表现&lt;/p>
+&lt;h2 id="microscaling">Microscaling
+&lt;/h2>&lt;p>Microscaling (MS) format 如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-mx-format/MX-format-illustration.png"
+width="1048"
+height="490"
+srcset="https://maosong2022.github.io/p/notes-on-mx-format/MX-format-illustration_hu5964344889815972436.png 480w, https://maosong2022.github.io/p/notes-on-mx-format/MX-format-illustration_hu10722800666061163847.png 1024w"
+loading="lazy"
+alt="illustration of MX format"
+class="gallery-image"
+data-flex-grow="213"
+data-flex-basis="513px"
+>&lt;/p>
+&lt;p>MX format 包括三个部分：&lt;/p>
+&lt;ol>
+&lt;li>elements $P_1,\dots,P_k$ 未 scale 的数据，要求 $P_1,\dots,P_k$ 的数据类型相同&lt;/li>
+&lt;li>shared scale $X$, 对 element 进行的 scale 参数，所有的 $k$ 个 bits 共享一个 $X$&lt;/li>
+&lt;li>block size, 决定 element block 的大小&lt;/li>
+&lt;/ol>
+&lt;p>在存储时，我们只需要存储 $X$ 以及 $P_1,\dots,P_k$, 我们假设 $X$ 需要 $w$ bits 来表示，$P_i$ 需要 $d$ bits 来表示，则我们一共需要 $w+kd$ bits 来表示这 $k$ 个元素。&lt;/p>
+&lt;h2 id="concrete-mx-compliant-formats">Concrete MX-compliant Formats
+&lt;/h2>&lt;p>MX-format 包含了一下几种数据格式：&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Format Name&lt;/th>
+&lt;th>Element Data Type&lt;/th>
+&lt;th>Element Bits(d)&lt;/th>
+&lt;th>Scaling Block Size(k)&lt;/th>
+&lt;th>Scale Data Type&lt;/th>
+&lt;th>Scale Bits(w)&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>MXFP8&lt;/td>
+&lt;td>FP8 (E5M2)&lt;/td>
+&lt;td>8&lt;/td>
+&lt;td>32&lt;/td>
+&lt;td>E8M0&lt;/td>
+&lt;td>8&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>MXFP8&lt;/td>
+&lt;td>FP8 (E4M3)&lt;/td>
+&lt;td>8&lt;/td>
+&lt;td>32&lt;/td>
+&lt;td>E8M0&lt;/td>
+&lt;td>8&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>MXFP6&lt;/td>
+&lt;td>FP6 (E3M2)&lt;/td>
+&lt;td>6&lt;/td>
+&lt;td>32&lt;/td>
+&lt;td>E8M0&lt;/td>
+&lt;td>8&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>MXFP6&lt;/td>
+&lt;td>FP6 (E2M3)&lt;/td>
+&lt;td>6&lt;/td>
+&lt;td>32&lt;/td>
+&lt;td>E8M0&lt;/td>
+&lt;td>8&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>MXFP4&lt;/td>
+&lt;td>FP4 (E2M1)&lt;/td>
+&lt;td>4&lt;/td>
+&lt;td>32&lt;/td>
+&lt;td>E8M0&lt;/td>
+&lt;td>8&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>MXINT8&lt;/td>
+&lt;td>INT8&lt;/td>
+&lt;td>8&lt;/td>
+&lt;td>32&lt;/td>
+&lt;td>E8M0&lt;/td>
+&lt;td>8&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h2 id="gpt-oss-quantization">GPT-oss Quantization
+&lt;/h2>&lt;p>&lt;a class="link" href="https://maosong.website/p/notes-on-gpt-oss/" target="_blank" rel="noopener"
+>gpt-oss&lt;/a> 中使用了 MXFP4 来表示 MoE 中的 down projection 以及 up projection weight matrix 的权重。&lt;/p>
+&lt;p>其具体操作过程如下：&lt;/p>
+&lt;ol>
+&lt;li>我们将参数分为大小为 32 的 block&lt;/li>
+&lt;li>每个 block 由一个 scale $X$ 来表示，其精度为 E8M0, 即 8bits, 表示范围为 $[-127,127]$, 以及 $32$ 个元素 $P_i$ 来表示，每个元素的精度为 E2M1, 即 4bits, 表示范围为 $[-6.0,6.0]$.&lt;/li>
+&lt;li>由于每个元素由 4bits 来表示，因此我们将两个元素合并在一起来表示&lt;/li>
+&lt;/ol>
+&lt;p>在加载时，我们可以用如下代码来恢复 $P_i$ 的值到 FP8&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;span class="lnt">21
+&lt;/span>&lt;span class="lnt">22
+&lt;/span>&lt;span class="lnt">23
+&lt;/span>&lt;span class="lnt">24
+&lt;/span>&lt;span class="lnt">25
+&lt;/span>&lt;span class="lnt">26
+&lt;/span>&lt;span class="lnt">27
+&lt;/span>&lt;span class="lnt">28
+&lt;/span>&lt;span class="lnt">29
+&lt;/span>&lt;span class="lnt">30
+&lt;/span>&lt;span class="lnt">31
+&lt;/span>&lt;span class="lnt">32
+&lt;/span>&lt;span class="lnt">33
+&lt;/span>&lt;span class="lnt">34
+&lt;/span>&lt;span class="lnt">35
+&lt;/span>&lt;span class="lnt">36
+&lt;/span>&lt;span class="lnt">37
+&lt;/span>&lt;span class="lnt">38
+&lt;/span>&lt;span class="lnt">39
+&lt;/span>&lt;span class="lnt">40
+&lt;/span>&lt;span class="lnt">41
+&lt;/span>&lt;span class="lnt">42
+&lt;/span>&lt;span class="lnt">43
+&lt;/span>&lt;span class="lnt">44
+&lt;/span>&lt;span class="lnt">45
+&lt;/span>&lt;span class="lnt">46
+&lt;/span>&lt;span class="lnt">47
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="n">FP4_VALUES&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="o">+&lt;/span>&lt;span class="mf">0.0&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="o">+&lt;/span>&lt;span class="mf">0.5&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="o">+&lt;/span>&lt;span class="mf">1.0&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="o">+&lt;/span>&lt;span class="mf">1.5&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="o">+&lt;/span>&lt;span class="mf">2.0&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="o">+&lt;/span>&lt;span class="mf">3.0&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="o">+&lt;/span>&lt;span class="mf">4.0&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="o">+&lt;/span>&lt;span class="mf">6.0&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mf">0.0&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mf">0.5&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mf">1.0&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mf">1.5&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mf">2.0&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mf">3.0&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mf">4.0&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mf">6.0&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">def&lt;/span> &lt;span class="nf">convert_moe_packed_tensors&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">blocks&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">scales&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">*&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">dtype&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">dtype&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">bfloat16&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">rows_per_chunk&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">int&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mi">32768&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="mi">1024&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">)&lt;/span> &lt;span class="o">-&amp;gt;&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kn">import&lt;/span> &lt;span class="nn">math&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1"># scales are represented with uini8&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">scales&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">scales&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">to&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">int32&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="mi">127&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">assert&lt;/span> &lt;span class="n">blocks&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">shape&lt;/span>&lt;span class="p">[:&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">==&lt;/span> &lt;span class="n">scales&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">shape&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="sa">f&lt;/span>&lt;span class="s2">&amp;#34;&lt;/span>&lt;span class="si">{&lt;/span>&lt;span class="n">blocks&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">shape&lt;/span>&lt;span class="si">=}&lt;/span>&lt;span class="s2"> does not match &lt;/span>&lt;span class="si">{&lt;/span>&lt;span class="n">scales&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">shape&lt;/span>&lt;span class="si">=}&lt;/span>&lt;span class="s2">&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">lut&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">tensor&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">FP4_VALUES&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">dtype&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">dtype&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">device&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">blocks&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">device&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">*&lt;/span>&lt;span class="n">prefix_shape&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">G&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">B&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">blocks&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">shape&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">rows_total&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">math&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">prod&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">prefix_shape&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">G&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">blocks&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">blocks&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">reshape&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">rows_total&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">B&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">scales&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">scales&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">reshape&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">rows_total&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1"># each byte representing 2 elements and represented with unit8&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">out&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">empty&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">rows_total&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">B&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">dtype&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">dtype&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">device&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">blocks&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">device&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">for&lt;/span> &lt;span class="n">r0&lt;/span> &lt;span class="ow">in&lt;/span> &lt;span class="nb">range&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">rows_total&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">rows_per_chunk&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">r1&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nb">min&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">r0&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">rows_per_chunk&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">rows_total&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">blk&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">blocks&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">r0&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="n">r1&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">exp&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">scales&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">r0&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="n">r1&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1"># nibble indices -&amp;gt; int64&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">idx_lo&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">blk&lt;/span> &lt;span class="o">&amp;amp;&lt;/span> &lt;span class="mh">0x0F&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">to&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">long&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">idx_hi&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">blk&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="mi">4&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">to&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">long&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">sub&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">out&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">r0&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="n">r1&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">sub&lt;/span>&lt;span class="p">[:,&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">::&lt;/span>&lt;span class="mi">2&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">lut&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">idx_lo&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">sub&lt;/span>&lt;span class="p">[:,&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">::&lt;/span>&lt;span class="mi">2&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">lut&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">idx_hi&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ldexp&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">sub&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">exp&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">out&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">sub&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">del&lt;/span> &lt;span class="n">idx_lo&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">idx_hi&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">blk&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">exp&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">out&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">out&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">reshape&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="n">prefix_shape&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">G&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">B&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">view&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="n">prefix_shape&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">G&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">B&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1"># to match for now existing implementation&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">out&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">to&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">float8_e5m2&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h2 id="references">References
+&lt;/h2>&lt;ul>
+&lt;li>&lt;a class="link" href="https://github.com/huggingface/transformers/blob/242bb2cafccec9f90479f5f688bca9d240b1031f/src/transformers/models/gpt_oss/convert_gpt_oss_weights_to_hf.py#L78" target="_blank" rel="noopener"
+>gpt-oss code&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://www.opencompute.org/documents/ocp-microscaling-formats-mx-v1-0-spec-final-pdf#page=4.11" target="_blank" rel="noopener"
+>report&lt;/a>&lt;/li>
+&lt;/ul></description></item><item><title>Notes on flashattention</title><link>https://maosong2022.github.io/p/notes-on-flashattention/</link><pubDate>Thu, 21 Aug 2025 11:32:53 +0800</pubDate><guid>https://maosong2022.github.io/p/notes-on-flashattention/</guid><description>&lt;p>作者提出了 flashattention, 一个通过降低 multi head attention 内存访问开销来提高 attention 计算效率的方法&lt;/p>
+&lt;h2 id="introduction">Introduction
+&lt;/h2>&lt;p>Transformer 的 attention 是一个平方度复杂度的算法，这个平方复杂度既体现在时间复杂度上（矩阵乘法），也体现在空间复杂度上（需要存储中间结果）。因此，要降低 attention 的复杂度，我们有两种思路：&lt;/p>
+&lt;ol>
+&lt;li>从时间复杂度上入手，比如使用稀疏 attention 机制或者线性注意力机制&lt;/li>
+&lt;li>从空间复杂度上入手，比如使用 &lt;a class="link" href="https://maosong.website/p/notes-on-gqa/" target="_blank" rel="noopener"
+>GQA&lt;/a>, &lt;a class="link" href="https://maosong.website/p/notes-on-mqa/" target="_blank" rel="noopener"
+>MQA&lt;/a> 等减少内存的访问开销&lt;/li>
+&lt;/ol>
+&lt;p>本文提出的 flashattention 就属于降低空间复杂度的一种做法。作者认为，我们应该设计一种 &lt;strong>IO-aware&lt;/strong> 的 attention 算法，来减少 attention 计算式的内存访问开销，进而提高 attention 的计算效率。&lt;/p>
+&lt;p>作者首先提到，一个未解决的问题就是：&lt;/p>
+&lt;blockquote>
+&lt;p>降低 attention 的内存访问开销是否可以提高 attention 的计算效率？&lt;/p>
+&lt;/blockquote>
+&lt;p>作者发现，已有的一些工作虽然在理论上降低了 attention 的计算效率，但是在实际中，他们的效果并没有提升太多。作者分析原因认为，已有工作主要关注于降低 FLOPs, 但是忽略了内存访问开销。&lt;/p>
+&lt;p>因此，作者在本文中就提出了 flashattention, 一个 IO-aware 的 attention 算法，作者通过尽可能降低内存访问开销来提高模型的计算效率。具体做法就是，避免从内存中读写 attention matrix, 作者认为这个目标有两个挑战：&lt;/p>
+&lt;ol>
+&lt;li>计算 softmax 的时候不访问所有的输入&lt;/li>
+&lt;li>在反向传播时不存储中间的 attention matrix&lt;/li>
+&lt;/ol>
+&lt;p>作者提出了两个方法来分别解决这两个问题：&lt;/p>
+&lt;ol>
+&lt;li>作者使用了 &lt;strong>tiling&lt;/strong> 技巧，将 input 分成多个 block, 然后分别进行处理，进而降低 softmax 的内存访问开销&lt;/li>
+&lt;li>作者使用了 &lt;strong>recompute&lt;/strong> 技巧，在反向传播时，重新计算 softmax normalization factor&lt;/li>
+&lt;/ol>
+&lt;p>通过这些改进，我们可以让 attention 运行更快，并且降低内存访问开销。&lt;/p>
+&lt;p>作者还从理论上分析了 flashattention 的复杂度，提供了理论基础。&lt;/p>
+&lt;p>作者通过实验验证了 flashattention 的有效性，主要是三点：&lt;/p>
+&lt;ol>
+&lt;li>训练效率更高：相比于 Huggingface 和 Megatron, flashattention 的训练效率提升了 2-3 倍&lt;/li>
+&lt;li>模型的表现更好：相比于 GPT-2, 模型的 perplexity 提升了 0.7 个点左右&lt;/li>
+&lt;li>速度更快：flashattention 比标准的 attention 实现快 3 倍以上&lt;/li>
+&lt;/ol>
+&lt;h2 id="background">Background
+&lt;/h2>&lt;h3 id="hardware-performance">Hardware Performance
+&lt;/h3>&lt;p>作者首先介绍了以下 GPU 的内存架构，如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-flashattention/flashattention-GPU-hierarchy.png"
+width="430"
+height="383"
+srcset="https://maosong2022.github.io/p/notes-on-flashattention/flashattention-GPU-hierarchy_hu12057169839763299901.png 480w, https://maosong2022.github.io/p/notes-on-flashattention/flashattention-GPU-hierarchy_hu4456192002702243811.png 1024w"
+loading="lazy"
+alt="Memory Hierarchy of GPU"
+class="gallery-image"
+data-flex-grow="112"
+data-flex-basis="269px"
+>&lt;/p>
+&lt;p>可以看到，GPU 内存可以分为三个层级：&lt;/p>
+&lt;ol>
+&lt;li>SRAM: GPU 的寄存器，容量小，但是访问速度极快&lt;/li>
+&lt;li>High bandwith memory (HBM): GPU 的高速内存，访问速度较快，容量中等&lt;/li>
+&lt;li>DRAM: CPU 内存，容量最大，但是访问速度较慢&lt;/li>
+&lt;/ol>
+&lt;p>接下来作者介绍了 Execution model 的概念，GPU 有多个线程来执行同一个操作（SPMD），这个操作也被称为 kernel, kernel 会从 HBM 中加载输入到 SRAM 中进行计算，然后写回 HBM.&lt;/p>
+&lt;p>对一个算法，我们可以将其归类为 compute-bound 和 memory-bound 两类， 我们可以用 arithmetic intensity 来进行区分，arithmetic intensity 定义为 arithmetic operations 与 memory access 的比率。&lt;/p>
+&lt;ol>
+&lt;li>compute bound: 算法的瓶颈在于算力，由于算力不足导致运行时间慢，比如矩阵乘法&lt;/li>
+&lt;li>memory-bound: 算法的瓶颈在于内存访问效率，比如 element-wise 操作或者是 reduction&lt;/li>
+&lt;/ol>
+&lt;p>为了提高 memory-bound 类型算法的效率，我们进行 kernel fusion, 即把多个访问同一片内存的操作放在一起处理，避免多次读写内存&lt;/p>
+&lt;h3 id="standard-attention-implementation">Standard Attention Implementation
+&lt;/h3>&lt;p>作者还回顾了一下标准化的 attention 实现。&lt;/p>
+&lt;h4 id="forward-pass">Forward Pass
+&lt;/h4>&lt;p>给定 $Q,K,V\in\mathbb{R}^{N\times d}$, 其中 $N$ 是序列长度, $d$ 是 head dimension, attention 的定义如下&lt;/p>
+$$
+S = QK^T\in\mathbb{R}^{N\times N},\quad P = \mathrm{softmax}(S)\in\mathbb{R}^{N\times N},\quad O = PV\in\mathbb{R}^{N\times d}
+$$&lt;p>这里 $\mathrm{softmax}$ 是逐行计算的。&lt;/p>
+&lt;p>算法的执行过程如下&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-flashattention/flashattention-standard-attention-implementation.png"
+width="1022"
+height="251"
+srcset="https://maosong2022.github.io/p/notes-on-flashattention/flashattention-standard-attention-implementation_hu6197068896169413721.png 480w, https://maosong2022.github.io/p/notes-on-flashattention/flashattention-standard-attention-implementation_hu2691770135753182065.png 1024w"
+loading="lazy"
+alt="Algorithm 0: Standard Attention Implementation"
+class="gallery-image"
+data-flex-grow="407"
+data-flex-basis="977px"
+>&lt;/p>
+&lt;p>我们有第一个结论&lt;/p>
+&lt;blockquote>
+&lt;p>Proposition 1
+标准化 attention 前向传播时访问 HBM 的内存访问开销为 $\mathcal{O}(Nd+N^2)$.&lt;/p>
+&lt;/blockquote>
+&lt;p>证明：对于 attention, 我们需要从 HBM 中加载 $Q,K,V\in\mathbb{R}^{N\times d}$, 然后输出 $O\in\mathbb{R}^{N\times d}$ 并保存到内存中。&lt;/p>
+&lt;p>首先我们需要计算 $S = QK^T$, 这一步需要加载 $Q,K$ 并将 $S$ 保存到 HBM 中，内存访问量为 $\mathcal{O}(Nd+N^2)$.&lt;/p>
+&lt;p>接下来，我们需要计算 $P = \mathrm{softmax}(S)$, 这一步需要加载 $S$ 然后将 $P$ 保存到 HBM 中，内存访问量为 $\mathcal{O}(N^2)$.&lt;/p>
+&lt;p>最后，我们需要计算 $O = PV$, 这一步需要加载 $P$ 和 $V$ 然后将 $O$ 保存到 HBM 中，内存访问量为 $\mathcal{O}(Nd+N^2)$.&lt;/p>
+&lt;p>总的来说，标准化 attention 的内存访问开销为 $\mathcal{O}(Nd+N^2)$.&lt;/p>
+&lt;h4 id="backward-pass">Backward Pass
+&lt;/h4>&lt;p>标准 attention 反向传播过程如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-flashattention/flashattention-standard-attention-backward-pass.png"
+width="1187"
+height="281"
+srcset="https://maosong2022.github.io/p/notes-on-flashattention/flashattention-standard-attention-backward-pass_hu9714355826535941759.png 480w, https://maosong2022.github.io/p/notes-on-flashattention/flashattention-standard-attention-backward-pass_hu3333822996667130018.png 1024w"
+loading="lazy"
+class="gallery-image"
+data-flex-grow="422"
+data-flex-basis="1013px"
+>&lt;/p>
+&lt;blockquote>
+&lt;p>Proposition 2
+标准化 attention 反向传播时访问 HBM 的内存访问开销为 $\mathcal{O}(Nd+N^2)$.&lt;/p>
+&lt;/blockquote>
+&lt;p>证明：对于标准化 attention 的反向传播，我们需要从 HBM 中加载 $Q,K,V,dO\in\mathbb{R}^{N\times d}$ , 然后输出 $dQ,dK,dV$ 并保存到 HBM 中。&lt;/p>
+&lt;p>首先我们计算 $dV=P^TdO$, 这一步需要加载 $P,dO$ 并将 $dV$ 保存到 HBM 中，内存访问开销为 $\mathcal{O}(Nd+N^2)$.&lt;/p>
+&lt;p>接下来我们计算 $dP=dOV^T$, 这一步需要加载 $dO, V$ 并将 $dP$ 保存到 HBM 中，内存访问开销为 $\mathcal{O}(Nd)$.&lt;/p>
+&lt;p>然后我们计算 $dS$, 这一步需要加载 $P$ 并将 $dS$ 保存到 HBM 中，内存访问开销为 $\mathcal{O}(N^2)$.&lt;/p>
+&lt;p>对于 $dQ$ 和 $dK$ 的计算，内存访问开销都是 $\mathcal{O}(Nd+N^2)$.&lt;/p>
+&lt;p>因此，标准化 attention 的内存访问开销为 $\mathcal{O}(Nd+N^2)$.&lt;/p>
+&lt;h2 id="method">Method
+&lt;/h2>&lt;p>作者在本节首先介绍了 flashattention 算法，然后作者证明了 flashattention 的正确性以及分析了复杂度。最后作者对 flashattention 进行扩展得到了 Block-sparse Flashattention.&lt;/p>
+&lt;h3 id="flashattention">Flashattention
+&lt;/h3>&lt;p>attention 模块的输入是 $Q,K,V\in\mathbb{R}^{N\times d}$, 输出是 $O\in\mathbb{R}^{N\times d}$, 作者的目标是减少计算过程中的 HBM 访问次数&lt;/p>
+&lt;p>作者分别使用了 tiling 和 recomputation 来解决 attention 前向传播和反向传播中的内存访问开销。flashattention 的核心思想是，我们将 $Q,K,V$ 分割成 block, 然后在 block 层面进行加载和计算。&lt;/p>
+&lt;h4 id="tiling">Tiling
+&lt;/h4>&lt;p>首先作者介绍了一下如何使用 tiling 来计算 softmax.&lt;/p>
+&lt;p>给定一个向量 $x\in\mathbb{R}^{B}$, 其 softmax 计算方式如下&lt;/p>
+$$
+m(x) = \max_i x_i,\ f(x) = [e^{x_1-m(x)},\dots,e^{x_B-m(x)}], \ \ell(x)=\sum_if(x)_i, \ \mathrm{softmax}(x) = \frac{f(x)}{\ell(x)}
+$$&lt;p>如果我们现在有两个向量 $x^{(1)}, x^{(2)}\in\mathbb{R}^{B}$, 记 $x=[x^{(1)}, x^{(2)}]^T\in\mathbb{R}^{2B}$, 我们可以将 $\mathrm{softmax}(x)$ 的计算分解为&lt;/p>
+$$
+\begin{aligned}
+m(x) &amp;= \max(m(x^{(1)}), m(x^{(2)}))， f(x) = [e^{m(x^{(1)})-m(x)}f(x^{(1)}),e^{m(x^{(2)})-m(x)}f(x^{(2)})]\\
+\ell(x) &amp;= e^{m(x^{(1)})-m(x)}\ell(x^{(1)}) + e^{m(x^{(2)})-m(x)}\ell(x^{(2)}), \mathrm{softmax}(x) = \frac{f(x)}{\ell(x)}
+\end{aligned}
+$$&lt;p>因此，如果我们额外记录 $m(x)$ 以及 $\ell(x)$ 这两个量，那么我们可以每次仅计算 softmax 的一个 block&lt;/p>
+&lt;h4 id="recomputation">Recomputation
+&lt;/h4>&lt;p>在反向传播过程中，一般我们需要存储 $S,P\in\mathbb{R}^{N\times N}$, 需要的空间复杂度为 $\mathcal{O}(N^2)$. 但是，通过存储 $O\in\mathbb{R}^{N\times d}$ 以及 $(m,\ell)$, 我们可以避免重新计算 $S,P$,这可以看做是 gradient checkpointing. 但是与 checkpointing 相比，因为 flashattention 减少了内存访问开销，因此其反向过程并没有变得更慢。&lt;/p>
+&lt;h4 id="algorithm">Algorithm
+&lt;/h4>&lt;p>最终，flashattention 的算法如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-flashattention/flashattention-algorithm.png"
+width="1207"
+height="700"
+srcset="https://maosong2022.github.io/p/notes-on-flashattention/flashattention-algorithm_hu14953009943583888973.png 480w, https://maosong2022.github.io/p/notes-on-flashattention/flashattention-algorithm_hu411171794513571213.png 1024w"
+loading="lazy"
+alt="Flashattention algorithm"
+class="gallery-image"
+data-flex-grow="172"
+data-flex-basis="413px"
+>&lt;/p>
+&lt;h3 id="analysis">Analysis
+&lt;/h3>&lt;h4 id="correctness">Correctness
+&lt;/h4>&lt;p>算法的正确性由定理 1 给出&lt;/p>
+&lt;blockquote>
+&lt;p>Theorem 1
+flashattention (即算法 1) 输出 $O=\mathrm{softmax}(QK^T)V$, 其时间复杂度为 $\mathcal{O}(N^2d)$, 空间复杂度为 $\mathcal{O}(N)$.&lt;/p>
+&lt;/blockquote>
+&lt;p>证明：时间复杂度主要由矩阵乘法决定。在计算 $S_{ij}=Q_iK_j^T$ 时，所花费的 FLOPS 为 $\mathcal{O}(B_rB_cd)$. 在计算 $\tilde{P}_{ij}V_j$ 时，所花费的 FLOPS 为 $\mathcal{O}(B_rB_cd)$. 循环一共执行了&lt;/p>
+$$
+T_cT_r = \left\lceil\frac{N}{B_c}\right\rceil\left\lceil\frac{N}{B_r}\right\rceil
+$$&lt;p>从而总的 FLOPS 为&lt;/p>
+$$
+\mathcal{O}\left(\frac{N^2}{B_rB_c}B_rB_cd\right) = \mathcal{O}(N^2d)
+$$&lt;p>在 flashattention 的计算过程中，我们只需要保存 $(\ell, m)$ 即可，因此需要的额外内存空间为 $\mathcal{O}(N)$.&lt;/p>
+&lt;p>接下来，我们可以证明 flashattention 的正确性，我们使用归纳法来证明。令 $j$ 满足 $0\leq j\leq T_c$, $K_{:j}\in\mathbb{R}^{jB_c\times d}$, $V_{:j}\in\mathbb{R}^{jB_c\times d}$ 分别为 $K$ 和 $V$ 的前 $jB_c$ 行。 $S_{:, :j}=QK_{:j}^T\in\mathbb{R}^{N\times jB_c}$, $P_{:,:j}=\mathrm{softmax}(S_{:,:j})\in\mathbb{R}^{N\times jB_c}$, $m^{(j)}, \ell^{(j)}, O^{(j)}$ 分别为 $m,\ell, O$ 的第 $j$ 个元素。我们证明经过第 $j$ 次迭代后，HBM 中保存的是&lt;/p>
+$$
+m^{(j)}=\mathrm{rowmax}(S_{:,:j})\in\mathbb{R}^N, \ell^{(j)}=\mathrm{rowsum}(\exp(S_{:,:j}-m^{(j)}))\in\mathbb{R}^N, O^{(j)} = P_{:,:j}V_{:j}\in\mathbb{R}^{N\times d}
+$$&lt;p>当 $j=0$ 时，上面的结果显然成立。现在我们假设对某个 $j=0,\dots, T_c-1$ 上面的结果成立，我们需要证明对 $j+1$ 也成立。&lt;/p>
+&lt;p>首先&lt;/p>
+$$
+m^{(j+1)}=\max(m^{(j)}， \tilde{m}) = \max(\mathrm{rowmax}(S_{:,:j}), \mathrm{rowmax}(S_{:,j:j+1}))=\mathrm{rowmax}(S_{:,:j+1})
+$$&lt;p>接下来&lt;/p>
+$$
+\begin{aligned}
+\ell^{(j+1)} &amp;= \exp(m^{(j)}-m^{(j+1)})\ell^{(j)} + \exp(\tilde{m}-m^{(j+1)})\tilde{\ell}\\
+&amp;=\exp(m^{(j)}-m^{(j+1)})\mathrm{rowsum}(\exp(S_{:,:j}-m^{(j)})) + \exp(\tilde{m}-m^{(j+1)})\mathrm{rowsum}(\exp(S_{:,j:j+1}-\tilde{m}))\\
+&amp;= \mathrm{rowsum}(\exp(S_{:,:j}-m^{(j+1)})) + \mathrm{rowsum}(\exp(S_{:,j:j+1}-m^{(j+1)}))\\
+&amp;= \mathrm{rowsum}(\exp(S_{:,:j+1}-m^{(j+1)}))
+\end{aligned}
+$$&lt;p>最后，我们计算 $O^{(j+1)}$ 得到：&lt;/p>
+$$
+\begin{aligned}
+O^{(j+1)} &amp;= \mathrm{diag}(\ell^{(j+1)})^{-1}(\mathrm{diag}(\ell^{(j)})\exp(m^{(j)}-m^{(j+1)})O^{(j)}+\exp(\tilde{m}-m^{(j+1)})\exp(S_{:,j:j+1}-\tilde{m})V_{:,j:j+1})\\
+&amp;= \mathrm{diag}(\ell^{(j+1)})^{-1}(\mathrm{diag}(\ell^{(j)})\exp(m^{(j)}-m^{(j+1)})P_{:,:j}V_{:,:j}+\exp(-m^{(j+1)})\exp(S_{:,j:j+1})V_{:,j:j+1})\\
+&amp;= \mathrm{diag}(\ell^{(j+1)})^{-1}(\mathrm{diag}(\ell^{(j)})\exp(m^{(j)}-m^{(j+1)})\mathrm{diag}(\ell^{(j)})^{-1}\exp(S_{:,:j}-m^{(j)})V_{:,:j}+\exp(-m^{(j+1)})\exp(S_{:,j:j+1})V_{:,j:j+1})\\
+&amp;= \mathrm{diag}(\ell^{(j+1)})^{-1}(\exp(-m^{(j+1)})\exp(S_{:,:j}))V_{:,:j}+\exp(-m^{(j+1)})\exp(S_{:,j:j+1})V_{:,j:j+1})\\
+&amp;= \mathrm{diag}(\ell^{(j+1)})^{-1}(
+\begin{bmatrix}
+\exp(S_{:,:j}-m^{(j+1)}) &amp; \exp(S_{:,:j}-m^{(j+1)})
+\end{bmatrix}\begin{bmatrix}
+V_{:,:j} \\
+V_{:,j:j+1}
+\end{bmatrix}\\
+&amp;= \mathrm{softmax}(S_{:,:j+1})V_{:,:j+1}
+\end{aligned}
+$$&lt;p>因此上面的结果对 $j+1$ 也成立，从而 flashattention 的结果对 $j=0,\dots,T_c$ 都成立。&lt;/p>
+&lt;h4 id="forward-pass-1">Forward Pass
+&lt;/h4>&lt;p>第一个问题是如何提高 softmax 计算的效率，作者的做法先先计算 normalization constant 然后再分别计算不同的 column.&lt;/p>
+&lt;p>给定 $Q,K,V\in\mathbb{R}^{N\times d}$, 其中 $N$ 是序列长度, $d$ 是 head dimension, attention 的定义如下&lt;/p>
+$$
+S = QK^T\in\mathbb{R}^{N\times N},\quad P = \mathrm{softmax}(S)\in\mathbb{R}^{N\times N},\quad O = PV\in\mathbb{R}^{N\times d}
+$$&lt;p>我们有 $S_{ij}=q_i^Tk_j$, 这里 $q_i$ 和 $k_j$ 分别是 $Q$ 和 $K$ 的第 $i$ 列以及第 $j$ 列， normalization constant 定义为：&lt;/p>
+$$
+L_i = \sum_{j=1}^N \exp\left(q_i^Tk_j\right)
+$$&lt;p>对任意 $i$, 计算 $L_i$ 只需要 $\mathcal{O}(N)$ 的空间复杂度。&lt;/p>
+&lt;p>令 $v_j$ 是 $V$ 的第 $i$ 列，则输出 $O$ 的第 $i$ 列 $o_i$ 为&lt;/p>
+$$
+o_i = P_{i:}V = \sum_{j=1}^N P_{ij}v_j = \sum_{j=1}^N\frac{\exp(q_i^Tk_j)}{L_i}v_j
+$$&lt;p>这个过程中，对任意 $i$, 计算 $o_i$ 也只需要 $\mathcal{O}(N)$ 的空间复杂度。&lt;/p>
+&lt;p>因此，在 $L_i$ 已经计算好的情况下，我们可以在 $\mathcal{O}(N)$ 的空间复杂度下计算 $o_i$.&lt;/p>
+&lt;p>最终，flashattention 的 forward pass 过程如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-flashattention/flashattention-forward-pass-algorithm.png"
+width="1207"
+height="847"
+srcset="https://maosong2022.github.io/p/notes-on-flashattention/flashattention-forward-pass-algorithm_hu4926938026953834442.png 480w, https://maosong2022.github.io/p/notes-on-flashattention/flashattention-forward-pass-algorithm_hu9357899049073594485.png 1024w"
+loading="lazy"
+alt="flashattention forward pass"
+class="gallery-image"
+data-flex-grow="142"
+data-flex-basis="342px"
+>&lt;/p>
+&lt;p>接下来，作者分析了 flashattention 的内存访问开销。结论如下&lt;/p>
+&lt;blockquote>
+&lt;p>Theorem 2
+令 $N$ 为 sequence length, $d$ 为 head dimension, $M$ 是 SRAM 的 size, 且满足 $d\leq M\leq Nd$. 则 flashattention 前向传播的内存访问开销为 $\Theta(N^2d^2M^{-1})$.&lt;/p>
+&lt;/blockquote>
+&lt;p>证明：由 Algorithm 1（或者 Algorithm 2）可以知道，$K$ 和 $V$ 的每一个元素都只需要从 HBM 中加载一次，而每一次外层循环都会从 HBM 中加载一次 $O$ 和 $Q$, 因此总的 HBM 访问次数为 $\mathcal{O}(Nd+NdT_c)=\mathcal{O}(NdT_c)$.&lt;/p>
+&lt;p>接下来，我们给出每一次内层循环的内存访问开销，这是由 SRAM 的大小决定的。由于我们需要 SRAM 可以存储 $K_j\in\mathbb{R}^{B_c\times d}$ 以及 $V_j\in\mathbb{R}^{B_c\times d}$ ，我们的 block size 需要满足&lt;/p>
+$$
+B_cd = \mathcal{O}(M) \Rightarrow B_c = \mathcal{O}\left(\frac{M}{d}\right)
+$$&lt;p>同理，对于 $O$ 和 $Q$, 我们有&lt;/p>
+$$
+B_rd = \mathcal{O}(M) \Rightarrow B_r = \mathcal{O}\left(\frac{M}{d}\right)
+$$&lt;p>最后，我们还需要 SRAM 可以存储 $S_{ij}\in\mathbb{R}^{B_r\times B_c}$, 因此&lt;/p>
+$$
+B_rB_c=\mathcal{O}(M)
+$$&lt;p>这样，&lt;/p>
+$$
+B_c = \mathcal{O}\left(\frac{M}{d}\right), B_r=\mathcal{O}\left(\min\left(\frac{M}{d},\frac{M}{B_c}\right)\right)=\mathcal{O}\left(\min\left(\frac{M}{d},d\right)\right)
+$$&lt;p>从而&lt;/p>
+$$
+T_c = \frac{N}{B_c} = \mathcal{O}\left(\frac{Nd}{M}\right)
+$$&lt;p>最终，总的内存访问开销为&lt;/p>
+$$
+\mathcal{O}(NdT_c) = \mathcal{O}\left(\frac{N^2d^2}{M}\right)
+$$&lt;p>一般来说, $d$ 的大小为 $64-128$ （见 &lt;a class="link" href="MoE%20overview.md" >MoE overview&lt;/a>）, $M$ 的大小为 $100 KB$ 左右, $d^2&amp;laquo; M, 因此 flashattention 的内存访问开销远小于标准化 attention 的内存访问开销。&lt;/p>
+&lt;p>作者还证明 flashattention 的内存访问开销是一个下界，即&lt;/p>
+&lt;blockquote>
+&lt;p>Proposition 3
+令 $N$ 为 sequence length, $d$ 为 head dimension, $M$ 是 SRAM 的 size, 且满足 $d\leq M\leq Nd$. 则不存在一个对任意 $M\in[d,Nd]$ 都可以在 内存访问开销为 $\Theta(N^2d^2M^{-1})$ 的条件下完成 attention 计算的算法。&lt;/p>
+&lt;/blockquote>
+&lt;p>证明可以用反证法，基本思想是加载 $Q,K,V$ 的 HBM 访问次数至少为 $\mathcal{O}(Nd)$.&lt;/p>
+&lt;h4 id="backward-pass-1">Backward Pass
+&lt;/h4>&lt;p>第二个问题是能否在线性空间复杂度下计算 attention 的反向传播过程。&lt;/p>
+&lt;p>首先我们记损失函数为 $\phi$, 然后令 $\phi$ 对 $O,Q,K,V$ 的梯度分别为 $dO,dQ,dK, dV\in\mathbb{R}^{N\times d}$, 我们的目标是计算 $dQ, dK, dV$.&lt;/p>
+&lt;p>$dV$ 的计算是最容易的，我们有 $dV=P^TdO$, 因此&lt;/p>
+$$
+dv_j = \sum_{i=1}^N P_{ij}do_i = \sum_{i=1}^N\frac{\exp(q_i^Tk_j)}{L_i}do_i
+$$&lt;p>由于我们已经计算了 $L_i$, 因此，$dv_j$ 只需要 $\mathcal{O}(d)$ 的空间复杂度。&lt;/p>
+&lt;p>接下来，注意到 $dP=dOV^T$, 因此我们有&lt;/p>
+$$
+dP_{ij} = do_i^Tv_j
+$$&lt;p>计算的空间复杂度也是要 $\mathcal{O}(N)$ 的&lt;/p>
+&lt;p>注意到 $P_{i:}=\mathrm{softmax}(s_{i:})$, 且 $y=\mathrm{softmax}(x)$ 的 Jacobian 是 $\mathrm{diag}(y)-yy^T$ (推导过程见 &lt;a class="link" href="softmax.md" >softmax&lt;/a>), 我们有&lt;/p>
+$$
+dS_{i:} = (\mathrm{diag}(P_{i:})-P_{i:}P_{i:}^T)dP_{i:} = P_{i:} \odot dP_{i:} - (P_{i:}^TdP_{i:})P_{i:}
+$$&lt;p>我们定义&lt;/p>
+$$
+D_i = P_{i:}^TdP_{i:}= \sum_{j=1}^N\frac{\exp(q_i^Tk_j)}{L_i}do_i^Tv_j = do_i^T\sum_{j=1}^N\frac{\exp(q_i^Tk_j)}{L_i}v_j = do_i^To_i
+$$&lt;p>$D_i$ 的空间复杂度也只需要 $\mathcal{O}(N)$.&lt;/p>
+&lt;p>则&lt;/p>
+$$
+dS_{i:} =P_{i:} \odot dP_{i:} - D_iP_{i:}
+$$&lt;p>我们有&lt;/p>
+$$
+dS_{ij} = P_{ij}dP_{ij} - D_iP_{ij} = P_{ij}(dP_{ij}-D_i)
+$$&lt;p>注意到 $S_{ij}=q_i^Tk_j$, 我们有&lt;/p>
+$$
+dq_i = \sum_{j=1}^N dS_{ij}k_j = \sum_{j=1}^NP_{ij}(dP_{ij}-D_i)k_j = \sum_{j=1}^N\frac{\exp(q_i^Tk_j)}{L_i}(do_i^Tv_j-D_i)k_j
+$$&lt;p>因此计算 $dq_i$ 的空间复杂度为 $\mathcal{O}(d)$.&lt;/p>
+&lt;p>同样的，&lt;/p>
+$$
+dk_j = \sum_{j=1}^N dS_{ij}q_i = \sum_{j=1}^NP_{ij}(dP_{ij}-D_i)q_i = \sum_{j=1}^N\frac{\exp(q_i^Tk_j)}{L_i}(do_i^Tv_j-D_i)q_i
+$$&lt;p>其空间复杂度为 $\mathcal{O}(N)$.&lt;/p>
+&lt;p>总之，attention 的反向传播过程所需要的空间复杂度为 $\mathcal{O}(N)$.&lt;/p>
+&lt;p>作者发现有两点可以改进：&lt;/p>
+&lt;ol>
+&lt;li>attention mask 不需要存储，我们只需要保存 forward pass 时的输入，然后在 backward pass 时重新生成即可，这样只需要 $\mathcal{O}(N)$ 的空间复杂度。&lt;/li>
+&lt;li>计算 softmax 的梯度是，如果使用公式 $D_i=P_{i:}^TdP_{i:}$ 来计算的话，由于 $P_{i:}\in\mathbb{R}^N$, 可能会导致超过 SRAM 的内存使用限制，因此，我们可以使用 $D_i=do_i^To_i$ 来避免这个问题，其中 $o_i\in\mathbb{R}^d$.&lt;/li>
+&lt;/ol>
+&lt;p>最终，flashattention 的 backward pass 过程如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-flashattention/flashattention-backward-pass.png"
+width="1206"
+height="1203"
+srcset="https://maosong2022.github.io/p/notes-on-flashattention/flashattention-backward-pass_hu11493104955663032119.png 480w, https://maosong2022.github.io/p/notes-on-flashattention/flashattention-backward-pass_hu17037096936506419817.png 1024w"
+loading="lazy"
+alt="flashattention backward pass"
+class="gallery-image"
+data-flex-grow="100"
+data-flex-basis="240px"
+>&lt;/p>
+&lt;p>经过前面的分析，flashattention 的反向传播的时间复杂度为 $\mathcal{O}(N^2)$, 空间复杂度为 $\mathcal{O}(N)$.&lt;/p>
+&lt;blockquote>
+&lt;p>Theorem 5
+令 $N$ 为 sequence length, $d$ 为 head dimension, $M$ 是 SRAM 的 size, 且满足 $d\leq M\leq Nd$. 则 flashattention 反向传播的内存访问开销为 $\Theta(N^2d^2M^{-1})$.&lt;/p>
+&lt;/blockquote>
+&lt;p>定理的证明与 Theorem 2 基本一致，我们此处不再赘述。&lt;/p>
+&lt;h3 id="block-sparse-flashattention">Block-sparse Flashattention
+&lt;/h3>&lt;p>当 attention 具有 block sparsity 的性质时，作者提出了 blck-sparse flashattention 来进一步提高 attention 的计算效率。&lt;/p>
+&lt;p>给定 $Q,K,V\in\mathbb{R}^{N\times d}$, 以及一个 mask $M\in{0,1}^{N\times N}$, 我们需要计算&lt;/p>
+$$
+S = QK^T\in\mathbb{R}^{N\times N},\quad P = \mathrm{softmax}(S\odot \mathbb{1}_{M})\in\mathbb{R}^{N\times N},\quad O = PV\in\mathbb{R}^{N\times d}
+$$&lt;p>其中当 $M_{kl}=1$ 时， $(S\odot \mathbb{1}_ {M})_ {kl}=S_ {kl}$, 否则 $(S\odot \mathbb{1}_ {M})_{kl}=0$.&lt;/p>
+&lt;p>Block-sparse attention 的算法如下所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-flashattention/flashattention-block-sparse-algorithm.png"
+width="1205"
+height="905"
+srcset="https://maosong2022.github.io/p/notes-on-flashattention/flashattention-block-sparse-algorithm_hu13462824161635296969.png 480w, https://maosong2022.github.io/p/notes-on-flashattention/flashattention-block-sparse-algorithm_hu9658140667513876646.png 1024w"
+loading="lazy"
+alt="Block-sparse flashattention forward pass"
+class="gallery-image"
+data-flex-grow="133"
+data-flex-basis="319px"
+>&lt;/p>
+&lt;blockquote>
+&lt;p>Proposition 4
+令 $N$ 为 sequence length, $d$ 为 head dimension, $M$ 是 SRAM 的 size, 且满足 $d\leq M\leq Nd$. 则 block-sparse attention 的内存访问开销为 $\Theta(Nd+N^2d^2M^{-1}s)$, 其中 $s$ 是 block-sparse mask 中的非零 block 的比例&lt;/p>
+&lt;/blockquote>
+&lt;p>证明与 Theorem 2 的证明是类似的，总的内存访问开销为 $\mathcal{O}(Nd+NdT_c)$, 但是在计算的过程中，由于 mask 矩阵的 block-sparsity, 我们实际上只需要计算一小部分 $M_{ij}\neq0$ 的情况，因此最终的内存访问开销为&lt;/p>
+$$
+\mathcal{O}\left(Nd+\frac{N^2d^2}{M}s\right)
+$$&lt;p>可以看到，attention mask 的 sparsity 越高，block-sparse flashattention 的效率也就越高。当 $N$ 非常大时，$s 通常为 $1/\sqrt{N}$ 或者 $N^{-1}\log N$, 从而最终的内存访问开销为 $\mathcal{O}(N\sqrt{N})$ 或者 $\mathcal{O}(N\log N)$.&lt;/p>
+&lt;p>作者对比了以下 block-sparse flashattention 和 flashattention 的效率对比，结果如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-flashattention/flashattention-block-sparse-efficiency.png"
+width="287"
+height="214"
+srcset="https://maosong2022.github.io/p/notes-on-flashattention/flashattention-block-sparse-efficiency_hu13029486997688254715.png 480w, https://maosong2022.github.io/p/notes-on-flashattention/flashattention-block-sparse-efficiency_hu11418939862626082814.png 1024w"
+loading="lazy"
+alt="Efficiency of block-sparse flashattention"
+class="gallery-image"
+data-flex-grow="134"
+data-flex-basis="321px"
+>&lt;/p>
+&lt;h2 id="experiment">Experiment
+&lt;/h2>&lt;p>作者通过实验验证了 flashattention 的有效性，如下表所示&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Attention&lt;/th>
+&lt;th>Standard&lt;/th>
+&lt;th>FlashAttention&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>GFLOPs&lt;/td>
+&lt;td>66.6&lt;/td>
+&lt;td>75.2&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>HBM R/W (GB)&lt;/td>
+&lt;td>40.3&lt;/td>
+&lt;td>4.4&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Runtime (ms)&lt;/td>
+&lt;td>41.7&lt;/td>
+&lt;td>7.3&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>可以看到，尽管 flashattention 相比于标准化 attention 需要更多的算力，但是由于其内存访问开销更少，所以最终的运行时间大有了大幅度降低&lt;/p>
+&lt;p>作者还探究了 block size 对 flashattention 性能对的影响，实验结果如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-flashattention/flashattention-ablation-block-size.png"
+width="315"
+height="216"
+srcset="https://maosong2022.github.io/p/notes-on-flashattention/flashattention-ablation-block-size_hu8791717821977031005.png 480w, https://maosong2022.github.io/p/notes-on-flashattention/flashattention-ablation-block-size_hu12796013879068543841.png 1024w"
+loading="lazy"
+alt="Ablation on block size"
+class="gallery-image"
+data-flex-grow="145"
+data-flex-basis="350px"
+>&lt;/p>
+&lt;p>可以看到，随着 block size 增加，循环次数降低，内存访问开销也逐渐降低。但是当 block size 充分大 ( $&amp;gt; 256$) 之后，运行时间就会被别的因素所限制，并且过大的 block size 可能会导致 SRAM 的内存溢出&lt;/p>
+&lt;p>作者首先在 BERT 和 GPT-2 上验证了 flashattention 的表现，BERT 的实验结果如下表所示&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>BERT Implementation&lt;/th>
+&lt;th>Training time (minutes)&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>Nvidia MLPerf 1.1&lt;/td>
+&lt;td>$20.0\pm1.5$&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>FlashAttention (ours)&lt;/td>
+&lt;td>$17.4\pm1.4$&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>GPT-2 的实验结果如下表所示&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Model implementations&lt;/th>
+&lt;th>OpenWebText (ppl)&lt;/th>
+&lt;th>Training time (speedup)&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>GPT-2 small - Huggingface&lt;/td>
+&lt;td>18.2&lt;/td>
+&lt;td>9.5 days (1.0 )&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>GPT-2 small - Megatron-LM&lt;/td>
+&lt;td>18.2&lt;/td>
+&lt;td>4.7 days (2.0 )&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>GPT-2 small - FlashAttention&lt;/td>
+&lt;td>18.2&lt;/td>
+&lt;td>2.7 days (3.5 )&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>GPT-2 medium - Huggingface&lt;/td>
+&lt;td>14.2&lt;/td>
+&lt;td>21.0 days (1.0 )&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>GPT-2 medium - Megatron-LM&lt;/td>
+&lt;td>14.3&lt;/td>
+&lt;td>11.5 days (1.8 )&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>GPT-2 medium - FlashAttention&lt;/td>
+&lt;td>14.3&lt;/td>
+&lt;td>6.9 days (3.0 )&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>实验结果显示，flashattention 比 Huggingface 快 3 倍左右，比 Megatron 快 1.7 倍左右&lt;/p>
+&lt;ol>
+&lt;li>训练速度：实验显示，flashattention 在 BERT 上，比 MLPerf 1.1 快 $15%$, 在 GPT-2 上比 HuggingFace 快 3 倍，比 Megatron 快 1.8 倍&lt;/li>
+&lt;li>准确率：flashattention 是第一个在 Path-X 上比随机表现更好的 transformer 模型；block-sparse flashattention 是第一个在 Path-256 上比随机表现更好的的 sequence model&lt;/li>
+&lt;/ol>
+&lt;h2 id="conclusion">Conclusion
+&lt;/h2>&lt;p>作者提出了 flashattention, 一个通过优化标准 attention 内存访问效率来提高 attention 计算效率的方法，作者详细介绍了算法设计的原理与证明，并通过实验证明了结果的有效性。&lt;/p>
+&lt;h2 id="references">References
+&lt;/h2>&lt;ul>
+&lt;li>&lt;a class="link" href="http://arxiv.org/abs/2205.14135" target="_blank" rel="noopener"
+>arxiv&lt;/a>&lt;/li>
+&lt;/ul></description></item><item><title>Notes on StreamingLLM</title><link>https://maosong2022.github.io/p/notes-on-streamingllm/</link><pubDate>Wed, 20 Aug 2025 10:16:35 +0800</pubDate><guid>https://maosong2022.github.io/p/notes-on-streamingllm/</guid><description>&lt;p>作者提出了 StreamingLLM, 一个基于 attention sink 来提高 sliding window attention 在超长上下文场景下表现的方法。&lt;/p>
+&lt;h2 id="introduction">Introduction
+&lt;/h2>&lt;p>已有的基于 softmax attention 的架构的问题在于很难扩展到长上下文的场景，主要原因有两点：&lt;/p>
+&lt;ol>
+&lt;li>KV cache 会随着序列长度增加而商城，从而提高 decoding 的 latency&lt;/li>
+&lt;li>序列长度超过预训练的 context length 之后，模型表现会急剧下降&lt;/li>
+&lt;/ol>
+&lt;p>为了解决这个问题，已有的方法可以分为三类：&lt;/p>
+&lt;ol>
+&lt;li>length extrapolation: 使用 RoPE 或者 AliBi 等方法来扩展 LLM 的 context length, 这类方法的问题是扩展的上下文长度仍然有限，对于 streaming 的场景作用有限&lt;/li>
+&lt;li>context window attention: 扩展 LLM 的上下文长度，如 flash attention 等来降低 attention 的计算和内存开销。这类方法也是只在有限的上下文场景下 work&lt;/li>
+&lt;li>Improving LLMs’ Utilization of Long Text: 更好利用长上下文的数据&lt;/li>
+&lt;/ol>
+&lt;p>基于已有的工作的发现，作者提出了本文研究的核心问题：&lt;/p>
+&lt;blockquote>
+&lt;p>如何在不损失模型表现和效率的情况下，提高模型在无限长上下文场景下的表现。&lt;/p>
+&lt;/blockquote>
+&lt;p>为了解决这个问题，作者首先分析了 sliding window attention 的不足，作者发现，sliding window attention 在超过 KV cache size 之后，表现也会急剧下降。作者通过实验发现，sliding window attention 表现急剧下降的原因在于 &lt;strong>attention sink&lt;/strong>, 也就是模型损失了对于初始 token 的关注，从而导致模型表现下降。&lt;/p>
+&lt;p>基于 attention sink, 作者设计了 StreamingLLM, 用于提高 sliding window attention 在长上下文场景下的表现，结果发现，模型的表现有了大幅度的提升。&lt;/p>
+&lt;p>作者还进一步在预训练阶段加入了 sink token 充当初始 token, 进一步提高模型的表现。&lt;/p>
+&lt;h2 id="method">Method
+&lt;/h2>&lt;h3 id="attention-sink">Attention Sink
+&lt;/h3>&lt;p>作者首先探究了一下 softmax attention 以及 sliding window attention 性能下降的节点，实验结果如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-streamingllm/attention_sink_perplexity.png"
+width="1155"
+height="216"
+srcset="https://maosong2022.github.io/p/notes-on-streamingllm/attention_sink_perplexity_hu17107578125132293124.png 480w, https://maosong2022.github.io/p/notes-on-streamingllm/attention_sink_perplexity_hu13497598808075063968.png 1024w"
+loading="lazy"
+alt="Perplexity of different attention with 20K tokens"
+class="gallery-image"
+data-flex-grow="534"
+data-flex-basis="1283px"
+>&lt;/p>
+&lt;p>可以看到，softmax attention 性能急剧下降的节点为 pre-training 的 context length; 而 sliding window attention 性能急剧下降的节点为 KV cache size.&lt;/p>
+&lt;p>接下来，作者分析了一下不同 layer 的 attention 分布情况，如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-streamingllm/attention_sink-attention-logits-visualization.png"
+width="1099"
+height="256"
+srcset="https://maosong2022.github.io/p/notes-on-streamingllm/attention_sink-attention-logits-visualization_hu10873929585851139529.png 480w, https://maosong2022.github.io/p/notes-on-streamingllm/attention_sink-attention-logits-visualization_hu18075330575893701465.png 1024w"
+loading="lazy"
+alt="Visualization of attention logits"
+class="gallery-image"
+data-flex-grow="429"
+data-flex-basis="1030px"
+>&lt;/p>
+&lt;p>可以看到，初始的 2 层 layer 里 attention logits 的分布比较均匀。但是在后续的 layer 里，第一个 token 的权重都大幅度上升。&lt;/p>
+&lt;p>作者分析原因认为，sliding window attention 在超过 KV cache size 之后性能急剧下降的主要原因是初始 token 不再参与 softmax 的计算，这导致了 softmax 的计算出现了比较大的变化，从而模型的表现开始下降。&lt;/p>
+&lt;p>为了探究初始 token 对最终模型表现的影响因素是语义层面还是位置层面的，作者将初始的 token 替换为 &lt;code>\n&lt;/code>, 并比较了模型的表现，结果如下表所示&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Llama-2-13B&lt;/th>
+&lt;th>PPL (↓)&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>0 + 1024(Window)&lt;/td>
+&lt;td>5158.07&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>4 + 1020&lt;/td>
+&lt;td>5.40&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>4&amp;quot;\n&amp;quot;+1020&lt;/td>
+&lt;td>5.60&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>可以看到，把初始的四个 token 替换为 &lt;code>\n&lt;/code>, 并不影响模型最终的表现，这说明是初始 token 的位置信息在发挥作用。&lt;/p>
+&lt;p>作者接下来探究了一下模型架构的影响，实验结果如下表所示&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Cache Config&lt;/th>
+&lt;th>0+2048&lt;/th>
+&lt;th>1+2047&lt;/th>
+&lt;th>2+2046&lt;/th>
+&lt;th>4+2044&lt;/th>
+&lt;th>8+2040&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>Falcon-7B&lt;/td>
+&lt;td>17.90&lt;/td>
+&lt;td>12.12&lt;/td>
+&lt;td>12.12&lt;/td>
+&lt;td>12.12&lt;/td>
+&lt;td>12.12&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>MPT-7B&lt;/td>
+&lt;td>460.29&lt;/td>
+&lt;td>14.99&lt;/td>
+&lt;td>15.00&lt;/td>
+&lt;td>14.99&lt;/td>
+&lt;td>14.98&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Pythia-12B&lt;/td>
+&lt;td>21.62&lt;/td>
+&lt;td>11.95&lt;/td>
+&lt;td>12.09&lt;/td>
+&lt;td>12.09&lt;/td>
+&lt;td>12.02&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Cache Config&lt;/td>
+&lt;td>0+4096&lt;/td>
+&lt;td>1+4095&lt;/td>
+&lt;td>2+4094&lt;/td>
+&lt;td>4+4092&lt;/td>
+&lt;td>8+4088&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Llama-2-7B&lt;/td>
+&lt;td>3359.95&lt;/td>
+&lt;td>11.88&lt;/td>
+&lt;td>10.51&lt;/td>
+&lt;td>9.59&lt;/td>
+&lt;td>9.54&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>可以看到，不同的模型架构都存在这个问题，这说明 sliding window attention 的影响与架构无关。并且，作者认为，使用初始 4 个 token 就可以有效的避免模型的性能下降，进一步增加初始 token 的数量不会有进一步提升。&lt;/p>
+&lt;p>作者分析 attention sink 出现的原因在于，&lt;/p>
+&lt;ol>
+&lt;li>初始的 token 对于后续所有的 token 都是可见的，因此其会携带一些信息&lt;/li>
+&lt;li>在预训练阶段，模型并没有一个一致的初始 token 来标注起始信息，这导致模型会默认使用第一个 token 来储存一些信息。&lt;/li>
+&lt;/ol>
+&lt;p>为了解决这个问题，作者就提出了缓存初始 token 的方法，具体做法就是，在 sliding window attention 的基础上，我们还会加上初始 token 的信息，作者展示示意图如下所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-streamingllm/attention_sink-KV_cache-rolling.png"
+width="481"
+height="190"
+srcset="https://maosong2022.github.io/p/notes-on-streamingllm/attention_sink-KV_cache-rolling_hu14539682788052812184.png 480w, https://maosong2022.github.io/p/notes-on-streamingllm/attention_sink-KV_cache-rolling_hu8473910721752708950.png 1024w"
+loading="lazy"
+alt="Rolling KV cache of StramingLLM"
+class="gallery-image"
+data-flex-grow="253"
+data-flex-basis="607px"
+>&lt;/p>
+&lt;p>也就是说，我们初始 token 始终会参与计算（论文中初始 token 数量为 4），然后我们会维持一个大小为 3 的 KV cache 队列来进行最终 sliding window attention 的计算，这样，每次计算 attention 的时候，我们就会使用 $# \text{iniital token} + # \text{sliding window token}$ 这么多的 token 来计算 attention. 作者对比了不同 attention 的计算方式，如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-streamingllm/attention_sink-illustration-streamingLLM.png"
+width="1148"
+height="389"
+srcset="https://maosong2022.github.io/p/notes-on-streamingllm/attention_sink-illustration-streamingLLM_hu10367217091090354661.png 480w, https://maosong2022.github.io/p/notes-on-streamingllm/attention_sink-illustration-streamingLLM_hu8009958211234850987.png 1024w"
+loading="lazy"
+alt="Illustration of StreamingLLM"
+class="gallery-image"
+data-flex-grow="295"
+data-flex-basis="708px"
+>&lt;/p>
+&lt;p>前面是在 inference 阶段进行优化的，作者现在进一步探究在 pre-training 阶段加入 attention sink 参与训练对模型表现的影响。&lt;/p>
+&lt;p>[[softmax-off-by-one]] 提出了我们应该加入一个 zero sink token, 其计算公式如下&lt;/p>
+$$
+\mathrm{softmax}_1(x)_i = \frac{\exp(x_i)}{1 + \sum_{j=1}^N \exp(x_j)}
+$$&lt;p>这里 $x\in\mathbb{R}^N$ 是输入的序列。我们可以将 sink token 视为一个 key 以及 value 都是 0 向量的特殊 token.&lt;/p>
+&lt;p>在本文中，作者使用了一个可学习的 sink token. 作者对比了原始 softmax attention, 使用 zero sink attention, learnable sink attention 三种方法的表现，结果如下表所示&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Cache Config&lt;/th>
+&lt;th>0+1024&lt;/th>
+&lt;th>1+1023&lt;/th>
+&lt;th>2+1022&lt;/th>
+&lt;th>4+1020&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>Vanilla&lt;/td>
+&lt;td>27.87&lt;/td>
+&lt;td>18.49&lt;/td>
+&lt;td>18.05&lt;/td>
+&lt;td>18.05&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Zero Sink&lt;/td>
+&lt;td>29214&lt;/td>
+&lt;td>19.90&lt;/td>
+&lt;td>18.27&lt;/td>
+&lt;td>18.01&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Learnable Sink&lt;/td>
+&lt;td>1235&lt;/td>
+&lt;td>18.01&lt;/td>
+&lt;td>18.01&lt;/td>
+&lt;td>18.02&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>可以看到 zero sink 仍然需要一部分初始 token 来维持模型的表现。作者在论文中推荐使用 learnable sink.&lt;/p>
+&lt;h2 id="experiments">Experiments
+&lt;/h2>&lt;p>作者首先验证了 StreamlingLLM 在不同架构上的表现，结果如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-streamingllm/attention_sink-preplexsity-4M-tokens.png"
+width="1151"
+height="172"
+srcset="https://maosong2022.github.io/p/notes-on-streamingllm/attention_sink-preplexsity-4M-tokens_hu10222675238153024805.png 480w, https://maosong2022.github.io/p/notes-on-streamingllm/attention_sink-preplexsity-4M-tokens_hu4302749122445536560.png 1024w"
+loading="lazy"
+alt="Perplexity of StreamingLLM on 4M tokens"
+class="gallery-image"
+data-flex-grow="669"
+data-flex-basis="1606px"
+>&lt;/p>
+&lt;p>实验结果显示，StreamingLLM 可以扩展到 4M 的上下文&lt;/p>
+&lt;p>接下来，作者探究了以下在 Pretraining 阶段加入 learnable sink token 对模型表现的影响，结果如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-streamingllm/attention_sink-pre-training-sink-token.png"
+width="358"
+height="208"
+srcset="https://maosong2022.github.io/p/notes-on-streamingllm/attention_sink-pre-training-sink-token_hu10575160091401072951.png 480w, https://maosong2022.github.io/p/notes-on-streamingllm/attention_sink-pre-training-sink-token_hu1459256266174936863.png 1024w"
+loading="lazy"
+alt="Pre-training loss curves of models w/ sink tokens"
+class="gallery-image"
+data-flex-grow="172"
+data-flex-basis="413px"
+>&lt;/p>
+&lt;p>可以看到，加入 sink token 之后对模型的表现没有显著影响。并且，模型在下游任务上的表现与标准的 softmax attention 表现差不多。&lt;/p>
+&lt;p>作者还对 StreamlingLLM 进行了可视化，结果如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-streamingllm/attention_sink-visualization-attention-logits.png"
+width="1153"
+height="214"
+srcset="https://maosong2022.github.io/p/notes-on-streamingllm/attention_sink-visualization-attention-logits_hu17917977003625206939.png 480w, https://maosong2022.github.io/p/notes-on-streamingllm/attention_sink-visualization-attention-logits_hu10512833175537702855.png 1024w"
+loading="lazy"
+alt="Visualization of attention logits with StreamingLLM"
+class="gallery-image"
+data-flex-grow="538"
+data-flex-basis="1293px"
+>&lt;/p>
+&lt;p>作者进一步评估了 StreamingLLM 在下游任务上的表现，我们主要关注一下 ARC 上的表现，结果如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-streamingllm/attention_sink-ARC-performance.png"
+width="808"
+height="255"
+srcset="https://maosong2022.github.io/p/notes-on-streamingllm/attention_sink-ARC-performance_hu21210541812592330.png 480w, https://maosong2022.github.io/p/notes-on-streamingllm/attention_sink-ARC-performance_hu7689106914913301718.png 1024w"
+loading="lazy"
+alt="Accuracy on the ARC"
+class="gallery-image"
+data-flex-grow="316"
+data-flex-basis="760px"
+>&lt;/p>
+&lt;p>可以看到，full attention 出现了 OOM error, 而 sliding window attention 虽然避免了 OOM 的问题，但是其表现非常差。而 StreamingLLM 则进一步提高了 Sliding Window attention 的表现。&lt;/p>
+&lt;h2 id="conclusion">Conclusion
+&lt;/h2>&lt;p>作者在本文中提出了 StreamingLLM, 一个在 Sliding window attention 中加入 sink token 来避免超过 cache size 之后模型表现急剧下降的问题。作者详细介绍了 attention sink 现象以及解决方法。&lt;/p>
+&lt;h2 id="references">References
+&lt;/h2>&lt;ul>
+&lt;li>&lt;a class="link" href="https://openreview.net/forum?id=NG7sS51zVF" target="_blank" rel="noopener"
+>Efficient Streaming Language Models with Attention Sinks&lt;/a>&lt;/li>
+&lt;/ul></description></item><item><title>Notes on QK-Norm</title><link>https://maosong2022.github.io/p/notes-on-qk-norm/</link><pubDate>Wed, 13 Aug 2025 16:12:11 +0800</pubDate><guid>https://maosong2022.github.io/p/notes-on-qk-norm/</guid><description>&lt;p>作者提出了 QK norm, 一个解决 softmax 注意力权重不稳定的 scaling 算法。&lt;/p>
+&lt;h2 id="problem-definition">Problem Definition
+&lt;/h2>&lt;p>Softmax 可以用于将 logits 转化为一个概率分布，但是 softmax 问题是输入的微小差别会对输出产生巨大影响，甚至会 mask 掉其他信号。因此我们需要选取合适的缩放因子，来解决 softmax 的极端值问题。SDPA 的可视化结果如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-qk-norm/QK-Norm-SDPA-attention.png"
+width="1351"
+height="398"
+srcset="https://maosong2022.github.io/p/notes-on-qk-norm/QK-Norm-SDPA-attention_hu17671495108868641229.png 480w, https://maosong2022.github.io/p/notes-on-qk-norm/QK-Norm-SDPA-attention_hu16468425081775612855.png 1024w"
+loading="lazy"
+alt="SDPA attention visualization"
+class="gallery-image"
+data-flex-grow="339"
+data-flex-basis="814px"
+>&lt;/p>
+&lt;h2 id="method">Method
+&lt;/h2>&lt;p>作者首先提出了 QKNorm, 其使用了一个可学习的 scaling 参数来控制 $QK^T$ 的范围，进而让 attention 的 pattern 更加分散。&lt;/p>
+&lt;p>作者首先回顾了以下已有的进展，主要是三点：&lt;/p>
+&lt;ol>
+&lt;li>FixNorm: 将 word embedding 限制为单位长度&lt;/li>
+&lt;li>PerNorm: 使用 Pre-norm 替换 Post-norm&lt;/li>
+&lt;li>ScaleNorm: 使用 $\ell_2$ normalization 替换 LayerNorm, 并乘以一个可学习的 scaling 参数。&lt;/li>
+&lt;/ol>
+&lt;p>作者基于这三点进行了改进，改进后的 attention 定义如下&lt;/p>
+$$
+\mathrm{softmax}\left(g\cdot \hat{Q}\hat{K}^T\right)V
+$$&lt;p>其中,&lt;/p>
+$$
+\hat{Q} = [\frac{q_1}{\|q_1\|_2},\dots,\frac{q_m}{\|q_m\|_2}], \hat{K} = [\frac{k_1}{\|k_1\|_2},\dots,\frac{k_n}{\|k_n\|_2}]
+$$&lt;p>是对原始的 $Q, K$ 按列进行 $\ell_2$ normalization 得到的结果， $g$ 是一个可学习的参数，其初始化值为&lt;/p>
+$$
+g_0 = \log_2(L^2-L)
+$$&lt;p>这里 $L$ 是训练数据 $97.5$ 分位。&lt;/p>
+&lt;p>使用这种动态缩放之后，attention 的分布变得更加分散了，结果如下图所示：&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-qk-norm/QK-norm-normalized-attention.png"
+width="1366"
+height="406"
+srcset="https://maosong2022.github.io/p/notes-on-qk-norm/QK-norm-normalized-attention_hu487579007854365109.png 480w, https://maosong2022.github.io/p/notes-on-qk-norm/QK-norm-normalized-attention_hu13488020570320115229.png 1024w"
+loading="lazy"
+alt="QK normalized attention"
+class="gallery-image"
+data-flex-grow="336"
+data-flex-basis="807px"
+>&lt;/p>
+&lt;h2 id="references">References
+&lt;/h2>&lt;ul>
+&lt;li>&lt;a class="link" href="https://aclanthology.org/2020.findings-emnlp.379.pdf" target="_blank" rel="noopener"
+>Query-Key Normalization for Transformers&lt;/a>&lt;/li>
+&lt;/ul></description></item><item><title>Notes on GQA</title><link>https://maosong2022.github.io/p/notes-on-gqa/</link><pubDate>Thu, 07 Aug 2025 18:08:36 +0800</pubDate><guid>https://maosong2022.github.io/p/notes-on-gqa/</guid><description>&lt;p>Google Research 在 23 年 12 月份提出了 Group Query Attention (GQA), 一个提升 multi-head attention 效率的方法。GQA 自 &lt;a class="link" href="https://maosong.website/p/notes-on-qwen2/" target="_blank" rel="noopener"
+>Qwen2&lt;/a> 系列开始被应用。&lt;/p>
+&lt;h2 id="introduction">Introduction
+&lt;/h2>&lt;p>Multi-head attention (MHA) 的问题在于 inference 阶段，每次 decoding，都需要重新加载 attention 模块中 query layer, key layer 和 value layer 的权重，而加载权重会受带宽限制。&lt;/p>
+&lt;p>已有的工作有 &lt;a class="link" href="https://maosong.website/p/notes-on-mqa/" target="_blank" rel="noopener"
+>MQA&lt;/a>, 也就是我们把多个 head 的 key layer 以及 value layer 压缩成一个，这样对于 $h$ 个 head 的 attention，我们有 $h$ 个 query layer，$1$ 个 key layer 以及 1 个 value layer. 但是 MQA 的问题在于其会导致性能下降，而且训练过程会不稳定。&lt;/p>
+&lt;p>因此，在本文中作者就作出了两点贡献：&lt;/p>
+&lt;ol>
+&lt;li>如何将一个 MHA 模型转化为一个一个 MQA 模型&lt;/li>
+&lt;li>提出了 Group Query Attention (GQA)，在保持模型性能的同时，提高计算效率&lt;/li>
+&lt;/ol>
+&lt;h2 id="method">Method
+&lt;/h2>&lt;h3 id="uptraining">Uptraining
+&lt;/h3>&lt;p>将 MHA 模型转化为 MQA 模型分为两步：&lt;/p>
+&lt;ol>
+&lt;li>将 MHA 权重转化为 MQA 权重&lt;/li>
+&lt;li>额外的预训练&lt;/li>
+&lt;/ol>
+&lt;p>具体来讲，作者使用了一个 mean pooling 的方法，来将不同 head 的 query layer 以及 key layer 的权重转化为 MQA 对应 layer 的权重。然后作者 pre-training 若干步来让模型适应新的结构。&lt;/p>
+&lt;h3 id="gqa">GQA
+&lt;/h3>&lt;p>GQA 的思路在于在 MHA 和 MQA 之间达到一个平衡，也就是说我们将 key layer 和 value layer 进行分组，每个组内共享一个 key layer 和 value layer, 我们假设有 $h$ 个 head，$G$ 个 group，那么&lt;/p>
+&lt;ol>
+&lt;li>$G=1$ 时，所有的 head 共享一个 key layer 和一个 value layer, 此时 GQA 等价于 MQA&lt;/li>
+&lt;li>$G=H$ 时，每个 head 都有一个 key layer 和一个 value layer, 此时 GQA 等价于 MHA&lt;/li>
+&lt;li>$1&amp;lt;G&amp;lt;H$ 时，GQA 时 MQA 和 MHA 的一个 trade-off，兼顾两者的性能与效率&lt;/li>
+&lt;/ol>
+&lt;p>三者的示意图如下所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-gqa/MQA_comparison_group_query.png"
+width="2080"
+height="784"
+srcset="https://maosong2022.github.io/p/notes-on-gqa/MQA_comparison_group_query_hu16749365881659510466.png 480w, https://maosong2022.github.io/p/notes-on-gqa/MQA_comparison_group_query_hu11954291867796797564.png 1024w"
+loading="lazy"
+alt="Overview of grouped-query methods"
+class="gallery-image"
+data-flex-grow="265"
+data-flex-basis="636px"
+>&lt;/p>
+&lt;h2 id="code">Code
+&lt;/h2>&lt;p>MQA 的代码也比较好理解，我们首先定义 group size，即 &lt;code>num_key_value_heads&lt;/code>, 然后基于 group size 定义对应的 key layer &lt;code>self.k_proj&lt;/code> 和 value layer &lt;code>self.v_proj&lt;/code>.&lt;/p>
+&lt;p>计算得到 &lt;code>key_states&lt;/code> 和 &lt;code>value_states&lt;/code> 之后，在计算 attention，即 &lt;code>eager_attention_forward&lt;/code> 的时候，我们对 &lt;code>key_states&lt;/code> 和 &lt;code>value_states&lt;/code> 进行复制，即 &lt;code>repeat_kv&lt;/code>&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;span class="lnt">21
+&lt;/span>&lt;span class="lnt">22
+&lt;/span>&lt;span class="lnt">23
+&lt;/span>&lt;span class="lnt">24
+&lt;/span>&lt;span class="lnt">25
+&lt;/span>&lt;span class="lnt">26
+&lt;/span>&lt;span class="lnt">27
+&lt;/span>&lt;span class="lnt">28
+&lt;/span>&lt;span class="lnt">29
+&lt;/span>&lt;span class="lnt">30
+&lt;/span>&lt;span class="lnt">31
+&lt;/span>&lt;span class="lnt">32
+&lt;/span>&lt;span class="lnt">33
+&lt;/span>&lt;span class="lnt">34
+&lt;/span>&lt;span class="lnt">35
+&lt;/span>&lt;span class="lnt">36
+&lt;/span>&lt;span class="lnt">37
+&lt;/span>&lt;span class="lnt">38
+&lt;/span>&lt;span class="lnt">39
+&lt;/span>&lt;span class="lnt">40
+&lt;/span>&lt;span class="lnt">41
+&lt;/span>&lt;span class="lnt">42
+&lt;/span>&lt;span class="lnt">43
+&lt;/span>&lt;span class="lnt">44
+&lt;/span>&lt;span class="lnt">45
+&lt;/span>&lt;span class="lnt">46
+&lt;/span>&lt;span class="lnt">47
+&lt;/span>&lt;span class="lnt">48
+&lt;/span>&lt;span class="lnt">49
+&lt;/span>&lt;span class="lnt">50
+&lt;/span>&lt;span class="lnt">51
+&lt;/span>&lt;span class="lnt">52
+&lt;/span>&lt;span class="lnt">53
+&lt;/span>&lt;span class="lnt">54
+&lt;/span>&lt;span class="lnt">55
+&lt;/span>&lt;span class="lnt">56
+&lt;/span>&lt;span class="lnt">57
+&lt;/span>&lt;span class="lnt">58
+&lt;/span>&lt;span class="lnt">59
+&lt;/span>&lt;span class="lnt">60
+&lt;/span>&lt;span class="lnt">61
+&lt;/span>&lt;span class="lnt">62
+&lt;/span>&lt;span class="lnt">63
+&lt;/span>&lt;span class="lnt">64
+&lt;/span>&lt;span class="lnt">65
+&lt;/span>&lt;span class="lnt">66
+&lt;/span>&lt;span class="lnt">67
+&lt;/span>&lt;span class="lnt">68
+&lt;/span>&lt;span class="lnt">69
+&lt;/span>&lt;span class="lnt">70
+&lt;/span>&lt;span class="lnt">71
+&lt;/span>&lt;span class="lnt">72
+&lt;/span>&lt;span class="lnt">73
+&lt;/span>&lt;span class="lnt">74
+&lt;/span>&lt;span class="lnt">75
+&lt;/span>&lt;span class="lnt">76
+&lt;/span>&lt;span class="lnt">77
+&lt;/span>&lt;span class="lnt">78
+&lt;/span>&lt;span class="lnt">79
+&lt;/span>&lt;span class="lnt">80
+&lt;/span>&lt;span class="lnt">81
+&lt;/span>&lt;span class="lnt">82
+&lt;/span>&lt;span class="lnt">83
+&lt;/span>&lt;span class="lnt">84
+&lt;/span>&lt;span class="lnt">85
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="k">def&lt;/span> &lt;span class="nf">repeat_kv&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">hidden_states&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">n_rep&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">int&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">-&amp;gt;&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">batch&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">num_key_value_heads&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">slen&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">head_dim&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">hidden_states&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">shape&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="n">n_rep&lt;/span> &lt;span class="o">==&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">hidden_states&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">hidden_states&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">hidden_states&lt;/span>&lt;span class="p">[:,&lt;/span> &lt;span class="p">:,&lt;/span> &lt;span class="kc">None&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="p">:,&lt;/span> &lt;span class="p">:]&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">expand&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">batch&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">num_key_value_heads&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">n_rep&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">slen&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">head_dim&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">hidden_states&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">reshape&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">batch&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">num_key_value_heads&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">n_rep&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">slen&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">head_dim&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">def&lt;/span> &lt;span class="nf">eager_attention_forward&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">module&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Module&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">query&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">key&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">value&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">attention_mask&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">Optional&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">],&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">scaling&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">float&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">dropout&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">float&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mf">0.0&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">**&lt;/span>&lt;span class="n">kwargs&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">Unpack&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">TransformersKwargs&lt;/span>&lt;span class="p">],&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">key_states&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">repeat_kv&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">key&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">module&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">num_key_value_groups&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">value_states&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">repeat_kv&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">value&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">module&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">num_key_value_groups&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">attn_weights&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">matmul&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">query&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">key_states&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">transpose&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">2&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">3&lt;/span>&lt;span class="p">))&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">scaling&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="n">attention_mask&lt;/span> &lt;span class="ow">is&lt;/span> &lt;span class="ow">not&lt;/span> &lt;span class="kc">None&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">causal_mask&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">attention_mask&lt;/span>&lt;span class="p">[:,&lt;/span> &lt;span class="p">:,&lt;/span> &lt;span class="p">:,&lt;/span> &lt;span class="p">:&lt;/span> &lt;span class="n">key_states&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">shape&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mi">2&lt;/span>&lt;span class="p">]]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">attn_weights&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">attn_weights&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">causal_mask&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">attn_weights&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">functional&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">softmax&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">attn_weights&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">dim&lt;/span>&lt;span class="o">=-&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">dtype&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">float32&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">to&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">query&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">dtype&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">attn_weights&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">functional&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">dropout&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">attn_weights&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">dropout&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">training&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">module&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">training&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">attn_output&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">matmul&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">attn_weights&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">value_states&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">attn_output&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">attn_output&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">transpose&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">contiguous&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">attn_output&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">attn_weights&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">class&lt;/span> &lt;span class="nc">Qwen3Attention&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Module&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="fm">__init__&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">config&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">Qwen3Config&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">layer_idx&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">int&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nb">super&lt;/span>&lt;span class="p">()&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="fm">__init__&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">head_dim&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nb">getattr&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">config&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;head_dim&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">hidden_size&lt;/span> &lt;span class="o">//&lt;/span> &lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">num_attention_heads&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">scaling&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">head_dim&lt;/span>&lt;span class="o">**-&lt;/span>&lt;span class="mf">0.5&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">q_proj&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Linear&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">hidden_size&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">num_attention_heads&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">head_dim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">bias&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">attention_bias&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">k_proj&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Linear&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">hidden_size&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">num_key_value_heads&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">head_dim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">bias&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">attention_bias&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">v_proj&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Linear&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">hidden_size&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">num_key_value_heads&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">head_dim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">bias&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">attention_bias&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">o_proj&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Linear&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">num_attention_heads&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">head_dim&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">hidden_size&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">bias&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">config&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">attention_bias&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="nf">forward&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">hidden_states&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">position_embeddings&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="nb">tuple&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">],&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">attention_mask&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">Optional&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">],&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">past_key_value&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">Optional&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">Cache&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="kc">None&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">cache_position&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">Optional&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">LongTensor&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="kc">None&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">**&lt;/span>&lt;span class="n">kwargs&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">Unpack&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">FlashAttentionKwargs&lt;/span>&lt;span class="p">],&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span> &lt;span class="o">-&amp;gt;&lt;/span> &lt;span class="nb">tuple&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">Optional&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">],&lt;/span> &lt;span class="n">Optional&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="nb">tuple&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Tensor&lt;/span>&lt;span class="p">]]]:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">input_shape&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">hidden_states&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">shape&lt;/span>&lt;span class="p">[:&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">hidden_shape&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="n">input_shape&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">head_dim&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">query_states&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">q_norm&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">q_proj&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">hidden_states&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">view&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">hidden_shape&lt;/span>&lt;span class="p">))&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">transpose&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">key_states&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">k_norm&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">k_proj&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">hidden_states&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">view&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">hidden_shape&lt;/span>&lt;span class="p">))&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">transpose&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">value_states&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">v_proj&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">hidden_states&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">view&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">hidden_shape&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">transpose&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">cos&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">sin&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">position_embeddings&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">query_states&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">key_states&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">apply_rotary_pos_emb&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">query_states&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">key_states&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">cos&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">sin&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">attn_output&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">attn_weights&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">eager_attention_forward&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">query_states&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">key_states&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">value_states&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">attention_mask&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">dropout&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mf">0.0&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">scaling&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">scaling&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">sliding_window&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">sliding_window&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="c1"># diff with Llama&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">**&lt;/span>&lt;span class="n">kwargs&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">attn_output&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">attn_output&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">reshape&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="n">input_shape&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">contiguous&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">attn_output&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">o_proj&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">attn_output&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">attn_output&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">attn_weights&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h2 id="conclusion">Conclusion
+&lt;/h2>&lt;p>本文中，作者提出了一个解决 multi-query attention 的 uptraining 方法，以及提出了 GQA，一个结合 MHA 表现和 MQA 效率的新型注意力机制。&lt;/p>
+&lt;h2 id="references">References
+&lt;/h2>&lt;ul>
+&lt;li>&lt;a class="link" href="https://arxiv.org/abs/2305.13245" target="_blank" rel="noopener"
+>arxiv&lt;/a>&lt;/li>
+&lt;/ul></description></item><item><title>Notes on MQA</title><link>https://maosong2022.github.io/p/notes-on-mqa/</link><pubDate>Thu, 07 Aug 2025 18:06:37 +0800</pubDate><guid>https://maosong2022.github.io/p/notes-on-mqa/</guid><description>&lt;p>Google 在 2019 年提出了 multi-query attention (MQA), 用于解决 MQA 内存带宽瓶颈问题。&lt;/p>
+&lt;h2 id="method">Method
+&lt;/h2>&lt;h3 id="background">Background
+&lt;/h3>&lt;p>对于 multi-head attention, 我们假设其 hidden size 为 $d$, 有 $h$ 个 heads, 每个 head 的 size 为 $d_h=d/h$, 输入 sequence 长度为 $n$, batch size 为 $d$. 则总的 arithmetic operations 为 $O(bnd^2)$. 总的内存访问量为 $O(bnd + bhn^2+d^2)$, 第一项是 $Q,K,V$ 的内存占用（$Q,K,V$ 分别是 query, key 和 value layer 的输出），第二项是 attention score 的占用，第三项是 query, key 和 value layer 的权重。&lt;/p>
+&lt;p>因此，其 &lt;strong>Memory Access Ratio&lt;/strong> (MAR), 也就是内存访问量 与 arithmetic operations 之比为&lt;/p>
+$$
+O\left(\frac1k + \frac{1}{bn}\right)
+$$&lt;p>对于现代的 GPU 来说，其一般算力比较强，但是内存访问带宽相对较慢，因此我们希望 MAR 越低越好，以充分发挥 GPU 的算力。&lt;/p>
+&lt;h3 id="mha-analysis">MHA Analysis
+&lt;/h3>&lt;p>在训练的时候，由于我们知道 ground truth sequence, 因此我们可以并行计算。但是在 inference 的时候，我们只能 token-by-token 进行计算，因此我们分析一下 token-by-token 场景下的 MAR&lt;/p>
+&lt;p>我们整体的 arithmetic operations 还是 $O(bnd^2)$.&lt;/p>
+&lt;p>但是，现在我们要调用 $n$ 次 multi-head attention, 因此我们总的内存访问量为 $O(bn^2d + nd^2)$, 第一项是 $K$ 和 $V$ , 第二项是 query, key 和 value layer 的权重。&lt;/p>
+&lt;p>这种情况下，MAR 就变成了&lt;/p>
+$$
+O\left(\frac{n}{d} + \frac{1}{b}\right)
+$$&lt;p>当 $n\approx d$ 或者 $b\approx 1$ 时，MAR 就非常接近于 1，意味着内存带宽成了一个主要的瓶颈。为了解决这个问题，我们有两种做法：&lt;/p>
+&lt;ol>
+&lt;li>提升 batch size $b$, 也就是同时 inference 多次&lt;/li>
+&lt;li>降低 $K$ 和 $V$ 的大小&lt;/li>
+&lt;/ol>
+&lt;h3 id="mqa">MQA
+&lt;/h3>&lt;p>MQA 的做法就是第二种，也就是降低 $K$ 和 $V$ 的大小，但是 $K,V$ 分别是 key 和 value layer 的输出，要降低输出大小，我们就必须改变 key 和 value layer 的 size。基于这个考虑，作者在所有的 head 上共享了一个 key 和 value layer，也就是说，原来&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">k_proj&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Linear&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">hidden_size&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">num_heads&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">head_dim&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="c1"># (d, n*d_h)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">v_proj&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Linear&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">hidden_size&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">num_heads&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">head_dim&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="c1"># (d, n*d_h)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>现在在 MQA 里，其变成了&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">k_proj&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Linear&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">hidden_size&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">head_dim&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="c1"># (d, n*d_h)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">v_proj&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Linear&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">hidden_size&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">head_dim&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="c1"># (d, n*d_h)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h3 id="mqa-analysis">MQA Analysis
+&lt;/h3>&lt;p>我们还是在 token-by-token 的场景下进行分析。&lt;/p>
+&lt;p>我们整体的 arithmetic operations 还是 $O(bnd^2)$.&lt;/p>
+&lt;p>调用 $n$ 次 multi-query attention 的总的内存访问量为 $O(bnd +bn^2d_h+ nd^2)$, 第一项是 $q$ , 第二项是 $K$ 和 $V$ , 第三项是是 query, key 和 value layer 的权重。&lt;/p>
+&lt;p>此时，MAR 变成了&lt;/p>
+$$
+O\left(\frac{1}{d} + \frac{n}{dh}+\frac{1}{b}\right)
+$$&lt;p>现在，我们就将 $n/d$ 这一项给降低了 $h$ 倍。如果我们的 batch size 足够大的话，理论上 MQA 应该能极大提高整体的计算效率。&lt;/p>
+&lt;h2 id="conclusion">Conclusion
+&lt;/h2>&lt;p>MQA 为了追求极致的内存带宽占用，选择使用单一的 key 和 value, 来极大提高 inference 的 decoding 效率，但是后来在 GQA 中验证发现，MQA 虽然非常高效，但是其表现比较差，这也是后来没有得以应用的原因。&lt;/p>
+&lt;h2 id="references">References
+&lt;/h2>&lt;ul>
+&lt;li>&lt;a class="link" href="https://arxiv.org/pdf/1911.02150" target="_blank" rel="noopener"
+>Arxiv&lt;/a>&lt;/li>
+&lt;/ul></description></item></channel></rss>
