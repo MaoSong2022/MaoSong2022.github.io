@@ -2,7 +2,7 @@
 title: Notes on DeepSeekMoE
 description: DeepSeek 在 2024 年 1 月发布了 DeepSeekMoE, 一个解决 MoE 模型 scecialization 不足以及 redundancy 问题的大模型系列。
 date: 2025-08-29 11:03:12+0800
-lastmod: 2025-08-29 11:03:12+0800
+lastmod: 2025-10-28 09:46:09+0800
 math: true
 tags: 
     - deepseek
@@ -12,7 +12,7 @@ categories:
 ---
 
 
-DeepSeek 在 2024 年 1 月发布了 DeepSeekMoE, 一个解决 MoE 模型 scecialization 不足以及 redundancy 问题的大模型系列。
+DeepSeek 在 2024 年 1 月发布了 DeepSeekMoE, 一个解决 MoE 模型 specialization 不足以及 redundancy 问题的大模型系列。
 
 ## Introduction
 
@@ -157,7 +157,7 @@ $$
 
 ### Alignment
 
-作者针对 DeepseekMoE 16B 进行了微调，微调使用了 1.4M 的训练样本，覆盖了 math, code, QA, reasoning 等任务。
+作者针对 DeepseekMoE 16B 进行了微调，微调使用了 **1.4M** 的训练样本，覆盖了 math, code, QA, reasoning 等任务。
 
 ### Ablation Study
 
@@ -167,23 +167,23 @@ $$
 
 ![Ablation on experts](DeepSeekMoE-ablation-experts.png)
 
-实验结果显示，与 Gshard 相比，使用共享专家可以有效提高模型的表现。并且，使用更细粒度的专家也可以进一步提高模型的表现
+实验结果显示，与 Gshard 相比，**使用共享专家可以有效提高模型的表现**。并且，**使用更细粒度的专家也可以进一步提高模型的表现**
 
-作者海滩久了以下共享专家与路由专家的比例，作者分别使用不同的比例进行实验，结果发现共享专家：路由专家个数为 1：3 的时候模型效果最好。
+作者还探究了共享专家与路由专家的比例，作者分别使用不同的比例进行实验，结果发现共享专家：路由专家个数为 1：3 的时候模型效果最好。
 
-作者海滩久了以下模型的泛化性，作者 mask 掉一部分概率最高的 routing expert, 然后从剩下的专家里进行 topK 的挑选，然后作者比较模型和 GShard 的表现，结果如下图所示
+作者还探究了模型的泛化性，作者 mask 掉一部分概率最高的 routing expert, 然后从剩下的专家里进行 topK 的挑选，然后作者比较模型和 GShard 的表现，结果如下图所示
 
 ![Ablation study on expert specialization](DeepSeekMoE-ablation-expert-specialization.png)
 
-实验结果显示，DeepSeekMoE 对于 mask 操作更敏感，这说明 DeepSeekMoE 模型中专家的 specialization 更强。
+实验结果显示，**DeepSeekMoE 对于 mask 操作更敏感，这说明 DeepSeekMoE 模型中专家的 specialization 更强。**
 
-作者还探究了 mask 掉共享专家对模型表现的影响，结果显示共享专家与路由专家之间的 overlap 很小，去掉共享专家之后，模型表现会变差。
+作者还探究了 mask 掉共享专家对模型表现的影响，结果显示**共享专家与路由专家之间的 overlap 很小，去掉共享专家之后，模型表现会变差。**
 
 作者进一步分析了共享专家与路由专家组合的有效性。作者探究 DeepSeekMoE 是否可以使用更少的路由专家来获取知识。作者通过使用不同的 activated routed experts 来进行实验，实验结果如下图所示
 
 ![Ablation study on activated routed experts](DeepSeekMoE-ablation-number-activated-experts.png)
 
-实验结果显示，DeepSeekMoE 仅需激活 4 个路由专家，就可以达到与 GShard 相同的表现。这说明了 DeepSeekMoE 模型中每个专家可以学习到更准确的知识。
+实验结果显示，DeepSeekMoE 仅需激活 4 个路由专家，就可以达到与 GShard 相同的表现。**这说明了 DeepSeekMoE 模型中每个专家可以学习到更准确的知识。**
 
 ## Conclusion
 
