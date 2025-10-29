@@ -15,7 +15,7 @@ categories:
 
 ## Introduction
 
-已有的工作如 [GShard](03Area/LLM/GShard.md) 和 [Switch Transformer](https://maosong.website/p/switch-transformer/) 均验证了 MoE 模型的有效性，但是他们的问题在于训练不稳定。
+已有的工作如 [GShard](https://maosong.website/p/GShard.md) 和 [Switch Transformer](https://maosong.website/p/switch-transformer/) 均验证了 MoE 模型的有效性，但是他们的问题在于训练不稳定。
 
 因此，在本文中，作者就提出了 ST-MoE 来解决这个问题。作者的主要贡献如下：
 
