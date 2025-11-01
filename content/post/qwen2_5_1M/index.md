@@ -107,7 +107,7 @@ Attention Recall 越高，说明选取的 critical token 越好，其 configurat
 **Kernel Optimization**
 作者还对 inference engine 进行了优化，作者使用 BladeLLM 作为 Qwen2.5-1M 的推理引擎。
 
-作者主要做了两点优化，第一是对 sparse attention kernel 进行了优化，提高了 sparse attention 的计算效率，结果发现，在 1M 的上下文下，BladeLLM 比 Flash Attention 要快 27.8 倍。
+作者主要做了两点优化，第一是对 sparse attention kernel 进行了优化，提高了 sparse attention 的计算效率，结果发现，在 1M 的上下文下，BladeLLM 比 [flash attention](https://maosong.website/p/notes-on-flashattention/) 要快 27.8 倍。
 
 第二是针对 MoE kernel 的优化。作者发现，decoding 的表现是与 memory access speed 相关的。具体来讲，当 batch size 超过 32 之后，获取模型参数成了效率的瓶颈。因此，作者使用了一系列技巧来提高 memory access 的效率
 

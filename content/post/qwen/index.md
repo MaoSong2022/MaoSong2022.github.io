@@ -44,7 +44,7 @@ BPE tokenizer，最终的 tokenizer 大小为 152K
 ### Training
 
 - 上下文长度：2048
-- attention：flash attention
+- attention：[flash attention](https://maosong.website/p/notes-on-flashattention/)
 - optimizer：AdamW， $\beta_1=0.9$, $\beta_2=0.95$, $\epsilon=10^{-8}$.
 - data type: BF16
 

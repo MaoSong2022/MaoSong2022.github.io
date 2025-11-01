@@ -24,7 +24,7 @@ categories:
 为了解决这个问题，已有的方法可以分为三类：
 
 1. length extrapolation: 使用 RoPE 或者 AliBi 等方法来扩展 LLM 的 context length, 这类方法的问题是扩展的上下文长度仍然有限，对于 streaming 的场景作用有限
-2. context window attention: 扩展 LLM 的上下文长度，如 flash attention 等来降低 attention 的计算和内存开销。这类方法也是只在有限的上下文场景下 work
+2. context window attention: 扩展 LLM 的上下文长度，如 [flash attention](https://maosong.website/p/notes-on-flashattention/) 等来降低 attention 的计算和内存开销。这类方法也是只在有限的上下文场景下 work
 3. Improving LLMs’ Utilization of Long Text: 更好利用长上下文的数据
 
 基于已有的工作的发现，作者提出了本文研究的核心问题：

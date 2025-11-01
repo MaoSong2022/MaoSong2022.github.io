@@ -277,7 +277,7 @@ class Attention(nn.Module):
 
 ![Efficiency of DCA](DCA_efficiency_analysis.png)
 
-可以看到，在 Flash attention 的基础上加上 DCA 之后，内存占用和推理时间并没有发生太大变化
+可以看到，在 [flash attention](https://maosong.website/p/notes-on-flashattention/) 的基础上加上 DCA 之后，内存占用和推理时间并没有发生太大变化
 
 作者还分析了三种 attention 对结果的贡献，如下图所示
 
