@@ -37,7 +37,7 @@ DeepSeek-V2 的模型架构如下
 
 ### MLA
 
-这部分介绍见 [MLA](MLA.md)
+这部分介绍见 [MLA](https://maosong2022.github.io/p/notes-on-mla/)
 
 ### DeepSeekMoE
 
