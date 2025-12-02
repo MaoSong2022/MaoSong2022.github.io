@@ -143,7 +143,7 @@ MLA 的配置如下 (DeepSeek-V2)
 
 ### Evaluation
 
-作者对比了 [DeepSeek-LLM](https://maosong.website/p/notes-on-deepseek-llm/), [Qwen1.5](https://maosong.website/p/notes-on-qwen1.5/), [Mixtral MoE](Mixtral%20MoE.md) 以及 [LLaMA 3](LLaMA%203.md), 实验结果如下
+作者对比了 [DeepSeek-LLM](https://maosong.website/p/notes-on-deepseek-llm/), [Qwen1.5](https://maosong.website/p/notes-on-qwen1.5/), [Mixtral MoE](https://maosong.website/p/mixstral-8x7b/) 以及 [LLaMA 3](https://maosong.website/p/notes-on-llama3/), 实验结果如下
 
 ![Performance of DeepSeek-V2 base](DeepSeek-V2-pretraining-performance.png)
 
