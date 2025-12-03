@@ -133,7 +133,7 @@ SFT 训练了 3 个 epoch, 学习率从 2e-5 降低到 2e-6, 为了避免 overfi
 
 ## Experiment
 
-对于 base 版本，作者对比了 LLaMA 3, Mixtral, DeepSeek-V2,  实验结果如下图所示
+对于 base 版本，作者对比了 [LLaMA 3](https://maosong.website/p/notes-on-llama3/), [Mixtral](https://maosong.website/p/mixstral-8x7b/), [DeepSeek-V2](https://maosong.website/p/notes-on-deepseek-v2/),  实验结果如下图所示
 
 ![Performance of Hunyuan-Large-Base](Hunyuan-large-base-performance.png)
 
