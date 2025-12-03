@@ -105,7 +105,7 @@ tokenizer 与 [DeepSeek-LLM](https://maosong.website/p/notes-on-deepseek-llm/) �
 | # Experts Active Per Token | 6           | 6                |
 | # Shared Experts           | 2           | 2                |
 
-这里比较特殊的一点在于，模型在第一层使用了 MoE layer, 这个做法的原因在后面的 [olmoe](olmoe.md) 里有提到，核心思想是 early layer 特别是第一层 layer 收敛比较慢。
+这里比较特殊的一点在于，模型在第一层使用了 MoE layer, 这个做法的原因在后面的 [olmoe](https://maosong.website/p/notes-on-olmoe/) 里有提到，核心思想是 early layer 特别是第一层 layer 收敛比较慢。
 
 MLA 的配置如下 (DeepSeek-V2)
 

@@ -21,7 +21,7 @@ MoE 模型是一个将 transformer block 中 FFN 替换为 MoE layer 的方法�
 
 ## 方法
 
-MoE 模型和 dense 模型的示意图如下，图源 [[olmoe]]
+MoE 模型和 dense 模型的示意图如下，图源 [olmoe](https://maosong.website/p/notes-on-olmoe/)
 
 ![[MoE_architecture.png]]
 
@@ -58,7 +58,7 @@ $$
 
 ## 代码
 
-我们这里展示基于 [[olmoe]] 的代码，代码如下
+我们这里展示基于 [olmoe](https://maosong.website/p/notes-on-olmoe/) 的代码，代码如下
 
 ```python
 class OlmoeSparseMoeBlock(nn.Module):
@@ -136,7 +136,7 @@ class OlmoeSparseMoeBlock(nn.Module):
 2. Expert Choice: 每个专家选取 top-k 的 token，此时每个专家处理的 token 个数是相同的，这个方法的好处是 load balance。缺点是自回归生成的方式没有完整序列长度的信息，从而导致 token dropping，也就是某些 token 不会被任何专家处理，某些 token 会被多个专家处理
 3. Global Choice: 全局分配决定 token 和专家的匹配关系
 
-现在几乎所有的模型都选择方式 1，即每个 token 选取 top-k 的专家。 [[olmoe]] 对比了以下方式 1 和方式 2 的表现，如下图所示
+现在几乎所有的模型都选择方式 1，即每个 token 选取 top-k 的专家。 [olmoe](https://maosong.website/p/notes-on-olmoe/) 对比了以下方式 1 和方式 2 的表现，如下图所示
 
 ![MoE routing strategy EC v.s. TC](olmoe-routing-strategy.png)
 

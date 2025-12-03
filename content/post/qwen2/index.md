@@ -27,7 +27,7 @@ categories:
 
 对于 MoE 模型，Qwen2-MoE 基于 [Qwen1.5](https://maosong.website/p/dual-chunk-attention/) 进行了改进，主要是 3 点：
 
-1. 作者使用了更细粒度的专家个数，作者认为细粒度的专家可以提供更丰富的 combination，这一点与 olmoe 的结论相同
+1. 作者使用了更细粒度的专家个数，作者认为细粒度的专家可以提供更丰富的 combination，这一点与 [olmoe](https://maosong.website/p/notes-on-olmoe/) 的结论相同
 2. 与 DeepSeek-MoE 一样，作者使用了共享专家和路由专家
 3. 作者使用了类似 upcycling 的方法来初始化模型。假设一共有 $n$ 个专家，每个专家的维度为 $h_E$, 原始 dense 模型的维度为 $h_{FFN}$, 那么我们会把 dense 模型的参数复制 $[nh_E/h_{FFN}]$ 次，这样就可以扩展到任意个数的 MoE 模型上。作者还对参数进行 shuffle，来提高 diversity。最后，作者还对 50% 的参数进行随机初始化，来提高模型的 capacity。
 

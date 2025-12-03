@@ -108,7 +108,7 @@ DPO的目的是为了提升模型输出的质量
 
 # 结论
 
-LLaMA 4 采用了MoE架构，是一个原生的多模态大模型系列。在架构上，与DeepSeek-MoE, aria和OLMoE不同，LLaMA4并没有增加expert granularity，OLMoE分析认为，增加granularity可以提高模型的flexibility，
+LLaMA 4 采用了MoE架构，是一个原生的多模态大模型系列。在架构上，与DeepSeek-MoE, aria和OLMoE不同，LLaMA4并没有增加expert granularity，[OLMoE](https://maosong.website/p/notes-on-olmoe/)分析认为，增加granularity可以提高模型的flexibility，
 下面总结了一下相关模型的参数
 
 | Model | Layers | Heads (Q / KV) | Context Length | #Parameters (activated/total) | #Experts (activated/total)| #Tokens |
