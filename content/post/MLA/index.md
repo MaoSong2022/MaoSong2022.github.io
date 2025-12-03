@@ -1,5 +1,5 @@
 ---
-title: Notes on MQA
+title: Notes on MLA
 description: DeepSeek在 2024 年 5 月提出了 multi-head latent attention (MLA), 用于提高 attention 的 Inference 效率
 date: 2025-12-02 18:21:54+0800
 lastmod: 2025-12-02 18:21:54+0800
