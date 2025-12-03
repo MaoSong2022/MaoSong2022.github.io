@@ -2,7 +2,7 @@
 title: Notes on MLA
 description: DeepSeek在 2024 年 5 月提出了 multi-head latent attention (MLA), 用于提高 attention 的 Inference 效率
 date: 2025-12-02 18:21:54+0800
-lastmod: 2025-12-02 18:21:54+0800
+lastmod: 2025-12-03 10:13:09+0800
 math: true
 tags: 
     - attention
@@ -110,7 +110,7 @@ $$
 
 此时，我们没有办法将 $W^{UK}$ 吸收到 $W^{UQ}$ 中，这样就导致在 inference 时我们必须重新计算所有 prefix token 对应的 key, 这显然会降低 inference efficiency
 
-为了解决这个问题，作者额外使用了一个 Multi-head query $q_{t,i}^R\in\mathbb{R}^{d_h^R}$ 以及一个共享的 key $k_t^R\in\mathbb{R}^{d_h^R}$ 来携带 RoPE 的信息，其中 $d_h^R$ 是 decoupled query 以及 decoupled key 的 head dimension.
+为了解决这个问题，作者使用了partial RoPE的技巧，即将query和key拆解为NoPE以及RoPE两部分，前者由MLA产生，后者携带位置信息。RoPE部分包括query $q_{t,i}^R\in\mathbb{R}^{d_h^R}$ 以及一个共享的 key $k_t^R\in\mathbb{R}^{d_h^R}$, 其中 $d_h^R$ 是 decoupled query 以及 decoupled key 的 head dimension.
 
 > [!remark]
 > 这里 key 对应的 RoPE 共享的原因是这部分信息也需要使用 KV cache 进行缓存，通过共享可以降低 KV cache 占用；而 query 对应的 RoPE 不共享的原因是提高 head 的表达能力，与 MHA 原理一致。
