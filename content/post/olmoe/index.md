@@ -1,5 +1,5 @@
 ---
-title: ST-MoE
+title: Notes on olmoe
 description: AllenAI 在 24 年 9 月提出了 olmoe, 一个全开源的基于 MoE 架构的大语言模型，参数量为 7B-A1B，作者详细介绍了模型的设计，数据以及训练策略. 论文获得了ICLR2025 oral
 date: 2025-11-01 15:23:58+0800
 lastmod: 2025-11-01 15:23:58+0800
