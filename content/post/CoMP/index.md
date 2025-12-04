@@ -49,7 +49,7 @@ $$
 
 这里 $E\in\mathbb{E}^{P^2\cdot C\times D_v}$, $E_{pos}\in\mathbb{R}^{N\times D_V}$ 分别是 patch embedding 和 learnable position embedding, $\mathrm{Int}(\cdot)$ 是 bilinear interpolation.
 
-相比于 [ViT](ViT.md), C-RoPE 做出了两点改动：
+相比于 [ViT](https://maosong.website/p/notes-on-vit/), C-RoPE 做出了两点改动：
 
 1. 使用了 Interpolation 来支持动态分辨率图片输入
 2. 使用了 RoPE 来高效利用位置信息
