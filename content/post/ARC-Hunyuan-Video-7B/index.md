@@ -77,7 +77,7 @@ categories:
 
 作者分析原因认为，**人类标注数据和合成数据之间存在 distribution shift**.
 
-受 DeepSeek-R1 启发，作者决定使用 GRPO 算法来提高模型的表现，训练任务包含两个：
+受 [DeepSeek-R1](https://maosong.website/p/notes-on-deepseek-r1/) 启发，作者决定使用 GRPO 算法来提高模型的表现，训练任务包含两个：
 
 1. multi-dimensional Multi-choide QA: 提高模型的视频理解能力
 2. Temporal video grounding: 提高模型的时序感知能力

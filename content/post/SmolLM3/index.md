@@ -78,7 +78,7 @@ Mid-training 的主要目标为扩展模型的上下文以及提升模型的 rea
 
 扩展模型上下文长度之后，作者还额外增加了一个 mid-training stage 来提高模型的 reasoning 能力。这个阶段的目标在于提升模型的通用能力。作者希望模型不针对特定的 domain, 如 math 或者 code 等。
 
-训练过程中，作者使用了 **35B** 的 token. 数据来源包括 Open-Thoughts3-1.2M 以及 NVIDIA 的 Llama-Nemetron-Post-Training-Dataset-v1.1. Reasoning trace 由 DeepSeek-R1 生成。作者使用了 ChatML 的格式，还使用了 Packing 来提升训练效率。训练持续了 4 个 epoch.
+训练过程中，作者使用了 **35B** 的 token. 数据来源包括 Open-Thoughts3-1.2M 以及 NVIDIA 的 Llama-Nemetron-Post-Training-Dataset-v1.1. Reasoning trace 由 [DeepSeek-R1](https://maosong.website/p/notes-on-deepseek-r1/) 生成。作者使用了 ChatML 的格式，还使用了 Packing 来提升训练效率。训练持续了 4 个 epoch.
 
 ## Post-training
 
