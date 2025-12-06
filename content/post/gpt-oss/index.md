@@ -119,7 +119,7 @@ gpt-oss 系列的表现如下表所示
 
 ## Conclusion
 
-作者提出了 gpt-oss 系列大语言模型，gpt-oss 在架构上与已有的主流模型架构如 [Qwen3](https://maosong.website/p/notes-on-qwen3/), [DeepSeek-V3](DeepSeek-V3.md) 等都有一定区别
+作者提出了 gpt-oss 系列大语言模型，gpt-oss 在架构上与已有的主流模型架构如 [Qwen3](https://maosong.website/p/notes-on-qwen3/), [DeepSeek-V3](https://maosong.website/p/notes-on-deepseek-v3/) 等都有一定区别
 
 ## References
 

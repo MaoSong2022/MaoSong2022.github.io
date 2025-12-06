@@ -18,7 +18,7 @@ categories:
 
 multi-head attention (MHA) 的问题在于，其 KV cache 的内存占用（memory footprint）随 sequence length 以及 batch size 线性增长，从而成为了 LLM 在 decoding 阶段的瓶颈。
 
-为了解决 MHA 的内存占用过高问题，已有的工作如 [MQA](https://maosong.website/p/notes-on-mqa/), [GQA](https://maosong.website/p/notes-on-gqa/) 等通过共享 key, value projection 来降低 KV cache size. 而 [DeepSeek-V3](DeepSeek-V3.md) 提出的 MLA 则是通过对 key, value projection 进行 low-rank compression, 然后只存储 latents 的方法来降低 KV cache size.
+为了解决 MHA 的内存占用过高问题，已有的工作如 [MQA](https://maosong.website/p/notes-on-mqa/), [GQA](https://maosong.website/p/notes-on-gqa/) 等通过共享 key, value projection 来降低 KV cache size. 而 [DeepSeek-V3](https://maosong.website/p/notes-on-deepseek-v3/) 提出的 MLA 则是通过对 key, value projection 进行 low-rank compression, 然后只存储 latents 的方法来降低 KV cache size.
 
 但是，已有的这些方法的问题在于，当我们设置 KV cache budget 之后，它们的表现就比标准的 MHA 要差。
 

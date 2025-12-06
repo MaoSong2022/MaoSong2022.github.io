@@ -28,7 +28,7 @@ Kimi-k2 是一个总参数为 1T, 激活参数为 32B 的 MoE 大语言模型，
 
 ### Architecture
 
-Kimi-K2 的架构与 DeepSeek-V3 相似，配置如下表所示
+Kimi-K2 的架构与 [DeepSeek-V3](https://maosong.website/p/notes-on-deepseek-v3/) 相似，配置如下表所示
 
 | 指标                       | DeepSeek-V3   | Kimi K2        | $\Delta$          |
 | ------------------------ | ------------- | -------------- | ----------------- |

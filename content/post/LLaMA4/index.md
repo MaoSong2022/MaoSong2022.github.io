@@ -77,7 +77,7 @@ class Llama4UnfoldConvolution(nn.Module):
 其他训练优化技巧如下：
 
 1. MetaP：用于选择超参数
-2. FP8 precision：与DeepSeek-V3一样，使用FP8精度进行训练
+2. FP8 precision：与 [DeepSeek-V3](https://maosong.website/p/notes-on-deepseek-v3/) 一样，使用FP8精度进行训练
 3. mid-training：在预训练阶段之后，额外增加了一个训练阶段，来提高模型的长上下文等关键能力
 
 # Post-training
