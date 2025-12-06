@@ -158,7 +158,7 @@ Code-start Data 分为 SFT 数据和 Long CoT SFT 数据，前者用于训练 in
 
 Qwen3-VL 235B-A22B 的表现如下图所示
 
-![](Pasted%20image%2020251203174812.png)
+![Performance of Qwen3-VL 235B-A22B](Qwen3-VL-performance.png)
 
 ### Ablation Study
 
