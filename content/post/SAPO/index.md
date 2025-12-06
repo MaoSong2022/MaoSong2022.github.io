@@ -15,14 +15,14 @@ categories:
 
 ## Introduction
 
-## Method
-
 相关工作包括 [GRPO](GRPO.md) 以及 [GSPO](https://maosong.website/p/notes-on-gspo/)
 
 SAPO 的关键思想有两点：
 
 1. tokne-level soft trust region 可以保证 sequence-level coherence
 2. 非对称的 temperature 可以针对 postive token 和 negative token 进行不同的优化
+
+## Method
 
 作者首先给出了 SAPO 的目标函数如下：
 
