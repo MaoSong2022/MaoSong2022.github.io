@@ -105,7 +105,7 @@ The fine-tuning of Llama3 contains:
 3. Proximal Policy Optimization
 4. Direct Preference Optimization
 
-Learning from perference rankings via PPO and DPO also greatly improved the performance of LLma3 on reasoning and coding tasks. Since perference ranking helps the model to select answer when it is in a dilemma.
+Learning from perference rankings via PPO and [DPO](https://maosong.website/p/notes-on-dpo/) also greatly improved the performance of LLma3 on reasoning and coding tasks. Since perference ranking helps the model to select answer when it is in a dilemma.
 
 # Reference
 

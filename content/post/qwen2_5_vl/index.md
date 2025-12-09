@@ -132,7 +132,7 @@ SFT阶段使用大概2M的样本进行训练，其中纯文本和多模态数据
 
 ### 训练
 
-post-training阶段分为SFT和DPO两个小阶段，这个阶段都会冻结VIT. SFT阶段使用大多数的训练数据，而DPO阶段专注于image-text data和pure text data，以更好地进行对齐。具体做法就是基于Grounding truth，使用checkpoint来评估数据的质量，然后只保留答案正确的数据来训练。
+post-training阶段分为SFT和[DPO](https://maosong.website/p/notes-on-dpo/)两个小阶段，这个阶段都会冻结VIT. SFT阶段使用大多数的训练数据，而DPO阶段专注于image-text data和pure text data，以更好地进行对齐。具体做法就是基于Grounding truth，使用checkpoint来评估数据的质量，然后只保留答案正确的数据来训练。
 
 # 评测
 

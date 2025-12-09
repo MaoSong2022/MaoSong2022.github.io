@@ -127,7 +127,7 @@ SFT 训练了 3 个 epoch, 学习率从 2e-5 降低到 2e-6, 为了避免 overfi
 
 ### RLHF
 
-作者使用 DPO 来进行 RLHF, 作者同时使用了 offline 和 online 的数据来进行训练，前者是收集的数据，后者是当前 policy 生成的数据。与 LLaMA 3 和 Nemotron-4 一样，为了提高训练稳定性，对于 chosen reponse, 作者使用了 SFT loss.
+作者使用 [DPO](https://maosong.website/p/notes-on-dpo/) 来进行 RLHF, 作者同时使用了 offline 和 online 的数据来进行训练，前者是收集的数据，后者是当前 policy 生成的数据。与 LLaMA 3 和 Nemotron-4 一样，为了提高训练稳定性，对于 chosen reponse, 作者使用了 SFT loss.
 
 作者还是用了 exponential moving average 策略来减少 reward hacking 现象，以及降低 alignment tax.
 

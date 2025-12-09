@@ -69,7 +69,7 @@ pre-training 阶段的数据包括 COYO, Laion, Wukong, DataComp, SAM 等。作�
 2. Multimodal pretraining: 这阶段全量微调所有参数，主要目的是使用对话格式的数据。图片精度为 448-1792
 3. multimodal instruction tuning: 这阶段训练所有参数，主要提高模型跟随多模态指令的能力
 
-post-training 包括 DPO 和 GRPO 两个阶段。
+post-training 包括 [DPO](https://maosong.website/p/notes-on-dpo/) 和 GRPO 两个阶段。
 
 1. DPO: 训练所有参数，使用 pre-training checkpoint 来多次采样
 2. GRPO: 使用 RLVR 数据集进行训练

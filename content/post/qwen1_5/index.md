@@ -20,7 +20,7 @@ Qwen1.5 的主要特点：
 2. 统一支持 32768 tokens 上下文长度 。
 3. 提供 量化版本 （Int4、Int8、AWQ、GGUF）以适应低资源环境或部署需求。
 
-训练过程使用了 DPO 以及 PPO 来进行对齐
+训练过程使用了 [DPO](https://maosong.website/p/notes-on-dpo/) 以及 PPO 来进行对齐
 
 ## Qwen1.5-MoE
 

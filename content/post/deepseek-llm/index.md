@@ -17,7 +17,7 @@ DeepSeek 在 2024 年 1 月 5 日发布了 DeepSeek LLM, 包括 7B 和 67B 两�
 
 已有的 scaling law 如 [Kaplan](https://maosong.website/p/kaplan-scaling-law/) 和 [Chinchilla](https://maosong.website/p/chinchilla-scaling-law/) 介绍了 model size, dataset size, compute budget 与模型表现之间的关系。在本文中，作者进一步探究了 learning rate 和 batch size 等超参数与模型表现之间的关系。基于发现的 scaling law, 作者为不同大小的模型设置了最优的超参数。并且，作者还发现不同数据集与模型表现之间的关系。
 
-最终，基于这些实验结果，作者提出了 DeepSeek LLM, 模型使用 **2T token** 进行预训练，使用 1M samples 进行后训练，后训练包括 SFT 以及 DPO.
+最终，基于这些实验结果，作者提出了 DeepSeek LLM, 模型使用 **2T token** 进行预训练，使用 1M samples 进行后训练，后训练包括 SFT 以及 [DPO](https://maosong.website/p/notes-on-dpo/).
 
 ## Pre-training
 
@@ -139,7 +139,7 @@ $$
 post-training 包含两个阶段：
 
 1. SFT:7B 的模型训练了 4 个 epoch, 67B 的模型训练了 2 个 epoch, 作者发信进一步训练 67B 的模型会导致过拟合。作者发现，模型在训练过程中会出现重复输出的情况，特别是数学 SFT 数据，为了解决这个问题，作者使用了一个两阶段的 SFT 以及 DPO.
-2. DPO: 提高模型的能力，作者发现 DPO 可以提高模型 open-ended generation skill.
+2. [DPO](https://maosong.website/p/notes-on-dpo/): 提高模型的能力，作者发现 DPO 可以提高模型 open-ended generation skill.
 
 ## Evaluation
 

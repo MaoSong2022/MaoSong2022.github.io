@@ -96,7 +96,7 @@ $$
 \mathcal{L}_{MPO} = w_p\mathcal{L}_p+w_q\mathcal{L}_q+w_g\mathcal{L}_g
 $$
 
-其中，$\mathcal{L}_p$ 为 DPO 的损失函数，$\mathcal{L}_q$ 为 Quality loss, $\mathcal{L}_g$ 为 SFT 使用的 next-token-prediction loss.
+其中，$\mathcal{L}_p$ 为 [DPO](https://maosong.website/p/notes-on-dpo/) 的损失函数，$\mathcal{L}_q$ 为 Quality loss, $\mathcal{L}_g$ 为 SFT 使用的 next-token-prediction loss.
 
 online RL 阶段使用的是 [GSPO](https://maosong.website/p/notes-on-gspo/) 算法，核心思想是在 sample 层面做归一化。这个阶段的目的是进一步提高模型的表现。
 

@@ -13,7 +13,7 @@ categories:
 
 ## Introduction
 
-作者在本文中提出了 Mixtral 8x7B, 一个 MoE 模型，模型上下文为 32K. 作者还对模型进行 finetune 得到了 Mixtral 8x7B-Instruct, finetuning 包含 SFT 和 DPO 两个阶段。
+作者在本文中提出了 Mixtral 8x7B, 一个 MoE 模型，模型上下文为 32K. 作者还对模型进行 finetune 得到了 Mixtral 8x7B-Instruct, finetuning 包含 SFT 和 [DPO](https://maosong.website/p/notes-on-dpo/) 两个阶段。
 
 ## Method
 

@@ -108,7 +108,7 @@ Pretraining和Qwen2.5-VL的训练过程类似，分成了3个stage：
 包括三个阶段
 
 1. ICL training: 训练Talker学习context continuation
-2. DPO training: 提升speech generation的stability
+2. [DPO](https://maosong.website/p/notes-on-dpo/) training: 提升speech generation的stability
 3. multi-speaker instruction fine-tuning: 提升模型的naturalness和controllability
 
 # Evaluation

@@ -110,7 +110,7 @@ SmolLM3 还在 system prompt 中加入了 metadata, 如知识的截止时间，�
 
 SFT 阶段之后，作者使用了 Tulu3 的 preference dataset 用于 non-reasoning mode 的训练，然后合成了一批数据用于 reasoning mode 的训练，这批合成数据使用 Qwen3 32B 和 Qwen3 0.6B 生成得到，具体做法就是 Qwen3 32B 输出的结果定义为正样本，Qwen3 0.6B 输出的结果定义为负样本。
 
-作者使用了 APO 算法来进行训练，APO 是 DPO 的一个变体， DPO 的目标函数为
+作者使用了 APO 算法来进行训练，APO 是 [DPO](https://maosong.website/p/notes-on-dpo/) 的一个变体， DPO 的目标函数为
 
 $$
 \mathcal{L}_{DPO}(x,y_w,y_{l}; \theta) = -\log \sigma(r_\theta(x,y_w) - r_\theta(x, y_l))

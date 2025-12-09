@@ -187,7 +187,7 @@ $$
 
 1. Model merging:将long-CoT模型和short-CoT模型进行合并，然后进行推理。这里采用的办法是对两个模型的权重取平均。
 2. shortest rejection sampling：通过对同一个问题进行多次采样（论文中每个问题采样8次），然后选择最短的，正确的推理步骤作为最终答案。
-3. DPO：通过对同一个问题进行多次采样，选择最短的正确的回答作为正样本，最长的回答作为负样本，然后使用DPO进行训练。
+3. [DPO](https://maosong.website/p/notes-on-dpo/)：通过对同一个问题进行多次采样，选择最短的正确的回答作为正样本，最长的回答作为负样本，然后使用DPO进行训练。
 4. Long2short RL：作者在RL阶段，选择一个在performance和token efficiency之间达到平衡的模型作为 base model，然后加入了一个long2short RL训练阶段。该阶段，作者加入了length penalty以及降低了maximum rollout length来鼓励模型生成更短的推理步骤。
 
 ### Length penalty

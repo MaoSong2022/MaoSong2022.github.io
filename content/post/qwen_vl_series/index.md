@@ -59,7 +59,7 @@ Remark
 |              | Multimodal Pre-Training   | 2T token    | ✅      | ✅       | ✅   |
 |              | Long-Context Pre-Training | 0.6T token  | ✅？    | ✅？     | ✅？ |
 |              | SFT                       | 2M samples  |        | ✅       | ✅   |
-|              | DPO                       |             |        | ✅       | ✅   |
+|              | [DPO](https://maosong.website/p/notes-on-dpo/)                       |             |        | ✅       | ✅   |
 
 Remark
 

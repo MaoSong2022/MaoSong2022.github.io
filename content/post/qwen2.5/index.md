@@ -11,7 +11,7 @@ math: true
 ---
 
 
-2024 年 12 月 Qwen 发布了 Qwen 2.5 系列大语言模型，包括 7 个 dense 模型以及两个 MoE 模型，Qwen2.5 在 pre-training 阶段使用了 18T token 进行。在 post-training 阶段使用了 1M 的样本，还使用了 DPO 以及 GRPO 来进行 RL 的训练
+2024 年 12 月 Qwen 发布了 Qwen 2.5 系列大语言模型，包括 7 个 dense 模型以及两个 MoE 模型，Qwen2.5 在 pre-training 阶段使用了 18T token 进行。在 post-training 阶段使用了 1M 的样本，还使用了 [DPO](https://maosong.website/p/notes-on-dpo/) 以及 GRPO 来进行 RL 的训练
 
 Qwen2.5 主要在以下方面进行了改进
 

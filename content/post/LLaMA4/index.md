@@ -86,7 +86,7 @@ post-training包括三个阶段：
 
 1. SFT
 2. online RL
-3. DPO
+3. [DPO](https://maosong.website/p/notes-on-dpo/)
 
 作者发现SFT和DPO会限制模型的探索能力，特别是在math, coding等domain。为了解决这个问题，作者使用LlaMA对问题进行难度分级，然后移除了50%的简单数据。
 
