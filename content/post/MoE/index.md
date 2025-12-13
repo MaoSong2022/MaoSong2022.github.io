@@ -1,8 +1,8 @@
 ---
 title: MoE tutorial
 description: 本 blog 详细介绍了 MoE 模型的一些关键设计与相关实验结果，为 MoE 模型的学习提供基础。
-date: 2025-10-23 16:13:29+0800
-lastmod: 2025-10-23 16:13:29+0800
+date: 2025-12-13 16:04:04+0800
+lastmod: 2025-12-13 16:04:04+0800
 math: true
 tags: 
     - tutorial
@@ -18,7 +18,7 @@ categories:
 
 ### Motivation
 
-现有大部分大语言模型均是基于 [Transformer](Transformer.md) 架构，[Kaplan scaling law](Kaplan%20scaling%20law.md) 通过实验说明，大语言模型的表现与算力，数据，模型参数量息息相关。但是，对于 dense 模型来说，我们提高模型参数量时，必须同时提高所使用的算力。这就限制了大模型的 scaling law.
+现有大部分大语言模型均是基于 [Transformer](Transformer.md) 架构，[Kaplan scaling law](https://maosong.website/p/kaplan-scaling-law/) 通过实验说明，大语言模型的表现与算力，数据，模型参数量息息相关。但是，对于 dense 模型来说，我们提高模型参数量时，必须同时提高所使用的算力。这就限制了大模型的 scaling law.
 
 而 MoE 模型的解决方法为在计算时只激活部分参数，这样，我们就可以在同等激活参数量/算力下训练更大参数量的模型，从而达到更好地表现。
 
@@ -28,7 +28,7 @@ categories:
 
 ### Definition
 
-MoE 模型和 dense 模型的示意图如下，图源 [olmoe](olmoe.md)
+MoE 模型和 dense 模型的示意图如下，图源 [olmoe](https://maosong.website/p/notes-on-olmoe/)
 
 ![olmoe-MoE_architecture](olmoe-MoE_architecture.png)
 
@@ -79,7 +79,7 @@ MoE 训练更加高效，如下图所示
 
 ![Comparison between moe and dense models (Switch Transformer)](Switch-Transformer-speed-comparison.png)
 
-[Switch Transformer](Switch%20Transformer.md) 的 实验结果说明，MoE model 的训练效率比 dense model 快 7 倍左右。其他模型也有类似结论。总的来说，MoE 模型相比于 dense 模型，训练效率更高。
+[Switch Transformer](https://maosong.website/p/switch-transformer/) 的 实验结果说明，MoE model 的训练效率比 dense model 快 7 倍左右。其他模型也有类似结论。总的来说，MoE 模型相比于 dense 模型，训练效率更高。
 
 #### Scaling Law
 
@@ -107,7 +107,7 @@ MoE 模型的表现更强，如下图所示，MoE 模型的训练，验证损失
 
 ![activation ratio (experts) of moe models](moe_timeline_experts.png)
 
-可以看到，现在大部分模型总专家数都在 200-400 左右，[Kimi-k2](Kimi-k2.md) 认为提高专家个数可以提高模型表现，而 [LongCat](LongCat.md) 则是使用了 phantom expert 机制
+可以看到，现在大部分模型总专家数都在 200-400 左右，[Kimi-k2](https://maosong.website/p/notes-on-kimi-k2/) 认为提高专家个数可以提高模型表现，而 [LongCat](LongCat.md) 则是使用了 phantom expert 机制
 
 ## MoE Design
 
@@ -117,48 +117,48 @@ MoE 模型的表现更强，如下图所示，MoE 模型的训练，验证损失
 
 一般来说，专家个数越多，模型越稀疏，模型表现越好。扩展专家个数有两个方式：
 
-1. 直接增加专家个数，这会导致模型参数量上升，如 [Switch Transformer](Switch%20Transformer.md)
-2. 对已有的专家进行切分，将大专家切分为小专家，如 [DeepSeekMoE](DeepSeekMoE.md)
+1. 直接增加专家个数，这会导致模型参数量上升，如 [Switch Transformer](https://maosong.website/p/switch-transformer/)
+2. 对已有的专家进行切分，将大专家切分为小专家，如 [DeepSeekMoE](https://maosong.website/p/notes-on-deepseekmoe/)
 
-[Switch Transformer](Switch%20Transformer.md) 也通过实验发现，增加专家个数可以显著提高模型的训练效率和表现，结果如下图所示
+[Switch Transformer](https://maosong.website/p/switch-transformer/) 也通过实验发现，增加专家个数可以显著提高模型的训练效率和表现，结果如下图所示
 
 ![](Switch-Transformer-scaling-law.png)
 
 可以看到，当我们增加专家个数的时候，模型的表现是持续提升的。并且当我们增加专家个数之后，模型的训练效率也有所提升。
 
-[DeepSeekMoE](DeepSeekMoE.md) 提出了 fine-granularity expert 的概念，其做法是通过减少 expert 的大小在相同参数量的场景下使用更多的专家。实验结果如下图所示
+[DeepSeekMoE](https://maosong.website/p/notes-on-deepseekmoe/) 提出了 fine-granularity expert 的概念，其做法是通过减少 expert 的大小在相同参数量的场景下使用更多的专家。实验结果如下图所示
 
 ![DeepSeek-Moe shared experts ablation study](DeepSeekMoE-ablation-experts.png)
 
 可以看到，在稀疏度 (激活专家个数占总专家个数比例) 不变的情况下，提高专家的粒度，可以提高模型的表现。
 
-[olmoe](olmoe.md) 对 [DeepSeekMoE](DeepSeekMoE.md) 的这个观点进行了验证，结果如下图所示，
+[olmoe](https://maosong.website/p/notes-on-olmoe/) 对 [DeepSeekMoE](https://maosong.website/p/notes-on-deepseekmoe/) 的这个观点进行了验证，结果如下图所示，
 
 ![Expert granularity](olmoe-expert-granularity.png)
 
 结果显示，当专家粒度从 8E-1A 扩展到 32E-4A 时，模型在 HellaSwag 上的表现提升了 $10\%$, 但是进一步扩展到 64E-8A 时，模型的表现提升不到 $2\%$, 这说明了无限制提升专家粒度对模型的提升越来越有限。
 
-[Kimi-k2](Kimi-k2.md) 探究了针对 MoE 模型 sparsity 的 scaling law, 结果也说明，提升 sparsity 可以提高模型的表现。因此，其相对于 [DeepSeek-V3](DeepSeek-V3.md) 使用了 $50\%$ 额外的的专家数。[Ling-mini-beta](Ling-mini-beta.md) 进一步验证了这个观点。
+[Kimi-k2](https://maosong.website/p/notes-on-kimi-k2/) 探究了针对 MoE 模型 sparsity 的 scaling law, 结果也说明，提升 sparsity 可以提高模型的表现。因此，其相对于 [DeepSeek-V3](https://maosong.website/p/notes-on-deepseek-v3/) 使用了 $50\%$ 额外的的专家数。[Ling-mini-beta](https://maosong.website/p/notes-on-ling-mini-beta/) 进一步验证了这个观点。
 
 #### Shared Experts
 
-Shared Expert 由 [DeepSeekMoE](DeepSeekMoE.md) 提出，其基本思想为，固定某几个专家，响应所有的 token，这样可以让某些专家学习到共有的知识，而让其他的专家学习到特定的知识。这个方法随后被 [Qwen1.5](Qwen1.5.md), [Qwen2](Qwen2.md) , [Qwen2.5](Qwen2.5.md) 以及 [DeepSeek-V3](DeepSeek-V3.md) 所采用。
+Shared Expert 由 [DeepSeekMoE](https://maosong.website/p/notes-on-deepseekmoe/) 提出，其基本思想为，固定某几个专家，响应所有的 token，这样可以让某些专家学习到共有的知识，而让其他的专家学习到特定的知识。这个方法随后被 [Qwen1.5](https://maosong.website/p/notes-on-qwen1.5/), [Qwen2](https://maosong.website/p/notes-on-qwen2/) , [Qwen2.5](https://maosong.website/p/notes-on-qwen2.5/) 以及 [DeepSeek-V3](https://maosong.website/p/notes-on-deepseek-v3/) 所采用。
 
-[DeepSeekMoE](DeepSeekMoE.md) 给出的实验结果如下
+[DeepSeekMoE](https://maosong.website/p/notes-on-deepseekmoe/) 给出的实验结果如下
 
 ![DeepSeek-Moe shared experts ablation study](DeepSeekMoE-ablation-experts.png)
 
 作者发现，当使用 shared experts 之后，模型在大部分 benchmark 上的表现都有所提升。
 
-[olmoe](olmoe.md) 在 32 个专家下进行了实验，比较了 4 个激活专家和 3 个激活专家 +1 个共享专家两种设置的表现，结果如下：
+[olmoe](https://maosong.website/p/notes-on-olmoe/) 在 32 个专家下进行了实验，比较了 4 个激活专家和 3 个激活专家 +1 个共享专家两种设置的表现，结果如下：
 
 ![Olmoe shared experts performance](olmoe-shared-experts.png)
 
 作者认为，加入 shared experts 之后，组合的可能性有所减少，这会降低模型的泛化性。因此，在 olmoe 中，作者没有使用 shared experts.
 
-> 虽然 [Qwen1.5](Qwen1.5.md), [Qwen2](Qwen2.md) 和 [Qwen2.5](Qwen2.5.md) 都使用了 shared experts, 但是后续的 [Qwen3](Qwen3.md) 中却并没有使用。
+> 虽然 [Qwen1.5](https://maosong.website/p/notes-on-qwen1.5/), [Qwen2](https://maosong.website/p/notes-on-qwen2/) 和 [Qwen2.5](https://maosong.website/p/notes-on-qwen2.5/) 都使用了 shared experts, 但是后续的 [Qwen3](https://maosong.website/p/notes-on-qwen3/) 中却并没有使用。
 
-[Ling-mini-beta](Ling-mini-beta.md) 通过实验得出的结论为，shared expert 应该是一个非零的尽可能小的值，作者认为将 shared expert 设置为 1 是一个比较合理的选择。
+[Ling-mini-beta](https://maosong.website/p/notes-on-ling-mini-beta/) 通过实验得出的结论为，shared expert 应该是一个非零的尽可能小的值，作者认为将 shared expert 设置为 1 是一个比较合理的选择。
 
 ### Activation Function
 
@@ -168,7 +168,7 @@ $$
 G(x) = \mathrm{softmax}(W_gx + b)\in\mathbb{R}^N
 $$
 
-但是，在 [Loss-Free Balancing](Loss-Free%20Balancing.md) 中，作者通过实验发现，使用 sigmoid 作为激活函数效果更好，即
+但是，在 [Loss-Free Balancing](https://maosong.website/p/notes-on-loss-free-balancing/) 中，作者通过实验发现，使用 sigmoid 作为激活函数效果更好，即
 
 $$
 G(x) = \mathrm{sigmoid}(W_gx + b)\in\mathbb{R}^N
@@ -187,17 +187,17 @@ $$
 
 ### Routing Z-loss
 
-Routing Z-loss 由 [ST-MoE](ST-MoE.md) 提出， [Switch Transformer](Switch%20Transformer.md) 发现在 gating layer 中使用 `float32` 精度可以提高训练稳定性，但是这还不够，因此 [ST-MoE](ST-MoE.md) 使用了如下的 router Z-loss:
+Routing Z-loss 由 [ST-MoE](https://maosong.website/p/st-moe/) 提出， [Switch Transformer](https://maosong.website/p/switch-transformer/) 发现在 gating layer 中使用 `float32` 精度可以提高训练稳定性，但是这还不够，因此 [ST-MoE](https://maosong.website/p/st-moe/) 使用了如下的 router Z-loss:
 
 $$
 \mathcal{L}_z(x) = \frac1B\sum_{i=1}^B\left(\log\sum_{j=1}^N e^{x_j^{(i)}}\right)^2
 $$
 
-其中 $B$ 是 batch size ，$x_j^{(i)}=[W_gx_i+b]_j$ 代表了第 $j$ 个专家对 $i$ 个 token 的激活 logits. [olmoe](olmoe.md) 实验验证结果如下
+其中 $B$ 是 batch size ，$x_j^{(i)}=[W_gx_i+b]_j$ 代表了第 $j$ 个专家对 $i$ 个 token 的激活 logits. [olmoe](https://maosong.website/p/notes-on-olmoe/) 实验验证结果如下
 
 ![Ablation study on Routing Z-loss](olmoe-routing-z-loss.png)
 
-可以看到，加入 router Z-loss 之后，模型训练的稳定性有所提升，因此 Olmoe 采取了这个改进，但是后续的 MoE 模型使用 Z-loss 较少，个人猜测原因是 [Loss-Free Balancing](Loss-Free%20Balancing.md) 中提出的加入额外的 loss 会影响 nex-token prediction loss
+可以看到，加入 router Z-loss 之后，模型训练的稳定性有所提升，因此 Olmoe 采取了这个改进，但是后续的 MoE 模型使用 Z-loss 较少，个人猜测原因是 [Loss-Free Balancing](https://maosong.website/p/notes-on-loss-free-balancing/) 中提出的加入额外的 loss 会影响 nex-token prediction loss
 
 ### Routing Strategy
 
@@ -222,22 +222,22 @@ routing 策略直接决定了 MoE 模型的有效性。在为专家分配 token 
 每个 token 选取 top-k 的专家，好处是每个 token 都会被处理，缺点是容易导致负载不均衡。因此，一般需要加上负载均衡或者 token dropping 策略来提高负载均衡
 
 **Capacity Factor**
-由 [Switch Transformer](Switch%20Transformer.md) 提出，其定义为
+由 [Switch Transformer](https://maosong.website/p/switch-transformer/) 提出，其定义为
 
 $$
 \text{expert capacity} = \left(\frac{\text{tokens per batch}}{\text{number of experts}}\right) * \text{capacity factor}
 $$
 
-设置 capacity factor 之后，当某个专家处理的 token 个数超过 capacity 之后，概专家的计算就会直接跳过，退化为 residual connection. 后续 [DeepSeek-V2](DeepSeek-V2.md) 也采用了这种策略，但是 [DeepSeek-V3](DeepSeek-V3.md) 弃用
+设置 capacity factor 之后，当某个专家处理的 token 个数超过 capacity 之后，概专家的计算就会直接跳过，退化为 residual connection. 后续 [DeepSeek-V2](https://maosong.website/p/notes-on-deepseek-v2/) 也采用了这种策略，但是 [DeepSeek-V3](https://maosong.website/p/notes-on-deepseek-v3/) 弃用
 
 **Load balancing Loss**
 在训练目标中加入负载均衡损失，要求每个专家处理的 token 个数的分布尽可能均匀。
 
-这部分具体见 [Load Balancing loss](Load%20Balancing%20loss.md)
+这部分具体见 [Load Balancing loss](https://maosong.website/p/load-balancing-tutorial/)
 
 #### Global Choice
 
-全局分配决定 token 和专家的匹配关系，后续 Qwen 提出了 [Global-batch load balancing](Global-batch%20load%20balancing.md) 使用了这种方式来提高专家的特化程度
+全局分配决定 token 和专家的匹配关系，后续 Qwen 提出了 [Global-batch load balancing](https://maosong.website/p/notes-on-global-batch-load-balancing/) 使用了这种方式来提高专家的特化程度
 
 #### Dynamic Routing
 
@@ -253,11 +253,11 @@ x, & \text{ otherwise }\\
 \end{aligned}
 $$
 
-> 注：LongCat 还是用了 [Loss-Free Balancing](Loss-Free%20Balancing.md), 我们这里省略掉了。
+> 注：LongCat 还是用了 [Loss-Free Balancing](https://maosong.website/p/notes-on-loss-free-balancing/), 我们这里省略掉了。
 
 #### Overview
 
-现在几乎所有的模型都选择方式 1，即每个 token 选取 top-k 的专家。 [olmoe](olmoe.md) 对比了以下方式 1 和方式 2 的表现，如下图所示
+现在几乎所有的模型都选择方式 1，即每个 token 选取 top-k 的专家。 [olmoe](https://maosong.website/p/notes-on-olmoe/) 对比了以下方式 1 和方式 2 的表现，如下图所示
 
 ![MoE routing strategy EC v.s. TC](olmoe-routing-strategy.png)
 
@@ -267,7 +267,7 @@ $$
 
 ### Upcycling
 
-upsampling 是一个将 dense model 转化为 MoEmodel 的方法，具体做法就是我们复制 dense model 中的 FFN layer 得到对应 MoE layer 中的 Expert，然后我们再结合 router 训练，这样可以提高整体的训练效率。相关模型有 [MiniCPM](MiniCPM.md), [Qwen1.5](Qwen1.5.md) 和 [Mixtral MoE](Mixtral%20MoE.md) (疑似)
+upsampling 是一个将 dense model 转化为 MoEmodel 的方法，具体做法就是我们复制 dense model 中的 FFN layer 得到对应 MoE layer 中的 Expert，然后我们再结合 router 训练，这样可以提高整体的训练效率。相关模型有 [MiniCPM](MiniCPM.md), [Qwen1.5](https://maosong.website/p/notes-on-qwen1.5/) 和 [Mixtral MoE](https://maosong.website/p/mixstral-8x7b/) (疑似)
 
 实验结果如下图所示
 
@@ -290,13 +290,13 @@ upsampling 是一个将 dense model 转化为 MoEmodel 的方法，具体做法�
 
 ### Saturation of Experts
 
-[olmoe](olmoe.md) 探究了训练过程中激活的专家和训练结束后激活的专家的匹配程度，结果如下图所示
+[olmoe](https://maosong.website/p/notes-on-olmoe/) 探究了训练过程中激活的专家和训练结束后激活的专家的匹配程度，结果如下图所示
 
 ![](olmoe-router-saturation.png)
 
 实验结果说明，训练 $1\%$ 的数据之后，就有 $40\%$ 的 routing 和训练完毕的 routing 一致，当训练 $40\%$ 的数据之后，这个比例提升到了 $80\%$. 作者认为，这是专家特化的结果，初始的 routing 如果改变的话会带来表现下降，因此模型倾向于使用固定的专家处理特定的 token
 
-作者还发现，later layers 比 early layers 饱和更快，early layer, 特别是 layer 0, 饱和的非常慢。作者认为，这是 [DeepSeekMoE](DeepSeekMoE.md) 放弃在第一层使用 MoE layer 的原因，因为 load balancing loss 收敛更慢。后续 [DeepSeek-V2](DeepSeek-V2.md) 和 [DeepSeek-V3](DeepSeek-V3.md) 均在 early layer 上使用 dense layer 替换掉了 MoE layer
+作者还发现，later layers 比 early layers 饱和更快，early layer, 特别是 layer 0, 饱和的非常慢。作者认为，这是 [DeepSeekMoE](https://maosong.website/p/notes-on-deepseekmoe/) 放弃在第一层使用 MoE layer 的原因，因为 load balancing loss 收敛更慢。后续 [DeepSeek-V2](https://maosong.website/p/notes-on-deepseek-v2/) 和 [DeepSeek-V3](https://maosong.website/p/notes-on-deepseek-v3/) 均在 early layer 上使用 dense layer 替换掉了 MoE layer
 
 ## Optimization
 
@@ -304,14 +304,14 @@ MoE 模型的优势在于表现好，但是模型参数往往非常大，为了�
 
 蒸馏是一个将大模型能力传递给小模型的做法，目前已有的包括：
 
-1. [Switch Transformer](Switch%20Transformer.md) 通过蒸馏，在仅使用 $1/20$ 参数的情况下，保留了稀疏教师模型 $30\%$ 的表现
-2. [Gemini2.5](Gemini2.5.md) 通过蒸馏 Gemini2.5 Pro 得到 Gemini2.5 Flash
-3. [DeepSeek-R1](DeepSeek-R1.md) 通过蒸馏来提升小语言模型的 reasoning 能力
-4. [Qwen3](Qwen3.md) 对于小语言模型的训练使用了 off-policy distillation 和 on-policy distillation 来训练小语言模型
+1. [Switch Transformer](https://maosong.website/p/switch-transformer/) 通过蒸馏，在仅使用 $1/20$ 参数的情况下，保留了稀疏教师模型 $30\%$ 的表现
+2. [Gemini2.5](https://maosong.website/p/notes-on-gemini2.5/) 通过蒸馏 Gemini2.5 Pro 得到 Gemini2.5 Flash
+3. [DeepSeek-R1](https://maosong.website/p/notes-on-deepseek-r1/) 通过蒸馏来提升小语言模型的 reasoning 能力
+4. [Qwen3](https://maosong.website/p/notes-on-qwen3/) 对于小语言模型的训练使用了 off-policy distillation 和 on-policy distillation 来训练小语言模型
 
 ## Code
 
-我们这里展示基于 [olmoe](olmoe.md) 的代码，代码如下
+我们这里展示基于 [olmoe](https://maosong.website/p/notes-on-olmoe/) 的代码，代码如下
 
 ```python
 class OlmoeSparseMoeBlock(nn.Module):
@@ -386,7 +386,7 @@ class OlmoeSparseMoeBlock(nn.Module):
 
 ## Conclusion
 
-在本文中，我们系统性回顾了 MoE 的相关概念，MoE 模型已经是现在大语言模型的主流架构，比如商业模型 [Gemini2.5](Gemini2.5.md), 开源领先的模型 [DeepSeek-V3](DeepSeek-V3.md) , [LLaMA4](LLaMA4.md) 以及 [Qwen3](Qwen3.md) 等都采用了 MoE 的架构，如何进一步优化 MoE 的训练方式是当前研究的一个重点方向。
+在本文中，我们系统性回顾了 MoE 的相关概念，MoE 模型已经是现在大语言模型的主流架构，比如商业模型 [Gemini2.5](https://maosong.website/p/notes-on-gemini2.5/), 开源领先的模型 [DeepSeek-V3](https://maosong.website/p/notes-on-deepseek-v3/) , [LLaMA4](https://maosong.website/p/notes-on-llama4-blog/) 以及 [Qwen3](https://maosong.website/p/notes-on-qwen3/) 等都采用了 MoE 的架构，如何进一步优化 MoE 的训练方式是当前研究的一个重点方向。
 
 ## Appendix
 
