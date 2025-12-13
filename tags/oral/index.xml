@@ -1,0 +1,383 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Oral on Mao Song(毛松)'s Homepage</title><link>https://maosong2022.github.io/tags/oral/</link><description>Recent content in Oral on Mao Song(毛松)'s Homepage</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><lastBuildDate>Tue, 09 Dec 2025 10:43:11 +0800</lastBuildDate><atom:link href="https://maosong2022.github.io/tags/oral/index.xml" rel="self" type="application/rss+xml"/><item><title>Notes on DPO</title><link>https://maosong2022.github.io/p/notes-on-dpo/</link><pubDate>Tue, 09 Dec 2025 10:43:11 +0800</pubDate><guid>https://maosong2022.github.io/p/notes-on-dpo/</guid><description>&lt;h2 id="introduction">Introduction
+&lt;/h2>&lt;p>传统的偏好优化主要基于 &lt;a class="link" href="RLHF.md" >RLHF&lt;/a>, 其过程为：SFT, reward modeling, RLHF. 其中 reward model 的训练至关重要，对最终模型的表现有非常大的影响。但是 RLHF 的问题在于其训练复杂且经常不稳定。&lt;/p>
+&lt;p>为了解决这个问题，作者提出了 Direct Preference Optimization (DPO), DPO 通过构建 reward function 和最优策略之间的关系，进而通过训练 policy model 来同时完成 reward model 的训练。这样，我们就避免了 reward model 的训练。结果发现，DPO 的表现超过了之前的偏好优化方法。&lt;/p>
+&lt;h2 id="background">Background
+&lt;/h2>&lt;p>作者首先回顾了 RLHF, RLHF 的 pipeline 如下&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-dpo/RLHF-pipeline.png"
+width="2560"
+height="1440"
+srcset="https://maosong2022.github.io/p/notes-on-dpo/RLHF-pipeline_hu3943932731260351409.png 480w, https://maosong2022.github.io/p/notes-on-dpo/RLHF-pipeline_hu12094738158912737362.png 1024w"
+loading="lazy"
+alt="RLHF-pipeline"
+class="gallery-image"
+data-flex-grow="177"
+data-flex-basis="426px"
+>&lt;/p>
+&lt;p>其包含了三个步骤：&lt;/p>
+&lt;p>&lt;strong>SFT&lt;/strong>
+RLHF 首先基于 base model 通过 SFT 得到一个初始模型 $\pi^{\mathrm{SFT}}$.&lt;/p>
+&lt;p>&lt;strong>Reward modeling&lt;/strong>
+接下来，我们给定输入 $x$, 对 $\pi^{\mathrm{SFT}}$ 采样得到 $(y_1,y_2)\sim \pi^{\mathrm{SFT}}(y\mid x)$. 输出 $y_1, y_2$ 然后由人类进行打分得到偏好关系 $y_w&amp;lt;y_l\mid x$, 表示 $y_w$ 比 $y_l$ 更符合人类的 pian hao 偏好，一般来说我们假设真实的偏好是由一个 reward function $r^&lt;em>(x,y)$ 产生的，即 $y_w\succ y_l \Leftrightarrow r^&lt;/em>(x, y_w)&amp;gt;r^&lt;em>(x, y_l)$. reward modeling 通常基于 &lt;a class="link" href="Bradley-Terry.md" >Bradley-Terry&lt;/a> (BT) 模型得到，BT model 定义人类真实偏好分布 $p^&lt;/em>$ 如下：&lt;/p>
+$$
+p^*(y_1>y_2\mid x)= \frac{\exp(r^*(x, y_1))}{\exp(r^*(x, y_1))+\exp(r^*(x, y_2))}
+$$&lt;p>假设我们从分布 $p^*$ 中采集到一个数据集 $\mathcal{D}={(x^{(i)},y_w^{(i)},y_l^{(i)})}&lt;em>{i=1}^N$, 我们可以通过 MLE 来估计得到一个 reward model $r&lt;/em>{\phi}(x,y)$, 通过将这个问题转换为一个二分类问题，我们得到对应的 negative log-likelihood loss 如下：&lt;/p>
+$$
+\mathcal{L}_R(r_\phi, D) = -\mathbb{E}_{(x,y_w,y_l)\sim \mathcal{D}}\left[\log \sigma\left(r_\phi(x,y_w)-r_\phi(x,y_l)\right)\right]
+$$&lt;p>其中 $\sigma$ 是 logistic function. 在 LLM 中，$r_\phi(x,y)$ 通常由 $\pi^{\mathrm{SFT}}$ 初始化得到，然后我们在 $\pi^{\mathrm{SFT}}$ 最后一层加入一个 linear layer 来得到对应的 reward 的预测值。一般地，为了降低 reward function 的 variance, 之前的工作会进行 normalization, 即 $\mathbb{E}&lt;em>{(x,y)}\sim\mathcal{D}[r&lt;/em>{\phi}(x,y)]=0$ for all $x$.&lt;/p>
+&lt;p>&lt;strong>RL fine-tuning&lt;/strong>
+这个阶段，我们基于学习到的 reward function $r_\phi(x,y)$ 来为 LLM 的训练提供奖励，作者使用了和 &lt;a class="link" href="RLHF.md" >RLHF&lt;/a> 一样的目标函数：&lt;/p>
+$$
+\max_{\pi_\theta}\quad \mathbb{E}_{x\sim \mathcal{D}, y\sim \pi_\theta(y\mid x)}\left[r_\phi(x,y)\right] - \beta\mathbb{D}_{\mathrm{KL}}\left[\pi_\theta(y\mid x)\Vert \pi_{\mathrm{ref}}(y\mid x)\right]
+$$&lt;p>这里 $\beta&amp;gt;0$ 是超参数，用于控制 $\pi_\theta$ 相对于 $\pi_{\mathrm{ref}}$ 的偏离程度， $\pi_{\mathrm{ref}}$ 一般就是 $\pi^{\mathrm{SFT}}$. 实际上， $\pi_\theta$ 也由 $\pi^{\mathrm{SFT}}$ 初始化.&lt;/p>
+&lt;h2 id="dpo">DPO
+&lt;/h2>&lt;p>DPO 的主要目标是构建一个更简单的 policy optimization 方法。与 &lt;a class="link" href="RLHF.md" >RLHF&lt;/a> 不同，DPO 跳过了 reward modeling 这一阶段，而是直接使用偏好数据来优化大语言模型&lt;/p>
+&lt;p>为了实现这个目标，作者第一步就是构建 reward model 和 policy model 之间的关系。注意到&lt;/p>
+$$
+\begin{aligned}
+&amp;\max_{\pi_\theta}\ \mathbb{E}_{x\sim \mathcal{D}, y\sim \pi_\theta(y\mid x)}\left[r_\phi(x,y)\right] - \beta\mathbb{D}_{\mathrm{KL}}\left[\pi_\theta(y\mid x)\Vert \pi_{\mathrm{ref}}(y\mid x)\right]\\
+&amp;= \max_{\pi_\theta}\ \mathbb{E}_{x\sim \mathcal{D}}\mathbb{E}_{y\sim \pi_\theta(y\mid x)}\left[r_\phi(x,y) - \beta\log\frac{\pi_\theta(y\mid x)}{\pi_{\mathrm{ref}}(y\mid x)}\right]\\
+&amp;= \min_{\pi_\theta}\ \mathbb{E}_{x\sim \mathcal{D}}\mathbb{E}_{y\sim \pi_\theta(y\mid x)}\left[\log\frac{\pi_\theta(y\mid x)}{\pi_{\mathrm{ref}}(y\mid x)}-\frac{1}{\beta}r_\phi(x,y)\right]\\
+&amp;= \min_{\pi_\theta}\ \mathbb{E}_{x\sim \mathcal{D}}\mathbb{E}_{y\sim \pi_\theta(y\mid x)}\left[\log\frac{\pi_\theta(y\mid x)}{\frac{1}{Z(x)}\pi_{\mathrm{ref}}(y\mid x)\exp\left(\frac1\beta r_\phi(x,y)\right)}-\log Z(x)\right]\\
+\end{aligned}
+$$&lt;p>其中 $Z(x)$ 是 partition function, 定义如下&lt;/p>
+$$
+Z(x) = \sum_{y} \pi_{\mathrm{ref}}(y\mid x)\exp\left(\frac1\beta r_\phi(x,y)\right)
+$$&lt;p>注意到 partition function 只是 $x$ 和 $\pi_{\mathrm{ref}}$ 的函数，而不依赖于 $\pi_\theta$, 因此我们定义&lt;/p>
+$$
+\pi^*(y\mid x) = \frac{1}{Z(x)}\pi_{\mathrm{ref}}(y\mid x)\exp\left(\frac1\beta r_\phi(x,y)\right)
+$$&lt;p>易知 $\pi^&lt;em>$ 满足 $\pi^&lt;/em>(y\mid x)\geq0, \forall y$, 以及 $\sum_y \pi^*(y\mid x)=1$. 因为 $Z(x)$ 不依赖于 $y$, 因此我们可以进一步简化上面的目标函数如下&lt;/p>
+$$
+\begin{aligned}
+&amp;\min_{\pi_\theta}\ \mathbb{E}_{x\sim \mathcal{D}}\left[\mathbb{E}_{y\sim \pi_\theta(y\mid x)}\left[\log\frac{\pi_\theta(y\mid x)}{\pi^*(y\mid x)}\right]-\log Z(x)\right] \\
+&amp;= \min_{\pi_\theta}\ \mathbb{E}_{x\sim \mathcal{D}}\left[\mathbb{D}_{\mathrm{KL}}\left[\pi_\theta(y\mid x)\Vert \pi^*(y\mid x)\right]-\log Z(x)\right]\\
+&amp;= \boxed{\min_{\pi_\theta}\ \mathbb{E}_{x\sim \mathcal{D}}\left[\mathbb{D}_{\mathrm{KL}}\left[\pi_\theta(y\mid x)\Vert \pi^*(y\mid x)\right]\right]}
+\end{aligned}
+$$&lt;p>而上述目标函数的最小值为 0，当且仅当 $\pi_\theta=\pi^*$, 此时我们的最优 policy 为&lt;/p>
+$$
+\pi_\theta^*(y\mid x) = \pi^*(y\mid x) = \frac{1}{Z(x)}\pi_{\mathrm{ref}}(y\mid x)\exp\left(\frac1\beta r_\phi(x,y)\right),\ \forall x\in\mathcal{D}
+$$&lt;p>直接求解 $\pi_\theta^&lt;em>$ 非常困难，因为这涉及到 $Z(x)$ 的计算，这个时候作者就提出了一个关键改变，即我们从上述的 $\pi_\theta^&lt;/em>$ 反向推到出 $r(x,y)$:&lt;/p>
+$$
+r(x,y) = \beta\log\frac{\pi_\theta(y\mid x)}{\pi_{\mathrm{ref}}(y\mid x)}+\beta\log Z(x)
+$$&lt;p>我们可以基于这个公式来推到出最优的 reward function $r^&lt;em>$ 以及对应的最优策略 $\pi^&lt;/em>$.&lt;/p>
+&lt;p>此时，我们的表达式里仍然含有 $Z(x)$, 但是当我们使用 &lt;a class="link" href="Bradley-Terry.md" >Bradley-Terry&lt;/a> 模型之后，我们就可以得到真实的人类偏好分布，计算过程如下所示&lt;/p>
+$$
+\begin{aligned}
+p^*(y_w>y_l\mid x)&amp;= \sigma\left(r_\phi(x,y_w)-r_\phi(x,y_l)\right)\\
+&amp;= \boxed{\sigma\left(\beta\log\frac{\pi_\theta(y_w\mid x)}{\pi_{\mathrm{ref}}(y_w\mid x)}-\beta\log\frac{\pi_\theta(y_l\mid x)}{\pi_{\mathrm{ref}}(y_l\mid x)}\right)}
+\end{aligned}
+$$&lt;p>这样，基于 MLE 的目标函数就是&lt;/p>
+$$
+\mathcal{L}_{\mathrm{DPO}}(\pi_{\theta};\pi_{\mathrm{ref}})= -\mathbb{E}_{(x,y_w,y_l)\in\mathcal{D}}\left[\sigma\left(\beta\log\frac{\pi_\theta(y_w\mid x)}{\pi_{\mathrm{ref}}(y_w\mid x)}-\beta\log\frac{\pi_\theta(y_l\mid x)}{\pi_{\mathrm{ref}}(y_l\mid x)}\right)\right]
+$$&lt;p>通过这种方式，我们就避免了 reward model 的训练。&lt;/p>
+&lt;p>接下来，作者分析了一下 DPO 目标函数的梯度，&lt;/p>
+$$
+\begin{aligned}
+\nabla_\theta \mathcal{L}_{\mathrm{DPO}}(\pi_{\theta};\pi_{\mathrm{ref}})&amp;=-\nabla_\theta \mathbb{E}_{(x,y_w,y_l)\in\mathcal{D}}\left[\log\sigma(u)\right]\\
+&amp;= -\mathbb{E}_{(x,y_w,y_l)\in\mathcal{D}}\left[\frac{\nabla_\theta \sigma(u)}{\sigma(u)}\nabla_\theta u\right]\\
+&amp;= -\mathbb{E}_{(x,y_w,y_l)\in\mathcal{D}}\left[\frac{\sigma(u)(1-\sigma(u))}{\sigma(u)}\nabla_\theta u\right]\\
+&amp;= -\mathbb{E}_{(x,y_w,y_l)\in\mathcal{D}}\left[(1-\sigma(u))\nabla_\theta u\right]\\
+&amp;= -\mathbb{E}_{(x,y_w,y_l)\in\mathcal{D}}\left[\sigma(-u)\nabla_\theta u\right]\\
+&amp;= -\mathbb{E}_{(x,y_w,y_l)\in\mathcal{D}}\left[\beta\sigma\left[\beta\log\frac{\pi_\theta(y_l\mid x)}{\pi_{\mathrm{ref}}(y_l\mid x)}-\beta\log\frac{\pi_\theta(y_w\mid x)}{\pi_{\mathrm{ref}}(y_w\mid x)}\right]\left[\nabla_\theta\log\pi(y_w\mid x) - \nabla_\theta \log\pi(y_l\mid x)\right]\right]\\
+\end{aligned}
+$$&lt;p>从梯度来看，当我们的 reward 估计错误时，即 $\sigma(-u)&amp;gt;0$ 时， DPO 会提高 $y_w$ 的生成可能性以及降低 $y_l$ 的生成可能性，从而提高模型对于偏好输出的可能性。&lt;/p>
+&lt;p>最终，DPO 的 pipeline 如下：&lt;/p>
+&lt;ol>
+&lt;li>收集偏好数据 $y_1,y_2\sim\pi_{\mathrm{ref}}(\cdot\mid x)$, 然后通过人类标注得到偏好数据集 $\mathcal{D}={(x^{(i)},y_w^{(i)},y_l^{(i)})}_{i=1}^N$&lt;/li>
+&lt;li>基于 $\mathcal{L}&lt;em>{\mathrm{DPO}}(\pi&lt;/em>{\theta};\pi_{\mathrm{ref}})$ 优化大语言模型参数&lt;/li>
+&lt;/ol>
+&lt;p>一般来说，我们将 $\pi_{\mathrm{ref}}$ 初始化为 $\pi^{\mathrm{SFT}}$, 但是如果我们没有 $\pi^{\mathrm{SFT}}$ 时，我们可以通过最大似然估计来得到 $\pi_{\mathrm{ref}}$, 即&lt;/p>
+$$
+\pi_{\mathrm{ref}} = \arg\max_{\pi}\mathbb{E}_{(x,y_w,y_l)\sim\mathcal{D}}\log \pi(y_w\mid x)
+$$&lt;h2 id="theoretical-analysis-of-dpo">Theoretical Analysis of DPO
+&lt;/h2>&lt;blockquote>
+&lt;p>Definition
+两个 reward function $r(x,y)$ 和 $r&amp;rsquo;(x,y)$ 等价当且仅当存在函数 $f$ 满足 $r(x,y)-r&amp;rsquo;(x,y)=f(x)$。&lt;/p>
+&lt;/blockquote>
+&lt;p>上述定义给出了一个等价关系，将 reward function 分割成了不同的等价类。接下来，作者给出了两个引理：&lt;/p>
+&lt;p>第一个引理说明同一个等价类里的 reward function 对应的偏好分布一致&lt;/p>
+&lt;blockquote>
+&lt;p>Lemma 1
+在 Plack-Luce 框架下，如 Bradley-Terry model, 同一个等价类里的 reward function 得到的偏好分布是一致的&lt;/p>
+&lt;/blockquote>
+&lt;p>第二个引理说明了最优策略对应的 reward function 都在一个等价类里&lt;/p>
+&lt;blockquote>
+&lt;p>Lemma 2
+在有限制的情况下，同一个等价类里的 reward function 得到的最优策略是一样的&lt;/p>
+&lt;/blockquote>
+&lt;p>Lemma 2 说明我们只要从最优的等价类里任意找到一个 reward function, 则最终的效果是一样的。&lt;/p>
+&lt;blockquote>
+&lt;p>Theorem 1
+假设我们有一个 reference model $\pi_{\mathrm{ref}}(\cdot\mid x)&amp;gt;0$ for all prompt-answer pairs $(x,y)$, 则对于某个模型 $\pi(y\mid x)$, 则与 $\pi_{\mathrm{ref}}$ 对应的等价类里的 reward function 都可以表示为如下形式 $r(x,y) = \beta\frac{\pi(y\mid x)}{\pi_{\mathrm{ref}}(y\mid x)},\ \beta&amp;gt;0$.&lt;/p>
+&lt;/blockquote>
+&lt;p>我们也可以通过 Theorem 1 来显示推导出 DPO 选择的 reward function:&lt;/p>
+$$
+\sum_{y}\underbrace{\pi_{\mathrm{ref}}(y\mid x)\exp\left(\frac1\beta r_\phi(x,y)\right)}_{\pi(y\mid x)}=1
+$$&lt;p>回顾前面 $\pi^*(y\mid x)$ 的定义，我们知道 $\pi(y\mid x)$ 实际上是针对 $r(x,y)$ 推导出来的最优策略的 partition function.&lt;/p>
+&lt;p>注意到我们的初始目标函数可以改写为如下形式&lt;/p>
+$$
+\min_{\pi_\theta}\ \mathbb{E}_{x\sim \mathcal{D}}\left[\underbrace{r_{\phi}(x,y)-\beta\log Z(x)}_{f(r_\phi, \pi_{\mathrm{ref}},\beta)}-\beta\underbrace{ \frac{\pi_\theta(y\mid x)}{\pi_{\mathrm{ref}}(y\mid x)}}_{\text{KL}}\right]
+$$&lt;p>此时，我们可以将 $f(r_\phi, \pi_{\mathrm{ref}},\beta)$ 里的 normalization term 视作为 $\pi_{\mathrm{ref}}$ 的 soft value function, 这个 soft value function 不影响最终的结果，但是没有的话会导致训练时的 variance 很高。 DPO 通过 re-parameterization, 得到的奖励函数不需要 baseline, 因而解决了训练不稳定的问题。&lt;/p>
+&lt;h2 id="experiments">Experiments
+&lt;/h2>&lt;p>作者首先对比了不同偏好优化算法的表现，如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-dpo/DPO-robustness-performance.png"
+width="1180"
+height="452"
+srcset="https://maosong2022.github.io/p/notes-on-dpo/DPO-robustness-performance_hu11131388078585551220.png 480w, https://maosong2022.github.io/p/notes-on-dpo/DPO-robustness-performance_hu9029940575162359118.png 1024w"
+loading="lazy"
+alt="Performance of DPO"
+class="gallery-image"
+data-flex-grow="261"
+data-flex-basis="626px"
+>&lt;/p>
+&lt;p>从实验结果可以看到，DPO 对于不同的 KL Values 和不同的采样温度其表现都非常好，并且更加 robust&lt;/p>
+&lt;h2 id="conclusion">Conclusion
+&lt;/h2>&lt;p>在本文中，作者提出了 DPO，一个针对 LLM 偏好优化的训练范式，DPO 构建了最优的 policy 与 reward function 之间的关系，从而避免了训练 reward model, 让模型可以直接从偏好数据集中进行学习和训练。&lt;/p>
+&lt;h2 id="references">References
+&lt;/h2>&lt;ul>
+&lt;li>&lt;a class="link" href="https://openreview.net/forum?id=HPuSIXJaa9" target="_blank" rel="noopener"
+>openreview&lt;/a>&lt;/li>
+&lt;/ul></description></item><item><title>Notes on olmoe</title><link>https://maosong2022.github.io/p/notes-on-olmoe/</link><pubDate>Sat, 01 Nov 2025 15:23:58 +0800</pubDate><guid>https://maosong2022.github.io/p/notes-on-olmoe/</guid><description>&lt;h2 id="introduction">Introduction
+&lt;/h2>&lt;p>已有的模型如 &lt;a class="link" href="https://maosong.website/p/notes-on-deepseekmoe/" target="_blank" rel="noopener"
+>DeepSeek-MoE&lt;/a>, &lt;a class="link" href="https://maosong.website/p/mixstral-8x7b/" target="_blank" rel="noopener"
+>Mixtral MoE&lt;/a>, &lt;a class="link" href="https://maosong.website/search/?keyword=qwen1.5" target="_blank" rel="noopener"
+>Qwen1.5&lt;/a> 等 MoE 模型基本只开源权重。也有一些开源的模型，比如 OpenMoE 等，但是开源信息不全。基于这个目的，作者提出了 olmoe 模型系列，包括 olmoe-7B-A1B 和 olmoe-7B-A1B-instruct 两个版本。&lt;/p>
+&lt;h2 id="method">Method
+&lt;/h2>&lt;h3 id="pretraining">Pretraining
+&lt;/h3>&lt;p>模型的架构如下图所示，MoE 架构与 dense 架构不同的地方在于 decoder layer 中的 FFN 被替换为了 MoE layer.&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-olmoe/olmoe-MoE_architecture.png"
+width="1356"
+height="912"
+srcset="https://maosong2022.github.io/p/notes-on-olmoe/olmoe-MoE_architecture_hu7056192022238791486.png 480w, https://maosong2022.github.io/p/notes-on-olmoe/olmoe-MoE_architecture_hu14138954601143358094.png 1024w"
+loading="lazy"
+alt="Architecture of olmoe"
+class="gallery-image"
+data-flex-grow="148"
+data-flex-basis="356px"
+>&lt;/p>
+&lt;p>模型的配置如下表所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-olmoe/olmoe-config.png"
+width="900"
+height="1201"
+srcset="https://maosong2022.github.io/p/notes-on-olmoe/olmoe-config_hu6222181885177926068.png 480w, https://maosong2022.github.io/p/notes-on-olmoe/olmoe-config_hu5779946575980998108.png 1024w"
+loading="lazy"
+alt="Model configuration"
+class="gallery-image"
+data-flex-grow="74"
+data-flex-basis="179px"
+>&lt;/p>
+&lt;p>训练的目标函数为&lt;/p>
+$$
+\mathcal{L} = \mathcal{L}_{CE} +\alpha\mathcal{L}_{LB} +\beta\mathcal{L}_{RZ}
+$$&lt;p>其中 $\alpha,\beta$ 为系数， $\mathcal{L}&lt;em>{CE}$, $\mathcal{L}&lt;/em>{LB}$ 以及 $\mathcal{L}_{RZ}$ 分别代表 cross-entropy loss, load balancing loss 以及 routing Z loss.&lt;/p>
+&lt;p>预训练数据包括 DCLM 和 Dolma1.7 两个数据集的混合，作者将预训练数据集称为&lt;strong>olmoe-mix&lt;/strong>. 数据集的配比如下&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-olmoe/olmoe-composition-pretraining-data.png"
+width="1147"
+height="441"
+srcset="https://maosong2022.github.io/p/notes-on-olmoe/olmoe-composition-pretraining-data_hu6221260531721970525.png 480w, https://maosong2022.github.io/p/notes-on-olmoe/olmoe-composition-pretraining-data_hu18237277662731378337.png 1024w"
+loading="lazy"
+alt="Composition of the pretraining data"
+class="gallery-image"
+data-flex-grow="260"
+data-flex-basis="624px"
+>&lt;/p>
+&lt;h3 id="post-training">Post-training
+&lt;/h3>&lt;p>在 post-training 时，作者将训练分为 instruction tuning 和 preference tuning 两个阶段，在 instruction dataset 中，作者加入了更多的代码和数学数据来提高对应的能力。数据集如下表所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-olmoe/olmoe-composition-post-training-data.png"
+width="1208"
+height="367"
+srcset="https://maosong2022.github.io/p/notes-on-olmoe/olmoe-composition-post-training-data_hu10322022158395140932.png 480w, https://maosong2022.github.io/p/notes-on-olmoe/olmoe-composition-post-training-data_hu15587205861081401911.png 1024w"
+loading="lazy"
+alt="Post-training data"
+class="gallery-image"
+data-flex-grow="329"
+data-flex-basis="789px"
+>&lt;/p>
+&lt;h2 id="ablation-study">Ablation Study
+&lt;/h2>&lt;h3 id="moe-settings">MoE Settings
+&lt;/h3>&lt;h4 id="moe-vs-dense">MoE vs. Dense
+&lt;/h4>&lt;p>作者对比了 MoE 模型和 dense 模型的训练效率，为了方便对比，作者使用 olmo-7B 和 olmo-1B 作为 baseline, 最终 olmoe 的总参数为 6.9B, 激活参数为 1.3B. 实验结果如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-olmoe/olmoe-MoE-vs-Dense-training-efficiency.png"
+width="1155"
+height="626"
+srcset="https://maosong2022.github.io/p/notes-on-olmoe/olmoe-MoE-vs-Dense-training-efficiency_hu15631484222114504499.png 480w, https://maosong2022.github.io/p/notes-on-olmoe/olmoe-MoE-vs-Dense-training-efficiency_hu2616226216353592856.png 1024w"
+loading="lazy"
+alt="MoE vs. Dense"
+class="gallery-image"
+data-flex-grow="184"
+data-flex-basis="442px"
+>&lt;/p>
+&lt;p>实验结果发现，MoE 模型所需要的 token 或者 FLOPs 是 dense 模型的 $1/3$, 但是由于 MoE 模型需要额外的内存开销，因此从训练时间上来看，MoE 模型训练时间仅比 dense 模型快 $2$ 倍左右。&lt;/p>
+&lt;h4 id="expert-granularity">Expert Granularity
+&lt;/h4>&lt;p>&lt;a class="link" href="https://maosong.website/p/notes-on-deepseekmoe/" target="_blank" rel="noopener"
+>DeepSeekMoE&lt;/a> 提出使用细粒度的专家来提供更多的组合可能性。作者探究了不同的粒度对模型表现的影响，结果如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-olmoe/olmoe-expert-granularity.png"
+width="1446"
+height="592"
+srcset="https://maosong2022.github.io/p/notes-on-olmoe/olmoe-expert-granularity_hu11423684369230573666.png 480w, https://maosong2022.github.io/p/notes-on-olmoe/olmoe-expert-granularity_hu8462329692609096647.png 1024w"
+loading="lazy"
+alt="Expert granularity"
+class="gallery-image"
+data-flex-grow="244"
+data-flex-basis="586px"
+>&lt;/p>
+&lt;p>结果显示，当专家粒度从 8E-1A 扩展到 32E-4A 时，模型在 HellaSwag 上的表现提升了 $10%$, 但是进一步扩展到 64E-8A 时，模型的表现提升不到 $2%$, 这说明了无限制提升粒度对模型的提升越来越有限。在本文中，作者使用了 64 个专家。&lt;/p>
+&lt;h4 id="shared-experts">Shared Experts
+&lt;/h4>&lt;p>&lt;a class="link" href="https://maosong.website/p/notes-on-deepseekmoe/" target="_blank" rel="noopener"
+>DeepSeekMoE&lt;/a> 提出使用共享专家来学习 common knowledge, 作者对这种方法进行了实验，结果如下图所示。&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-olmoe/olmoe-shared-experts.png"
+width="1156"
+height="477"
+srcset="https://maosong2022.github.io/p/notes-on-olmoe/olmoe-shared-experts_hu17801868202021072630.png 480w, https://maosong2022.github.io/p/notes-on-olmoe/olmoe-shared-experts_hu1657113941603463913.png 1024w"
+loading="lazy"
+alt="Shared experts"
+class="gallery-image"
+data-flex-grow="242"
+data-flex-basis="581px"
+>&lt;/p>
+&lt;p>可以看到，加入一个 shared expert 之后，模型的表现没有变化，作者认为减少 routed expert 之后，模型的组合可能性降低为原来的 $10%$ 左右。因此作者认为没有必要使用共享专家，因此作者在 olmoe 中没有采用共享专家这个方法。&lt;/p>
+&lt;h4 id="expert-choice-vs-token-choice">Expert Choice vs. Token Choice
+&lt;/h4>&lt;p>作者探究了 routing 的策略，一个是 expert choice (EC), 另一种是 token choice (TC), 分别代表了每个 expert 选取固定的 token 数和每个 token 选取固定的 expert 数这两种情况。实验结果如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-olmoe/olmoe-routing-strategy.png"
+width="1157"
+height="450"
+srcset="https://maosong2022.github.io/p/notes-on-olmoe/olmoe-routing-strategy_hu14576683236097856598.png 480w, https://maosong2022.github.io/p/notes-on-olmoe/olmoe-routing-strategy_hu12605903787078733490.png 1024w"
+loading="lazy"
+alt="Expert choice (EC) vs. token choice (TC)"
+class="gallery-image"
+data-flex-grow="257"
+data-flex-basis="617px"
+>&lt;/p>
+&lt;p>可以看到，token choice 的表现明显更好。EC 虽然可以实现负载均衡。但是因为自回归模型在生成时是无法提前确定生成的 token 数的，因此 EC 很可能导致算力资源浪费或者是 token dropping. 在本文中，作者采用了 TC 这种策略。&lt;/p>
+&lt;h4 id="sparse-upcycling">Sparse Upcycling
+&lt;/h4>&lt;p>作者还对比了从零开始训练 MoE 与基于 dense model upcycling 的方式训练 MoE，sparse upcycling 的相关工作有 MiniCPM, &lt;a class="link" href="https://maosong.website/p/notes-on-qwen2/" target="_blank" rel="noopener"
+>Qwen2&lt;/a> 以及 &lt;a class="link" href="https://maosong.website/p/mixstral-8x7b/" target="_blank" rel="noopener"
+>Mixtral MoE&lt;/a>.结果如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-olmoe/olmoe-sparse-upcycling.png"
+width="1440"
+height="680"
+srcset="https://maosong2022.github.io/p/notes-on-olmoe/olmoe-sparse-upcycling_hu17851074497901335192.png 480w, https://maosong2022.github.io/p/notes-on-olmoe/olmoe-sparse-upcycling_hu11258886835187859490.png 1024w"
+loading="lazy"
+alt="Sparse upcycling"
+class="gallery-image"
+data-flex-grow="211"
+data-flex-basis="508px"
+>&lt;/p>
+&lt;p>结果发现，upcycling 确实可以提高训练效率，但是这种方法的缺陷在于：&lt;/p>
+&lt;ol>
+&lt;li>upcycling 受 dense model 的超参数限制&lt;/li>
+&lt;li>upcycling 的训练不是很稳定&lt;/li>
+&lt;/ol>
+&lt;p>因此在本文中作者没有采取 upcycling 的做法。&lt;/p>
+&lt;h4 id="load-balancing-loss">Load Balancing Loss
+&lt;/h4>&lt;p>作者还探究 Load Balancing loss 对模型表现的影响，结果如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-olmoe/olmoe-load-balancing-loss.png"
+width="1450"
+height="532"
+srcset="https://maosong2022.github.io/p/notes-on-olmoe/olmoe-load-balancing-loss_hu18064338514520462513.png 480w, https://maosong2022.github.io/p/notes-on-olmoe/olmoe-load-balancing-loss_hu3485135402316134026.png 1024w"
+loading="lazy"
+alt="Impact of applying a load balancing loss"
+class="gallery-image"
+data-flex-grow="272"
+data-flex-basis="654px"
+>&lt;/p>
+&lt;p>可以看到，加入 load balancing loss 之后，模型的表现均超过了不加时的表现。&lt;/p>
+&lt;p>作者进一步分析了不同专家在加/不加 load balancing loss 时的激活情况，结果如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-olmoe/ollmoe-load-balancing-expert-assignment.png"
+width="1443"
+height="566"
+srcset="https://maosong2022.github.io/p/notes-on-olmoe/ollmoe-load-balancing-expert-assignment_hu10314573392730023514.png 480w, https://maosong2022.github.io/p/notes-on-olmoe/ollmoe-load-balancing-expert-assignment_hu15306812845288590871.png 1024w"
+loading="lazy"
+alt="Expert assignment during training"
+class="gallery-image"
+data-flex-grow="254"
+data-flex-basis="611px"
+>&lt;/p>
+&lt;p>结果显示，load balancing loss 确实可以让不同专家的激活概率大致相当。&lt;/p>
+&lt;h4 id="router-z-loss">Router Z-loss
+&lt;/h4>&lt;p>&lt;a class="link" href="https://maosong.website/p/st-moe/" target="_blank" rel="noopener"
+>ST-MoE&lt;/a> 提出了 Router z-loss 来提高 MOE 训练的稳定性和表现。其表达式如下所示&lt;/p>
+$$
+\mathcal{L}_{RZ}(x) = \frac{1}{B}\sum_{i=1}^B\left(\log\sum_{j=1}^{N_E}\exp(x_i^{(i)})\right)^2
+$$&lt;p>实验结果如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-olmoe/olmoe-routing-z-loss.png"
+width="1162"
+height="419"
+srcset="https://maosong2022.github.io/p/notes-on-olmoe/olmoe-routing-z-loss_hu7327018522268719766.png 480w, https://maosong2022.github.io/p/notes-on-olmoe/olmoe-routing-z-loss_hu15269971373468008426.png 1024w"
+loading="lazy"
+alt="Router z-loss"
+class="gallery-image"
+data-flex-grow="277"
+data-flex-basis="665px"
+>&lt;/p>
+&lt;p>可以看到，加入 router Z-loss 之后，模型训练的稳定性有所提升。因此在本文中作者使用了这个 loss.&lt;/p>
+&lt;h3 id="general-pre-training-settings">General Pre-training Settings
+&lt;/h3>&lt;h4 id="initialization">Initialization
+&lt;/h4>&lt;p>作者探究了不同初始化策略对模型训练的影响，结果发现使用 truncate normal initialization 的训练稳定性更高&lt;/p>
+&lt;h4 id="qk-norm">QK-Norm
+&lt;/h4>&lt;p>作者探究了 &lt;a class="link" href="https://maosong.website/p/notes-on-qk-norm/" target="_blank" rel="noopener"
+>QK-norm&lt;/a> 对模型训练的影响，结果发现 QK-norm 可以提高模型训练的稳定性，结果如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-olmoe/olmoe-QK-norm-ablation.png"
+width="1157"
+height="306"
+srcset="https://maosong2022.github.io/p/notes-on-olmoe/olmoe-QK-norm-ablation_hu1341256823894447241.png 480w, https://maosong2022.github.io/p/notes-on-olmoe/olmoe-QK-norm-ablation_hu14266747158761727550.png 1024w"
+loading="lazy"
+alt="ablation study on QK-Norm"
+class="gallery-image"
+data-flex-grow="378"
+data-flex-basis="907px"
+>&lt;/p>
+&lt;h4 id="adamw-epsilon">AdamW Epsilon
+&lt;/h4>&lt;p>作者发现，在 &lt;a class="link" href="https://maosong.website/p/notes-on-adamw/" target="_blank" rel="noopener"
+>AdamW&lt;/a> 优化器中，使用更小的 &lt;code>eps&lt;/code> 可以提高模型的表现，因此作者将 &lt;code>eps&lt;/code> 设置为 $1e-8$.&lt;/p>
+&lt;h4 id="adaptation-settings">Adaptation Settings
+&lt;/h4>&lt;p>在 post-training 阶段，作者在三个方面进行了实验：&lt;/p>
+&lt;ol>
+&lt;li>是否加入 load balancing loss: 结论是不加，因为负载均衡在 pre-training 阶段已经实现了&lt;/li>
+&lt;li>是否使用 annealing: 结论是使用，因为效果更好&lt;/li>
+&lt;li>使用 DPO 还是 KTO, 结论是两种方法结果差不多&lt;/li>
+&lt;/ol>
+&lt;p>实验结果如下表所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-olmoe/olmoe-adaptation-experiments.png"
+width="1105"
+height="588"
+srcset="https://maosong2022.github.io/p/notes-on-olmoe/olmoe-adaptation-experiments_hu12941725841537986665.png 480w, https://maosong2022.github.io/p/notes-on-olmoe/olmoe-adaptation-experiments_hu5486252117953152034.png 1024w"
+loading="lazy"
+alt="Adaptation experiments"
+class="gallery-image"
+data-flex-grow="187"
+data-flex-basis="451px"
+>&lt;/p>
+&lt;h4 id="load-balancing-precision">Load Balancing Precision
+&lt;/h4>&lt;p>&lt;a class="link" href="https://maosong.website/p/switch-transformer/" target="_blank" rel="noopener"
+>Switch Transformer&lt;/a> 中提出使用 &lt;code>float32&lt;/code> 精度来进行 routing 的计算，作者通过实验发现，这一方法并不能提高模型训练的稳定性，因此作者没有采用这一策略。&lt;/p>
+&lt;h2 id="moe-analysis">MoE Analysis
+&lt;/h2>&lt;h3 id="router-saturation">Router Saturation
+&lt;/h3>&lt;p>作者探究了训练过程中激活的专家和训练结束后激活的专家的匹配程度，结果如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong2022.github.io/p/notes-on-olmoe/olmoe-router-saturation.png"
+width="1149"
+height="393"
+srcset="https://maosong2022.github.io/p/notes-on-olmoe/olmoe-router-saturation_hu7667431516082233346.png 480w, https://maosong2022.github.io/p/notes-on-olmoe/olmoe-router-saturation_hu5058911977226073561.png 1024w"
+loading="lazy"
+alt="Router saturation"
+class="gallery-image"
+data-flex-grow="292"
+data-flex-basis="701px"
+>&lt;/p>
+&lt;p>结果发现，训练 $1%$ 的数据之后，就有 $40%$ 的 routing 和训练完毕的 routing 一致，当训练 $40%$ 的数据之后，这个比例提升到了 $80%$.&lt;/p>
+&lt;p>作者还发现，later layers 比 early layers 饱和更快，early layer, 特别是 layer 0, 饱和的非常慢。作者认为，这是 &lt;a class="link" href="https://maosong.website/p/notes-on-deepseekmoe/" target="_blank" rel="noopener"
+>DeepSeekMoE&lt;/a> 放弃在第一层使用 MoE layer 的原因，因为 load balancing loss 收敛更慢。&lt;/p>
+&lt;h3 id="expert-co-activation">Expert Co-activation
+&lt;/h3>&lt;p>作者分析了 expert 之间的互相依赖程度，作者通过可视化发现，不同的 expert 之间 co-activation 的比例比较小，说明 expert redundancy 比较低&lt;/p>
+&lt;h3 id="domain-specialization">Domain Specialization
+&lt;/h3>&lt;p>作者还探究了不同 expert 对于不同 domain 的 specialization 程度，作者发现对于 specialized domain 的数据，expert 会出现一定程度的 specialization, 但是对于通用 domain 的数据，expert 的 specialization 程度比较低。这个结论与 &lt;a class="link" href="https://maosong.website/p/mixstral-8x7b/" target="_blank" rel="noopener"
+>Mixtral MoE&lt;/a> 的结论不同，作者认为这个原因是 &lt;a class="link" href="https://maosong.website/p/mixstral-8x7b/" target="_blank" rel="noopener"
+>Mixtral MoE&lt;/a> 使用了 upcycling 的方式，这会限制模型的表现。因此，作者进一步强调 MoE 从零开始训练是一个更好的训练方式。&lt;/p>
+&lt;h3 id="vocabulary-specialization">Vocabulary Specialization
+&lt;/h3>&lt;p>作者还探究了 vocabulary 中不同 token index 与激活专家之间的关系，结果发现 later layers 的 specialization 程度更高，这与 saturation 的趋势一致&lt;/p>
+&lt;h2 id="conclusion">Conclusion
+&lt;/h2>&lt;p>作者在本文中提出了 olmoe, 一个全开源的 moe 大模型系列，作者详细介绍了针对 MoE 架构和通用架构的设计，为后来的模型架构设计提供了基础。&lt;/p>
+&lt;h2 id="references">References
+&lt;/h2>&lt;ul>
+&lt;li>&lt;a class="link" href="http://arxiv.org/abs/2409.02060" target="_blank" rel="noopener"
+>arxiv&lt;/a>&lt;/li>
+&lt;/ul></description></item></channel></rss>
