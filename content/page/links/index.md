@@ -21,6 +21,9 @@ menu:
 comments: false
 ---
 
+我是毛松，目前在上海人工智能实验室 (上海 AI LAB)工作，我主要的研究方向为大语言模型 (LLM), 多模态大语言模型 (MLLM) 及其应用。我还对统一理解与生成多模态大模型感兴趣。我的简历见 [简历](https://github.com/MaoSong2022/MaoSong2022.github.io/blob/master/assets/%E6%AF%9B%E6%9D%BE_%E7%AE%80%E5%8E%86.pdf).
+
+---
 
 Hi, my name is Mao Song (毛松). I am currently a researcher in [Shanghai Artificial Intelligence Laboratory](https://www.shlab.org.cn/) or Shanghai AI Lab. I am working on multimodal large language models (MLLMs) and their applications. SEE my personal CV at [Resume](https://github.com/MaoSong2022/MaoSong2022.github.io/blob/master/assets/%E6%AF%9B%E6%9D%BE_%E7%AE%80%E5%8E%86.pdf)
 
