@@ -1,5 +1,5 @@
 # Change baseurl before deploy
-baseurl = "https://maosong2022.github.io/"
+baseurl = "https://maosong.website"
 languageCode = "en-us"
 title = "Mao Song(毛松)'s Homepage"
 
