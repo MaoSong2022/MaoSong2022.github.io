@@ -24,3 +24,5 @@ lineNoStart = 1
 lineNos = true
 lineNumbersInTable = true
 tabWidth = 4
+# Add style - common options: github, dracula, monokai, etc.
+style = "monokai"

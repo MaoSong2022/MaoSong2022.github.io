@@ -2,6 +2,7 @@
 baseurl = "https://maosong.website"
 languageCode = "en-us"
 title = "Mao Song(毛松)'s Homepage"
+description = "Mao Song's blog about machine learning, LLMs, and research"
 
 # Theme i18n support
 # Available values: en, fr, id, ja, ko, pt-br, zh-cn, zh-tw, es, de, nl, it, th, el, uk, ar
@@ -11,14 +12,24 @@ defaultContentLanguage = "en"
 # This will make .Summary and .WordCount behave correctly for CJK languages.
 hasCJKLanguage = true
 
-# Change it to your Disqus shortname before using
-disqusShortname = "hugo-theme-stack"
+[author]
+name = "Mao Song"
 
 [pagination]
 pagerSize = 5
 
 
 [sitemap]
-  changefreq = "daily"
+  changefreq = "weekly"
   priority = 0.8
   filename = "sitemap.xml"
+
+[build]
+writeStats = true
+
+[minify]
+disableXML = false
+minifyOutput = true
+
+[outputs]
+home = ["HTML", "RSS", "JSON"]

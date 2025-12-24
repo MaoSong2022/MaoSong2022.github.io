@@ -1,6 +1,6 @@
 # Related contents configuration
 includeNewer = true
-threshold = 60
+threshold = 50
 toLower = false
 
 [[indices]]
@@ -10,3 +10,7 @@ weight = 100
 [[indices]]
 name = "categories"
 weight = 200
+
+[[indices]]
+name = "title"
+weight = 80
