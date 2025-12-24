@@ -1,14 +1,5 @@
 # Configure main menu and social menu
 [[main]]
-    identifier = "home"
-    name = "Home"
-    url = "/"
-    weight = 1
-    [main.params]
-        icon = "home"
-
-
-[[main]]
     identifier = "publications"
     name = "Publications"
     url = "/publications/"
