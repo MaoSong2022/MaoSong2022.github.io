@@ -2,22 +2,26 @@
     You can add your own custom styles here.
 */
 
-.post-tags ul {
-    padding: 0;
+.post-tags {
+    margin-top: 20px;
     display: flex;
-    gap: 10px;
-    list-style: none;
-  }
-  
-  .post-tags a {
-    background-color: #f0f0f0;
-    padding: 5px 10px;
-    border-radius: 5px;
-    text-decoration: none;
-    color: #333;
-  }
-  
-  .post-tags a:hover {
-    background-color: #007bff;
-    color: white;
-  }
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.post-tags a {
+    display: inline-block;
+    background-color: var(--card-background); 
+    padding: 6px 15px;
+    border-radius: 20px;
+    font-size: 1.4rem;
+    color: var(--body-text-color);
+    border: 1px solid var(--border-color);
+    transition: transform 0.2s ease;
+}
+
+.post-tags a:hover {
+    transform: translateY(-2px);
+    background-color: var(--accent-color);
+    color: #fff;
+}
