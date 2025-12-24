@@ -1,7 +1,7 @@
 ---
 title: Notes on ALiBi
 description: meta 等提出了 ALiBi, 一个通过 linear biases 来实现位置编码的方法来提高 LLM 在推理阶段的外推能力。
-date: 2025-10-15 16:33:39+0800
+date: 2025-12-24 15:10:55+0800
 lastmod: 2025-12-24 15:10:55+0800
 math: true
 tags: 

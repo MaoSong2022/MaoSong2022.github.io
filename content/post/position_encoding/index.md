@@ -12,7 +12,7 @@ math: true
 
 > 本文前半部分参考 [参考文献1](https://huggingface.co/blog/designing-positional-encoding)，推荐大家看博客原文。
 
-# Position encoding总结
+## Position encoding总结
 
 在 [上一篇blog](https://maosong.website/p/notes-on-attention-bias/) 中, 我们介绍了 Attention 的两个性质，也就是在不加 position encoding 的情况下，Attention 对于 query 是 permutation equivariant 的，对于 key 和 value 是 permutation invariant 的。
 
@@ -261,7 +261,7 @@ $$
 
 我们接下来分别推导 $r_g(\bm{x}_q,\bm{x}_k, m-n)$ 和 $\theta_g(\bm{x}_q,\bm{x}_k, m-n)$ 的形式
 
-#### $r_g(\bm{x}_q,\bm{x}_k, m-n)$
+### $r_g(\bm{x}_q,\bm{x}_k, m-n)$
 
 我们令 $m=n=0$ 可以得到初始条件
 
@@ -299,7 +299,7 @@ $$
  r_q(\bm{x}_q,m) = \|\bm{q}\|_2,\quad r_k(\bm{x}_k, n) = \|\bm{k}\|_2
 $$
 
-#### $\theta_g(\bm{x}_q,\bm{x}_k, m-n)$
+### $\theta_g(\bm{x}_q,\bm{x}_k, m-n)$
 
 令 $m=n=0$, 我们得到初始条件
 
