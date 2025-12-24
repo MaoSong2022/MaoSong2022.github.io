@@ -4,7 +4,11 @@
 <head>
     {{- partial "head/head.html" . -}}
     {{- block "head" . -}}{{ end }}
+    {{- partial "analytics.html" . -}}
 </head>
+
+<body class="{{ block `body-class` . }}{{ end }}">
+    {{- partial "head/colorScheme" . -}}
 
 <body class="{{ block `body-class` . }}{{ end }}">
     {{- partial "head/colorScheme" . -}}

@@ -38,7 +38,7 @@ type = "search"
 [[widgets.homepage]]
 type = "archives"
 [widgets.homepage.params]
-limit = 5
+    limit = 5
 
 [[widgets.homepage]]
 type = "categories"
@@ -49,6 +49,13 @@ limit = 20
 type = "tag-cloud"
 [widgets.homepage.params]
 limit = 20
+
+
+[[widgets.homepage]]
+type = "featured"
+[widgets.homepage.params]
+title = "Featured Research"
+limit = 3
 
 [[widgets.page]]
 type = "toc"
@@ -150,9 +157,3 @@ id = ""
 
 [analytics]
 simpleAnalytics = true
-
-[[widgets.homepage]]
-type = "featured"
-[widgets.homepage.params]
-    title = "Featured Research"
-    limit = 3
