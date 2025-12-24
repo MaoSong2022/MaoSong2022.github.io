@@ -10,7 +10,6 @@ categories:
 math: true
 ---
 
-# Tokenizer总结
 
 ## Introduction
 
