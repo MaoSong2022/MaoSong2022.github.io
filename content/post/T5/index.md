@@ -7,6 +7,7 @@ math: true
 tags: 
     - Transfer learning
     - Google
+    - position encoding
 categories:
     - LLM 
 ---
