@@ -6,6 +6,7 @@ lastmod: 2025-07-15 16:36:09+0800
 tags: 
     - Qwen
     - Context
+    - position encoding
 categories:
     - LLM 
 math: true
