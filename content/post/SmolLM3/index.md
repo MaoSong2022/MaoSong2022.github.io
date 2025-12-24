@@ -21,7 +21,7 @@ Hugging Face 在 2025 年 7 月 8 号发布了 SmolLM3, 一个 3B 的，128K 上
 SmolLM3 是一个基于 transformer 的小语言模型，其模型架构与 SmolLM2 相似，SmolLM3 做了以下改进：
 
 1. 使用 GQA 代替 multi-head attention. 作者通过消融实验发现 [GQA](https://maosong.website/p/notes-on-gqa/) 和 MHA 的效果差不多，并且还可以减少 KV cache 的 size
-2. NoPE: 作者使用了NoPE, 来选择性（每 4 个 layer）移除 position embedding. 这个方法可以在不损害模型短文本能力的同时，提高模型长上下文的表现
+2. [NoPE](https://maosong.website/p/notes-on-nope/): 作者使用了NoPE, 来选择性（每 4 个 layer）移除 position embedding. 这个方法可以在不损害模型短文本能力的同时，提高模型长上下文的表现
 3. Intra-Document Masking: 不同的文档之间使用 attention masking 隔开
 4. Training stability: 与 olmo 2 一样，作者移除了 embedding layer 的 weight decay, 来提升训练的稳定性。
 

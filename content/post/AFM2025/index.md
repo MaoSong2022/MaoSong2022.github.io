@@ -34,7 +34,7 @@ Apple 在 7 月份发布了 AFM 技术报告，包括两个多语种多模态大
 为了进一步提高 server model 的效率，作者将 MoE 和 PT-transformer 结合在一起。具体的做法就是，每两个 transformer block 为一组，每组里包含一个 dense layer 和一个 MoE layer.
 
 **Interleaving Global and Local Attention Layers**
-作者还设计额 interleaved attention 机制，也就是，将 transformer block 按照四个为 1 组，前面 3 个 block 使用 window attention, window size 为 4096 和 RoPE. 最后一个 block 使用 global attention layer 以及 [NoPE](NoPE.md). 作者认为，使用 NoPE 可以提高模型对长上下文的泛化性。
+作者还设计额 interleaved attention 机制，也就是，将 transformer block 按照四个为 1 组，前面 3 个 block 使用 window attention, window size 为 4096 和 RoPE. 最后一个 block 使用 global attention layer 以及 [NoPE](https://maosong.website/p/notes-on-nope/). 作者认为，使用 NoPE 可以提高模型对长上下文的泛化性。
 
 > Recall
 > Qwen2.5-VL 的 ViT 使用的类似的做法，即 8 个 block 为一组，前面 7 个 block 使用 window attention, 最后一个 block 使用 full self attention.

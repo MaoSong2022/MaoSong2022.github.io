@@ -24,7 +24,7 @@ categories:
 
 对于建模长上下文输入，我们可以从 attention 机制或者位置编码来入手。前者类似的工作有 Landmark Attention 和 Focused Transformer, 但是这些方法的问题在于训练不稳定。 [QK norm](https://maosong.website/p/notes-on-qk-norm/) 可以比较好解决 softmax 分布过于极端的问题，但是其问题在于训练时的数值不稳定性，并且可能会影响模型的长上下文能力。
 
-另一方面，对于位置编码，已有的工作如 APE, AliBi, [RoPE](https://maosong.website/p/notes-on-position-encoding/) 等都可以提供位置信息。但是，这些方法很有可能回影响模型最终的 attention score 分布。另外，NoPE 探究了移除 position encoding 的可能性。
+另一方面，对于位置编码，已有的工作如 APE, AliBi, [RoPE](https://maosong.website/p/notes-on-position-encoding/) 等都可以提供位置信息。但是，这些方法很有可能回影响模型最终的 attention score 分布。另外，[NoPE](https://maosong.website/p/notes-on-nope/) 探究了移除 position encoding 的可能性。
 
 还有一些工作目的是降低 softmax attention 的时间复杂度和空间复杂度。比如 sliding window attention, sparse attention, [attention sink](https://maosong.website/p/notes-on-streamingllm/) 等都可以降低整体的时间/空间复杂度。但是这些方法最终的表现都有所下降。
 
@@ -95,7 +95,7 @@ categories:
 
 ## Method
 
-考虑到 NoPE 和 RopE 各自的优点，作者提出了一个混合架构，来结合 NoPE 与 RoPE. 具体做法就是 NoPE layer 和 RoPE layer 交替进行。作者将这个模型架构记为 RNoPE.
+考虑到 [NoPE](https://maosong.website/p/notes-on-nope/) 和 RopE 各自的优点，作者提出了一个混合架构，来结合 NoPE 与 RoPE. 具体做法就是 NoPE layer 和 RoPE layer 交替进行。作者将这个模型架构记为 RNoPE.
 
 RNoPE 不同 layer 与不同 base frequency 产生的 attention score 分布如下
 
