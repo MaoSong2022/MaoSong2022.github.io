@@ -32,7 +32,7 @@ categories:
 
 架构如下图所示
 
-![](GShard-model-architecture.png)
+![architecture of GShard](GShard-model-architecture.png)
 
 其中激活专家个数为 2 个，MoE layer 和 FFN layer 交替出现。
 
@@ -40,12 +40,12 @@ categories:
 
 1. expert capacity. 每个 expert 都有一个处理 token 的上限值，超过该上限值之后 GATE 直接输出 0 进入下一层，假设 batch size 为 $N$, 专家个数为 $E$, 则该阈值定义为 $N/E$
 2. group dispatching. 将 token 拆分为 $G$ 个 group, 每个 group 并行处理，每个 group 里每个专家处理的 token 个数上限为 $N/(GE)$.
-3. Auxiliary loss. 作者使用了 [Load Balancing loss](Load%20Balancing%20loss.md) 来实现负载均衡
+3. Auxiliary loss. 作者使用了 [Load Balancing loss](https://maosong.website/p/load-balancing-tutorial/) 来实现负载均衡
 4. Random routing. 作者选取了 top-2 的专家，当第二个专家的权重太小是，作者直接忽略第二个专家，简化为选取 top-1 的专家
 
 算法运行如下所示
 
-![](GShard-expert-computation.png)
+![expert computation of GShard](GShard-expert-computation.png)
 
 ## Parallel Implementation
 
@@ -97,7 +97,7 @@ h = einsum("EGCM, EMH->EGCH", dispatched_expert_inputs, wi)
 1. 层数相同时，weight memory 以及 activation memory 不随专家个数增加而增加
 2. 专家个数比较少（128）时，模型可以达到 roofline performance 的 $70\%$, 专家个数比较多（2048）时，模型依然可以达到 roofline performance 的 $48\%$.
 
-![](GShard-execution-time-breakdown.png)
+![execution time of GShard](GShard-execution-time-breakdown.png)
 
 ## Conclusion
 

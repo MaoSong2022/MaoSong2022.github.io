@@ -108,7 +108,7 @@ $$
 
 标准 attention 反向传播过程如下图所示
 
-![](flashattention-standard-attention-backward-pass.png)
+![standard attention backward pass](flashattention-standard-attention-backward-pass.png)
 
 > Proposition 2
 > 标准化 attention 反向传播时访问 HBM 的内存访问开销为 $\mathcal{O}(Nd+N^2)$.
@@ -235,7 +235,7 @@ $$
 
 因此上面的结果对 $j+1$ 也成立，从而 flashattention 的结果对 $j=0,\dots,T_c$ 都成立。
 
-#### Forward Pass
+#### Forward Pass of flashattention
 
 第一个问题是如何提高 softmax 计算的效率，作者的做法先先计算 normalization constant 然后再分别计算不同的 column.
 
@@ -310,7 +310,7 @@ $$
 \mathcal{O}(NdT_c) = \mathcal{O}\left(\frac{N^2d^2}{M}\right)
 $$
 
-一般来说, $d$ 的大小为 $64-128$ （见 [MoE overview](MoE%20overview.md)）, $M$ 的大小为 $100 KB$ 左右, $d^2<< M, 因此 flashattention 的内存访问开销远小于标准化 attention 的内存访问开销。
+一般来说, $d$ 的大小为 $64-128$, $M$ 的大小为 $100 KB$ 左右, $d^2<< M, 因此 flashattention 的内存访问开销远小于标准化 attention 的内存访问开销。
 
 作者还证明 flashattention 的内存访问开销是一个下界，即
 
@@ -319,7 +319,7 @@ $$
 
 证明可以用反证法，基本思想是加载 $Q,K,V$ 的 HBM 访问次数至少为 $\mathcal{O}(Nd)$.
 
-#### Backward Pass
+#### Backward Pass of flashattention
 
 第二个问题是能否在线性空间复杂度下计算 attention 的反向传播过程。
 
@@ -436,11 +436,11 @@ $$
 
 作者通过实验验证了 flashattention 的有效性，如下表所示
 
-|Attention | Standard | FlashAttention |
-| ---| ---| ---|
-|GFLOPs| 66.6 |75.2 |
-|HBM R/W (GB) |40.3 |4.4 |
-|Runtime (ms) |41.7 |7.3|
+|Attention    | Standard| FlashAttention|
+|---------    |---------|---------------|
+|GFLOPs       | 66.6    |75.2           |
+|HBM R/W (GB) |40.3     |4.4            |
+|Runtime (ms) |41.7     |7.3            |
 
 可以看到，尽管 flashattention 相比于标准化 attention 需要更多的算力，但是由于其内存访问开销更少，所以最终的运行时间大有了大幅度降低
 

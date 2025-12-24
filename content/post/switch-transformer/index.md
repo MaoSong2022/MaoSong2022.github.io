@@ -33,7 +33,7 @@ Switch Transformer 的架构如下图所示
 
 ### MoE
 
-MoE 的定义见 [MoE tutorial](MoE%20tutorial.md), 我们假设有 $N$ 个专家，其中激活 $K$ 个专家。
+MoE 的定义见 [MoE tutorial](https://maosong.website/p/moe-tutorial/), 我们假设有 $N$ 个专家，其中激活 $K$ 个专家。
 
 之前的工作认为我们只有在激活 $>2$ 个专家时，模型才能够比较好的训练，但是在本文中，作者决定只使用 1 个 expert, 也就是 $K=1$. 作者将激活一个专家的 layer 称为 **Switch layer**.
 
@@ -57,7 +57,7 @@ $$
 
 提升 capacity factor 可以减少 token overflow 的概率，但同时也会导致计算和内存的浪费。作者通过实验发现应该尽可能降低 dropped token 比例。
 
-为了平衡每个 expert 处理 token 的个数，作者设计了 load balancing loss, 见 [Load Balancing loss](Load%20Balancing%20loss.md) 来要求每个 expert 处理的 token 数基本一致。
+为了平衡每个 expert 处理 token 的个数，作者设计了 load balancing loss, 见 [Load Balancing loss](https://maosong.website/p/load-balancing-tutorial/) 来要求每个 expert 处理的 token 数基本一致。
 
 ## Parallelism
 

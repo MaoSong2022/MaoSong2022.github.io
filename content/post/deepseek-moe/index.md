@@ -26,7 +26,7 @@ DeepSeek 在 2024 年 1 月发布了 DeepSeekMoE, 一个解决 MoE 模型 specia
 1. Fine-Grained Expert Segmentation: 作者使用了更多的专家，来提高每个专家的 specialization, 降低训练成本
 2. Shared Expert Isolation: 作者在 Routing expert 的基础上，加入了 shared expert 来学习 common knowledge.
 
-作者在 2B-A0.6B 的模型进行了实验，结果显示模型表现超过了 [GShard](https://maosong.website/p/GShard.md), 说明了 DeepSeekMoE 模型架构的有效性。
+作者在 2B-A0.6B 的模型进行了实验，结果显示模型表现超过了 [GShard](https://maosong.website/p/gshard/), 说明了 DeepSeekMoE 模型架构的有效性。
 
 作者还进一步将模型 scale 到了 16B-A2.8B 和 145B-A22B, 实验结果均验证了模型的 scaling 效果。
 
@@ -167,7 +167,7 @@ $$
 
 ![Ablation on experts](DeepSeekMoE-ablation-experts.png)
 
-实验结果显示，与 [GShard](https://maosong.website/p/GShard.md) 相比，**使用共享专家可以有效提高模型的表现**。并且，**使用更细粒度的专家也可以进一步提高模型的表现**
+实验结果显示，与 [GShard](https://maosong.website/p/gshard/) 相比，**使用共享专家可以有效提高模型的表现**。并且，**使用更细粒度的专家也可以进一步提高模型的表现**
 
 作者还探究了共享专家与路由专家的比例，作者分别使用不同的比例进行实验，结果发现共享专家：路由专家个数为 1：3 的时候模型效果最好。
 

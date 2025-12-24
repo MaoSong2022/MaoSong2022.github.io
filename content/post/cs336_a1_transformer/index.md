@@ -12,34 +12,27 @@ math: true
 ---
 
 
-# CS336 Assignment 1
+Transformer 实现
 
-Transformer实现
+我们采用 top-down 的形式构建 transformer 的代码
 
-我们采用top-down的形式构建transformer的代码
+## 架构
 
----
+![bg right](transformer_architecture.png)
 
-# 架构
+我们以 Qwen3 的代码为例子讲解 Assignment1 的代码实现
 
-![](transformer_architecture.png)
-
-我们以Qwen3的代码为例子讲解Assignment1的代码实现
-
----
-我们通过在transformer架构上加上一个linear layer就可以完成不同的下游任务，比如：
+我们通过在 transformer 架构上加上一个 linear layer 就可以完成不同的下游任务，比如：
 
 - `Qwen3ForQuestionAnswering`
 - `Qwen3ForCausalLM`
 - `Qwen3ForSequenceClassification`
 
-因此，大语言模型是transformer的一个附加产物
-
----
+因此，大语言模型是 transformer 的一个附加产物
 
 ## CausalLM
 
-编写大语言模型的第一步为定义`Qwen3ForCausalLM`
+编写大语言模型的第一步为定义 `Qwen3ForCausalLM`
 
 ```python
 class CausalLM(nn.Module):
@@ -54,21 +47,18 @@ class CausalLM(nn.Module):
         return logits
 ```
 
-这里`lm_head`的作用就是构建embedding space到vocabulary的映射，即 $\mathbb{R}^d\to\mathbb{R}^{|V|}$
-
----
+这里 `lm_head` 的作用就是构建 embedding space 到 vocabulary 的映射，即 $\mathbb{R}^d\to\mathbb{R}^{|V|}$
 
 ## Transformer
 
-transformer部分包括四个部分：
+transformer 部分包括四个部分：
 
-1. Embedding Layer：将token映射到embedding space
-2. layers：Transformer的主体部分，由 $n$ 个 `DecodeLayer` 组成
-3. Norm：在输出之前，进行一次Normalization
-4. Position Embedding：由于输入的sequence长度是固定的，因此我们提前计算好每一层的position embedding
+1. Embedding Layer：将 token 映射到 embedding space
+2. layers：Transformer 的主体部分，由 $n$ 个 `DecodeLayer` 组成
+3. Norm：在输出之前，进行一次 Normalization
+4. Position Embedding：由于输入的 sequence 长度是固定的，因此我们提前计算好每一层的 position embedding
 
----
-`Transformer`部分的代码
+`Transformer` 部分的代码
 
 ```python
 class Transformer(nn.Module):
@@ -95,21 +85,18 @@ class Transformer(nn.Module):
         return logits
 ```
 
----
+### DecodeLayer
 
-## DecodeLayer
+`DecodeLayer` 就是 transformer 的核心部分，里面包含四个模块：
 
-`DecodeLayer` 就是transformer的核心部分，里面包含四个模块：
-
-1. Pre-Normalization：一般是RMSNorm或者LayerNorm
+1. Pre-Normalization：一般是 RMSNorm 或者 LayerNorm
 2. Attention：self-attention
-3. Post-Normalization：与Pre-Normalization一致
-4. MLP：FFN，SwiGLU或者MoE
+3. Post-Normalization：与 Pre-Normalization 一致
+4. MLP：FFN，SwiGLU 或者 MoE
 
-`DecodeLayer` 还会使用residual connection来防止梯度消失
+`DecodeLayer` 还会使用 residual connection 来防止梯度消失
 
----
-`DecodeLayer`部分的代码
+`DecodeLayer` 部分的代码
 
 ```python line_numbers
 class DecodeLayer(nn.Module):
@@ -135,8 +122,6 @@ class DecodeLayer(nn.Module):
         return hidden_states
 ```
 
----
-
 我们接下来按照
 
 1. Normalization
@@ -146,11 +131,9 @@ class DecodeLayer(nn.Module):
 
 的顺序来介绍
 
----
-
 ## RMSNorm
 
-RMSNorm的作用和LayerNorm是一样的，但是实现上更简单
+RMSNorm 的作用和 LayerNorm 是一样的，但是实现上更简单
 
 $$
 \mathrm{LayerNorm}(x) = \frac{x-\mathbb{E}[x]}{\sqrt{\mathrm{var}[x]+\epsilon}}\odot \beta + \gamma
@@ -162,10 +145,9 @@ $$
 \mathrm{RMSNorm}(x) = \frac{x}{\sqrt{\|x\|_2^2+\epsilon}}\odot \gamma
 $$
 
-其中 $\gamma\in\mathbb{R}^d$是可学习的参数
+其中 $\gamma\in\mathbb{R}^d$ 是可学习的参数
 
----
-RMSNorm代码实现
+RMSNorm 代码实现
 
 ```python
 class RMSNorm(nn.Module):
@@ -181,18 +163,17 @@ class RMSNorm(nn.Module):
         return self.weight * x.to(input_dtype)
 ```
 
----
-
 ## MLP
 
-现在大语言模型的MLP使用的激活函数一般都是SwiGLU, 其定义为
+现在大语言模型的 MLP 使用的激活函数一般都是 SwiGLU, 其定义为
 
 $$
 \mathrm{SwiGLU}(x) = x\odot \sigma(x)
 $$
 
-其中 $\sigma(\cdot)$ 是sigmoid函数
-MLP的定义为
+其中 $\sigma(\cdot)$ 是 sigmoid 函数
+
+MLP 的定义为
 
 $$
 y = W_2(W_3x\odot \mathrm{SwiGLU}(W_1x))
@@ -200,10 +181,9 @@ $$
 
 其中 $W_3,W_1\in\mathbb{R}^{d_{ff}\times d}$, $W_2\in\mathbb{R}^{d\times d_{ff}}$
 
-一般地，由于FFN只有两个权重矩阵，且 $d_{ff}=4d$, 在SwiGLU中，为了保证参数量一致，其隐藏层大小设置为 $d_{ff}'=\frac23d_{ff}=\frac83 d$.
+一般地，由于 FFN 只有两个权重矩阵，且 $d_{ff}=4d$, 在 SwiGLU 中，为了保证参数量一致，其隐藏层大小设置为 $d_{ff}'=\frac23d_{ff}=\frac83 d$.
 
----
-MLP的代码如下所示
+MLP 的代码如下所示
 
 ```python
 def SwiGLU(x):
@@ -219,17 +199,15 @@ class MLP(nn.Module):
         return self.down_proj(SwiGLU(self.gate_proj(x)) * self.up_proj(x))
 ```
 
----
-
 ## Attention
 
-我们先不考虑position embedding，直接看attention，attention定义为
+我们先不考虑 position embedding，直接看 attention，attention 定义为
 
 $$
 \mathrm{Attention}(X) = \mathrm{softmax}\left(\frac{QK^T}{\sqrt{d}}\right)V\in\mathbb{R}^{m\times d}
 $$
 
-其中$X\in\mathbb{R}^{m\times d}$,
+其中 $X\in\mathbb{R}^{m\times d}$,
 
 $$
 Q = W_QX\in\mathbb{R}^{m\times d},\quad
@@ -237,8 +215,7 @@ K =W_KX\in\mathbb{R}^{n\times d},\quad
 V = W_VX\in\mathbb{R}^{n\times d}
 $$
 
----
-在自回归模型里，我们还会加上mask, 让每个token只能看见前面的token的信息
+在自回归模型里，我们还会加上 mask, 让每个 token 只能看见前面的 token 的信息
 
 $$
 \mathrm{Attention}(X) = \mathrm{softmax}\left(\frac{QK^T}{\sqrt{d}}\odot M\right)V
@@ -253,9 +230,7 @@ M = [M_{ij}] = \begin{cases}
 \end{cases}
 $$
 
----
-
-self-attention的代码如下：
+self-attention 的代码如下：
 
 ```python
 def scaled_dot_product_attention(Q, K, V, mask) -> torch.Tensor:
@@ -273,23 +248,22 @@ def scaled_dot_product_attention(Q, K, V, mask) -> torch.Tensor:
     return torch.einsum("... s_q s_k, ... s_k d_v -> ... s_q d_v", scores, V)
 ```
 
----
-
 ## Multi-Head Attention
 
-Multi-Head Attention定义如下
+Multi-Head Attention 定义如下
+
 $$
 \mathrm{MultiHeadAttention}(X) = [\mathrm{Attention}_1(X),\dots,\mathrm{Attention}_h(X)]W_o\in\mathbb{R}^{m\times d}
 $$
-其中 $W_o\in\mathbb{R}^{d\times d}$, 且每一个Attention heads的维度会从 $d\to d/h$.
 
-Multi-Head Attention的主要作用为：
+其中 $W_o\in\mathbb{R}^{d\times d}$, 且每一个 Attention heads 的维度会从 $d\to d/h$.
 
-1. 让不同的head关注不同的信息
+Multi-Head Attention 的主要作用为：
+
+1. 让不同的 head 关注不同的信息
 2. 并行计算，提高计算效率
 
----
-MHA代码
+MHA 代码
 
 ```python
 class MultiHeadAttention(nn.Module):
@@ -322,17 +296,17 @@ class MultiHeadAttention(nn.Module):
         return self.output_proj(output)
 ```
 
----
-
 ## Position Encoding
 
-Attention对于输入的顺序是不敏感的，也就是
+Attention 对于输入的顺序是不敏感的，也就是
+
 $$
 \mathrm{Attention}(Q, \Pi K, \Pi V) = \mathrm{Attention}(Q, K, V)
 $$
-这里 $\Pi\in \{0,1\}^{d\times d}$ 是一个置换矩阵(permutation matrix)
 
-[[Transformer]]的解决方法是在query和key上加上位置信息：
+这里 $\Pi\in \{0,1\}^{d\times d}$ 是一个置换矩阵 (permutation matrix)
+
+[Transformer](Transformer.md) 的解决方法是在 query 和 key 上加上位置信息：
 
 $$
 Q' = Q + PE(Q),\ K'=K + PE(K)
@@ -343,26 +317,24 @@ $$
 $$
 \mathrm{Attention}(Q, K, V) = \mathrm{softmax}\left(\frac{(Q + PE(Q))(K + PE(K))^T}{\sqrt{d}}\right)V\in\mathbb{R}^{m\times d}
 $$
-就包含了位置信息
 
----
+就包含了位置信息
 
 ### 绝对位置编码
 
-[[Transformer]]的使用的位置编码如下所示
+[Transformer](Transformer.md) 的使用的位置编码如下所示
 
 $$
 PE(pos, 2i) = \sin\left(\frac{pos}{10000^{2i/d}}\right)
 $$
+
 $$
 PE(pos, 2i+1) = \cos\left(\frac{pos}{10000^{2i/d}}\right)
 $$
 
----
-
 ### RoPE
 
-苏剑林老师提出了[[RoPE]]，现在已经被广泛使用
+苏剑林老师提出了 [Position Encoding](Position Encoding.md)，现在已经被广泛使用
 
 $$
 q' = R_{\theta,m}^dq, k' = R_{\theta,n}^d k
@@ -374,12 +346,12 @@ $$
 \langle q_m, k_n\rangle = x^TW_qR_{\theta, n-m}^d W_kx_n
 $$
 
----
-RoPE的矩阵定义如下
+RoPE 的矩阵定义如下
 
 $$
 R_{\theta,m}^d = \mathrm{diag}(M_1,\dots,M_{d/2})
 $$
+
 其中
 
 $$
@@ -388,12 +360,13 @@ M_i = \begin{bmatrix}
     \sin m\theta_i & \cos m\theta_i
 \end{bmatrix}
 $$
+
 这里
+
 $$
 \theta_i = \frac{1}{10000^{2(i-1)/d}}, i\in\{1,2,\dots,d/2\}
 $$
 
----
 简化后得到
 
 $$
@@ -425,11 +398,9 @@ x_{d-1}\\
 \end{bmatrix}
 $$
 
----
+### RoPE 代码 Naive 实现
 
-### RoPE代码naive实现
-
-`RotaryEmbedding`代码
+`RotaryEmbedding` 代码
 
 ```python
 class RotaryEmbedding(nn.Module):
@@ -446,7 +417,6 @@ class RotaryEmbedding(nn.Module):
         return sin, cos
 ```
 
----
 计算部分代码
 
 ```python
@@ -465,11 +435,9 @@ def apply_rotary_pos_emb(x: torch.Tensor, sin: torch.Tensor, cos: torch.Tensor) 
     return out
 ```
 
----
-
 ### RoPE 标准实现
 
-`RotaryEmbedding`代码 (LLaMA)
+`RotaryEmbedding` 代码 (LLaMA)
 
 ```python
 class LlamaRotaryEmbedding(nn.Module):
@@ -490,7 +458,6 @@ class LlamaRotaryEmbedding(nn.Module):
         return cos, sin
 ```
 
----
 计算部分代码
 
 ```python
@@ -510,9 +477,7 @@ def apply_rotary_pos_emb(q, k, cos, sin, position_ids=None, unsqueeze_dim=1):
 
 ```
 
----
-
-# 参考文献
+## References
 
 1. [Qwen3 transformer source code](https://github.com/huggingface/transformers/blob/main/src/transformers/models/qwen3/modeling_qwen3.py)
 2. [position encoding blog](https://huggingface.co/blog/designing-positional-encoding)

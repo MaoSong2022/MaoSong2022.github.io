@@ -40,11 +40,11 @@ FLOPs，floating point operations，表示浮点数运算次数，一般计算 F
 
 | Math Variable  | Code Variable         | Description              |
 | -------------- | --------------------- | ------------------------ |
-| $n$            | `num_hidden_layers`   | Transformer block 个数     |
-| $\vert V\vert$ | `vocab_size`          | 词表大小                     |
-| $d$            | `hidden_size`         | token embedding 的维度      |
-| $d_{ff}$       | `intermediate_size`   | MLP 的中间层的维度              |
-| $h$            | `num_attention_heads` | query head 的个数           |
+| $n$            | `num_hidden_layers`   | Transformer block 个数   |
+| $\vert V\vert$ | `vocab_size`          | 词表大小                 |
+| $d$            | `hidden_size`         | token embedding 的维度   |
+| $d_{ff}$       | `intermediate_size`   | MLP 的中间层的维度       |
+| $h$            | `num_attention_heads` | query head 的个数        |
 | $s$            | `seq_len`             | length of token sequence |
 
 > 注：为了避免混淆，我们使用 $n$ 来表示 decode layer 的个数。
@@ -272,7 +272,7 @@ $$
 
 #### MoE
 
-MoE 是针对 Dense FFN 的一个改进，介绍见 [MoE](MoE.md), 我们假设一共有 $e$ 个路由专家，其中激活 $k$ 个。
+MoE 是针对 Dense FFN 的一个改进，介绍见 [MoE](https://maosong.website/p/moe-tutorial/), 我们假设一共有 $e$ 个路由专家，其中激活 $k$ 个。
 
 Gate layer 一般是一个 linear layer, 其权重矩阵大小为 $W_{G}\in\mathbb{R}^{d\times e}$, 因此 $FLOPs(\text{router})= 2sde$.
 
