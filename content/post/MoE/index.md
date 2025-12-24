@@ -4,6 +4,7 @@ description: 本 blog 详细介绍了 MoE 模型的一些关键设计与相关�
 date: 2025-12-13 16:04:04+0800
 lastmod: 2025-12-13 16:04:04+0800
 math: true
+featured: true
 tags: 
     - tutorial
     - MoE

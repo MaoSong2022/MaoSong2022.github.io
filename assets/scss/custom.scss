@@ -25,3 +25,20 @@
     background-color: var(--accent-color);
     color: #fff;
 }
+
+.widget.featured {
+    .article-title {
+        font-size: 1.4rem;
+        line-height: 1.4;
+        margin: 0;
+        color: var(--card-text-color-main);
+    }
+    
+    article:not(:last-child) {
+        margin-bottom: 15px;
+    }
+
+    a:hover .article-title {
+        color: var(--accent-color);
+    }
+}
