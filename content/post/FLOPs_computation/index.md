@@ -1,9 +1,11 @@
 ---
 title: LLM FLOPs Computation
-description: 计算LLM的FLOPs
+description: 我们介绍如何计算基于 transformer 架构的 LLM 的 FLOPs, 计算完成之后，我们可以推导出算力 $C$ 与模型参数量 $N$，数据集大小 $D$ 之间的关系，即 $C\approx 6ND$.
 date: 2025-10-15 16:33:39+0800
-lastmod: 2025-10-23 09:43:51+0800
+lastmod: 2025-12-24 15:10:55+0800
 math: true
+tags: 
+    - tutorial
 categories:
     - LLM
     - Infra

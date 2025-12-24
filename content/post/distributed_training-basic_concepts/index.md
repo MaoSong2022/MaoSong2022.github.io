@@ -5,6 +5,7 @@ date: 2025-05-12 10:15:17+0800
 math: true
 tags: 
     - distributed training
+    - tutorial
 categories:
     - Infra
 ---
