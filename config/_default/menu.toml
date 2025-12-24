@@ -1,11 +1,20 @@
 # Configure main menu and social menu
 [[main]]
-identifier = "home"
-name = "Home"
-url = "/"
-[main.params]
-icon = "home"
-newtab = true
+    identifier = "home"
+    name = "Home"
+    url = "/"
+    weight = 1
+    [main.params]
+        icon = "home"
+
+
+[[main]]
+    identifier = "publications"
+    name = "Publications"
+    url = "/publications/"
+    weight = 2
+    [main.params]
+        icon = "book"
 
 [[social]]
 identifier = "github"
