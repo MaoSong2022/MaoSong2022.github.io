@@ -1000,14 +1000,14 @@ article {
 // Makes the summary text readable and proportional
 .article-subtitle, 
 .article-details p {
-    font-size: 1.15rem !important; // slightly larger than standard
+    font-size: 1.5rem !important; // slightly larger than standard
     line-height: 1.6;
     color: var(--card-text-color-secondary, #555); // Ensure contrast
 }
 
 // 5. Balance the Meta Information (Date, Read time)
 .article-meta {
-    margin-top: 1rem;
+    margin-top: 0.5rem;
     font-size: 0.95rem; // Bump this up slightly from small text
 }
 
