@@ -320,7 +320,7 @@ article {
         font-size: 0.9rem !important;
         font-weight: 500;
         font-family: inherit;
-        line-height: 1.4;
+        line-height: 1.5;
         background: var(--card-background);
         border: 1px solid var(--border-color);
         color: var(--card-text-color-secondary) !important;
@@ -329,8 +329,8 @@ article {
         white-space: nowrap;
         
         svg {
-            width: 12px;
-            height: 12px;
+            width: 13px;
+            height: 13px;
             opacity: 0.7;
             flex-shrink: 0;
         }
@@ -937,15 +937,15 @@ select:focus {
         padding: 18px 20px;
         
         .article-title {
-            font-size: 1.5rem;
+            font-size: 2.0rem;
         }
         
         .article-subtitle {
-            font-size: 0.95rem;
+            font-size: 1.5rem;
         }
         
         .article-tag {
-            font-size: 0.85rem !important;
+            font-size: 1.0rem !important;
             padding: 5px 12px !important;
         }
     }
