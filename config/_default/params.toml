@@ -1,164 +1,41 @@
-# Author information (replaces deprecated [author] in config.toml)
+# Author information
 [author]
-name = "Mao Song"
+  name = "Mao Song"
 
-# Pages placed under these sections will be shown on homepage and archive page.
 mainSections = ["post"]
-# Output page's full content in RSS.
 rssFullContent = true
 favicon = "/favicon.png"
+smoothScroll = true
+google_verify = "b98b42ee66064915aab3225026b2e9ca"
 
 [footer]
-since = 2020
-customText = ""
+  since = 2020
+  customText = ""
 
 [dateFormat]
-published = "January 2, 2006"
-lastUpdated = "January 2, 2006 at 3:04 PM"
+  published = "January 2, 2006"
+  lastUpdated = "January 2, 2006 at 3:04 PM"
 
 [sidebar]
-emoji = "🍥"
-subtitle = "Never stop learning."
+  subtitle = "Never stop learning."
 
 [sidebar.avatar]
-enabled = true
-local = true
-src = "img/avatar.jpg"
+  enabled = true
+  local = true
+  src = "img/avatar.jpg"
 
 [article]
-headingAnchor = true
-math = true
-readingTime = true
-showTags = true 
+  headingAnchor = true
+  math = true
+  readingTime = true
+  showTags = true 
 
 [article.license]
-enabled = true
-default = "Licensed under CC BY-NC-SA 4.0"
+  enabled = true
+  default = "Licensed under CC BY-NC-SA 4.0"
 
 [article.footer]
-enabled = true
-
-# Enhanced image processing
-[imageProcessing.cover]
-enabled = false
-
-[imageProcessing.content]
-enabled = false
-
-# Add smooth scrolling
-[params]
-smoothScroll = true
-
-## Widgets
-[[widgets.homepage]]
-type = "search"
-
-[[widgets.homepage]]
-type = "archives"
-[widgets.homepage.params]
-    title = "Archives"
-    limit = 5
-
-[[widgets.homepage]]
-type = "categories"
-[widgets.homepage.params]
-    title = "Categories"
-    limit = 20
-
-[[widgets.homepage]]
-type = "tag-cloud"
-[widgets.homepage.params]
-    limit = 20
-
-
-[[widgets.page]]
-type = "toc"
-
-[defaultImage.opengraph]
-enabled = true
-local = true
-src = "img/avatar.jpg"
-
-[colorScheme]
-toggle = true
-default = "auto"
-
-## Comments
-[comments]
-enabled = true
-provider = "utterances"
-
-[comments.disqusjs]
-shortname = ""
-apiUrl = ""
-apiKey = ""
-admin = ""
-adminLabel = ""
-
-[comments.utterances]
-repo = "MaoSong2022/MaoSong2022.github.io"
-issueTerm = "pathname"
-label = ""
-
-[comments.remark42]
-host = ""
-site = ""
-locale = ""
-
-[comments.vssue]
-platform = ""
-owner = ""
-repo = ""
-clientId = ""
-clientSecret = ""
-autoCreateIssue = false
-
-[comments.waline]
-serverURL = ""
-lang = ""
-visitor = ""
-avatar = ""
-emoji = ["https://cdn.jsdelivr.net/gh/walinejs/emojis/weibo"]
-requiredMeta = ["name", "email", "url"]
-placeholder = ""
-
-[comments.waline.locale]
-admin = "Admin"
-
-[comments.twikoo]
-envId = ""
-region = ""
-path = ""
-lang = ""
-
-[comments.cactus]
-defaultHomeserverUrl = "https://matrix.cactus.chat:8448"
-serverName = "cactus.chat"
-siteName = ""
-
-[comments.giscus]
-repo = ""
-repoID = ""
-category = ""
-categoryID = ""
-mapping = ""
-lightTheme = ""
-darkTheme = ""
-reactionsEnabled = 1
-emitMetadata = 0
-
-[comments.gitalk]
-owner = "MaoSong2022"
-admin = "MaoSong2022"
-repo = "blog-comments"
-clientID = "Ov23liR14pGD8RphGsPI"
-
-[comments.cusdis]
-host = ""
-id = ""
+  enabled = true
 
 [analytics]
-simpleAnalytics = true
-
-[params]
-  google_verify = "b98b42ee66064915aab3225026b2e9ca"
+  simpleAnalytics = true
