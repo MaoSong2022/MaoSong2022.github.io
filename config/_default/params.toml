@@ -31,6 +31,22 @@ showTags = true
 enabled = true
 default = "Licensed under CC BY-NC-SA 4.0"
 
+[article.footer]
+enabled = true
+
+# Enhanced image processing
+[imageProcessing.cover]
+enabled = true
+resizeOptions = ["1200x630 webp q85"]
+
+[imageProcessing.content]
+enabled = true
+resizeOptions = ["1000x600 webp q85"]
+
+# Add smooth scrolling
+[params]
+smoothScroll = true
+
 ## Widgets
 [[widgets.homepage]]
 type = "search"
