@@ -70,10 +70,6 @@ type = "tag-cloud"
 [[widgets.page]]
 type = "toc"
 
-[opengraph.twitter]
-site = ""
-card = "summary_large_image"
-
 [defaultImage.opengraph]
 enabled = true
 local = true
