@@ -159,3 +159,6 @@ id = ""
 
 [analytics]
 simpleAnalytics = true
+
+[params]
+  google_verify = "b98b42ee66064915aab3225026b2e9ca"
