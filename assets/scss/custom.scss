@@ -241,7 +241,6 @@ article {
 .article-list {
     article {
         padding: 20px 24px;
-        margin-bottom: 20px;
         border-radius: 12px;
         background: var(--card-background);
         border: 1px solid var(--border-color);
@@ -283,8 +282,7 @@ article {
     .article-subtitle {
         color: var(--card-text-color-secondary);
         line-height: 1.6;
-        margin-bottom: 0.8em;
-        font-size: 1.05rem;
+        font-size: 1.5rem;
     }
     
     // Meta information (date, reading time, category)
@@ -976,7 +974,6 @@ select:focus {
 article {
     // Reduce internal padding if the card feels "bloated"
     padding: 1.5rem !important; 
-    margin-bottom: 2rem;
     
     // Optional: Add a subtle border/shadow to define the card boundary clearly
     border-radius: 12px;
