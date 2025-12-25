@@ -1,0 +1,83 @@
+{{- $image := partialCached "helper/image" (dict "Context" . "Type" "articleList") .RelPermalink "articleList" -}}
+
+<article class="{{ if $image.exists }}has-image{{ end }}">
+    {{- if $image.exists -}}
+        <div class="article-image">
+            {{- if .Params.links -}}
+                {{- $link := index .Params.links 0 -}}
+                <a href="{{ $link.website }}" {{ if ne .Params.links nil }}target="_blank" rel="noopener"{{ end }}>
+                    {{- partial "helper/image-thumbnail" (dict "Context" . "Type" "articleList") -}}
+                </a>
+            {{- else -}}
+                <a href="{{ .RelPermalink }}">
+                    {{- partial "helper/image-thumbnail" (dict "Context" . "Type" "articleList") -}}
+                </a>
+            {{- end -}}
+        </div>
+    {{- end -}}
+
+    <div class="article-details">
+        {{- $categoryText := "" -}}
+        {{- with .Params.categories -}}
+            {{- $categoryText = index . 0 -}}
+        {{- end -}}
+        
+        <div class="article-category">
+            {{- with .Params.categories -}}
+                {{ $categoriesLen := len . }}
+                {{- range $index, $value := . -}}
+                    <a href="{{ "categories/" | relLangURL }}{{ $value | urlize }}">
+                        {{ $value }}
+                    </a>
+                    {{- if lt (add $index 1) $categoriesLen -}}&nbsp;{{- end -}}
+                {{- end -}}
+            {{- end -}}
+        </div>
+
+        <h2 class="article-title">
+            {{- if .Params.links -}}
+                {{- $link := index .Params.links 0 -}}
+                <a href="{{ $link.website }}" {{ if ne .Params.links nil }}target="_blank" rel="noopener"{{ end }}>{{ .Title }}</a>
+            {{- else -}}
+                <a href="{{ .RelPermalink }}">{{ .Title }}</a>
+            {{- end -}}
+        </h2>
+
+        {{- with .Params.description -}}
+            <section class="article-subtitle">
+                {{ . }}
+            </section>
+        {{- end -}}
+
+        <footer class="article-footer">
+            <div class="article-meta">
+                {{- if not .Date.IsZero -}}
+                <div class="article-time">
+                    {{- partial "helper/icon" "date" -}}
+                    <time datetime="{{ .Date.Format "2006-01-02T15:04:05Z07:00" }}">{{ .Date.Format "January 2, 2006" }}</time>
+                </div>
+                {{- end -}}
+
+                {{- if .Site.Params.article.readingTime -}}
+                <div class="article-time">
+                    {{- partial "helper/icon" "clock" -}}
+                    <time>{{ T "article.readingTime" .ReadingTime }}</time>
+                </div>
+                {{- end -}}
+            </div>
+
+            {{- /* Add tags here */ -}}
+            {{- if .Params.tags -}}
+            <div class="article-tags-list">
+                {{- range .Params.tags -}}
+                    <a href="{{ "tags/" | relLangURL }}{{ . | urlize }}" class="article-tag">
+                        {{- partial "helper/icon" "tag" -}}
+                        {{ . }}
+                    </a>
+                {{- end -}}
+            </div>
+            {{- end -}}
+        </footer>
+    </div>
+</article>
+
