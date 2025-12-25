@@ -42,11 +42,6 @@ google_verify = "b98b42ee66064915aab3225026b2e9ca"
 type = "search"
 
 [[widgets.homepage]]
-type = "archives"
-[widgets.homepage.params]
-    limit = 5
-
-[[widgets.homepage]]
 type = "categories"
 [widgets.homepage.params]
 limit = 20
@@ -56,12 +51,11 @@ type = "tag-cloud"
 [widgets.homepage.params]
 limit = 20
 
-
 [[widgets.homepage]]
-type = "featured"
+type = "archives"
 [widgets.homepage.params]
-title = "Featured Research"
-limit = 3
+    limit = 5
+
 
 [[widgets.page]]
 type = "toc"
