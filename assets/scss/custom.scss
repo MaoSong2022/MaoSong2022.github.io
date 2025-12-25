@@ -223,7 +223,7 @@ article {
 // ===== Article List Item Enhancements =====
 .article-list {
     article {
-        padding: 20px;
+        padding: 20px 24px;
         margin-bottom: 20px;
         border-radius: 12px;
         background: var(--card-background);
@@ -245,10 +245,11 @@ article {
     
     // Article title styling
     .article-title {
-        font-size: 1.6rem;
-        font-weight: 600;
-        line-height: 1.4;
-        margin-bottom: 0.5em;
+        font-size: 1.85rem;
+        font-weight: 700;
+        line-height: 1.3;
+        margin-bottom: 0.4em;
+        margin-top: 0.2em;
         
         a {
             color: var(--card-text-color-main);
@@ -265,18 +266,18 @@ article {
     .article-subtitle {
         color: var(--card-text-color-secondary);
         line-height: 1.6;
-        margin-bottom: 1em;
-        font-size: 0.95rem;
+        margin-bottom: 0.8em;
+        font-size: 1.05rem;
     }
     
     // Meta information (date, reading time, category)
     .article-time,
     .article-category {
-        font-size: 0.85rem;
+        font-size: 0.95rem;
         color: var(--card-text-color-tertiary);
         display: inline-flex;
         align-items: center;
-        gap: 0.3em;
+        gap: 0.5em;
         
         svg {
             width: 16px;
@@ -290,15 +291,16 @@ article {
         display: flex;
         flex-direction: column;
         gap: 12px;
-        margin-top: 16px;
+        margin-top: 14px;
         padding-top: 12px;
         border-top: 1px solid var(--border-color);
     }
     
     .article-meta {
         display: flex;
-        gap: 16px;
+        gap: 20px;
         flex-wrap: wrap;
+        align-items: center;
     }
     
     // Tags in article list
@@ -306,16 +308,16 @@ article {
         display: flex;
         flex-wrap: wrap;
         gap: 8px;
-        margin-top: 4px;
+        margin-top: 2px;
     }
     
     .article-tag {
         display: inline-flex !important;
         align-items: center;
-        gap: 4px;
-        padding: 6px 14px !important;
-        border-radius: 16px;
-        font-size: 0.85rem !important;
+        gap: 5px;
+        padding: 4px 12px !important;
+        border-radius: 18px;
+        font-size: 0.9rem !important;
         font-weight: 500;
         font-family: inherit;
         line-height: 1.4;
@@ -353,42 +355,47 @@ article {
         .article-tags-list {
             a {
                 font-family: inherit;
-                font-size: 0.85rem !important;
+                font-size: 0.9rem !important;
             }
         }
     }
     
     // Category badge
-    .article-category a {
-        display: inline-flex;
-        align-items: center;
-        padding: 4px 12px;
-        border-radius: 6px;
-        font-size: 0.8rem;
-        font-weight: 500;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        transition: all 0.2s ease;
+    .article-category {
+        margin-bottom: 10px;
         
-        // Different colors for different categories
-        &[href*="LLM"] {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-        
-        &[href*="Infra"] {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            color: white;
-        }
-        
-        &[href*="MLLM"] {
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-            color: white;
-        }
-        
-        &:hover {
-            transform: scale(1.05);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        a {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            
+            // Different colors for different categories
+            &[href*="LLM"] {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+            }
+            
+            &[href*="Infra"] {
+                background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+                color: white;
+            }
+            
+            &[href*="MLLM"] {
+                background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+                color: white;
+            }
+            
+            &:hover {
+                transform: scale(1.05);
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            }
         }
     }
 }
@@ -927,6 +934,19 @@ select:focus {
     }
     
     .article-list article {
-        padding: 16px;
+        padding: 18px 20px;
+        
+        .article-title {
+            font-size: 1.5rem;
+        }
+        
+        .article-subtitle {
+            font-size: 0.95rem;
+        }
+        
+        .article-tag {
+            font-size: 0.85rem !important;
+            padding: 5px 12px !important;
+        }
     }
 }
