@@ -950,3 +950,68 @@ select:focus {
         }
     }
 }
+
+// 1. Constrain the Card Width
+// Prevents the card from looking "too large" on wide screens
+.main-container {
+    max-width: 1000px; // Adjust this value (standard is usually 800px-1200px)
+    margin: 0 auto;    // Centers the content
+}
+
+// 2. Adjust Article Card Spacing
+article {
+    // Reduce internal padding if the card feels "bloated"
+    padding: 1.5rem !important; 
+    margin-bottom: 2rem;
+    
+    // Optional: Add a subtle border/shadow to define the card boundary clearly
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+// 3. Increase Title Font Size
+// The title needs to be much larger to balance the card size
+.article-title {
+    font-size: 1.75rem !important; // Was likely ~1.2rem
+    line-height: 1.3;
+    margin-bottom: 0.75rem;
+    font-weight: 700;
+
+    a {
+        text-decoration: none;
+    }
+}
+
+// 4. Increase Content/Subtitle Font Size
+// Makes the summary text readable and proportional
+.article-subtitle, 
+.article-details p {
+    font-size: 1.15rem !important; // slightly larger than standard
+    line-height: 1.6;
+    color: var(--card-text-color-secondary, #555); // Ensure contrast
+}
+
+// 5. Balance the Meta Information (Date, Read time)
+.article-meta {
+    margin-top: 1rem;
+    font-size: 0.95rem; // Bump this up slightly from small text
+}
+
+// ===== Mobile Responsiveness =====
+// Keep fonts slightly smaller on mobile to prevent overflow
+@media (max-width: 768px) {
+    .article-title {
+        font-size: 1.5rem !important;
+    }
+    .article-subtitle {
+        font-size: 1.05rem !important;
+    }
+}
+
+// Ensure the image doesn't dominate the card
+.article-image img {
+    object-fit: cover;
+    max-height: 250px; // Limits the vertical height of the image
+    width: 100%;
+    border-radius: 8px; // Optional: nicer corners
+}
