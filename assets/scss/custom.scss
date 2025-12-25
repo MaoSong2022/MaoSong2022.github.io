@@ -593,9 +593,9 @@ article img {
     display: block;
     margin: 1.5em auto;
     
-    // Better image rendering
-    image-rendering: -webkit-optimize-contrast;
-    image-rendering: crisp-edges;
+    // Better image rendering - use auto for photos
+    image-rendering: auto;
+    -webkit-font-smoothing: antialiased;
     
     // Prevent blur on scale
     will-change: auto;
@@ -611,6 +611,19 @@ article img {
     &[loading="lazy"] {
         background: var(--card-background);
         min-height: 200px;
+    }
+}
+
+// ===== Links Page Styling =====
+// Fix for links page images (About page with GitHub, Bilibili, WeChat cards)
+.article-list--compact article,
+.links-container {
+    img {
+        image-rendering: auto !important;
+        -webkit-font-smoothing: antialiased;
+        object-fit: contain;
+        max-width: 100%;
+        height: auto;
     }
 }
 
