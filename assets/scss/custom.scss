@@ -986,7 +986,7 @@ article {
 // 3. Increase Title Font Size
 // The title needs to be much larger to balance the card size
 .article-title {
-    font-size: 1.75rem !important; // Was likely ~1.2rem
+    font-size: 2.5rem !important; // Was likely ~1.2rem
     line-height: 1.3;
     margin-bottom: 0.75rem;
     font-weight: 700;
@@ -1007,7 +1007,6 @@ article {
 
 // 5. Balance the Meta Information (Date, Read time)
 .article-meta {
-    margin-top: 0.5rem;
     font-size: 0.95rem; // Bump this up slightly from small text
 }
 
