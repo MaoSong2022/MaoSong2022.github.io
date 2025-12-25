@@ -36,12 +36,10 @@ enabled = true
 
 # Enhanced image processing
 [imageProcessing.cover]
-enabled = true
-resizeOptions = ["1200x630 webp q85"]
+enabled = false
 
 [imageProcessing.content]
-enabled = true
-resizeOptions = ["1000x600 webp q85"]
+enabled = false
 
 # Add smooth scrolling
 [params]

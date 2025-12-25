@@ -268,10 +268,22 @@ button, .btn {
 article img {
     border-radius: 12px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-    transition: transform 0.3s ease;
+    transition: box-shadow 0.3s ease;
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+    image-rendering: auto;
+    -ms-interpolation-mode: nearest-neighbor;
+    
+    // Prevent blur on scale
+    will-change: auto;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
     
     &:hover {
-        transform: scale(1.02);
+        // Use box-shadow instead of transform to avoid blur
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+        // Optional: slight opacity change instead of scale
+        opacity: 0.95;
     }
 }
 
