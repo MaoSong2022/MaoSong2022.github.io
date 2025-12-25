@@ -223,8 +223,8 @@ article {
 // ===== Article List Item Enhancements =====
 .article-list {
     article {
-        padding: 20px;
-        margin-bottom: 20px;
+        padding: 24px 28px;
+        margin-bottom: 24px;
         border-radius: 12px;
         background: var(--card-background);
         border: 1px solid var(--border-color);
@@ -245,10 +245,11 @@ article {
     
     // Article title styling
     .article-title {
-        font-size: 1.6rem;
+        font-size: 1.75rem;
         font-weight: 600;
-        line-height: 1.4;
-        margin-bottom: 0.5em;
+        line-height: 1.35;
+        margin-bottom: 0.6em;
+        margin-top: 0.3em;
         
         a {
             color: var(--card-text-color-main);
@@ -264,19 +265,19 @@ article {
     // Article description/summary
     .article-subtitle {
         color: var(--card-text-color-secondary);
-        line-height: 1.6;
-        margin-bottom: 1em;
-        font-size: 0.95rem;
+        line-height: 1.65;
+        margin-bottom: 1.2em;
+        font-size: 1rem;
     }
     
     // Meta information (date, reading time, category)
     .article-time,
     .article-category {
-        font-size: 0.85rem;
+        font-size: 0.9rem;
         color: var(--card-text-color-tertiary);
         display: inline-flex;
         align-items: center;
-        gap: 0.3em;
+        gap: 0.4em;
         
         svg {
             width: 16px;
@@ -289,36 +290,37 @@ article {
     .article-footer {
         display: flex;
         flex-direction: column;
-        gap: 12px;
-        margin-top: 16px;
-        padding-top: 12px;
+        gap: 14px;
+        margin-top: 18px;
+        padding-top: 14px;
         border-top: 1px solid var(--border-color);
     }
     
     .article-meta {
         display: flex;
-        gap: 16px;
+        gap: 20px;
         flex-wrap: wrap;
+        align-items: center;
     }
     
     // Tags in article list
     .article-tags-list {
         display: flex;
         flex-wrap: wrap;
-        gap: 8px;
-        margin-top: 4px;
+        gap: 10px;
+        margin-top: 2px;
     }
     
     .article-tag {
         display: inline-flex !important;
         align-items: center;
-        gap: 4px;
-        padding: 6px 14px !important;
-        border-radius: 16px;
-        font-size: 0.85rem !important;
+        gap: 5px;
+        padding: 6px 16px !important;
+        border-radius: 18px;
+        font-size: 0.9rem !important;
         font-weight: 500;
         font-family: inherit;
-        line-height: 1.4;
+        line-height: 1.5;
         background: var(--card-background);
         border: 1px solid var(--border-color);
         color: var(--card-text-color-secondary) !important;
@@ -327,8 +329,8 @@ article {
         white-space: nowrap;
         
         svg {
-            width: 12px;
-            height: 12px;
+            width: 13px;
+            height: 13px;
             opacity: 0.7;
             flex-shrink: 0;
         }
@@ -353,42 +355,47 @@ article {
         .article-tags-list {
             a {
                 font-family: inherit;
-                font-size: 0.85rem !important;
+                font-size: 0.9rem !important;
             }
         }
     }
     
     // Category badge
-    .article-category a {
-        display: inline-flex;
-        align-items: center;
-        padding: 4px 12px;
-        border-radius: 6px;
-        font-size: 0.8rem;
-        font-weight: 500;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        transition: all 0.2s ease;
+    .article-category {
+        margin-bottom: 8px;
         
-        // Different colors for different categories
-        &[href*="LLM"] {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-        
-        &[href*="Infra"] {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            color: white;
-        }
-        
-        &[href*="MLLM"] {
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-            color: white;
-        }
-        
-        &:hover {
-            transform: scale(1.05);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        a {
+            display: inline-flex;
+            align-items: center;
+            padding: 5px 14px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            
+            // Different colors for different categories
+            &[href*="LLM"] {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+            }
+            
+            &[href*="Infra"] {
+                background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+                color: white;
+            }
+            
+            &[href*="MLLM"] {
+                background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+                color: white;
+            }
+            
+            &:hover {
+                transform: scale(1.05);
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            }
         }
     }
 }
@@ -927,6 +934,19 @@ select:focus {
     }
     
     .article-list article {
-        padding: 16px;
+        padding: 18px 20px;
+        
+        .article-title {
+            font-size: 1.5rem;
+        }
+        
+        .article-subtitle {
+            font-size: 0.95rem;
+        }
+        
+        .article-tag {
+            font-size: 0.85rem !important;
+            padding: 5px 12px !important;
+        }
     }
 }
