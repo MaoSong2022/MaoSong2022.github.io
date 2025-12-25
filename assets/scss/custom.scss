@@ -10,6 +10,34 @@ body {
     -moz-osx-font-smoothing: grayscale;
 }
 
+// Improve readability with better line-height for article content
+article {
+    line-height: 1.8;
+    
+    p {
+        margin-bottom: 1.5em;
+        line-height: 1.8;
+    }
+    
+    h1, h2, h3, h4, h5, h6 {
+        line-height: 1.4;
+        margin-top: 1.5em;
+        margin-bottom: 0.75em;
+        font-weight: 600;
+    }
+    
+    // Better spacing for lists
+    ul, ol {
+        margin-bottom: 1.5em;
+        padding-left: 2em;
+        
+        li {
+            margin-bottom: 0.5em;
+            line-height: 1.7;
+        }
+    }
+}
+
 // ===== Post Tags Styling =====
 .post-tags {
     margin-top: 24px;
@@ -268,11 +296,15 @@ button, .btn {
 article img {
     border-radius: 12px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-    transition: box-shadow 0.3s ease;
+    transition: box-shadow 0.3s ease, opacity 0.3s ease;
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 1.5em auto;
+    
+    // Better image rendering
     image-rendering: -webkit-optimize-contrast;
     image-rendering: crisp-edges;
-    image-rendering: auto;
-    -ms-interpolation-mode: nearest-neighbor;
     
     // Prevent blur on scale
     will-change: auto;
@@ -280,10 +312,14 @@ article img {
     -webkit-backface-visibility: hidden;
     
     &:hover {
-        // Use box-shadow instead of transform to avoid blur
         box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
-        // Optional: slight opacity change instead of scale
         opacity: 0.95;
+    }
+    
+    // Lazy loading placeholder
+    &[loading="lazy"] {
+        background: var(--card-background);
+        min-height: 200px;
     }
 }
 
@@ -344,6 +380,99 @@ a {
     }
 }
 
+// ===== Accessibility Enhancements =====
+// Focus indicators for keyboard navigation
+a:focus,
+button:focus,
+input:focus,
+textarea:focus,
+select:focus {
+    outline: 3px solid var(--accent-color);
+    outline-offset: 2px;
+}
+
+// Skip to main content link
+.skip-to-main {
+    position: absolute;
+    left: -9999px;
+    z-index: 999;
+    padding: 1em;
+    background-color: var(--accent-color);
+    color: white;
+    text-decoration: none;
+    
+    &:focus {
+        left: 50%;
+        transform: translateX(-50%);
+        top: 1em;
+    }
+}
+
+// Reduced motion for users who prefer it
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+// ===== Print Styles =====
+@media print {
+    // Hide non-essential elements
+    .sidebar,
+    .widget,
+    .post-tags,
+    nav,
+    footer,
+    button,
+    .comments {
+        display: none !important;
+    }
+    
+    // Optimize for printing
+    body {
+        font-size: 12pt;
+        line-height: 1.5;
+        color: #000;
+        background: #fff;
+    }
+    
+    article {
+        max-width: 100%;
+        margin: 0;
+        padding: 0;
+    }
+    
+    // Ensure links are visible
+    a[href]::after {
+        content: " (" attr(href) ")";
+        font-size: 0.8em;
+        color: #666;
+    }
+    
+    // Better image handling
+    img {
+        max-width: 100%;
+        page-break-inside: avoid;
+    }
+    
+    // Better heading handling
+    h1, h2, h3, h4, h5, h6 {
+        page-break-after: avoid;
+        page-break-inside: avoid;
+    }
+    
+    // Better code block handling
+    pre, code {
+        border: 1px solid #ccc;
+        page-break-inside: avoid;
+    }
+}
+
 // ===== Responsive Enhancements =====
 @media (max-width: 768px) {
     .post-tags a {
@@ -353,5 +482,25 @@ a {
     
     .widget-list-item-link {
         padding: 8px 12px;
+    }
+    
+    // Better mobile typography
+    article {
+        p {
+            font-size: 1.05rem;
+            line-height: 1.7;
+        }
+        
+        h1 {
+            font-size: 1.8rem;
+        }
+        
+        h2 {
+            font-size: 1.5rem;
+        }
+        
+        h3 {
+            font-size: 1.3rem;
+        }
     }
 }

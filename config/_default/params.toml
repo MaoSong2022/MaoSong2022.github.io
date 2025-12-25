@@ -1,3 +1,7 @@
+# Author information (replaces deprecated [author] in config.toml)
+[author]
+name = "Mao Song"
+
 # Pages placed under these sections will be shown on homepage and archive page.
 mainSections = ["post"]
 # Output page's full content in RSS.
@@ -69,10 +73,6 @@ type = "tag-cloud"
 
 [[widgets.page]]
 type = "toc"
-
-[opengraph.twitter]
-site = ""
-card = "summary_large_image"
 
 [defaultImage.opengraph]
 enabled = true

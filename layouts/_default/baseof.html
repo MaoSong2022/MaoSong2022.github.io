@@ -3,15 +3,15 @@
 
 <head>
     {{- partial "head/head.html" . -}}
+    {{- partial "head/performance.html" . -}}
+    {{- partial "head/seo.html" . -}}
     {{- block "head" . -}}{{ end }}
     {{- partial "analytics.html" . -}}
 </head>
 
 <body class="{{ block `body-class` . }}{{ end }}">
     {{- partial "head/colorScheme" . -}}
-
-<body class="{{ block `body-class` . }}{{ end }}">
-    {{- partial "head/colorScheme" . -}}
+    {{- partial "accessibility/skip-links.html" . -}}
 
     {{/* The container is wider when there's any activated widget */}}
     {{- $hasWidget := false -}}
@@ -25,7 +25,7 @@
         {{ partial "sidebar/left.html" . }}
         {{- end -}}
         {{- block "right-sidebar" . -}}{{ end }}
-        <main class="main full-width">
+        <main id="main-content" class="main full-width" role="main" aria-label="Main content">
             {{- block "main" . }}{{- end }}
         </main>
     </div>

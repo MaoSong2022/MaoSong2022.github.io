@@ -2,7 +2,13 @@
 baseurl = "https://maosong.website"
 languageCode = "en-us"
 title = "Mao Song(毛松)'s Homepage"
-description = "Mao Song's blog about machine learning, LLMs, and research"
+description = "Mao Song's technical blog covering machine learning, large language models (LLMs), deep learning research, and AI innovations. ."
+
+# Enable emoji support
+enableEmoji = true
+
+# Enable Git info for lastmod dates
+enableGitInfo = true
 
 # Theme i18n support
 # Available values: en, fr, id, ja, ko, pt-br, zh-cn, zh-tw, es, de, nl, it, th, el, uk, ar
@@ -12,8 +18,6 @@ defaultContentLanguage = "en"
 # This will make .Summary and .WordCount behave correctly for CJK languages.
 hasCJKLanguage = true
 
-[author]
-name = "Mao Song"
 
 [pagination]
 pagerSize = 5
@@ -23,6 +27,14 @@ pagerSize = 5
   changefreq = "weekly"
   priority = 0.8
   filename = "sitemap.xml"
+
+# Privacy settings
+[privacy]
+  [privacy.googleAnalytics]
+    anonymizeIP = true
+    respectDoNotTrack = true
+  [privacy.youtube]
+    privacyEnhanced = true
 
 [build]
 writeStats = true
