@@ -37,5 +37,63 @@ google_verify = "b98b42ee66064915aab3225026b2e9ca"
 [article.footer]
   enabled = true
 
+## Widgets
+[[widgets.homepage]]
+type = "search"
+
+[[widgets.homepage]]
+type = "archives"
+[widgets.homepage.params]
+    limit = 5
+
+[[widgets.homepage]]
+type = "categories"
+[widgets.homepage.params]
+limit = 20
+
+[[widgets.homepage]]
+type = "tag-cloud"
+[widgets.homepage.params]
+limit = 20
+
+
+[[widgets.homepage]]
+type = "featured"
+[widgets.homepage.params]
+title = "Featured Research"
+limit = 3
+
+[[widgets.page]]
+type = "toc"
+
+[opengraph.twitter]
+site = ""
+card = "summary_large_image"
+
+[defaultImage.opengraph]
+enabled = true
+local = true
+src = "img/avatar.jpg"
+
+[colorScheme]
+toggle = true
+default = "auto"
+
+[imageProcessing.cover]
+enabled = false
+
+[imageProcessing.content]
+enabled = false
+
+## Comments
+[comments]
+enabled = true
+provider = "utterances"
+
+[comments.utterances]
+repo = "MaoSong2022/MaoSong2022.github.io"
+issueTerm = "pathname"
+label = ""
+
 [analytics]
-  simpleAnalytics = true
+simpleAnalytics = true
