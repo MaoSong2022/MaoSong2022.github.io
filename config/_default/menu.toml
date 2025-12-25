@@ -1,12 +1,4 @@
 # Configure main menu and social menu
-[[main]]
-    identifier = "publications"
-    name = "Publications"
-    url = "/publications/"
-    weight = 2
-    [main.params]
-        icon = "book"
-
 [[social]]
 identifier = "github"
 name = "GitHub"

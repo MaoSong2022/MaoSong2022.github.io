@@ -1,5 +1,5 @@
 # Pages placed under these sections will be shown on homepage and archive page.
-mainSections = ["post", "publications"]
+mainSections = ["post"]
 # Output page's full content in RSS.
 rssFullContent = true
 favicon = "/favicon.png"
@@ -50,12 +50,6 @@ type = "tag-cloud"
 [widgets.homepage.params]
 limit = 20
 
-
-[[widgets.homepage]]
-type = "featured"
-[widgets.homepage.params]
-title = "Featured Research"
-limit = 3
 
 [[widgets.page]]
 type = "toc"
