@@ -64,7 +64,7 @@ article {
     }
 }
 
-// ===== Post Tags Styling =====
+// ===== Post Tags Styling (for single article pages) =====
 .post-tags {
     margin-top: 24px;
     display: flex;
@@ -73,20 +73,31 @@ article {
 }
 
 .post-tags a {
-    display: inline-flex;
+    display: inline-flex !important;
     align-items: center;
-    background: linear-gradient(135deg, var(--card-background) 0%, var(--card-background) 100%);
-    padding: 8px 16px;
-    border-radius: 24px;
-    font-size: 1.3rem;
+    gap: 5px;
+    background: var(--card-background);
+    padding: 6px 14px !important;
+    border-radius: 20px;
+    font-size: 1.0rem !important;
     font-weight: 500;
-    color: var(--body-text-color);
+    font-family: inherit;
+    line-height: 1.5;
+    color: var(--card-text-color-secondary) !important;
     border: 1.5px solid var(--border-color);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-    text-decoration: none;
+    text-decoration: none !important;
     position: relative;
     overflow: hidden;
+    white-space: nowrap;
+    
+    svg {
+        width: 13px;
+        height: 13px;
+        opacity: 0.7;
+        flex-shrink: 0;
+    }
 }
 
 .post-tags a::before {
@@ -102,10 +113,16 @@ article {
 }
 
 .post-tags a:hover {
-    transform: translateY(-3px) scale(1.02);
+    transform: translateY(-3px) scale(1.05);
     border-color: var(--accent-color);
-    color: #fff;
+    color: white !important;
     box-shadow: 0 6px 20px rgba(var(--accent-color-rgb, 0, 0, 0), 0.3);
+    text-decoration: none !important;
+    
+    svg {
+        opacity: 1;
+        color: white;
+    }
 }
 
 .post-tags a:hover::before {
@@ -904,9 +921,11 @@ select:focus {
 
 // ===== Responsive Enhancements =====
 @media (max-width: 768px) {
-    .post-tags a {
-        font-size: 1.2rem;
-        padding: 6px 12px;
+    // Consistent tag styling for mobile
+    .post-tags a,
+    .article-tag {
+        font-size: 0.85rem !important;
+        padding: 5px 10px !important;
     }
     
     .widget-list-item-link {
@@ -937,16 +956,11 @@ select:focus {
         padding: 18px 20px;
         
         .article-title {
-            font-size: 2.0rem;
+            font-size: 1.6rem;
         }
         
         .article-subtitle {
-            font-size: 1.5rem;
-        }
-        
-        .article-tag {
-            font-size: 1.0rem !important;
-            padding: 5px 12px !important;
+            font-size: 1.0rem;
         }
     }
 }
