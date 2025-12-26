@@ -30,7 +30,6 @@ My research focuses on the intersection of language and vision, with particular 
 - **Large Language Models (LLMs)** - Advancing the capabilities of language understanding and generation
 - **Multimodal Large Language Models (MLLMs)** - Bridging vision and language for unified AI systems
 - **Reasoning Models** - Developing systems capable of complex logical reasoning
-- **Mathematical AI** - Exploring AI applications in mathematical problem-solving
 - **Unified Understanding & Generation** - Creating models that seamlessly integrate comprehension and creation
 
 </div>
