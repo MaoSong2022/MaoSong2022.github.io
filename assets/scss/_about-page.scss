@@ -14,12 +14,23 @@
         margin-top: 2.5rem;
         margin-bottom: 1.5rem;
         color: var(--card-text-color-main);
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
+        position: relative;
+        padding-bottom: 0.5rem;
         
         &:first-of-type {
             margin-top: 0;
+        }
+        
+        // Add a subtle underline accent
+        &::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 60px;
+            height: 3px;
+            background: linear-gradient(90deg, var(--accent-color) 0%, transparent 100%);
+            border-radius: 2px;
         }
     }
     
@@ -45,33 +56,67 @@
         ul {
             list-style: none;
             padding: 0;
+            margin: 0;
             
             li {
-                padding: 1rem 1.5rem;
+                padding: 1.2rem 1.5rem;
                 margin-bottom: 1rem;
                 background: var(--card-background);
                 border: 2px solid var(--border-color);
                 border-radius: 12px;
                 transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-                position: relative;
-                padding-left: 3rem;
-                
-                &::before {
-                    content: '🎓';
-                    position: absolute;
-                    left: 1rem;
-                    font-size: 1.5rem;
-                }
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
                 
                 &:hover {
-                    transform: translateX(8px);
+                    transform: translateX(6px);
                     border-color: var(--accent-color);
-                    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+                    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
                 }
                 
                 strong {
+                    display: block;
                     color: var(--accent-color);
                     font-size: 1.1rem;
+                    font-weight: 600;
+                    margin-bottom: 0.5rem;
+                }
+                
+                a {
+                    color: var(--card-text-color-main);
+                    text-decoration: none;
+                    transition: color 0.2s ease;
+                    
+                    &:hover {
+                        color: var(--accent-color);
+                        text-decoration: none;
+                    }
+                }
+                
+                // Nested list for supervisor info
+                ul {
+                    margin-top: 0.5rem;
+                    padding-left: 1.5rem;
+                    
+                    li {
+                        padding: 0.3rem 0;
+                        margin-bottom: 0;
+                        background: transparent;
+                        border: none;
+                        box-shadow: none;
+                        font-size: 0.95rem;
+                        color: var(--card-text-color-secondary);
+                        
+                        &:hover {
+                            transform: none;
+                            box-shadow: none;
+                        }
+                        
+                        &::before {
+                            content: '•';
+                            margin-right: 0.5rem;
+                            color: var(--accent-color);
+                        }
+                    }
                 }
             }
         }
@@ -94,16 +139,36 @@
             
             li {
                 padding: 1.2rem 1.5rem;
+                padding-left: 2.5rem;
                 background: var(--card-background);
                 border: 2px solid var(--border-color);
                 border-radius: 12px;
                 transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
                 box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+                position: relative;
+                
+                // Add a decorative accent bar
+                &::before {
+                    content: '';
+                    position: absolute;
+                    left: 0.8rem;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    width: 4px;
+                    height: 60%;
+                    background: linear-gradient(180deg, var(--accent-color) 0%, var(--accent-color-darker, var(--accent-color)) 100%);
+                    border-radius: 2px;
+                    transition: height 0.3s ease;
+                }
                 
                 &:hover {
                     transform: translateY(-4px);
                     border-color: var(--accent-color);
                     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+                    
+                    &::before {
+                        height: 80%;
+                    }
                 }
                 
                 strong {
@@ -111,6 +176,7 @@
                     color: var(--accent-color);
                     font-size: 1.05rem;
                     margin-bottom: 0.3rem;
+                    font-weight: 600;
                 }
             }
         }
@@ -302,6 +368,80 @@
                 border-color: #fb7299;
             }
         }
+        
+        // WeChat card
+        &.wechat-card {
+            position: relative;
+            cursor: pointer;
+            
+            .social-icon {
+                background: rgba(7, 193, 96, 0.1);
+                
+                svg {
+                    color: #07c160;
+                }
+            }
+            
+            &::before {
+                background: linear-gradient(135deg, #07c160 0%, #06ae56 100%);
+            }
+            
+            &:hover {
+                border-color: #07c160;
+                
+                .wechat-qr-popup {
+                    opacity: 1;
+                    visibility: visible;
+                    transform: translateY(-50%) scale(1);
+                }
+            }
+            
+            // QR Code Popup
+            .wechat-qr-popup {
+                position: absolute;
+                top: 50%;
+                left: calc(100% + 20px);
+                transform: translateY(-50%) scale(0.9);
+                background: white;
+                padding: 1.5rem;
+                border-radius: 16px;
+                box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+                opacity: 0;
+                visibility: hidden;
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                z-index: 100;
+                min-width: 200px;
+                text-align: center;
+                
+                &::before {
+                    content: '';
+                    position: absolute;
+                    left: -10px;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    width: 0;
+                    height: 0;
+                    border-style: solid;
+                    border-width: 10px 10px 10px 0;
+                    border-color: transparent white transparent transparent;
+                }
+                
+                img {
+                    width: 180px;
+                    height: 180px;
+                    border-radius: 8px;
+                    margin-bottom: 0.8rem;
+                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+                }
+                
+                p {
+                    margin: 0;
+                    font-size: 0.9rem;
+                    color: #666;
+                    font-weight: 500;
+                }
+            }
+        }
     }
     
     // Blog info section
@@ -329,10 +469,14 @@
                 font-size: 1.05rem;
                 line-height: 1.7;
                 
+                // Add professional bullet points
                 &::before {
+                    content: '▸';
                     position: absolute;
-                    left: 0;
-                    font-size: 1.2rem;
+                    left: 0.5rem;
+                    color: var(--accent-color);
+                    font-size: 1rem;
+                    font-weight: bold;
                 }
                 
                 strong {
@@ -391,6 +535,33 @@
         
         .research-section ul {
             grid-template-columns: 1fr;
+        }
+        
+        // WeChat QR popup mobile adjustment
+        .social-card.wechat-card {
+            .wechat-qr-popup {
+                left: 50%;
+                top: auto;
+                bottom: calc(100% + 15px);
+                transform: translateX(-50%) scale(0.9);
+                
+                &::before {
+                    left: 50%;
+                    top: auto;
+                    bottom: -10px;
+                    transform: translateX(-50%);
+                    border-width: 10px 10px 0 10px;
+                    border-color: white transparent transparent transparent;
+                }
+                
+                &:hover {
+                    transform: translateX(-50%) scale(1);
+                }
+            }
+            
+            &:hover .wechat-qr-popup {
+                transform: translateX(-50%) scale(1);
+            }
         }
     }
 }

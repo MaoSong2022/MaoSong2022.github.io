@@ -1,5 +1,5 @@
 ---
-title: About Me
+title: About
 menu:
     main: 
         weight: 5
@@ -11,7 +11,7 @@ comments: false
 
 <div class="about-page">
 
-## 👋 Hello, I'm Mao Song (毛松)
+## Hello, I'm Mao Song (毛松)
 
 <div class="intro-section">
 
@@ -21,7 +21,7 @@ I am a researcher at [**Shanghai Artificial Intelligence Laboratory (Shanghai AI
 
 ---
 
-## 🎓 Academic Background
+## Academic Background
 
 <div class="education-section">
 
@@ -34,23 +34,23 @@ I am a researcher at [**Shanghai Artificial Intelligence Laboratory (Shanghai AI
 
 ---
 
-## 🔬 Research Interests
+## Research Interests
 
 <div class="research-section">
 
 My research focuses on the intersection of language and vision, with particular emphasis on:
 
-- 🤖 **Large Language Models (LLMs)** - Advancing the capabilities of language understanding and generation
-- 🎨 **Multimodal Large Language Models (MLLMs)** - Bridging vision and language for unified AI systems
-- 🧠 **Reasoning Models** - Developing systems capable of complex logical reasoning
-- 📊 **Mathematical AI** - Exploring AI applications in mathematical problem-solving
-- 🔄 **Unified Understanding & Generation** - Creating models that seamlessly integrate comprehension and creation
+- **Large Language Models (LLMs)** - Advancing the capabilities of language understanding and generation
+- **Multimodal Large Language Models (MLLMs)** - Bridging vision and language for unified AI systems
+- **Reasoning Models** - Developing systems capable of complex logical reasoning
+- **Mathematical AI** - Exploring AI applications in mathematical problem-solving
+- **Unified Understanding & Generation** - Creating models that seamlessly integrate comprehension and creation
 
 </div>
 
 ---
 
-## 📫 Get in Touch
+## Get in Touch
 
 <div class="contact-section">
 
@@ -64,7 +64,7 @@ I'm always excited to discuss research collaborations, innovative ideas, or pote
 
 ---
 
-## 🌐 Find Me Online
+## Find Me Online
 
 <div class="social-links-section">
 
@@ -106,22 +106,38 @@ I'm always excited to discuss research collaborations, innovative ideas, or pote
   </div>
 </a>
 
+<div class="social-card wechat-card">
+  <div class="social-icon">
+    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M8.691 2.188C3.891 2.188 0 5.476 0 9.53c0 2.212 1.17 4.203 3.002 5.55a.59.59 0 0 1 .213.665l-.39 1.48c-.019.07-.048.141-.048.213 0 .163.13.295.29.295a.326.326 0 0 0 .167-.054l1.903-1.114a.864.864 0 0 1 .717-.098 10.16 10.16 0 0 0 2.837.403c.276 0 .543-.027.811-.05-.857-2.578.157-4.972 1.932-6.446 1.703-1.415 3.882-1.98 5.853-1.838-.576-3.583-4.196-6.348-8.596-6.348zM5.785 5.991c.642 0 1.162.529 1.162 1.18a1.17 1.17 0 0 1-1.162 1.178A1.17 1.17 0 0 1 4.623 7.17c0-.651.52-1.18 1.162-1.18zm5.813 0c.642 0 1.162.529 1.162 1.18a1.17 1.17 0 0 1-1.162 1.178 1.17 1.17 0 0 1-1.162-1.178c0-.651.52-1.18 1.162-1.18zm5.34 2.867c-1.797-.052-3.746.512-5.28 1.786-1.72 1.428-2.687 3.72-1.78 6.22.942 2.453 3.666 4.229 6.884 4.229.826 0 1.622-.12 2.361-.336a.722.722 0 0 1 .598.082l1.584.926a.272.272 0 0 0 .14.047c.134 0 .24-.111.24-.247 0-.06-.023-.12-.038-.177l-.327-1.233a.582.582 0 0 1 .166-.555c1.548-1.18 2.485-2.87 2.485-4.716 0-3.503-3.161-6.026-6.799-6.026h-.234zm-.24 1.66c.567 0 1.027.467 1.027 1.042 0 .573-.46 1.04-1.027 1.04-.566 0-1.027-.467-1.027-1.04 0-.575.461-1.041 1.027-1.041zm4.81 0c.567 0 1.027.467 1.027 1.042 0 .573-.46 1.04-1.027 1.04-.565 0-1.027-.467-1.027-1.04 0-.575.462-1.041 1.027-1.041z"/>
+    </svg>
+  </div>
+  <div class="social-info">
+    <h3>WeChat Official Account</h3>
+    <p>Scan QR code to follow</p>
+  </div>
+  <div class="wechat-qr-popup">
+    <img src="wechat_avatar.jpg" alt="WeChat QR Code" />
+    <p>Scan with WeChat</p>
+  </div>
+</div>
+
 </div>
 
 </div>
 
 ---
 
-## 💡 About This Blog
+## About This Blog
 
 <div class="blog-info-section">
 
 This blog serves as my digital garden where I share insights, research notes, and explorations in the field of artificial intelligence. Here you'll find:
 
-- 📝 **Technical Deep Dives** - In-depth analyses of recent papers and models
-- 🎯 **Research Notes** - Thoughts and observations from my research journey
-- 🛠️ **Practical Guides** - Tutorials and implementation details
-- 💭 **Reflections** - Perspectives on AI trends and future directions
+- **Technical Deep Dives** - In-depth analyses of recent papers and models
+- **Research Notes** - Thoughts and observations from my research journey
+- **Practical Guides** - Tutorials and implementation details
+- **Reflections** - Perspectives on AI trends and future directions
 
 I occasionally create educational content on [Bilibili](https://b23.tv/a0Bb9Z1) to make complex AI concepts more accessible. Feel free to check it out and share your thoughts!
 
