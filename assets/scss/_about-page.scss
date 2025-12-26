@@ -1,0 +1,397 @@
+/*
+    About Page Custom Styles
+*/
+
+.about-page {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+    
+    // Main heading styling
+    h2 {
+        font-size: 2.2rem;
+        font-weight: 700;
+        margin-top: 2.5rem;
+        margin-bottom: 1.5rem;
+        color: var(--card-text-color-main);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        
+        &:first-of-type {
+            margin-top: 0;
+        }
+    }
+    
+    // Intro section with gradient background
+    .intro-section {
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%);
+        border-left: 4px solid var(--accent-color);
+        padding: 1.5rem 2rem;
+        border-radius: 12px;
+        margin: 2rem 0;
+        font-size: 1.15rem;
+        line-height: 1.8;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        
+        strong {
+            color: var(--accent-color);
+            font-weight: 600;
+        }
+    }
+    
+    // Education section
+    .education-section {
+        ul {
+            list-style: none;
+            padding: 0;
+            
+            li {
+                padding: 1rem 1.5rem;
+                margin-bottom: 1rem;
+                background: var(--card-background);
+                border: 2px solid var(--border-color);
+                border-radius: 12px;
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                position: relative;
+                padding-left: 3rem;
+                
+                &::before {
+                    content: '🎓';
+                    position: absolute;
+                    left: 1rem;
+                    font-size: 1.5rem;
+                }
+                
+                &:hover {
+                    transform: translateX(8px);
+                    border-color: var(--accent-color);
+                    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+                }
+                
+                strong {
+                    color: var(--accent-color);
+                    font-size: 1.1rem;
+                }
+            }
+        }
+    }
+    
+    // Research interests section
+    .research-section {
+        p {
+            margin-bottom: 1.5rem;
+            font-size: 1.1rem;
+            line-height: 1.8;
+        }
+        
+        ul {
+            list-style: none;
+            padding: 0;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1rem;
+            
+            li {
+                padding: 1.2rem 1.5rem;
+                background: var(--card-background);
+                border: 2px solid var(--border-color);
+                border-radius: 12px;
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+                
+                &:hover {
+                    transform: translateY(-4px);
+                    border-color: var(--accent-color);
+                    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+                }
+                
+                strong {
+                    display: block;
+                    color: var(--accent-color);
+                    font-size: 1.05rem;
+                    margin-bottom: 0.3rem;
+                }
+            }
+        }
+    }
+    
+    // Contact section
+    .contact-section {
+        background: linear-gradient(135deg, rgba(79, 172, 254, 0.08) 0%, rgba(0, 242, 254, 0.08) 100%);
+        padding: 2rem 2.5rem;
+        border-radius: 16px;
+        border: 2px solid var(--border-color);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+        
+        p {
+            font-size: 1.1rem;
+            line-height: 1.7;
+            margin-bottom: 1.5rem;
+        }
+        
+        strong {
+            display: inline-block;
+            min-width: 120px;
+            color: var(--card-text-color-main);
+            font-weight: 600;
+        }
+        
+        a {
+            color: var(--accent-color);
+            font-weight: 500;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            
+            &:hover {
+                color: var(--accent-color-darker, var(--accent-color));
+                text-decoration: underline;
+            }
+        }
+    }
+    
+    // Social links grid
+    .social-links-section {
+        margin: 2rem 0;
+    }
+    
+    .social-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-top: 2rem;
+    }
+    
+    .social-card {
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+        padding: 1.5rem 2rem;
+        background: var(--card-background);
+        border: 2px solid var(--border-color);
+        border-radius: 16px;
+        text-decoration: none;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        position: relative;
+        overflow: hidden;
+        
+        &::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            transition: left 0.4s ease;
+            z-index: 0;
+        }
+        
+        &:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
+            
+            &::before {
+                left: 0;
+            }
+            
+            .social-icon {
+                transform: scale(1.1) rotate(5deg);
+                
+                svg {
+                    color: white;
+                }
+            }
+            
+            .social-info {
+                h3, p {
+                    color: white;
+                }
+            }
+        }
+        
+        .social-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            flex-shrink: 0;
+            z-index: 1;
+            
+            svg {
+                transition: color 0.3s ease;
+            }
+        }
+        
+        .social-info {
+            flex: 1;
+            z-index: 1;
+            
+            h3 {
+                font-size: 1.3rem;
+                font-weight: 600;
+                margin: 0 0 0.3rem 0;
+                color: var(--card-text-color-main);
+                transition: color 0.3s ease;
+            }
+            
+            p {
+                font-size: 0.95rem;
+                margin: 0;
+                color: var(--card-text-color-secondary);
+                transition: color 0.3s ease;
+            }
+        }
+        
+        // GitHub card
+        &.github-card {
+            .social-icon {
+                background: rgba(36, 41, 46, 0.1);
+                
+                svg {
+                    color: #24292e;
+                }
+            }
+            
+            &::before {
+                background: linear-gradient(135deg, #24292e 0%, #1a1d21 100%);
+            }
+            
+            &:hover {
+                border-color: #24292e;
+            }
+        }
+        
+        // Google Scholar card
+        &.scholar-card {
+            .social-icon {
+                background: rgba(66, 133, 244, 0.1);
+                
+                svg {
+                    color: #4285f4;
+                }
+            }
+            
+            &::before {
+                background: linear-gradient(135deg, #4285f4 0%, #3367d6 100%);
+            }
+            
+            &:hover {
+                border-color: #4285f4;
+            }
+        }
+        
+        // Bilibili card
+        &.bilibili-card {
+            .social-icon {
+                background: rgba(251, 114, 153, 0.1);
+                
+                svg {
+                    color: #fb7299;
+                }
+            }
+            
+            &::before {
+                background: linear-gradient(135deg, #fb7299 0%, #f25d8e 100%);
+            }
+            
+            &:hover {
+                border-color: #fb7299;
+            }
+        }
+    }
+    
+    // Blog info section
+    .blog-info-section {
+        background: linear-gradient(135deg, rgba(240, 147, 251, 0.08) 0%, rgba(245, 87, 108, 0.08) 100%);
+        padding: 2rem 2.5rem;
+        border-radius: 16px;
+        border-left: 4px solid var(--accent-color);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        
+        p {
+            font-size: 1.1rem;
+            line-height: 1.8;
+            margin-bottom: 1.5rem;
+        }
+        
+        ul {
+            list-style: none;
+            padding: 0;
+            
+            li {
+                padding: 0.8rem 0;
+                padding-left: 2rem;
+                position: relative;
+                font-size: 1.05rem;
+                line-height: 1.7;
+                
+                &::before {
+                    position: absolute;
+                    left: 0;
+                    font-size: 1.2rem;
+                }
+                
+                strong {
+                    color: var(--accent-color);
+                    font-weight: 600;
+                }
+            }
+        }
+    }
+    
+    // Horizontal dividers
+    hr {
+        border: none;
+        height: 2px;
+        background: linear-gradient(90deg, transparent 0%, var(--border-color) 50%, transparent 100%);
+        margin: 3rem 0;
+    }
+}
+
+// Mobile responsiveness for About page
+@media (max-width: 768px) {
+    .about-page {
+        padding: 1rem 0.5rem;
+        
+        h2 {
+            font-size: 1.8rem;
+        }
+        
+        .intro-section {
+            padding: 1.2rem 1.5rem;
+            font-size: 1.05rem;
+        }
+        
+        .social-grid {
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+        
+        .social-card {
+            padding: 1.2rem 1.5rem;
+            
+            .social-icon {
+                width: 50px;
+                height: 50px;
+            }
+            
+            .social-info h3 {
+                font-size: 1.15rem;
+            }
+        }
+        
+        .contact-section,
+        .blog-info-section {
+            padding: 1.5rem 1.8rem;
+        }
+        
+        .research-section ul {
+            grid-template-columns: 1fr;
+        }
+    }
+}
+
