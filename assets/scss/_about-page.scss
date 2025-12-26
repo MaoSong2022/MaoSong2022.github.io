@@ -51,70 +51,42 @@
         }
     }
     
-    // Education section
     .education-section {
         ul {
             list-style: none;
             padding: 0;
             margin: 0;
-            
+    
             li {
                 padding: 1.2rem 1.5rem;
-                margin-bottom: 1rem;
+                margin-bottom: 1rem; 
                 background: var(--card-background);
                 border: 2px solid var(--border-color);
                 border-radius: 12px;
-                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-                
-                &:hover {
-                    transform: translateX(6px);
-                    border-color: var(--accent-color);
-                    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
-                }
-                
+                /* ... keep existing transition/box-shadow ... */
+    
                 strong {
                     display: block;
                     color: var(--accent-color);
-                    font-size: 1.1rem;
-                    font-weight: 600;
-                    margin-bottom: 0.5rem;
+                    font-size: 0.9rem; 
+                    margin-bottom: 0.2rem; 
                 }
-                
-                a {
-                    color: var(--card-text-color-main);
-                    text-decoration: none;
-                    transition: color 0.2s ease;
-                    
-                    &:hover {
-                        color: var(--accent-color);
-                        text-decoration: none;
-                    }
-                }
-                
-                // Nested list for supervisor info
+    
+                // Target the nested list specifically
                 ul {
-                    margin-top: 0.5rem;
-                    padding-left: 1.5rem;
-                    
+                    margin-top: 0.2rem; 
+                    padding-left: 0; 
+    
                     li {
-                        padding: 0.3rem 0;
-                        margin-bottom: 0;
+                        padding: 0; 
+                        margin-bottom: 0; 
                         background: transparent;
                         border: none;
                         box-shadow: none;
                         font-size: 0.95rem;
-                        color: var(--card-text-color-secondary);
-                        
+    
                         &:hover {
-                            transform: none;
-                            box-shadow: none;
-                        }
-                        
-                        &::before {
-                            content: '•';
-                            margin-right: 0.5rem;
-                            color: var(--accent-color);
+                            transform: none; 
                         }
                     }
                 }
