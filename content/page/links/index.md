@@ -11,11 +11,11 @@ comments: false
 
 <div class="about-page">
 
-## Hello, I'm Mao Song (毛松)
+## Introduction
 
 <div class="intro-section">
 
-I am a researcher at [**Shanghai Artificial Intelligence Laboratory (Shanghai AI Lab)**](https://www.shlab.org.cn/), where I focus on pushing the boundaries of artificial intelligence through cutting-edge research in **Large Language Models (LLMs)** and **Multimodal Large Language Models (MLLMs)**.
+Mao Song (毛松) is a researcher at [**Shanghai Artificial Intelligence Laboratory (Shanghai AI Lab)**](https://www.shlab.org.cn/), where I focus on pushing the boundaries of artificial intelligence through cutting-edge research in **Large Language Models (LLMs)** and **Multimodal Large Language Models (MLLMs)**.
 
 </div>
 
@@ -70,6 +70,18 @@ I'm always excited to discuss research collaborations, innovative ideas, or pote
 
 <div class="social-grid">
 
+<a href="https://scholar.google.com/citations?user=BaqGkQQAAAAJ" class="social-card scholar-card" target="_blank" rel="noopener">
+  <div class="social-icon">
+    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 24a7 7 0 1 1 0-14 7 7 0 0 1 0 14zm0-24L0 9.5l4.838 3.94A8 8 0 0 1 12 9a8 8 0 0 1 7.162 4.44L24 9.5z"/>
+    </svg>
+  </div>
+  <div class="social-info">
+    <h3>Google Scholar</h3>
+    <p>Publications & citations</p>
+  </div>
+</a>
+
 <a href="https://github.com/MaoSong2022" class="social-card github-card" target="_blank" rel="noopener">
   <div class="social-icon">
     <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
@@ -82,17 +94,7 @@ I'm always excited to discuss research collaborations, innovative ideas, or pote
   </div>
 </a>
 
-<a href="https://scholar.google.com/citations?user=BaqGkQQAAAAJ" class="social-card scholar-card" target="_blank" rel="noopener">
-  <div class="social-icon">
-    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M12 24a7 7 0 1 1 0-14 7 7 0 0 1 0 14zm0-24L0 9.5l4.838 3.94A8 8 0 0 1 12 9a8 8 0 0 1 7.162 4.44L24 9.5z"/>
-    </svg>
-  </div>
-  <div class="social-info">
-    <h3>Google Scholar</h3>
-    <p>Publications & citations</p>
-  </div>
-</a>
+
 
 <a href="https://b23.tv/a0Bb9Z1" class="social-card bilibili-card" target="_blank" rel="noopener">
   <div class="social-icon">
