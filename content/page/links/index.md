@@ -15,7 +15,7 @@ comments: false
 
 <div class="intro-section">
 
-Mao Song (毛松) is a researcher at [**Shanghai Artificial Intelligence Laboratory (Shanghai AI Lab, 上海人工智能实验室)**](https://www.shlab.org.cn/), where I focus on pushing the boundaries of artificial intelligence through cutting-edge research in **Large Language Models (LLMs)** and **Multimodal Large Language Models (MLLMs)**.
+**Mao Song (毛松)** is a researcher at [**Shanghai Artificial Intelligence Laboratory (Shanghai AI Lab, 上海人工智能实验室)**](https://www.shlab.org.cn/), where he focuses on pushing the boundaries of artificial intelligence through cutting-edge research in **Large Language Models (LLMs)** and **Multimodal Large Language Models (MLLMs)**. He also goes by the name **"以往的月"** on platforms such as Zhihu, Bilibili, and WeChat Official Account.
 
 </div>
 
