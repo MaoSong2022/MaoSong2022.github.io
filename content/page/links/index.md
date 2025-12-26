@@ -118,7 +118,7 @@ I'm always excited to discuss research collaborations, innovative ideas, or pote
     <p>Scan QR code to follow</p>
   </div>
   <div class="wechat-qr-popup">
-    <img src="wechat_avatar.jpg" alt="WeChat QR Code" />
+    <img src="/wechat_avatar.jpg" alt="WeChat QR Code" />
     <p>Scan with WeChat</p>
   </div>
 </div>

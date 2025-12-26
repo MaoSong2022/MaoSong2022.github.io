@@ -370,6 +370,7 @@
             
             // QR Code Popup
             .wechat-qr-popup {
+                background-image: url('/wechat_avatar.jpg');
                 position: absolute;
                 top: 50%;
                 left: calc(100% + 20px);
