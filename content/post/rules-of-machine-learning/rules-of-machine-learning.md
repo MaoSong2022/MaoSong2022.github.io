@@ -4,7 +4,7 @@ description: Advice for machine learning
 date: 2024-04-13 19:57:47+0800
 
 categories:
-    - machine learning
+    - Machine Learning 
 ---
 
 Best practice for machine learning.

@@ -3,10 +3,10 @@ title: Understanding Sigmoid Loss in SigLip
 date: 2025-03-28 14:55:50+0800
 description: Understanding Sigmoid Loss in SigLip
 tags: 
-    - machine learning
-    - sigmoid loss
+    - loss
 categories: 
     - MLLM
+    - Machine Learning 
 math: true
 ---
 

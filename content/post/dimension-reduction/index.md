@@ -6,7 +6,7 @@ date: 2024-05-02 13:13:12+0800
 tags: 
     - Dimension Reduction
 categories:
-    - Machine learning
+    - Machine Learning
 math: true
 ---
 
