@@ -5,9 +5,9 @@ date: 2025-05-12 10:15:17+0800
 math: true
 tags: 
     - distributed training
-    - tutorial
 categories:
     - Infra
+    - Tutorial
 ---
 
 > 说明：本文参考了 [nanotron/ultrascale-playbook](https://huggingface.co/spaces/nanotron/ultrascale-playbook) 和 [Colossal-AI Concepts](https://colossalai.org/docs/concepts/distributed_training)

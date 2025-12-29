@@ -2,12 +2,11 @@
 title: Notes on Position encoding
 description: 从Absolute position encoding到RoPE
 date: 2025-05-19 10:46:39+0800
-lastmod: 2025-07-04 18:43:05+0800
 tags: 
     - position encoding
-    - tutorial
 categories:
-    - LLM 
+    - LLM
+    - Tutorial
 math: true
 ---
 

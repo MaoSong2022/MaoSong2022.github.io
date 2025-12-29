@@ -5,10 +5,12 @@ date: 2025-10-15 16:33:39+0800
 lastmod: 2025-12-24 15:10:55+0800
 math: true
 tags: 
-    - tutorial
+    - Transformer
+    - Scaling Law
 categories:
     - LLM
     - Infra
+    - Tutorial
 ---
 
 

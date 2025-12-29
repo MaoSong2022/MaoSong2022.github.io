@@ -6,10 +6,10 @@ lastmod: 2025-12-11 16:10:08+0800
 math: true
 featured: true
 tags: 
-    - tutorial
     - MoE
 categories:
     - LLM
+    - Tutorial
 ---
 
 我们在本文中探讨关于 load balancing loss 的定义，性质和推广

@@ -2,14 +2,14 @@
 title: MoE tutorial
 description: 本 blog 详细介绍了 MoE 模型的一些关键设计与相关实验结果，为 MoE 模型的学习提供基础。
 date: 2025-12-13 16:04:04+0800
-lastmod: 2025-12-13 16:04:04+0800
 math: true
 featured: true
 tags: 
-    - tutorial
     - MoE
+    - Architecture
 categories:
     - LLM
+    - Tutorial
 ---
 
 

@@ -6,10 +6,10 @@ lastmod: 2025-12-24 15:12:10+0800
 math: true
 tags: 
     - distributed training
-    - tutorial
 categories:
     - LLM
     - Infra
+    - Tutorial
 ---
 
 

@@ -5,9 +5,10 @@ date: 2025-06-29 11:40:39+0800
 tags:
   - cs336
   - transformer
-  - tutorial
+
 categories:
     - LLM
+    - Tutorial
 math: true
 ---
 
