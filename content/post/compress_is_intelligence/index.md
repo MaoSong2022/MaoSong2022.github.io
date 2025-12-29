@@ -5,9 +5,10 @@ date: 2025-03-06 17:57:51+0800
 lastmod: 2025-07-15 16:36:09+0800
 math: true
 tags: 
-    - math
+    - Compression
 categories:
     - LLM
+    - Math
 ---
 
 我们知道，基于decoder-only transformer的LLM的训练目标是最小化next-token-prediction loss，即给定sequence $x=(x_1,\dots, x_n)\in D$，我们的目标为求解以下优化问题

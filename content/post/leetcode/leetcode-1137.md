@@ -3,10 +3,10 @@ title: 1137. N-th Tribonacci Number
 date: 2024-04-24 18:53:26+0800
 description: Sum of paths from root to leaf
 tags: 
-    - Math
     - DP
 categories:
     - LeetCode
+    - Math
 math: true
 ---
 

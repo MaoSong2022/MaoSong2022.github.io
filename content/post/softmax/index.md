@@ -4,10 +4,10 @@ description: 本文介绍了 softmax 函数的性质，实现和应用，方便�
 date: 2025-12-27 16:39:53+0800
 math: true
 tags: 
-    - Small LLM
-    - Reasoning
+    - activation
 categories:
     - Machine Learning 
+    - Math
 ---
 
 
