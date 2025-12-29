@@ -154,7 +154,7 @@ m(x) &= \max(m(x^{(1)}), m(x^{(2)}))， f(x) = [e^{m(x^{(1)})-m(x)}f(x^{(1)}),e^
 \end{aligned}
 $$
 
-因此，如果我们额外记录 $m(x)$ 以及 $\ell(x)$ 这两个量，那么我们可以每次仅计算 softmax 的一个 block
+因此，如果我们额外记录 $m(x)$ 以及 $\ell(x)$ 这两个量，那么我们可以每次仅计算 softmax 的一个 block. 具体细节见[softmax](https://maosong.website/p/notes-on-softmax/).
 
 #### Recomputation
 
@@ -341,7 +341,7 @@ $$
 
 计算的空间复杂度也是要 $\mathcal{O}(N)$ 的
 
-注意到 $P_{i:}=\mathrm{softmax}(s_{i:})$, 且 $y=\mathrm{softmax}(x)$ 的 Jacobian 是 $\mathrm{diag}(y)-yy^T$ (推导过程见 [softmax](softmax.md)), 我们有
+注意到 $P_{i:}=\mathrm{softmax}(s_{i:})$, 且 $y=\mathrm{softmax}(x)$ 的 Jacobian 是 $\mathrm{diag}(y)-yy^T$ (推导过程见 [softmax](https://maosong.website/p/notes-on-softmax/)), 我们有
 
 $$
 dS_{i:} = (\mathrm{diag}(P_{i:})-P_{i:}P_{i:}^T)dP_{i:} = P_{i:} \odot dP_{i:} - (P_{i:}^TdP_{i:})P_{i:}
