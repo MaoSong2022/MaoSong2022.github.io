@@ -85,7 +85,8 @@ $$
 我们定义 smooth approximation 为
 
 > Definition
-> 如果 $\lim_{\tau\to0^+}\mathrm{softmax}(\mathbf{z};\tau)=\mathbb{1}_{\arg\max(\mathbf{z})}$, 则我们说 $\mathrm{softmax}(\cdot;\tau)$ 是 $\arg\max$ 的光滑近似，特别地，$\mathrm{softmax}(\cdot)$ 是 $\arg\max$ 的光滑近似。这里 $\arg\max(\mathbf{z})=\arg\max_k z_k$ 是最大值的索引，$\mathbb{1}\in\{0,1\}^K$ 是示性函数 (indicator function), 即 $\mathbb{1}_{\arg\max(\mathbf{z})}[i]=1$ 当且仅当 $z_i=\max_jz_j$.
+> 如果 $\lim_{\tau\to0^+}\mathrm{softmax}(\mathbf{z};\tau)=\mathbb{1}_{\arg\max(\mathbf{z})}$, 则我们说 $\mathrm{softmax}(\cdot;\tau)$ 是 $\arg\max$ 的光滑近似，特别地，$\mathrm{softmax}(\cdot)$ 是 $\arg\max$ 的光滑近似。
+> 这里 $\arg\max(\mathbf{z})=\arg\max_k z_k$ 是最大值的索引， $\mathbb{1}\in\{0,1\}^K$ 是示性函数 (indicator function), 即 $\mathbb{1}_{\arg\max(\mathbf{z})}[i]=1$ 当且仅当 $z_i=\max_jz_j$.
 
 我们下面来进行证明。我们不妨假设最大值唯一，其 index 为 $m$, 即 $z_m = \max_i z_i$. 由前面的性质，我们有：
 
