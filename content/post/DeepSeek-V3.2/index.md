@@ -15,7 +15,7 @@ categories:
 
 ## Introduction
 
-作者首先回顾了开源模型如 [MiniMax-01](MiniMax-01.md), [Kimi-k2](https://maosong.website/p/notes-on-kimi-k2/), [Qwen3](https://maosong.website/p/notes-on-qwen3/), [GLM-4.5](https://maosong.website/p/notes-on-glm-4.5/) 和闭源模型的进展，作者指出，现在的开源模型和闭源模型在表现上仍然存在较大差距。作者认为这种差距主要是由于三个原因：
+作者首先回顾了开源模型如 [MiniMax-01](https://maosong.website/p/notes-on-minimax-01/), [Kimi-k2](https://maosong.website/p/notes-on-kimi-k2/), [Qwen3](https://maosong.website/p/notes-on-qwen3/), [GLM-4.5](https://maosong.website/p/notes-on-glm-4.5/) 和闭源模型的进展，作者指出，现在的开源模型和闭源模型在表现上仍然存在较大差距。作者认为这种差距主要是由于三个原因：
 
 1. [Transformer](Transformer.md) 提出的 softmax attention 在处理长文本时效率非常低
 2. 已有的开源模型在 post-training 阶段使用的算力不够

@@ -151,7 +151,7 @@ RNoPE 不同 layer 与不同 base frequency 产生的 attention score 分布如�
 
 作者提出了 RNope-SWA, 一个混合 NoPE, RoPE position embedding 和 sliding window attention 的 attention 机制。RNope-SWA 可以在保持模型表现的同时提高计算效率和降低 KV cache 占用。
 
-尽管本文和已有的工作如 YoCo, Jamba-1.5 和 MiniMax-01 均证明了混合 attention 架构的有效性。但是，目前对于其工作机制尚缺乏一个比较系统性的理解。作者认为这是一个需要探究的方向。另外，作者还认为如何更好的汇总上下文信息与位置信息也是一个可以探究的方向。
+尽管本文和已有的工作如 YoCo, Jamba-1.5 和 [MiniMax-01](https://maosong.website/p/notes-on-minimax-01/) 均证明了混合 attention 架构的有效性。但是，目前对于其工作机制尚缺乏一个比较系统性的理解。作者认为这是一个需要探究的方向。另外，作者还认为如何更好的汇总上下文信息与位置信息也是一个可以探究的方向。
 
 ## References
 
