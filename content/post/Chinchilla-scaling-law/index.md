@@ -2,10 +2,10 @@
 title: Chinchilla Scaling Law
 description: DeepMind 在 22 年 3 月探究了如何在给定算力下，决定最优的 model size 和 data size. 作者发现对于算力最优的场景，model size 和 dataset size 应该以相同的规模增长。基于这个 scaling law 作者提出了 Chinchilla, 一个 70B 的大语言模型，结果显示 Chinchilla 超过了其他更大 size 模型的表现。
 date: 2025-10-22 14:39:23+0800
-lastmod: 2025-10-22 14:39:23+0800
 math: true
 tags: 
     - scaling law
+    - Google
 categories:
     - LLM 
 ---
@@ -57,7 +57,7 @@ $$
 
 第一项代表了建模的误差，第二项代表了数据集充分大损失与模型参数之间的关系，第三项代表了当模型充分训练时，损失与数据集大小之间的关系。
 
-为了求解 $(A,B,E,\alpha,\beta)$, 作者基于训练收集到的数据 $L(N_i,D_i)$, 通过 L-BFGS 算法来最小化 Huber loss 进行求解，结果得到 $(A,B,E,\alpha,\beta)=(1.69, 406.4, 410.7, 0.34, 0.28)$.
+为了求解 $(A,B,E,\alpha,\beta)$, 作者基于训练收集到的数据 $L(N_i,D_i)$, 通过 L-BFGS 算法来最小化 Huber loss 进行求解，结果得到 $(A,B,E,\alpha,\beta)=( 406.4, 410.7, 1.69, 0.34, 0.28)$.
 
 将结果带入带上面的表达式中，然后求出梯度为 0 的点，就得到
 
