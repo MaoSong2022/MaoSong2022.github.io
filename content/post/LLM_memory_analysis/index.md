@@ -1,5 +1,5 @@
 ---
-title: LLM FLOPs Computation
+title: LLM Memory Computation
 description: 本文中，我们将介绍如何计算 LLM 在训练和推理过程中的内存需求以及简要介绍对应的优化方法。
 date: 2026-01-17 10:04:32+0800
 math: true
