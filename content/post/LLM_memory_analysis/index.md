@@ -5,6 +5,8 @@ date: 2026-01-17 10:04:32+0800
 math: true
 tags: 
     - Transformer
+    - Training
+    - Inference
 categories:
     - LLM
     - Infra
