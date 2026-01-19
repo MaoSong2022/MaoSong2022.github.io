@@ -1,5 +1,5 @@
 # Change baseurl before deploy
-baseurl = "https://maosong.website"
+baseurl = "https://maosong.website/"
 languageCode = "en"
 title = "Mao Song(毛松)'s Homepage"
 description = "Mao Song's technical blog covering machine learning, large language models (LLMs), deep learning research, and AI innovations."
