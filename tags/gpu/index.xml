@@ -1,0 +1,920 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>GPU on Mao Song(毛松)'s Homepage</title><link>https://maosong.website/tags/gpu/</link><description>Recent content in GPU on Mao Song(毛松)'s Homepage</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Wed, 14 Jan 2026 11:10:27 +0800</lastBuildDate><atom:link href="https://maosong.website/tags/gpu/index.xml" rel="self" type="application/rss+xml"/><item><title>Nvidia-GPU specs</title><link>https://maosong.website/p/nvidia-gpu-specs/</link><pubDate>Wed, 14 Jan 2026 11:09:19 +0800</pubDate><guid>https://maosong.website/p/nvidia-gpu-specs/</guid><description>&lt;h2 id="v100">&lt;a href="#v100" class="header-anchor">&lt;/a>V100
+&lt;/h2>&lt;h3 id="v100-关键改进">&lt;a href="#v100-%e5%85%b3%e9%94%ae%e6%94%b9%e8%bf%9b" class="header-anchor">&lt;/a>V100 关键改进
+&lt;/h3>&lt;ul>
+&lt;li>Volta architecture&lt;/li>
+&lt;li>SM architecture: 支持深度学习&lt;/li>
+&lt;li>2nd NVIDIA NVLink&lt;/li>
+&lt;li>HBM2 memory&lt;/li>
+&lt;li>Volta Multi-process Service&lt;/li>
+&lt;/ul>
+&lt;h3 id="v100-技术规格">&lt;a href="#v100-%e6%8a%80%e6%9c%af%e8%a7%84%e6%a0%bc" class="header-anchor">&lt;/a>V100 技术规格
+&lt;/h3>&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Tesla Product&lt;/th>
+&lt;th>Tesla K40&lt;/th>
+&lt;th>Tesla M40&lt;/th>
+&lt;th>Tesla P100&lt;/th>
+&lt;th>Tesla V100&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>GPU&lt;/td>
+&lt;td>GK180 (Kepler)&lt;/td>
+&lt;td>GM200 (Maxwell)&lt;/td>
+&lt;td>GP100 (Pascal)&lt;/td>
+&lt;td>GV100 (Volta)&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>SMs&lt;/td>
+&lt;td>15&lt;/td>
+&lt;td>24&lt;/td>
+&lt;td>56&lt;/td>
+&lt;td>80&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>TPCs&lt;/td>
+&lt;td>15&lt;/td>
+&lt;td>24&lt;/td>
+&lt;td>28&lt;/td>
+&lt;td>40&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>FP32 Cores / GPU&lt;/td>
+&lt;td>2880&lt;/td>
+&lt;td>3072&lt;/td>
+&lt;td>3584&lt;/td>
+&lt;td>5120&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>FP64 Cores / GPU&lt;/td>
+&lt;td>960&lt;/td>
+&lt;td>96&lt;/td>
+&lt;td>1792&lt;/td>
+&lt;td>2560&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Tensor Cores / GPU&lt;/td>
+&lt;td>NA&lt;/td>
+&lt;td>NA&lt;/td>
+&lt;td>NA&lt;/td>
+&lt;td>640&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>GPU Boost Clock&lt;/td>
+&lt;td>810/875 MHz&lt;/td>
+&lt;td>1114 MHz&lt;/td>
+&lt;td>1480 MHz&lt;/td>
+&lt;td>1530 MHz&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Peak FP32 TFLOPS²&lt;/td>
+&lt;td>5&lt;/td>
+&lt;td>6.8&lt;/td>
+&lt;td>10.6&lt;/td>
+&lt;td>15.7&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Peak FP64 TFLOPS²&lt;/td>
+&lt;td>1.7&lt;/td>
+&lt;td>.21&lt;/td>
+&lt;td>5.3&lt;/td>
+&lt;td>7.8&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Peak Tensor TFLOPS²&lt;/td>
+&lt;td>NA&lt;/td>
+&lt;td>NA&lt;/td>
+&lt;td>NA&lt;/td>
+&lt;td>125&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Memory Size&lt;/td>
+&lt;td>Up to 12 GB&lt;/td>
+&lt;td>Up to 24 GB&lt;/td>
+&lt;td>16 GB&lt;/td>
+&lt;td>16 GB&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Memory Interface&lt;/td>
+&lt;td>384-bit GDDR5&lt;/td>
+&lt;td>384-bit GDDR5&lt;/td>
+&lt;td>4096-bit HBM2&lt;/td>
+&lt;td>4096-bit HBM2&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>TDP&lt;/td>
+&lt;td>235 Watts&lt;/td>
+&lt;td>250 Watts&lt;/td>
+&lt;td>300 Watts&lt;/td>
+&lt;td>300 Watts&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Manufacturing Process&lt;/td>
+&lt;td>28 nm&lt;/td>
+&lt;td>28 nm&lt;/td>
+&lt;td>16 nm FinFET+&lt;/td>
+&lt;td>12 nm FFN&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>内存规格&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>GPU&lt;/th>
+&lt;th>Kepler GK180&lt;/th>
+&lt;th>Maxwell GM200&lt;/th>
+&lt;th>Pascal GP100&lt;/th>
+&lt;th>Volta GV100&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>Compute Capability&lt;/td>
+&lt;td>3.5&lt;/td>
+&lt;td>5.2&lt;/td>
+&lt;td>6.0&lt;/td>
+&lt;td>7.0&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Threads / Warp&lt;/td>
+&lt;td>32&lt;/td>
+&lt;td>32&lt;/td>
+&lt;td>32&lt;/td>
+&lt;td>32&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Max Warps / SM&lt;/td>
+&lt;td>64&lt;/td>
+&lt;td>64&lt;/td>
+&lt;td>64&lt;/td>
+&lt;td>64&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Max Threads / SM&lt;/td>
+&lt;td>2048&lt;/td>
+&lt;td>2048&lt;/td>
+&lt;td>2048&lt;/td>
+&lt;td>2048&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Max Thread Blocks / SM&lt;/td>
+&lt;td>32&lt;/td>
+&lt;td>32&lt;/td>
+&lt;td>32&lt;/td>
+&lt;td>32&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Max 32-bit Registers / SM&lt;/td>
+&lt;td>65536&lt;/td>
+&lt;td>65536&lt;/td>
+&lt;td>65536&lt;/td>
+&lt;td>65536&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Max Registers / Block&lt;/td>
+&lt;td>65536&lt;/td>
+&lt;td>65536&lt;/td>
+&lt;td>65536&lt;/td>
+&lt;td>65536&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Max Registers / Thread&lt;/td>
+&lt;td>255&lt;/td>
+&lt;td>255&lt;/td>
+&lt;td>255&lt;/td>
+&lt;td>255&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Max Thread Block Size&lt;/td>
+&lt;td>1024&lt;/td>
+&lt;td>1024&lt;/td>
+&lt;td>1024&lt;/td>
+&lt;td>1024&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>FP32 Cores / SM&lt;/td>
+&lt;td>192&lt;/td>
+&lt;td>128&lt;/td>
+&lt;td>64&lt;/td>
+&lt;td>64&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Ratio of SM Registers to FP32 Cores&lt;/td>
+&lt;td>341&lt;/td>
+&lt;td>512&lt;/td>
+&lt;td>1024&lt;/td>
+&lt;td>1024&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Shared Memory Size / SM&lt;/td>
+&lt;td>16 KB/32 KB/ 48 KB&lt;/td>
+&lt;td>96 KB&lt;/td>
+&lt;td>64 KB&lt;/td>
+&lt;td>Configurable up to 96 KB&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>系统规格&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Specification&lt;/th>
+&lt;th>DGX-1 (Tesla P100)&lt;/th>
+&lt;th>DGX-1 (Tesla V100)&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>GPU&lt;/td>
+&lt;td>8x Tesla P100 GPUs&lt;/td>
+&lt;td>8x Tesla V100 GPUs&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>TFLOPS&lt;/td>
+&lt;td>170 (GPU FP16) + 3 (CPU FP32)&lt;/td>
+&lt;td>1 (GPU Tensor PFLOP)&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>GPU Memory&lt;/td>
+&lt;td>16 GB per GPU / 128 GB per DGX-1 Node&lt;/td>
+&lt;td>16 GB or 32 GB per GPU / 128-256 GB per DGX-1 Node&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>CPU&lt;/td>
+&lt;td>Dual 20-core Intel® Xeon® E5-2698 v4&lt;/td>
+&lt;td>Dual 20-core Intel® Xeon® E5-2698 v4&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>FP32 CUDA Cores&lt;/td>
+&lt;td>28,672 Cores&lt;/td>
+&lt;td>40,960 Cores&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>System Memory&lt;/td>
+&lt;td>Up to 512 GB 2133 MHz DDR4 LRDIMM&lt;/td>
+&lt;td>Up to 512 GB 2133 MHz DDR4 LRDIMM&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Storage&lt;/td>
+&lt;td>4x 1.92 TB SSD RAID 0&lt;/td>
+&lt;td>4x 1.92 TB SSD RAID 0&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Network Interconnect&lt;/td>
+&lt;td>Dual 10 GbE, 4 IB EDR&lt;/td>
+&lt;td>Dual 10 GbE, 4 IB EDR&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>System Dimensions&lt;/td>
+&lt;td>866 D x 444 W x 131 H (mm)&lt;/td>
+&lt;td>866 D x 444 W x 131 H (mm)&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>System Weight&lt;/td>
+&lt;td>80 lbs&lt;/td>
+&lt;td>80 lbs&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Max Power TDP&lt;/td>
+&lt;td>3200 W&lt;/td>
+&lt;td>3200 W&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Operating Temp&lt;/td>
+&lt;td>10 - 35°C&lt;/td>
+&lt;td>10 - 35°C&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h2 id="a100">&lt;a href="#a100" class="header-anchor">&lt;/a>A100
+&lt;/h2>&lt;h3 id="a100-关键改进">&lt;a href="#a100-%e5%85%b3%e9%94%ae%e6%94%b9%e8%bf%9b" class="header-anchor">&lt;/a>A100 关键改进
+&lt;/h3>&lt;ul>
+&lt;li>Ampere 架构：使用 MIG 来将 A100 切分为更小的实例或者链接更多 GPU&lt;/li>
+&lt;li>Tensor Cores: 312 TFLOPs/s&lt;/li>
+&lt;li>NVLink: 更高的 throughput&lt;/li>
+&lt;li>MIG (multi-instance GPU): 一个 A100 可以切分为至多 7 个硬件层面隔离的实例&lt;/li>
+&lt;li>HBM2e: 更大的 HBM, 更快的 bandwidth, 更高的 DRAM 使用效率&lt;/li>
+&lt;li>structure sparsity: 稀疏运算可以带来 2 倍的算力提升&lt;/li>
+&lt;/ul>
+&lt;h3 id="a100-技术规格">&lt;a href="#a100-%e6%8a%80%e6%9c%af%e8%a7%84%e6%a0%bc" class="header-anchor">&lt;/a>A100 技术规格
+&lt;/h3>&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>&lt;/th>
+&lt;th>A100 80GB PCIe&lt;/th>
+&lt;th>A100 80GB SXM&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>FP64&lt;/td>
+&lt;td>9.7 TFLOPS&lt;/td>
+&lt;td>9.7 TFLOPS&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>FP64 Tensor Core&lt;/td>
+&lt;td>19.5 TFLOPS&lt;/td>
+&lt;td>19.5 TFLOPS&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>FP32&lt;/td>
+&lt;td>19.5 TFLOPS&lt;/td>
+&lt;td>19.5 TFLOPS&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Tensor Float 32 (TF32)&lt;/td>
+&lt;td>156 TFLOPS | 312 TFLOPS&lt;/td>
+&lt;td>156 TFLOPS | 312 TFLOPS*&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>BFLOAT16 Tensor Core&lt;/td>
+&lt;td>312 TFLOPS | 624 TFLOPS*&lt;/td>
+&lt;td>312 TFLOPS | 624 TFLOPS*&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>FP16 Tensor Core&lt;/td>
+&lt;td>312 TFLOPS | 624 TFLOPS*&lt;/td>
+&lt;td>312 TFLOPS | 624 TFLOPS*&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>INT8 Tensor Core&lt;/td>
+&lt;td>624 TOPS | 1248 TOPS*&lt;/td>
+&lt;td>624 TOPS | 1248 TOPS*&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>GPU Memory&lt;/td>
+&lt;td>80GB HBM2e&lt;/td>
+&lt;td>80GB HBM2e&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>GPU Memory Bandwidth&lt;/td>
+&lt;td>1,935 GB/s&lt;/td>
+&lt;td>2,039 GB/s&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Max Thermal Design Power (TDP)&lt;/td>
+&lt;td>300W&lt;/td>
+&lt;td>400W ***&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Multi-Instance GPU&lt;/td>
+&lt;td>Up to 7 MIGs @ 10GB&lt;/td>
+&lt;td>Up to 7 MIGs @ 10GB&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Form Factor&lt;/td>
+&lt;td>PCIe &lt;br>Dual-slot air-cooled or single-slot liquid-cooled&lt;/td>
+&lt;td>SXM&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Interconnect&lt;/td>
+&lt;td>NVIDIA® NVLink® Bridge &lt;br>for 2 GPUs: 600 GB/s ** &lt;br>PCIe Gen4: 64 GB/s&lt;/td>
+&lt;td>NVLink: 600 GB/s &lt;br>PCIe Gen4: 64 GB/s&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Server Options&lt;/td>
+&lt;td>Partner and NVIDIA-Certified Systems™ with 1-8 GPUs&lt;/td>
+&lt;td>NVIDIA HGX™ A100-Partner and NVIDIA-Certified Systems with 4,8, or 16 GPUs NVIDIA DGX™ A100 with 8 GPUs&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h2 id="h100">&lt;a href="#h100" class="header-anchor">&lt;/a>H100
+&lt;/h2>&lt;h3 id="h100-关键改进">&lt;a href="#h100-%e5%85%b3%e9%94%ae%e6%94%b9%e8%bf%9b" class="header-anchor">&lt;/a>H100 关键改进
+&lt;/h3>&lt;ul>
+&lt;li>Hopper 架构&lt;/li>
+&lt;li>Tensor Core: 更强的 tensor core&lt;/li>
+&lt;li>transformer engine: 加速基于 transformer 架构模型的训练&lt;/li>
+&lt;li>NVLink: 900GB/s 的 bandwidth&lt;/li>
+&lt;li>2nd MIG: 支持 multi-tenant, multi-user 使用&lt;/li>
+&lt;li>DPX: 基于 DPX 指令集加速动态规划算法&lt;/li>
+&lt;/ul>
+&lt;h3 id="h100-技术规格">&lt;a href="#h100-%e6%8a%80%e6%9c%af%e8%a7%84%e6%a0%bc" class="header-anchor">&lt;/a>H100 技术规格
+&lt;/h3>&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>&lt;/th>
+&lt;th>H100 SXM&lt;/th>
+&lt;th>H100 NVL&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>FP64&lt;/td>
+&lt;td>34 teraFLOPS&lt;/td>
+&lt;td>30 teraFLOPs&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>FP64 Tensor Core&lt;/td>
+&lt;td>67 teraFLOPS&lt;/td>
+&lt;td>60 teraFLOPs&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>FP32&lt;/td>
+&lt;td>67 teraFLOPS&lt;/td>
+&lt;td>60 teraFLOPs&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>TF32 Tensor Core*&lt;/td>
+&lt;td>989 teraFLOPS&lt;/td>
+&lt;td>835 teraFLOPs&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>BFLOAT16 Tensor Core*&lt;/td>
+&lt;td>1,979 teraFLOPS&lt;/td>
+&lt;td>1,671 teraFLOPS&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>FP16 Tensor Core*&lt;/td>
+&lt;td>1,979 teraFLOPS&lt;/td>
+&lt;td>1,671 teraFLOPS&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>FP8 Tensor Core*&lt;/td>
+&lt;td>3,958 teraFLOPS&lt;/td>
+&lt;td>3,341 teraFLOPS&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>INT8 Tensor Core*&lt;/td>
+&lt;td>3,958 teraFLOPS&lt;/td>
+&lt;td>3,341 teraFLOPS&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>GPU Memory&lt;/td>
+&lt;td>80GB&lt;/td>
+&lt;td>94GB&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>GPU Memory Bandwidth&lt;/td>
+&lt;td>3.35TB/s&lt;/td>
+&lt;td>3.9TB/s&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Decoders&lt;/td>
+&lt;td>7 NVDEC &lt;br>7 JPEG&lt;/td>
+&lt;td>7 NVDEC &lt;br>7 JPEG&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Max Thermal Design Power (TDP)&lt;/td>
+&lt;td>Up to 700W (configurable)&lt;/td>
+&lt;td>350-400W (configurable)&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Multi-Instance GPUs&lt;/td>
+&lt;td>Up to 7 MIGS @ 10GB each&lt;/td>
+&lt;td>Up to 7 MIGS @ 12GB each&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Form Factor&lt;/td>
+&lt;td>SXM&lt;/td>
+&lt;td>PCIe &lt;br>dual-slot air-cooled&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Interconnect&lt;/td>
+&lt;td>NVIDIA NVLink™: 900GB/s &lt;br>PCIe Gen5: 128GB/s&lt;/td>
+&lt;td>NVIDIA NVLink: 600GB/s &lt;br>PCIe Gen5: 128GB/s&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Server Options&lt;/td>
+&lt;td>NVIDIA HGX H100 Partner and NVIDIA- &lt;br>Certified Systems™ with 4 or 8 GPUs &lt;br>NVIDIA DGX H100 with 8 GPUs&lt;/td>
+&lt;td>Partner and NVIDIA-Certified Systems with 1–8 GPUs&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>NVIDIA AI Enterprise&lt;/td>
+&lt;td>Add-on&lt;/td>
+&lt;td>Included&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h2 id="h200">&lt;a href="#h200" class="header-anchor">&lt;/a>H200
+&lt;/h2>&lt;h3 id="h200-关键改进">&lt;a href="#h200-%e5%85%b3%e9%94%ae%e6%94%b9%e8%bf%9b" class="header-anchor">&lt;/a>H200 关键改进
+&lt;/h3>&lt;ul>
+&lt;li>更高的 HBM 内存和带宽&lt;/li>
+&lt;li>更高的 LLM inference 速度&lt;/li>
+&lt;/ul>
+&lt;h3 id="h200-技术规格">&lt;a href="#h200-%e6%8a%80%e6%9c%af%e8%a7%84%e6%a0%bc" class="header-anchor">&lt;/a>H200 技术规格
+&lt;/h3>&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>&lt;/th>
+&lt;th>H200 SXM&lt;/th>
+&lt;th>H200 NVL&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>FP64&lt;/td>
+&lt;td>34 teraFLOPS&lt;/td>
+&lt;td>30 teraFLOPs&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>FP64 Tensor Core&lt;/td>
+&lt;td>67 teraFLOPS&lt;/td>
+&lt;td>60 teraFLOPs&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>FP32&lt;/td>
+&lt;td>67 teraFLOPS&lt;/td>
+&lt;td>60 teraFLOPs&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>TF32 Tensor Core*&lt;/td>
+&lt;td>989 teraFLOPS&lt;/td>
+&lt;td>835 teraFLOPs&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>BFLOAT16 Tensor Core*&lt;/td>
+&lt;td>1,979 teraFLOPS&lt;/td>
+&lt;td>1,671 teraFLOPS&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>FP16 Tensor Core*&lt;/td>
+&lt;td>1,979 teraFLOPS&lt;/td>
+&lt;td>1,671 teraFLOPS&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>FP8 Tensor Core*&lt;/td>
+&lt;td>3,958 teraFLOPS&lt;/td>
+&lt;td>3,341 teraFLOPS&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>INT8 Tensor Core*&lt;/td>
+&lt;td>3,958 teraFLOPS&lt;/td>
+&lt;td>3,341 teraFLOPS&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>GPU Memory&lt;/td>
+&lt;td>&lt;strong>141GB&lt;/strong>&lt;/td>
+&lt;td>&lt;strong>141GB&lt;/strong>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>GPU Memory Bandwidth&lt;/td>
+&lt;td>&lt;strong>4.8TB/s&lt;/strong>&lt;/td>
+&lt;td>&lt;strong>4.8TB/s&lt;/strong>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Decoders&lt;/td>
+&lt;td>7 NVDEC &lt;br>7 JPEG&lt;/td>
+&lt;td>7 NVDEC &lt;br>7 JPEG&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Confidential Computing&lt;/td>
+&lt;td>Supported&lt;/td>
+&lt;td>Supported&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Max Thermal Design Power (TDP)&lt;/td>
+&lt;td>Up to 700W (configurable)&lt;/td>
+&lt;td>Up to &lt;strong>600W&lt;/strong> (configurable)&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Multi-Instance GPUs&lt;/td>
+&lt;td>Up to 7 MIGS @ &lt;strong>18GB&lt;/strong> each&lt;/td>
+&lt;td>Up to 7 MIGS @ &lt;strong>18GB&lt;/strong> each&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Form Factor&lt;/td>
+&lt;td>SXM&lt;/td>
+&lt;td>PCIe &lt;br>dual-slot air-cooled&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Interconnect&lt;/td>
+&lt;td>NVIDIA NVLink™: 900GB/s &lt;br>PCIe Gen5: 128GB/s&lt;/td>
+&lt;td>2- or 4-way NVIDIA NVLink bridge: ** 900GB/s** per GPU&lt;br>PCIe Gen5: 128GB/s&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Server Options&lt;/td>
+&lt;td>NVIDIA HGX H200 Partner and NVIDIA- &lt;br>Certified Systems™ with 4 or 8 GPUs&lt;/td>
+&lt;td>NVIDIA MGX™ H200 NVL partner and &lt;br>NVIDIA-Certified Systems with up to 8 GPUs&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>NVIDIA AI Enterprise&lt;/td>
+&lt;td>Add-on&lt;/td>
+&lt;td>Included&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>相比于 H100, H200 升级了 HBM 和 bandwidth&lt;/p>
+&lt;h2 id="b200">&lt;a href="#b200" class="header-anchor">&lt;/a>B200
+&lt;/h2>&lt;h3 id="b200-关键改进">&lt;a href="#b200-%e5%85%b3%e9%94%ae%e6%94%b9%e8%bf%9b" class="header-anchor">&lt;/a>B200 关键改进
+&lt;/h3>&lt;ul>
+&lt;li>blackwell 架构： GPU 之间的通信效率大幅度提升&lt;/li>
+&lt;li>Grace CPU: GPU 可以与 Grace CPu 之间达到 900GB/s 的 bidirectional bandwidth&lt;/li>
+&lt;li>5th NVIDIA NVLink: 可以链接 576 块 GPU 来支持计算，NVlink 的带宽可以达到 130TB/s&lt;/li>
+&lt;li>RAS engine: 自动识别故障来提高效率&lt;/li>
+&lt;li>NVIDIA networking&lt;/li>
+&lt;/ul>
+&lt;h3 id="b2100-技术规格">&lt;a href="#b2100-%e6%8a%80%e6%9c%af%e8%a7%84%e6%a0%bc" class="header-anchor">&lt;/a>B2100 技术规格
+&lt;/h3>&lt;p>system specification 如下&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Specification&lt;/th>
+&lt;th>GB200 NVL72&lt;/th>
+&lt;th>GB200 NVL4&lt;/th>
+&lt;th>HGX B200&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>NVIDIA Blackwell GPUs | Grace CPUs&lt;/td>
+&lt;td>72 | 36&lt;/td>
+&lt;td>4 | 2&lt;/td>
+&lt;td>8 | 0&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>CPU Cores&lt;/td>
+&lt;td>2,592 Arm® Neoverse V2 Cores&lt;/td>
+&lt;td>144 Arm Neoverse V2 Cores&lt;/td>
+&lt;td>-&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Total NVFP4 Tensor Core²&lt;/td>
+&lt;td>1,440 | 720 PFLOPS&lt;/td>
+&lt;td>80 | 40 PFLOPS&lt;/td>
+&lt;td>144 | 72 PFLOPS&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Total FP8/FP6 Tensor Core²&lt;/td>
+&lt;td>720 PFLOPS&lt;/td>
+&lt;td>40 PFLOPS&lt;/td>
+&lt;td>72 PFLOPS&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Total Fast Memory&lt;/td>
+&lt;td>31 TB&lt;/td>
+&lt;td>1.8 TB&lt;/td>
+&lt;td>1.4 TB&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Total Memory Bandwidth&lt;/td>
+&lt;td>576 TB/s&lt;/td>
+&lt;td>32 TB/s&lt;/td>
+&lt;td>62 TB/s&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Total NVLink Bandwidth&lt;/td>
+&lt;td>130 TB/s&lt;/td>
+&lt;td>7.2 TB/s&lt;/td>
+&lt;td>14.4 TB/s&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>individual specification 如下&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Specification&lt;/th>
+&lt;th>GB200 NVL72&lt;/th>
+&lt;th>GB200 NVL4&lt;/th>
+&lt;th>HGX B200&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>FP4 Tensor Core&lt;/td>
+&lt;td>20 PFLOPS&lt;/td>
+&lt;td>20 PFLOPS&lt;/td>
+&lt;td>18 PFLOPS&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>FP8/FP6 Tensor Core²&lt;/td>
+&lt;td>10 PFLOPS&lt;/td>
+&lt;td>10 PFLOPS&lt;/td>
+&lt;td>9 PFLOPS&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>INT8 Tensor Core²&lt;/td>
+&lt;td>10 POPS&lt;/td>
+&lt;td>10 POPS&lt;/td>
+&lt;td>9 POPS&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>FP16/BF16 Tensor Core²&lt;/td>
+&lt;td>5 PFLOPS&lt;/td>
+&lt;td>5 PFLOPS&lt;/td>
+&lt;td>4.5 PFLOPS&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>TF32 Tensor Core²&lt;/td>
+&lt;td>2.5 PFLOPS&lt;/td>
+&lt;td>2.5 PFLOPS&lt;/td>
+&lt;td>2.2 PFLOPS&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>FP32&lt;/td>
+&lt;td>80 TFLOPS&lt;/td>
+&lt;td>80 TFLOPS&lt;/td>
+&lt;td>75 TFLOPS&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>FP64 / FP64 Tensor Core&lt;/td>
+&lt;td>40 TFLOPS&lt;/td>
+&lt;td>40 TFLOPS&lt;/td>
+&lt;td>37 TFLOPS&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>GPU Memory &lt;br>Bandwidth&lt;/td>
+&lt;td>186 GB HBM3E &lt;br>8 TB/s&lt;/td>
+&lt;td>186 GB HBM3E &lt;br>8 TB/s&lt;/td>
+&lt;td>180 GB HBM3E &lt;br>7.7 TB/s&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Multi-Instance GPU (MIG)&lt;/td>
+&lt;td>-&lt;/td>
+&lt;td>7&lt;/td>
+&lt;td>-&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Decompression Engine&lt;/td>
+&lt;td>-&lt;/td>
+&lt;td>Yes&lt;/td>
+&lt;td>-&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Decoders&lt;/td>
+&lt;td>-&lt;/td>
+&lt;td>7 NVDEC³ &lt;br>7 nvJPEG&lt;/td>
+&lt;td>-&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Max Thermal Design Power (TDP)&lt;/td>
+&lt;td>Configurable up to 1,200 W&lt;/td>
+&lt;td>Configurable up to 1,200 W&lt;/td>
+&lt;td>Configurable up to 1,000 W&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Interconnect&lt;/td>
+&lt;td>-&lt;/td>
+&lt;td>Fifth-generation NVLink: 1.8 TB/s &lt;br>PCIe Gen5: 128 GB/s&lt;/td>
+&lt;td>-&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Server Options&lt;/td>
+&lt;td>NVIDIA GB200 NVL72 partner and NVIDIA-Certified Systems™ with 72 GPUs&lt;/td>
+&lt;td>NVIDIA MGX partner and NVIDIA-Certified Systems&lt;/td>
+&lt;td>NVIDIA HGX B200 partner and NVIDIA-Certified Systems with 8 GPUs&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h2 id="b300">&lt;a href="#b300" class="header-anchor">&lt;/a>B300
+&lt;/h2>&lt;h3 id="b300-关键改进">&lt;a href="#b300-%e5%85%b3%e9%94%ae%e6%94%b9%e8%bf%9b" class="header-anchor">&lt;/a>B300 关键改进
+&lt;/h3>&lt;ul>
+&lt;li>Blackwell 架构&lt;/li>
+&lt;li>AI reasoning inference: 支持 test-time scaling, 对 attention layer 和 FLOPs 都有加速&lt;/li>
+&lt;li>HBM3e: 支持更大的 batch size 和 throughput&lt;/li>
+&lt;li>ConnectX-8 SuperNIC, 一个 host2 个 ConnectX-8 设备，支持 800Gb/s 的 GPU 之间通信&lt;/li>
+&lt;li>Grace-CPU: 更强的表现和带宽&lt;/li>
+&lt;li>5th NVIDIA NVLink: 更高的通信效率&lt;/li>
+&lt;/ul>
+&lt;h3 id="b3100-技术规格">&lt;a href="#b3100-%e6%8a%80%e6%9c%af%e8%a7%84%e6%a0%bc" class="header-anchor">&lt;/a>B3100 技术规格
+&lt;/h3>&lt;p>system specification 如下&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>&lt;/th>
+&lt;th>GB300 NVL72&lt;/th>
+&lt;th>HGX B300&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>Blackwell Ultra GPUs| Grace CPUs&lt;/td>
+&lt;td>72 | 36&lt;/td>
+&lt;td>8 | 0&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>CPU Cores&lt;/td>
+&lt;td>2,592 Arm Neoverse V2 Cores&lt;/td>
+&lt;td>-&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Total FP4 Tensor Core&lt;/td>
+&lt;td>1 1,440 PFLOPS | 1,080 PFLOPS&lt;/td>
+&lt;td>144 PFLOPS | 108 PFLOPS&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Total FP8/FP6 Tensor Core&lt;/td>
+&lt;td>2 720 PFLOPS&lt;/td>
+&lt;td>72 PFLOPS&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Total Fast Memory&lt;/td>
+&lt;td>37 TB&lt;/td>
+&lt;td>2.1 TB&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Total Memory Bandwidth&lt;/td>
+&lt;td>576 TB/s&lt;/td>
+&lt;td>62 TB/s&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Total NVLink Switch Bandwidth&lt;/td>
+&lt;td>130 TB/s&lt;/td>
+&lt;td>14.4 TB/s&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>individual specification 如下&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>&lt;/th>
+&lt;th>GB300 NVL72&lt;/th>
+&lt;th>HGX B300&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>FP4 Tensor Core&lt;/td>
+&lt;td>20 PFLOPS | 15 PFLOPS&lt;/td>
+&lt;td>18 PFLOPS | 14 PFLOPS&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>FP8/FP6 Tensor Core2&lt;/td>
+&lt;td>10 PFLOPS&lt;/td>
+&lt;td>9 PFLOPS&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>INT8 Tensor Core2&lt;/td>
+&lt;td>330 TOPS&lt;/td>
+&lt;td>307 TOPS&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>FP16/BF16 Tensor Core&lt;/td>
+&lt;td>5 PFLOPS&lt;/td>
+&lt;td>4.5 PLFOPS&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>TF32 Tensor Core2&lt;/td>
+&lt;td>2.5 PFLOPS&lt;/td>
+&lt;td>2.2 PFLOPS&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>FP32&lt;/td>
+&lt;td>80 TFLOPS&lt;/td>
+&lt;td>75 TFLOPS&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>FP64/FP64 Tensor Core&lt;/td>
+&lt;td>1.3 TFLOPS&lt;/td>
+&lt;td>1.2 TFLOPS&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>GPU Memory | Bandwidth&lt;/td>
+&lt;td>279 GB HBM3E | 8 TB/s&lt;/td>
+&lt;td>270 GB HBM3E | 7.7 TB/s&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Multi-Instance GPU (MIG)&lt;/td>
+&lt;td>7&lt;/td>
+&lt;td>7&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Decompression Engine&lt;/td>
+&lt;td>Yes&lt;/td>
+&lt;td>Yes&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Decoders&lt;/td>
+&lt;td>7 NVDEC3 &lt;br>7 nvJPEG&lt;/td>
+&lt;td>7 NVDEC3 &lt;br>7 nvJPEG&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Max Thermal Design Power (TDP)&lt;/td>
+&lt;td>Configurable up to 1,400 W&lt;/td>
+&lt;td>Configurable up to 1,100 W&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Interconnect&lt;/td>
+&lt;td>Fifth-Generation NVLink: 1.8 TB/s &lt;br>PCIe Gen6: 256 GB/s&lt;/td>
+&lt;td>Fifth-Generation NVLink: 1.8 TB/s &lt;br>PCIe Gen6: 256 GB/s&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Server Options&lt;/td>
+&lt;td>NVIDIA GB300 NVL72 partner and &lt;br>NVIDIA-Certified Systems™&lt;/td>
+&lt;td>NVIDIA HGX B300 partner and &lt;br>NVIDIA-Certified Systems&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h2 id="references">&lt;a href="#references" class="header-anchor">&lt;/a>References
+&lt;/h2>&lt;ul>
+&lt;li>&lt;a class="link" href="https://images.nvidia.com/content/volta-architecture/pdf/volta-architecture-whitepaper.pdf" target="_blank" rel="noopener"
+>V100 white paper&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://www.nvidia.com/en-us/data-center/a100/" target="_blank" rel="noopener"
+>A100&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://resources.nvidia.com/en-us-hopper-architecture/nvidia-h100-tensor-c" target="_blank" rel="noopener"
+>Hopper Architecture&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://www.nvidia.com/en-us/data-center/h100/" target="_blank" rel="noopener"
+>H100&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://www.nvidia.com/en-us/data-center/h200/" target="_blank" rel="noopener"
+>H200&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://www.nvidia.com/en-us/data-center/gb200-nvl72/" target="_blank" rel="noopener"
+>B200&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://resources.nvidia.com/en-us-blackwell-architecture/blackwell-ultra-datasheet" target="_blank" rel="noopener"
+>B300&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://resources.nvidia.com/en-us-gpu-resources/blackwell-ultra-datasheet?lx=CPwSfP" target="_blank" rel="noopener"
+>blackwell&lt;/a>&lt;/li>
+&lt;/ul></description></item></channel></rss>
