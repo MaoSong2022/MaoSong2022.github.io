@@ -33,7 +33,7 @@ categories:
 
 作者主要介绍了 gating 和 attention sink 这两部分的工作。
 
-gating 早在 LSTM 和 GRU 使其就得到了广泛的运用，在 transformer 之后，相关的现行注意力也有应用，比如 [MiniMax-01](https://maosong.website/p/notes-on-minimax-01/) 所使用的 [Lightning Attention](Lightning%20Attention.md) 等，但是这些工作没有系统性探究 gating 背后的机制。
+gating 早在 LSTM 和 GRU 使其就得到了广泛的运用，在 transformer 之后，相关的现行注意力也有应用，比如 [MiniMax-01](https://maosong.website/p/notes-on-minimax-01/) 所使用的 Lightning Attention 等，但是这些工作没有系统性探究 gating 背后的机制。
 
 第二部分是 attention sink, attention sink 现象由 [StreamingLLM](https://maosong.website/p/notes-on-streamingllm/) 提出， 即模型会将相当一部分注意力权重方开始开始的几个 token 上。而本文提出的 gating 机制可以缓解 attention sink 现象。
 

@@ -16,7 +16,7 @@ categories:
 
 ## Introduction
 
-[Transformer](Transformer.md) 架构在 NLP 领域已经成为了事实上的标准。而在 CV 领域，目前还是 CNN 架构占据了主导。
+Transformer 架构在 NLP 领域已经成为了事实上的标准。而在 CV 领域，目前还是 CNN 架构占据了主导。
 
 在本文中，作者就探究是否可以应用 Transformer 架构来完成图像识别的任务。
 
@@ -30,7 +30,7 @@ ViT 的架构如下图所示
 
 为了能够处理图片，对于输入的图片 $x\in\mathbb{R}^{H\times W\times C}$,  其中 $(H,W)$ 是图片大小，$C$ 是 channel 的个数。作者将其展开为一个 2D patch 序列, $x_p\in\mathbb{R}^{N\times (P^2\times C)}$, 其中 $(P, P)$ 是 image patch 的大小，$N=HW/P^2$ 是 image patch 的的个数，也是 Transformer 输入 token 的个数，Transformer 的 hidden size 为 $D$, 作者使用了一个 linear layer 来将 image patch 转换为 Transformer 的输入。
 
-与 [BERT](BERT.md) 一致，作者使用了一个 `[class]` token 来作为输入 patch 序列的 embedding, 即 $z_0^0=x_{class}$, 其对应的输出 $z_L^0$ 作为该图片的表示。作者还使用了 1D 的 position encoding. 最终，ViT 表达式如下所示
+与 BERT 一致，作者使用了一个 `[class]` token 来作为输入 patch 序列的 embedding, 即 $z_0^0=x_{class}$, 其对应的输出 $z_L^0$ 作为该图片的表示。作者还使用了 1D 的 position encoding. 最终，ViT 表达式如下所示
 
 $$
 \begin{aligned}

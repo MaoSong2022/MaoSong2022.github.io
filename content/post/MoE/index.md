@@ -19,7 +19,7 @@ categories:
 
 ### Motivation
 
-现有大部分大语言模型均是基于 [Transformer](Transformer.md) 架构，[Kaplan scaling law](https://maosong.website/p/kaplan-scaling-law/) 通过实验说明，大语言模型的表现与算力，数据，模型参数量息息相关。但是，对于 dense 模型来说，我们提高模型参数量时，必须同时提高所使用的算力。这就限制了大模型的 scaling law.
+现有大部分大语言模型均是基于 Transformer 架构，[Kaplan scaling law](https://maosong.website/p/kaplan-scaling-law/) 通过实验说明，大语言模型的表现与算力，数据，模型参数量息息相关。但是，对于 dense 模型来说，我们提高模型参数量时，必须同时提高所使用的算力。这就限制了大模型的 scaling law.
 
 而 MoE 模型的解决方法为在计算时只激活部分参数，这样，我们就可以在同等激活参数量/算力下训练更大参数量的模型，从而达到更好地表现。
 
@@ -108,7 +108,7 @@ MoE 模型的表现更强，如下图所示，MoE 模型的训练，验证损失
 
 ![activation ratio (experts) of moe models](moe_timeline_experts.png)
 
-可以看到，现在大部分模型总专家数都在 200-400 左右，[Kimi-k2](https://maosong.website/p/notes-on-kimi-k2/) 认为提高专家个数可以提高模型表现，而 [LongCat](LongCat.md) 则是使用了 phantom expert 机制
+可以看到，现在大部分模型总专家数都在 200-400 左右，[Kimi-k2](https://maosong.website/p/notes-on-kimi-k2/) 认为提高专家个数可以提高模型表现，而 LongCat 则是使用了 phantom expert 机制
 
 ## MoE Design
 
@@ -216,7 +216,7 @@ routing 策略直接决定了 MoE 模型的有效性。在为专家分配 token 
 
 每个专家选取 top-k 的 token，此时每个专家处理的 token 个数是相同的，这个方法的好处是自带 load balance。缺点是自回归生成的方式没有完整序列长度的信息，从而导致 token dropping，也就是某些 token 不会被任何专家处理，某些 token 会被多个专家处理。
 
-目前采用这个策略的有 [OpenMoE-2](OpenMoE-2.md)， 核心思想是 dLLM 的输出长度固定，expert choice 策略更有效
+目前采用这个策略的有 OpenMoE-2， 核心思想是 dLLM 的输出长度固定，expert choice 策略更有效
 
 #### Token Choice
 
@@ -242,7 +242,7 @@ $$
 
 #### Dynamic Routing
 
-根据输入 token 的难度动态决定激活专家的个数。[LongCat](LongCat.md) 使用了一个 Phantom expert 的方法来实现根据 token 的难度动态分配专家。具体来说，除了 $N$ 个专家之外，MoE 还包括 $Z$ 个 zero-computation expert (现在一共有 $N+Z$ 个专家参与计算), 其计算方式如下
+根据输入 token 的难度动态决定激活专家的个数。LongCat 使用了一个 Phantom expert 的方法来实现根据 token 的难度动态分配专家。具体来说，除了 $N$ 个专家之外，MoE 还包括 $Z$ 个 zero-computation expert (现在一共有 $N+Z$ 个专家参与计算), 其计算方式如下
 
 $$
 \begin{aligned}
@@ -268,7 +268,7 @@ $$
 
 ### Upcycling
 
-upsampling 是一个将 dense model 转化为 MoEmodel 的方法，具体做法就是我们复制 dense model 中的 FFN layer 得到对应 MoE layer 中的 Expert，然后我们再结合 router 训练，这样可以提高整体的训练效率。相关模型有 [MiniCPM](MiniCPM.md), [Qwen1.5](https://maosong.website/p/notes-on-qwen1.5/) 和 [Mixtral MoE](https://maosong.website/p/mixstral-8x7b/) (疑似)
+upsampling 是一个将 dense model 转化为 MoEmodel 的方法，具体做法就是我们复制 dense model 中的 FFN layer 得到对应 MoE layer 中的 Expert，然后我们再结合 router 训练，这样可以提高整体的训练效率。相关模型有 MiniCPM, [Qwen1.5](https://maosong.website/p/notes-on-qwen1.5/) 和 [Mixtral MoE](https://maosong.website/p/mixstral-8x7b/) (疑似)
 
 实验结果如下图所示
 
@@ -280,7 +280,7 @@ upsampling 是一个将 dense model 转化为 MoEmodel 的方法，具体做法�
 
 ### Specialization of Experts
 
-[OpenMoE](OpenMoE.md) 分析了 MoE 模型的特化程度，其结论如下
+OpenMoE 分析了 MoE 模型的特化程度，其结论如下
 
 1. 作者发现，大部分专家对于不同的 domain 没有出现 specialization 情况，对于 math domain, specialization 现象比较明显，作者认为这是因为 math domain 包含更多的 special tokens
 2. 对于不同的语言，有部分专家出现 specialization 现象
@@ -378,7 +378,6 @@ class OlmoeSparseMoeBlock(nn.Module):
 
 ![pipeline of Expert Parallelism (EP)](MoE-EP-pipeline.png)
 
-具体见 [Expert Parallelism](Expert%20Parallelism.md).
 
 ## Challenges
 

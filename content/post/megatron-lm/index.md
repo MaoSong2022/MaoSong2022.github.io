@@ -14,11 +14,11 @@ categories:
 
 ## Introduction
 
-随着模型参数变大，现有的 GPU 已经很难使用单一 GPU 来训练模型。对于多 GPU 训练场景，目前主要采用了 pipeline parallelism, 比如 [GPipe](GPipe.md) 等，但是，这些策略需要我们对代码进行比较大的改动，这提高了开发成本。
+随着模型参数变大，现有的 GPU 已经很难使用单一 GPU 来训练模型。对于多 GPU 训练场景，目前主要采用了 pipeline parallelism, 比如 [GPipe](https://maosong.website/p/gpipe/) 等，但是，这些策略需要我们对代码进行比较大的改动，这提高了开发成本。
 
 为了解决多 GPU 训练大规模 LLM 的效率，降低开发成本，目前主要使用了 model parallelism 策略，即对模型进行切分部署在多个 GPU 上。model parallelism 有两种范式：
 
-1. pipeline parallelism (PP): 将模型按照 layer 进行切分，如 [GPipe](GPipe.md) 等，这种方法的问题是需要额外的逻辑来处理通信以及存在 pipeline bubbles
+1. pipeline parallelism (PP): 将模型按照 layer 进行切分，如 [GPipe](https://maosong.website/p/gpipe/) 等，这种方法的问题是需要额外的逻辑来处理通信以及存在 pipeline bubbles
 2. tensor parallelism (TP): 将模型的按照权重进行切分，部署在不同的 GPU 上。
 
 作者在本文中基于 TP 策略来对 attention, FFN layer 进行简单改动来实现训练效率的提升。
@@ -156,7 +156,7 @@ $$
 
 ## Experiments
 
-作者首先对 [GPT-2](GPT-2.md) 模型进行了修正，首先将 `vocab_size` 从 50257 提升到 128 的倍数，即 51200. 对于 model+data parallelism, 作者固定 global batch size 为 512. (64-way DP)
+作者首先对 GPT-2 模型进行了修正，首先将 `vocab_size` 从 50257 提升到 128 的倍数，即 51200. 对于 model+data parallelism, 作者固定 global batch size 为 512. (64-way DP)
 
 配置如下表所示（head size 为 96）
 

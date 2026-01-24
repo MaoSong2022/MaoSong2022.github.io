@@ -210,7 +210,7 @@ def softmax(x: torch.Tensor, dim: int = -1) -> torch.Tensor:
 
 ### Gumbel-softmax Reparametrization Trick
 
-见 [Reparameterization](Reparameterization.md)
+TODO
 
 ### Online Softmax
 

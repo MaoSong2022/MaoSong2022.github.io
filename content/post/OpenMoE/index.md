@@ -56,7 +56,7 @@ categories:
 
 ### Training
 
-作者使用了 [Load Balancing loss](Load%20Balancing%20loss.md) 和 [ST-MoE](https://maosong.website/p/st-moe/) 提出的 Router Z-loss, 最终训练的目标函数与 [ST-MoE](https://maosong.website/p/st-moe/) 一致
+作者使用了 [Load Balancing loss](https://maosong.website/p/load-balancing-tutorial/) 和 [ST-MoE](https://maosong.website/p/st-moe/) 提出的 Router Z-loss, 最终训练的目标函数与 [ST-MoE](https://maosong.website/p/st-moe/) 一致
 
 作者在训练时，还是用了 UL2, UL2 结合了 mask language modeling 和 casual language modeling 两种训练方式。
 

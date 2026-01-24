@@ -43,7 +43,7 @@ Qwen3-Next 包含三个模型：
 
 下面是一些细节：
 
-1. [Gated DeltaNet](Gated%20DeltaNet.md) 相比于 [SWA](https://maosong.website/p/notes-on-rnope-swa/) 和 Mamba2, 其 in-context learning 能力更强
+1. Gated DeltaNet 相比于 [SWA](https://maosong.website/p/notes-on-rnope-swa/) 和 Mamba2, 其 in-context learning 能力更强
 2. 对于 softmax attention:
     1. 使用了 [Gated Attention](https://maosong.website/p/notes-on-gated-attention/) 提出的 gating 机制来解决 massive activation 和 attention sink 问题
     2. 将 attention head 的 dimension 从 128 提高到 256
@@ -57,8 +57,8 @@ Qwen3-Next 包含三个模型：
 
 ### Normalization and Training
 
-- 使用 [Gemma](Gemma.md) 提出的 Zero-Centered RMSNorm 以及 weight decay 来避免过大的权重出现
-- 为了提高数据使用效率，作者还使用了 [MTP](MTP.md) 策略来提高训练效率，模型表现以及 Speculative decoding 的接受率。
+- 使用 Gemma 提出的 Zero-Centered RMSNorm 以及 weight decay 来避免过大的权重出现
+- 为了提高数据使用效率，作者还使用了 MTP 策略来提高训练效率，模型表现以及 Speculative decoding 的接受率。
 - 预训练时，Qwen3-Next 使用了**15T** token 进行训练，训练时间相比于 Qwen3-30B-A3B 有了大幅度的提升
 
 ## Experiments

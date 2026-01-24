@@ -82,7 +82,7 @@ Qwen3-VL 的架构如下所示
 - Knowledge Data: 作者构建了多个类别的数据，然后对这些数据进行 refine
 - OCR: 作者构造了 30M 的数据以及 1M 的多语种数据
 - Document Parsing Data: 作者从 CC 上收集了 3M PDF 以及处理了自有的 4M 数据，最终数据集里包含合成数据和真实数据；对于长文档理解数据，作者通过将 single-page 数据 merge 在一起得到，然后作者构造了 long document VQA 数据
-- Grounding and counting Data: grounding 数据包括 box-based 和 Point-based 两种形式，均从开源数据集收集得到，前者包括 RefCOCO, Object365, 后者包括 [PixMo](PixMo.md); 对于 Counting, 作者基于 grounding 数据构造了 direct counting, box-based counting 以及 point-based counting 三种形式
+- Grounding and counting Data: grounding 数据包括 box-based 和 Point-based 两种形式，均从开源数据集收集得到，前者包括 RefCOCO, Object365, 后者包括 PixMo; 对于 Counting, 作者基于 grounding 数据构造了 direct counting, box-based counting 以及 point-based counting 三种形式
 - Spatial Understanding: 数据包括 spatial understanding 和 3D grounding 两类数据，前者的数据使用了相对位置关系来提高 spatial reasoning 的 robustness; 后者使用了 Omni3D 来统一数据格式
 - Code: 包括 Qwen3, Qwen3-Coder 的纯文本 coding 数据，以及多模态 coding 数据，覆盖了将 UI 截图转换为 HTML/CSS 以及从图片生成 SVG 等任务
 - Video: 包括 Dense Caption Synthesis 以及 Spatial-Temporal Video Grounding 两个任务。作者还对不同来源不同长度的数据进行了平衡

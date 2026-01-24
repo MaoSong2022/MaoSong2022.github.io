@@ -15,7 +15,7 @@ categories:
 
 ## Introduction
 
-相关工作包括 [GRPO](GRPO.md) 以及 [GSPO](https://maosong.website/p/notes-on-gspo/)
+相关工作包括 GRPO 以及 [GSPO](https://maosong.website/p/notes-on-gspo/)
 
 SAPO 的关键思想有两点：
 

@@ -27,7 +27,7 @@ google 在 2020 年发表了 T5 (Text-to-Text Transfer Transformer), 一个使�
 
 ### Model
 
-在架构上，作者使用了 [Transformer](Transformer.md) 的 encoder-decoder 架构，但是作者做了几点修改
+在架构上，作者使用了 Transformer 的 encoder-decoder 架构，但是作者做了几点修改
 
 1. 作者提出了 T5 bias, 一个用于替换原始 transformer 绝对位置编码的相对位置编码形式
 2. 作者使用了 RMSNorm 替换了 Transformer 中的 LayerNorm.
@@ -51,7 +51,7 @@ google 在 2020 年发表了 T5 (Text-to-Text Transfer Transformer), 一个使�
 
 ## Experiments
 
-作者使用的 baseline 模型是一个基于 encoder-decoder 架构的 transformer 模型，其大小以及 configuration 与 [BERT](BERT.md)  base 差不多，最终模型参数量为 220M。
+作者使用的 baseline 模型是一个基于 encoder-decoder 架构的 transformer 模型，其大小以及 configuration 与 BERT base 差不多，最终模型参数量为 220M。
 
 | field | num layers | hidden size | MLP hidden size | num heads | head dim | dropout | seq  len |
 | ----- | ---------- | ----------- | --------------- | --------- | -------- | ------- | -------- |
@@ -61,7 +61,7 @@ google 在 2020 年发表了 T5 (Text-to-Text Transfer Transformer), 一个使�
 
 作者基于 sentencepiece (见 [LLM tokenizer](https://maosong.website/p/hands-on-llm1-tokenizer/)) 构建了 Tokenizer, 覆盖 English, German, French 和 Romanian 四种语言。
 
-模型训练的目标函数为 [BERT](BERT.md) 使用的 "masked language modeling",  格式如下所示
+模型训练的目标函数为 BERT 使用的 "masked language modeling",  格式如下所示
 
 ```
 # original text

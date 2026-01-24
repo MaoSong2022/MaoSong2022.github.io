@@ -35,7 +35,7 @@ Gemini 3.0 Pro Image 基于 Gemini 3.0 Pro 开发，是一个支持 text, image 
 
 ## Method
 
-模型从零开始训练，使用了 MoE 架构和 [Transformer](Transformer.md) 架构
+模型从零开始训练，使用了 MoE 架构和 Transformer 架构
 
 模型使用 TPU 进行训练，训练架构为 JAX 和 ML Pathways.
 

@@ -17,9 +17,9 @@ DeepSeek 在 25 年 1 月提出了 Natively trainable Sparse Attention (NSA), �
 
 ## Introduction
 
-现有的大模型主要是基于 [Transformer](Transformer.md) 提出的 softmax attention, 其主要问题在于随上下文长度增加，其 latency 也上升更快。理论估计，对于 64k 上下文长度的输出，softmax attention 部分的计算占 $70\%\sim80\%$ 的 latency.
+现有的大模型主要是基于 Transformer 提出的 softmax attention, 其主要问题在于随上下文长度增加，其 latency 也上升更快。理论估计，对于 64k 上下文长度的输出，softmax attention 部分的计算占 $70\%\sim80\%$ 的 latency.
 
-为了解决 softmax 的 high latency 问题，，一个做法就是使用稀疏注意力机制，如 [MInference](MInference.md) 等，但是这些系数注意力机制大多没有实际部署，且它们一般只在 inference 阶段使用
+为了解决 softmax 的 high latency 问题，，一个做法就是使用稀疏注意力机制，如 MInference 等，但是这些系数注意力机制大多没有实际部署，且它们一般只在 inference 阶段使用
 
 作者认为解决这个问题有两个挑战：
 
@@ -43,7 +43,7 @@ $$
 
 其中 $\mathbf{q_t}\in\mathbb{R}^{d_k}$.
 
-接下来是 Arithmetic Intensity. Arithmetic intensity 指的是 FLOPs 与内存访问次数之比。由于现在的 GPU 都是计算密集型设备，理想情况下应该是 Arithmetic intensity 越高越好。这部分具体介绍见 [GPU-introduction](GPU-introduction.md).
+接下来是 Arithmetic Intensity. Arithmetic intensity 指的是 FLOPs 与内存访问次数之比。由于现在的 GPU 都是计算密集型设备，理想情况下应该是 Arithmetic intensity 越高越好。
 
 对于 causal self-attention 来说，在训练以及 prefilling 阶段，由于 batch 较大，因此整体的 Arithmetic intensity 较高，因而这两个阶段是 computer-bound. 但是在 decoding 阶段，由于其 token-by-token generation 的性质，每次生成新的 token 时都需要重新加载 KV cache, 因而是 memory-bound.
 
@@ -94,7 +94,7 @@ $$
 作者使用的做法是 blockwise selection. 这样做的原因有两点：
 
 1. hardware efficiency. 这样做的原因是 GPU 访问内存是在 block 层面进行的，因而更加高效
-2. inherent distribution patterns of attention scores. [MInference](MInference.md) 证明了 attention score 在空间上存在连续性。即相邻的 key 对应的重要性非常相似
+2. inherent distribution patterns of attention scores. MInference 证明了 attention score 在空间上存在连续性。即相邻的 key 对应的重要性非常相似
 
 为了实现 block-wise selection, 作者首先将 key value sequences 分割为 blocks, 然后针对每个 blocks 分配 Importance score.
 
@@ -145,7 +145,7 @@ $$
 
 #### Kernel Design
 
-接下来是针对硬件设计进行的优化。由于 [flash attention 2](flash%20attention%202.md) 对 compression attention 以及 sliding window attention 已经支持的比较好，作者这里介绍了如何针对 selection attention 进行优化。
+接下来是针对硬件设计进行的优化。由于 flash attention 2 对 compression attention 以及 sliding window attention 已经支持的比较好，作者这里介绍了如何针对 selection attention 进行优化。
 
 ## Experiments
 
@@ -201,7 +201,7 @@ NSA 配置如下
 
 ## Analysis
 
-接下来，作者分析了 NSA 的性质。作者首先对比了 NSA 和 [flash attention 2](flash%20attention%202.md) 的训练速度，结果如下图所示
+接下来，作者分析了 NSA 的性质。作者首先对比了 NSA 和 flash attention 2 的训练速度，结果如下图所示
 
 ![Performance comparison between NSA and flash attention 2](NSA-training-speed-performance.png)
 

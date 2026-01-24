@@ -26,7 +26,7 @@ DeepSeek-V2 主要改进点为：
 
 DeepSeek-V2 预训练使用了 **8.1T** tokens, 相比于 [DeepSeek-LLM](https://maosong.website/p/notes-on-deepseek-llm/), 预训练数据主要增加了中文数据以及提高了数据的质量。
 
-接下来，作者收集了 **1.5M** 对话数据来进行 SFT,  最终作者基于 [DeepSeek Math](DeepSeek%20Math.md) 提出的 GRPO 来进行对齐。
+接下来，作者收集了 **1.5M** 对话数据来进行 SFT,  最终作者基于 DeepSeek Math 提出的 GRPO 来进行对齐。
 
 ## Architecture
 
@@ -126,7 +126,7 @@ MLA 的配置如下 (DeepSeek-V2)
 
 在 infra 上，DeepSeek-V2 也是用了 HAI-LLM 框架进行训练。这里面使用了 16-way zero-bubble PP, 8-way EP, ZeRO-1 DP.
 
-由于 DeepSeek-V2 的激活参数比较少，因此，作者没有使用 TP, 进而降低通信开销。作者还将 shared experts 的计算与 expert all-to-all 通信进行重叠来提高计算效率。作者还使用了 kernel fusion 和 [flash attention 2](flash%20attention%202.md) 来加速训练。
+由于 DeepSeek-V2 的激活参数比较少，因此，作者没有使用 TP, 进而降低通信开销。作者还将 shared experts 的计算与 expert all-to-all 通信进行重叠来提高计算效率。作者还使用了 kernel fusion 和 flash attention 2 来加速训练。
 
 ### Long Context
 
@@ -164,7 +164,7 @@ post-training 分为 SFT 和 RL 两个阶段。
 
 ### RL
 
-作者使用了 [GRPO](GRPO.md) 算法来进一步对齐模型的表现。
+作者使用了 GRPO 算法来进一步对齐模型的表现。
 
 作者通过实验发现，在 reasoning data, 如 code 和 math 相关数据上进行训练时，可以有效提高模型的表现。因此作者将 RL 的训练分为两个阶段，第一个阶段用于提高模型的 reasoning 能力，第二个阶段用于对齐人类偏好。
 
@@ -193,7 +193,7 @@ chat 版本的模型评估结果如下所示
 作者讨论了三点发现：
 
 1. SFT data 数量。已有工作认为进需要 10K 左右的样本就可以进行 SFT，但是作者发现当数据量小于 10K 时，模型在 IFEval benchmark 上的表现大幅度下降。作者认为，这是由于数据过少导致模型很难掌握特定的技能。因此，作者认为足够的数据以及数据质量都很重要，特别是写作类任务和 open-ended QA 类任务。
-2. alignment tax. 作者发现通过 human preference alignment, 模型在 open-ended generation benchmark 上的保险有了很大提升。与 [RLHF](RLHF.md) 一样，作者也发现了 alignment 之后模型在一些 benchmark 上表现也会下降。作者通过改进解决了这个问题，作者认为如何在不损失模型表现的情况下实现对齐是一个值得探究的方向。
+2. alignment tax. 作者发现通过 human preference alignment, 模型在 open-ended generation benchmark 上的保险有了很大提升。与 RLHF 一样，作者也发现了 alignment 之后模型在一些 benchmark 上表现也会下降。作者通过改进解决了这个问题，作者认为如何在不损失模型表现的情况下实现对齐是一个值得探究的方向。
 3. online RL. 作者发现 Online RL 比 offline RL 的表现更好。作者认为如何根据不同的任务来选取 offline RL 和 online RL 也是一个值得探究的问题。
 
 ## Conclusion

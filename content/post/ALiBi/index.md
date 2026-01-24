@@ -19,7 +19,7 @@ meta 等提出了 ALiBi, 一个通过 linear biases 来实现位置编码的方�
 
 当下，有若干种位置编码的方式：
 
-1. Sinusoidal position embeddings: [Transformer](Transformer.md) 提出的正弦位置编码
+1. Sinusoidal position embeddings: Transformer 提出的正弦位置编码
 2. RoPE: [RoPE](https://maosong.website/p/notes-on-position-encoding/) 提出的旋转位置编码
 3. T5 bias: [T5](https://maosong.website/p/notes-on-t5/) 提出的相对位置编码
 

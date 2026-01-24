@@ -12,7 +12,7 @@ categories:
 
 ## Introduction
 
-【参考文献 1】中系统性对比了 [AliBi](https://maosong.website/p/notes-on-alibi/), [RoPE](https://maosong.website/p/notes-on-position-encoding/) , [T5](https://maosong.website/p/notes-on-t5/) 提出的 T5 bias 以及 [Transformer](Transformer.md) 提出的绝对位置编码 (APE).
+【参考文献 1】中系统性对比了 [AliBi](https://maosong.website/p/notes-on-alibi/), [RoPE](https://maosong.website/p/notes-on-position-encoding/) , [T5](https://maosong.website/p/notes-on-t5/) 提出的 T5 bias 以及 Transformer 提出的绝对位置编码 (APE).
 
 作者发现，常用的方法在 length generalization 上表现并不是最好的，而 NoPE 不需要额外的计算开销反而效果最好。
 

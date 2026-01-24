@@ -127,7 +127,7 @@ $$
 
 DeepSeek-V3 训练使用了 2048 张 H800, 每个 node 包含 8 张 GPU, node 内部使用 NVLink 和 NVSwitch 进行连接，node 之间使用 InfiniBand 进行连接
 
-与之前的 DeepSeek 系列相同，DeepSeek-V3 也是用了 HAI-LLM 框架来支持训练。训练时，DeepSeek-V3 使用了 16-way PP, 64-way EP (spanning 8 nodes, [GShard](https://maosong.website/p/gshard/)) 以及 [ZeRO](ZeRO.md)-1 DP.
+与之前的 DeepSeek 系列相同，DeepSeek-V3 也是用了 HAI-LLM 框架来支持训练。训练时，DeepSeek-V3 使用了 16-way PP, 64-way EP (spanning 8 nodes, [GShard](https://maosong.website/p/gshard/)) 以及 ZeRO-1 DP.
 
 作者主要进行了三点优化：
 
@@ -139,7 +139,7 @@ DeepSeek-V3 训练使用了 2048 张 H800, 每个 node 包含 8 张 GPU, node �
 
 #### DualPipe
 
-DeepSeek-V3 中，由于 cross-node EP, computation-to-communication ratio 近似为 1:1, 为了解决这个问题，作者提出了 DualPipe. DualPipe 的核心思想是将 forward 和 backward 过程中的 computation 以及 communication 进行重叠。与 [ZeroBubble](ZeroBubble.md) 类似，作者将每个 chunk 分为四个部分：attention, all-to-all dispatch, MLP 以及 all-to-all combine.  对于 attention 和 MLP, 作者还进一步将 backward 拆分为 针对权重和输入的 backward. 其示意图如下所示，这里橙色部分代表 forward, 绿色代表了针对输入的 backward, 蓝色代表了针对权重的 backward
+DeepSeek-V3 中，由于 cross-node EP, computation-to-communication ratio 近似为 1:1, 为了解决这个问题，作者提出了 DualPipe. DualPipe 的核心思想是将 forward 和 backward 过程中的 computation 以及 communication 进行重叠。与 ZeroBubble 类似，作者将每个 chunk 分为四个部分：attention, all-to-all dispatch, MLP 以及 all-to-all combine.  对于 attention 和 MLP, 作者还进一步将 backward 拆分为 针对权重和输入的 backward. 其示意图如下所示，这里橙色部分代表 forward, 绿色代表了针对输入的 backward, 蓝色代表了针对权重的 backward
 
 ![Overlapping stategy of DeepSeek-V3](DeepSeek-V3-overlapping-strategy.png)
 
@@ -153,7 +153,7 @@ dispatch(F, block1) -> MLP(F, block1) -> combine(F, block1) -> attention(F, bloc
 
 ![DualPipe scheduling](DeepSeek-V3-DualPipe-scheduling.png)
 
-作者进一步对比了 DualPipe, [1F1B](1F1B.md) 和 [ZeroBubble](ZeroBubble.md), 结果如下表所示
+作者进一步对比了 DualPipe, 1F1B 和 ZeroBubble, 结果如下表所示
 
 | Method          | Bubble                        | Parameter | Activation |
 | --------------- | ----------------------------- | --------- | ---------- |
@@ -194,7 +194,7 @@ dispatch(F, block1) -> MLP(F, block1) -> combine(F, block1) -> attention(F, bloc
 
 #### Mixed Precision Training
 
-作者在本文中提出了使用 FP8 混合精度进行预训练，作者参考了 [low precision training](low%20precision%20training.md) 构建 FP8 训练框架，即计算量高的使用 FP8 精度，计算量低的使用原本的数据精度, 框架如下图所示
+作者在本文中提出了使用 FP8 混合精度进行预训练，作者参考了 low precision training 构建 FP8 训练框架，即计算量高的使用 FP8 精度，计算量低的使用原本的数据精度, 框架如下图所示
 
 ![Mix-precision training of DeepSeek-V3](DeepSeek-V3-mixed-precision.png)
 
@@ -288,13 +288,13 @@ prefilling 阶段在 4 节点 32 GPU 上进行，并行策略如下
 
 相比于 [DeepSeek-V2](https://maosong.website/p/notes-on-deepseek-v2/), DeepSeek-V3 提升了数学和代码数据的比例，以及增加了多语种数据。最终训练数据一共包括 **14.8T**
 
-作者还使用了 [DeepSeekCoder-V2](DeepSeekCoder-V2.md) 里应用的 [Fill in the middle](Fill%20in%20the%20middle.md) 策略来让模型基于上下文越策中间的文本，对应的数据格式如下
+作者还使用了 DeepSeekCoder-V2 里应用的 Fill in the middle 策略来让模型基于上下文越策中间的文本，对应的数据格式如下
 
 ```
 <|fim_begin|>f_pre<|fim_hole|>f_suf<|fim_hole|>f_middle<|fim_end|>
 ```
 
-这个结构与 [sequence packing](sequence%20packing.md) 结合在一起。
+这个结构与 sequence packing 结合在一起。
 
 Tokenizer 基于 BBPE, 大小为 128K tokens. 在训练时，作者将随机一部分 combine token 进行切分来减少 token boundary bias 问题
 
@@ -370,13 +370,13 @@ DeepSeek-V3 base 的表现下图所示，作者对比了 [DeepSeek-V2](https://m
 
 post-training 包含 1.5M 样本，数据包括 reasoning 数据以及 non-reasoning 数据，前者由 [DeepSeek-R1](https://maosong.website/p/notes-on-deepseek-r1/) 合成，后者由 DeepSeek-V2.5 合成
 
-SFT 时，作者训练了两个 epoch, 使用了 [sequence packing](sequence%20packing.md) 技巧
+SFT 时，作者训练了两个 epoch, 使用了 sequence packing 技巧
 
 ### RL
 
 Reward model 包含 rule-based reward model 和 model-based reward model.
 
-RL 训练使用的算法为 [GRPO](GRPO.md)
+RL 训练使用的算法为 GRPO
 
 ### Post-training Performance
 

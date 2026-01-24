@@ -23,7 +23,7 @@ MiniMax-01 是一个基于 hybrid attention 架构的大模型系列，包含 Mi
 
 因此，作者在本文中就提出了一个基于 hybrid attention 架构的大语言模型系列 MiniMax-01. 作者主要从架构，数据和 infra 三个方面进行了改进。
 
-在架构上，作者使用了基于 [Lightning Attention](Lightning%20Attention.md) 的混合架构。作者还基于实际部署来决定模型的参数。为了最大化模型的表现，作者使用了 MoE 架构。
+在架构上，作者使用了基于 Lightning Attention 的混合架构。作者还基于实际部署来决定模型的参数。为了最大化模型的表现，作者使用了 MoE 架构。
 
 已有的 infra 主要是针对基于 softmax 的 attention 进行优化的，MiniMax-01 包含 softmax attention, linear attention 和 MoE, 架构比较复杂，因此作者实现了 expert parallel 和 expert tensor parallel 来提高整体的计算效率和 GPU 之间的通信效率。作者还实现了 varlen ring attention 来减少计算冗余。最终，作者发现模型在 NVIDIA-H20 上的 MFU 超过了 75%.
 
@@ -86,7 +86,7 @@ $$
 
 ### Linear Attention
 
-本文中使用的 linear attention 由 [Lightning Attention](Lightning%20Attention.md) 提出，其表达式为
+本文中使用的 linear attention 由 Lightning Attention 提出，其表达式为
 
 $$
 O = \mathrm{Norm}((QK^T)V)
@@ -110,7 +110,7 @@ $$
 
 这里 $M_{ij}=\mathbb{1}(i\geq j)$ 是 attention mask.
 
-见 [Lightning Attention](Lightning%20Attention.md)
+见 Lightning Attention
 
 #### Effectiveness of Lightning Attention
 
@@ -172,7 +172,7 @@ $$
 作者主要进行了两个消融实验：
 
 1. Hybrid-lightning 与 softmax attention 的对比：作者训练了一个总参数 28B, 激活参数 5B 的 MoE 模型，然后作者使用 MiniMax-01 的方式替换每个 group 的 softmax attention, 并使用了 1T 的 token 进行训练
-2. pre-layer normalization 与 Post-layer normalization 的对比： 现有的 LLaMA 和 Qwen 等系列模型采用的都是 PreNorm 的方式。**PreNorm 可以让 gradient 通过 residual connection 传播更加直接，但是这也减少了模型的有效深度**。反之，PostNorm 则可以保留模型的有效深度，但是其问题是会导致梯度消失或爆炸。作者构建了一个总参数为 60B, 激活参数为 9.3B 的 MoE 模型，包含 48 个 block, 模型训练使用 500B token. 模型有两个变体，一个使用 PreNorm, 另一个使用 PostNorm, 对于 PostNorm, 作者使用的是 [DeepNorm](DeepNorm.md).
+2. pre-layer normalization 与 Post-layer normalization 的对比： 现有的 LLaMA 和 Qwen 等系列模型采用的都是 PreNorm 的方式。**PreNorm 可以让 gradient 通过 residual connection 传播更加直接，但是这也减少了模型的有效深度**。反之，PostNorm 则可以保留模型的有效深度，但是其问题是会导致梯度消失或爆炸。作者构建了一个总参数为 60B, 激活参数为 9.3B 的 MoE 模型，包含 48 个 block, 模型训练使用 500B token. 模型有两个变体，一个使用 PreNorm, 另一个使用 PostNorm, 对于 PostNorm, 作者使用的是 DeepNorm.
 
 最终表现如下图所示
 
@@ -262,10 +262,10 @@ $$
 
 ### Long Context Optimization
 
-为了处理不同长度的 sequence, 作者使用了 [sequence packing](sequence%20packing.md) 的技巧。
+为了处理不同长度的 sequence, 作者使用了 sequence packing 的技巧。
 
 **Varlen Ring Attention**
-当前主要是使用 [ring attention](ring%20attention.md) 来划分数据，但是 ring-attention 与 sequence packing 是冲突的。已有工作如 [flash attention](https://maosong.website/p/chinchilla-scaling-law/) 支持 varlen data packing, 但是不支持 ring attention; 而 TransformerEngine 实现了 ring attention, 但不支持真正的 varlen. 因此作者的目的就是解决这个问题。
+当前主要是使用 ring attention 来划分数据，但是 ring-attention 与 sequence packing 是冲突的。已有工作如 [flash attention](https://maosong.website/p/chinchilla-scaling-law/) 支持 varlen data packing, 但是不支持 ring attention; 而 TransformerEngine 实现了 ring attention, 但不支持真正的 varlen. 因此作者的目的就是解决这个问题。
 
 TransformerEngine 的问题在于每个 sequence 必须是 $2\times \texttt{size}_{CP}$ 的整数倍，当 CP 很大且样本长度分布未知的时候，padding 会很严重，导致算力和内存消耗严重。
 
@@ -376,7 +376,7 @@ RL 训练包括 offline stage 以及 online stage.
 在 offline stage, 作者使用 DPO 来进行训练。数据构造过程也比较简单，使用模型来进行采样，评估，选取最好和最差的作为正样本和负样本。
 
 **Online RL**
-这个阶段使用 [GRPO](GRPO.md) 进行训练，作者发现使用 SFT 阶段的 prompt 会导致训练饱和，因此，作者并没有采用 SFT 阶段的 prompts
+这个阶段使用 GRPO 进行训练，作者发现使用 SFT 阶段的 prompt 会导致训练饱和，因此，作者并没有采用 SFT 阶段的 prompts
 
 作者主要针对 GRPO 进行了一下改进：
 

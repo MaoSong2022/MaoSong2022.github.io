@@ -18,14 +18,14 @@ categories:
 
 为了解决这个问题，目前的主流做法是分流，分流策略有两种：
 
-1. 类似 [BAGEL](BAGEL.md) 在 transformer 架构上进行分流，分别处理图像模态以及文本模态特征，这也是自 BAGEL 以来比较常用的一种做法
-2. 输入输出端进行分流，代表性工作有 [Transfusion](Transfusion.md), 这种策略使用 encoder 将图片映射到文本空间，然后对输出进行解码，通过使用图片生成的目标函数，我们可以保证图片生成的质量
+1. 类似 BAGEL 在 transformer 架构上进行分流，分别处理图像模态以及文本模态特征，这也是自 BAGEL 以来比较常用的一种做法
+2. 输入输出端进行分流，代表性工作有 Transfusion, 这种策略使用 encoder 将图片映射到文本空间，然后对输出进行解码，通过使用图片生成的目标函数，我们可以保证图片生成的质量
 
 尽管基于 transformer 架构分流策略的效果比较好，但是对应地，其增加了整体训练的代价，而且并没有完成深度模态统一的目标；而基于输入输出分流的方法则因为目标函数不同很容易导致训练不稳定或者损害模型本身的表现。
 
-在本文中，作者采取的策略为不使用分流策略，避免对模型架构产生比较大的修改。但是，这样就引入了一个新的问题，自回归生成模型的低效率性，目前主流的生成方式为 raster scan next-token prediction, 当图片非常大时，我们要生成的 token 非常多，从而整体的推理效率非常低。作者在这里举例提到 [Emu3](Emu3.md) 生成一张 $1024\times 1024$ 的图片需要 10 分钟。并且，自回归生成模型对应的 tokenizer 往往基于 reconstruction 的目标进行训练，而这种训练目标产生的 token 更关注图片细节，这与 LLM 更关注语义特征并不一致，因此其效果也更差。
+在本文中，作者采取的策略为不使用分流策略，避免对模型架构产生比较大的修改。但是，这样就引入了一个新的问题，自回归生成模型的低效率性，目前主流的生成方式为 raster scan next-token prediction, 当图片非常大时，我们要生成的 token 非常多，从而整体的推理效率非常低。作者在这里举例提到 Emu3 生成一张 $1024\times 1024$ 的图片需要 10 分钟。并且，自回归生成模型对应的 tokenizer 往往基于 reconstruction 的目标进行训练，而这种训练目标产生的 token 更关注图片细节，这与 LLM 更关注语义特征并不一致，因此其效果也更差。
 
-为了解决已有自回归生成模型的问题，作者提出了使用 [VAR](VAR.md) 提出的 next-scale prediction 策略，通过 next-scale prediction, 我们可以极大程度提高图片生成的效率，作者这里强调了 NextFlow 生成一张 $1024\times 1024$ 的图片仅需要 5 秒，这个效率是 Emu3 的 120 倍。
+为了解决已有自回归生成模型的问题，作者提出了使用 VAR 提出的 next-scale prediction 策略，通过 next-scale prediction, 我们可以极大程度提高图片生成的效率，作者这里强调了 NextFlow 生成一张 $1024\times 1024$ 的图片仅需要 5 秒，这个效率是 Emu3 的 120 倍。
 
 接下来就是作者针对提出的架构和方法进行的改进，主要包括：
 
@@ -33,7 +33,7 @@ categories:
 2. 使用了基于 prefix-tuning 策略的 GRPO 方法来提高模型的 reasoning 能力
 3. 构建了一个基于 diffusion 的 decoder 来对输出图片进行优化
 
-最后，作者通过实验验证了 NextFlow 的有效性，并且在效率上，相比于基于 [MMDiT](MMDiT.md) 架构的模型，NextFlow 使用了更少的算力进行推理。
+最后，作者通过实验验证了 NextFlow 的有效性，并且在效率上，相比于基于 MMDiT 架构的模型，NextFlow 使用了更少的算力进行推理。
 
 ## Method
 
@@ -45,8 +45,8 @@ NextFlow 的架构图如下所示
 
 模型架构包括 3 个部分：
 
-1. tokenizer: NextFlow 的 tokenizer 基于 [TokenFlow](TokenFlow.md), TokenFlow 通过使用两个 codebook 来分别提取对应的语义特征和图片特征进而提高 tokenizer 的表达能力
-2. transformer: NextFlow 使用了 [Qwen2.5-VL](Qwen2.5-VL.md) 7B 模型作为 base model, 作者将其 Vision Encoder 替换为了 TokenFlow tokenizer 用于提取视觉特征
+1. tokenizer: NextFlow 的 tokenizer 基于 TokenFlow, TokenFlow 通过使用两个 codebook 来分别提取对应的语义特征和图片特征进而提高 tokenizer 的表达能力
+2. transformer: NextFlow 使用了 [Qwen2.5-VL](https://maosong.website/p/notes-on-qwen2.5-vl/) 7B 模型作为 base model, 作者将其 Vision Encoder 替换为了 TokenFlow tokenizer 用于提取视觉特征
 3. optinal diffusion decoder: 用于进一步优化图片的细节。作者使用 TokenFLow tokenizer 的 token 表示，外接了一个 diffusion model 来优化最终的输出。
 
 在数据格式上，作者使用了 `<boi>`, `<eoi>` 来标记图片 token, 然后每个图片通过 TokenFLow 表示为不同 scale 的 token, 如下图所示
@@ -61,11 +61,11 @@ $$
 
 这里 $H, W, C, s$ 分别是 grid 对应的 size, constant range factor 以及 scale. 为了保持数据的一致性，作者还对所有的空间位置进行了归一化，避免在 SFT 时进行外推。
 
-与 [VAR](VAR.md) 一致，作者使用了 scale length positional embedding, 即在 scale 层面使用了 [Transformer](Transformer.md) 提出的 Sinusoidal encoding, 作者认为通过显示编码 scale 可以提高模型对于图片精度的认知能力。
+与 VAR 一致，作者使用了 scale length positional embedding, 即在 scale 层面使用了 Transformer 提出的 Sinusoidal encoding, 作者认为通过显示编码 scale 可以提高模型对于图片精度的认知能力。
 
 在训练上，作者提出了两个优化策略。
 
-首先，作者发现，不同 scale 的 token 数量不一致，small scale 对应的 token 数量较少，随着生成 token 数增加，由于 attention 存在局部依赖性（见 [NSA](NSA.md)）模型对于早期 token 关注度较低，为了解决这个问题，作者的做法就是使用 scale-dependent weight, 不同 scale 对应 token 的损失函数权重为
+首先，作者发现，不同 scale 的 token 数量不一致，small scale 对应的 token 数量较少，随着生成 token 数增加，由于 attention 存在局部依赖性（见 [NSA](https://maosong.website/p/notes-on-nsa/)）模型对于早期 token 关注度较低，为了解决这个问题，作者的做法就是使用 scale-dependent weight, 不同 scale 对应 token 的损失函数权重为
 
 $$
 k_s =\frac{1}{(h_s\times w_s)^\alpha}
@@ -119,7 +119,7 @@ $$
 
 ## Experiments
 
-我们主要关注 NextFlow 和 [Qwen-Image](Qwen-Image.md), Seedream 3.0 的表现对比情况，结果如下表所示
+我们主要关注 NextFlow 和 Qwen-Image, Seedream 3.0 的表现对比情况，结果如下表所示
 
 | Benchmark   | NextFlow | NextFlow-RL | Qwen-Image | Seedream 3.0 |
 | ----------- | -------- | ----------- | ---------- | ------------ |

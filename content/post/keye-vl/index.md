@@ -88,7 +88,7 @@ post-training 阶段一共包含了 2 个 step, 5 个 stage, 第一个 step 包�
 
 #### No-reasoning Training
 
-第一个 step 是 non-reasoning training, 包含了 SFT 和 [MPO](MPO.md) 两个 stage, 训练 pipeline 如下图所示
+第一个 step 是 non-reasoning training, 包含了 SFT 和 MPO 两个 stage, 训练 pipeline 如下图所示
 
 ![Non reasoning training pipeline](Keye-VL-non-reasoning-training.png)
 

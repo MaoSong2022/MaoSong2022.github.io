@@ -66,7 +66,7 @@ $$
 
 ### Vision-language Representation Alignment
 
-text-decoding loss 可以对其视觉特征和文本特征，但是对于使用自监督训练方式的 VLM, 比如 [DINOv2](DINOv2.md), 其预训练目标与 text-decoding loss 之间存在较大 gap, 为了解决这个问题，作者提出了 alignment loss.
+text-decoding loss 可以对其视觉特征和文本特征，但是对于使用自监督训练方式的 VLM, 比如 DINOv2, 其预训练目标与 text-decoding loss 之间存在较大 gap, 为了解决这个问题，作者提出了 alignment loss.
 
 具体做法就是先计算出文本和视觉特征：
 
@@ -117,7 +117,7 @@ $$
 
 ## Experiments
 
-作者基于 [CLIP](CLIP.md), [SigLIP](SigLIP.md), [SigLip-2](SigLip-2.md), [DINOv2](DINOv2.md), [AIMv2](AIMv2.md) 等 VFM 进行了实验，主要结果如下图所示
+作者基于 CLIP, SigLIP, SigLip-2, DINOv2, AIMv2 等 VFM 进行了实验，主要结果如下图所示
 
 ![Performance of CoMP on multimodal understanding tasks](CoMP-performance.png)
 

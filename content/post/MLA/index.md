@@ -16,7 +16,7 @@ DeepSeek 在 2024 年 5 月提出了 multi-head latent attention (MLA), 用于�
 
 ## Introduction
 
-传统的 multi head attention (MHA) 虽然效果好，但是在 inference 时，其 [KV cache](KV%20cache.md) 会变成瓶颈，影响推理效率。为了解决这个问题，已有的工作如 [MQA](https://maosong2022.github.io/p/notes-on-mqa/) 和 [GQA](https://maosong2022.github.io/p/notes-on-gqa/) 通过共享权重来减少 KV cache 内存占用，但是结果发现模型的表现也会降低。
+传统的 multi head attention (MHA) 虽然效果好，但是在 inference 时，其 KV cache 会变成瓶颈，影响推理效率。为了解决这个问题，已有的工作如 [MQA](https://maosong2022.github.io/p/notes-on-mqa/) 和 [GQA](https://maosong2022.github.io/p/notes-on-gqa/) 通过共享权重来减少 KV cache 内存占用，但是结果发现模型的表现也会降低。
 
 为了解决这个问题，作者提出了 multi-head latent attention (MLA), 来压缩 KV cache.
 

@@ -101,7 +101,7 @@ SFT 数据包括：
 
 ### RLHF
 
-作者使用 [RLOO](RLOO.md) 作为 RLHF 的算法。
+作者使用 RLOO 作为 RLHF 的算法。
 
 RL 的 infra 如下图所示
 
@@ -112,7 +112,7 @@ infra 主要由两个部分组成：
 1. Trajectory Generators: 生成轨迹并提供反馈
 2. Policy updater: 更新 policy
 
-训练时，作者首先训练了一个 reward model, 与 [AFM-2024](AFM-2024.md) 相似，作者使用了一个 preference loss function 以及一个 single-sided grading 作为 regularization.
+训练时，作者首先训练了一个 reward model, 与 AFM-2024 相似，作者使用了一个 preference loss function 以及一个 single-sided grading 作为 regularization.
 
 数据包括以下类别:
 

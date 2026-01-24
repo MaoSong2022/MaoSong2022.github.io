@@ -307,7 +307,7 @@ $$
 
 这里 $\Pi\in \{0,1\}^{d\times d}$ 是一个置换矩阵 (permutation matrix)
 
-[Transformer](Transformer.md) 的解决方法是在 query 和 key 上加上位置信息：
+Transformer 的解决方法是在 query 和 key 上加上位置信息：
 
 $$
 Q' = Q + PE(Q),\ K'=K + PE(K)
@@ -323,7 +323,7 @@ $$
 
 ### 绝对位置编码
 
-[Transformer](Transformer.md) 的使用的位置编码如下所示
+Transformer 的使用的位置编码如下所示
 
 $$
 PE(pos, 2i) = \sin\left(\frac{pos}{10000^{2i/d}}\right)
@@ -335,7 +335,7 @@ $$
 
 ### RoPE
 
-苏剑林老师提出了 [Position Encoding](Position Encoding.md)，现在已经被广泛使用
+苏剑林老师提出了 [Position Encoding](https://maosong.website/p/notes-on-position-encoding/)，现在已经被广泛使用
 
 $$
 q' = R_{\theta,m}^dq, k' = R_{\theta,n}^d k

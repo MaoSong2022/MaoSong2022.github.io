@@ -32,7 +32,7 @@ categories:
 
 ## Background
 
-首先我们介绍一下使用的 notation, 这与之前参数量，FLOPs 计算使用的 notation 基本一致。需要注意的是，我们直接使用参数量 $P$ 这个记号，这部分在 [LLM parameter analysis](LLM%20parameter%20analysis.md) 中已经进行了详细介绍，因此我们略过这部分。
+首先我们介绍一下使用的 notation, 这与之前参数量，FLOPs 计算使用的 notation 基本一致。需要注意的是，我们直接使用参数量 $P$ 这个记号，这部分在 [LLM parameter analysis](https://maosong.website/p/llm-parameter-computation/) 中已经进行了详细介绍，因此我们略过这部分。
 
 | variable | description               |
 | -------- | ------------------------- |
@@ -99,7 +99,7 @@ $$
 接下来，我们通过计算图来分析 LLM 所需要的 activation
 
 **Attention**
-Attention 的计算图如下所示 （见 [attention-computation-graph](attention-computation-graph.md)）
+Attention 的计算图如下所示
 
 ![Computation graph of attention](Attention-computation-graph.png)
 
@@ -114,7 +114,7 @@ Attention 的计算图如下所示 （见 [attention-computation-graph](attentio
 因此 attention 部分总共需要 $\boxed{10sbd+4bhs^2}$.
 
 **FFN**
-FFN 计算图如下所示（见 [FFN-computation-graph](FFN-computation-graph.md)）
+FFN 计算图如下所示
 
 ![FFN computation graph](FFN-computation-graph.png)
 
@@ -173,7 +173,7 @@ $$
 当 gradient 和 weight 精度一致时，对应的内存消耗一致，为 $\boxed{2P}$.
 
 **Optimizer states**
-[AdamW](AdamW.md) 优化器会保存一阶和二阶动量，以及一份 master weights, 精度一般为 FP32:
+[AdamW](https://maosong.website/p/notes-on-adamw/) 优化器会保存一阶和二阶动量，以及一份 master weights, 精度一般为 FP32:
 
 1. FP32 master weights: $4P$
 2. FP32 first-order momentum: $4P$
@@ -261,8 +261,6 @@ $$
 
 可以看到，KV Cache 占用不仅与模型配置有关，还与生成的 sequence length 有关，生成的 token 越多，KV Cache 这部分占用越高。
 
-具体细节见 [KV cache](KV%20cache.md)
-
 最终，推理阶段模型本身的内存占用为
 
 $$
@@ -306,11 +304,11 @@ $$
 
 #### Mixed Precision Training
 
-混合精度训练的核心思想是计算量大的模块使用低精度，计算量小的模块使用高精度。细节见 [Mixed precision training](Mixed%20precision%20training.md), 最近的 [DeepSeek-V3](DeepSeek-V3.md) 还进一步使用了 FP8 精度进行训练，大幅度提高了训练效率。
+混合精度训练的核心思想是计算量大的模块使用低精度，计算量小的模块使用高精度。细节见 Mixed precision training, 最近的 [DeepSeek-V3](https://maosong.website/p/notes-on-deepseek-v3/) 还进一步使用了 FP8 精度进行训练，大幅度提高了训练效率。
 
 #### Data Parallelism
 
-第一个并行策略是数据并行 (data parallelism), 其基本思想是把模型复制到多个 GPU 上，并行处理数据，然后对 loss 进行求和再进行反向传播。现在最常使用的是微软提出的 [ZeRO](ZeRO.md), 其核心思想为把 optimizer states, gradients, weights 分布到不同的 GPU 上，然后需要的时候再汇总到一起。ZeRO 根据切分的部分不同可以分为三种策略，如下图所示
+第一个并行策略是数据并行 (data parallelism), 其基本思想是把模型复制到多个 GPU 上，并行处理数据，然后对 loss 进行求和再进行反向传播。现在最常使用的是微软提出的 ZeRO, 其核心思想为把 optimizer states, gradients, weights 分布到不同的 GPU 上，然后需要的时候再汇总到一起。ZeRO 根据切分的部分不同可以分为三种策略，如下图所示
 
 ![Architecture of ZeRO](ZeRO-architecture.png)
 
@@ -338,7 +336,7 @@ $$
 \text{Memory}_{\text{train}} = \text{Memory}(\text{activation}) + \frac{\text{Memory}(\text{weight}) + \text{Memory}(\text{optimizer})+\text{Memory}(\text{gradient})}{\text{\# GPUs}}
 $$
 
-一般来说，我们比较少使用 ZeRO3, 因为其通信开销变为了原来的 1.5 倍。细节介绍见 [ZeRO](ZeRO.md)
+一般来说，我们比较少使用 ZeRO3, 因为其通信开销变为了原来的 1.5 倍。
 
 #### Activation Checkpointing
 
@@ -349,7 +347,7 @@ $$
 | weight     | quadratic ($d^2$) | independent   |
 | activation | linear ($d$)      | linear ($bs$) |
 
-我们可以看到，虽然训练时 batch size 越大越好，但是由于 activation 也会随之增大，batch size 可能只能使用一个非常小的值。下图是 [LLaMA](LLaMA.md) 系列在 $b=64$ 时不同部分的内存占用：
+我们可以看到，虽然训练时 batch size 越大越好，但是由于 activation 也会随之增大，batch size 可能只能使用一个非常小的值。下图是 LLaMA 系列在 $b=64$ 时不同部分的内存占用：
 
 ![memory usage of different components (bs=64)](memory_usage_bs-64.png)
 
@@ -389,13 +387,13 @@ $$
 
 这里> activation 中 **被 tensor-parallel 的部分** 按 TP degree 缩减。
 
-关于 Parallelism 的具体细节见 [Parallelism tutorial](Parallelism%20tutorial.md)
+关于 Parallelism 的具体细节见 Parallelism tutorial
 
 #### Flash Attention
 
 在前面的分析中，我们给出了 attention softmax 这一部分的 activation 为 $2bhs^2$ 而 flashattention 通过 tiling 和 online-softmax 降低了这一部分的内存占用，进而提高整体的效率。
 
-具体细节见 [flash attention](flash%20attention.md)
+具体细节见 [flash attention](https://maosong.website/p/notes-on-flashattention/)
 
 ### Inference
 
@@ -411,7 +409,6 @@ quantization 是用低精度加载模型权重从而降低推理阶段模型参�
 
 实际上，相当一部分工作都是通过优化 attention 来降低
 
-见 [attention tutorial](03Area/LLM/attention/attention%20tutorial.md)
 
 #### Inference Framework
 

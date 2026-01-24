@@ -17,7 +17,7 @@ categories:
 
 作者首先回顾了开源模型如 [MiniMax-01](https://maosong.website/p/notes-on-minimax-01/), [Kimi-k2](https://maosong.website/p/notes-on-kimi-k2/), [Qwen3](https://maosong.website/p/notes-on-qwen3/), [GLM-4.5](https://maosong.website/p/notes-on-glm-4.5/) 和闭源模型的进展，作者指出，现在的开源模型和闭源模型在表现上仍然存在较大差距。作者认为这种差距主要是由于三个原因：
 
-1. [Transformer](Transformer.md) 提出的 softmax attention 在处理长文本时效率非常低
+1. Transformer 提出的 softmax attention 在处理长文本时效率非常低
 2. 已有的开源模型在 post-training 阶段使用的算力不够
 3. 开原模型的泛化和指令跟随能力不如闭源模型
 
@@ -27,7 +27,7 @@ categories:
 2. 在 post-training 阶段，作者使用了比 pre-training 阶段高 $10\%$ 的算力，用于提高模型的能力
 3. 作者提出了一个 pipeline 用于提高模型在工具调用场景下的 reasoning 能力
 
-通过实验作者发现，模型达到了和 [Kimi-k2](https://maosong.website/p/notes-on-kimi-k2/) 以及 [GPT-5](GPT-5.md) 差不多的 reasoning 表现。
+通过实验作者发现，模型达到了和 [Kimi-k2](https://maosong.website/p/notes-on-kimi-k2/) 以及 GPT-5 差不多的 reasoning 表现。
 
 ## Method
 
@@ -101,17 +101,17 @@ post-training 与 DeepSeek-V3.1 一致：
 每个 specialized model 都使用 RL 进行训练，训练数据包括 long CoT reasoning 数据以及 direct response generation 数据，specialized model 训练完毕之后，就被用于生产 domain-specific data, 作者通过实验发现，基于这种蒸馏方法，模型的表现仅比 specialized model 低一点，并且这个 gap 可以被后续的 RL 训练所抵消。[GLM-4.5](https://maosong.website/p/notes-on-glm-4.5/) 也采取了类似的做法
 
 **Mixed RL Training**
-作者使用了 [GRPO](GRPO.md) 算法进行训练，与 [DeepSeek-V3](https://maosong.website/p/notes-on-deepseek-v3/) 不同，作者将 reasoning, agent 以及 human alignment 的 RL 训练合并为了一个阶段，作者认为这种方法可以平衡模型在多个 domain 上的表现，并且可以防止 multi-stage training 带来的灾难性遗忘问题。对于 reasoning 和 agent 任务，作者使用了 rule-basd outcome reward, length penalty 以及 language consistency reward. 对于通用任务，作者使用了 generative reward model, 每个 prompt 都有对应的 rubris 用于 evaluation. 作者构建 reward 时主要考虑了:
+作者使用了 GRPO 算法进行训练，与 [DeepSeek-V3](https://maosong.website/p/notes-on-deepseek-v3/) 不同，作者将 reasoning, agent 以及 human alignment 的 RL 训练合并为了一个阶段，作者认为这种方法可以平衡模型在多个 domain 上的表现，并且可以防止 multi-stage training 带来的灾难性遗忘问题。对于 reasoning 和 agent 任务，作者使用了 rule-basd outcome reward, length penalty 以及 language consistency reward. 对于通用任务，作者使用了 generative reward model, 每个 prompt 都有对应的 rubris 用于 evaluation. 作者构建 reward 时主要考虑了:
 
 1. length versus accuracy
 2. language consistency versus accuracy
 
 **DeepSeek-V3.2-Speciale**
-除了 DeepSeek-V3.2 之外，作者还训练了 DeepSeek-V3.2-Speciale 模型，该模型仅使用 reasoning 数据进行训练，reasoning 数据包含了 [DeepSeek-Math-V2](DeepSeek-Math-V2.md) 的训练数据以及 reward 方法。训练时，作者降低了 length penalty 的惩罚系数，最终 DeepSeek-V3.2-Speciale 模型拥有更强的 reasoning 能力
+除了 DeepSeek-V3.2 之外，作者还训练了 DeepSeek-V3.2-Speciale 模型，该模型仅使用 reasoning 数据进行训练，reasoning 数据包含了 DeepSeek-Math-V2 的训练数据以及 reward 方法。训练时，作者降低了 length penalty 的惩罚系数，最终 DeepSeek-V3.2-Speciale 模型拥有更强的 reasoning 能力
 
 #### Scaling GRPO
 
-作者在 [GRPO](GRPO.md) 的基础上对 KL estimate 进行了改进（见 [KL divergence](KL%20divergence.md)），使用了 importance sampling 对 K3 estimator 进行修正:
+作者在 GRPO 的基础上对 KL estimate 进行了改进（见 [KL divergence](https://maosong.website/p/notes-on-kl-divergence/)），使用了 importance sampling 对 K3 estimator 进行修正:
 
 $$
 \mathcal{D}_{\mathrm{KL}}(\pi_\theta(o_{i,t})\Vert\pi_{\mathrm{ref}}(o_{i,t})) = \frac{\pi_\theta(o_{i,t}\mid q, o_{i,<t})}{\pi_{\mathrm{old}}(o_{i,t}\mid q, o_{i,<t})}\left(\frac{\pi_{\mathrm{ref}}(o_{i,t}\mid q, o_{i,<t})}{\pi_\theta(o_{i,t}\mid q, o_{i,<t})}-\frac{\pi_{\mathrm{ref}}(o_{i,t}\mid q, o_{i,<t})}{\pi_\theta(o_{i,t}\mid q, o_{i,<t})}-1\right)

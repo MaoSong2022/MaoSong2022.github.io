@@ -17,7 +17,7 @@ categories:
 
 ## Introduction
 
-传统的偏好优化主要基于 [RLHF](RLHF.md), 其过程为：SFT, reward modeling, RLHF. 其中 reward model 的训练至关重要，对最终模型的表现有非常大的影响。但是 RLHF 的问题在于其训练复杂且经常不稳定。
+传统的偏好优化主要基于 RLHF, 其过程为：SFT, reward modeling, RLHF. 其中 reward model 的训练至关重要，对最终模型的表现有非常大的影响。但是 RLHF 的问题在于其训练复杂且经常不稳定。
 
 为了解决这个问题，作者提出了 Direct Preference Optimization (DPO), DPO 通过构建 reward function 和最优策略之间的关系，进而通过训练 policy model 来同时完成 reward model 的训练。这样，我们就避免了 reward model 的训练。结果发现，DPO 的表现超过了之前的偏好优化方法。
 
@@ -33,7 +33,7 @@ categories:
 RLHF 首先基于 base model 通过 SFT 得到一个初始模型 $\pi^{\mathrm{SFT}}$.
 
 **Reward modeling**
-接下来，我们给定输入 $x$, 对 $\pi^{\mathrm{SFT}}$ 采样得到 $(y_1,y_2)\sim \pi^{\mathrm{SFT}}(y\mid x)$. 输出 $y_1, y_2$ 然后由人类进行打分得到偏好关系 $y_w<y_l\mid x$, 表示 $y_w$ 比 $y_l$ 更符合人类的 pian hao 偏好，一般来说我们假设真实的偏好是由一个 reward function $r^*(x,y)$ 产生的，即 $y_w\succ y_l \Leftrightarrow r^*(x, y_w)>r^*(x, y_l)$. reward modeling 通常基于 [Bradley-Terry](Bradley-Terry.md) (BT) 模型得到，BT model 定义人类真实偏好分布 $p^*$ 如下：
+接下来，我们给定输入 $x$, 对 $\pi^{\mathrm{SFT}}$ 采样得到 $(y_1,y_2)\sim \pi^{\mathrm{SFT}}(y\mid x)$. 输出 $y_1, y_2$ 然后由人类进行打分得到偏好关系 $y_w<y_l\mid x$, 表示 $y_w$ 比 $y_l$ 更符合人类的 pian hao 偏好，一般来说我们假设真实的偏好是由一个 reward function $r^*(x,y)$ 产生的，即 $y_w\succ y_l \Leftrightarrow r^*(x, y_w)>r^*(x, y_l)$. reward modeling 通常基于 Bradley-Terry (BT) 模型得到，BT model 定义人类真实偏好分布 $p^*$ 如下：
 
 $$
 p^*(y_1>y_2\mid x)= \frac{\exp(r^*(x, y_1))}{\exp(r^*(x, y_1))+\exp(r^*(x, y_2))}
@@ -48,7 +48,7 @@ $$
 其中 $\sigma$ 是 logistic function. 在 LLM 中，$r_\phi(x,y)$ 通常由 $\pi^{\mathrm{SFT}}$ 初始化得到，然后我们在 $\pi^{\mathrm{SFT}}$ 最后一层加入一个 linear layer 来得到对应的 reward 的预测值。一般地，为了降低 reward function 的 variance, 之前的工作会进行 normalization, 即 $\mathbb{E}_{(x,y)}\sim\mathcal{D}[r_{\phi}(x,y)]=0$ for all $x$.
 
 **RL fine-tuning**
-这个阶段，我们基于学习到的 reward function $r_\phi(x,y)$ 来为 LLM 的训练提供奖励，作者使用了和 [RLHF](RLHF.md) 一样的目标函数：
+这个阶段，我们基于学习到的 reward function $r_\phi(x,y)$ 来为 LLM 的训练提供奖励，作者使用了和 RLHF 一样的目标函数：
 
 $$
 \max_{\pi_\theta}\quad \mathbb{E}_{x\sim \mathcal{D}, y\sim \pi_\theta(y\mid x)}\left[r_\phi(x,y)\right] - \beta\mathbb{D}_{\mathrm{KL}}\left[\pi_\theta(y\mid x)\Vert \pi_{\mathrm{ref}}(y\mid x)\right]
@@ -58,7 +58,7 @@ $$
 
 ## DPO
 
-DPO 的主要目标是构建一个更简单的 policy optimization 方法。与 [RLHF](RLHF.md) 不同，DPO 跳过了 reward modeling 这一阶段，而是直接使用偏好数据来优化大语言模型
+DPO 的主要目标是构建一个更简单的 policy optimization 方法。与 RLHF 不同，DPO 跳过了 reward modeling 这一阶段，而是直接使用偏好数据来优化大语言模型
 
 为了实现这个目标，作者第一步就是构建 reward model 和 policy model 之间的关系。注意到
 
@@ -107,7 +107,7 @@ $$
 
 我们可以基于这个公式来推到出最优的 reward function $r^*$ 以及对应的最优策略 $\pi^*$.
 
-此时，我们的表达式里仍然含有 $Z(x)$, 但是当我们使用 [Bradley-Terry](Bradley-Terry.md) 模型之后，我们就可以得到真实的人类偏好分布，计算过程如下所示
+此时，我们的表达式里仍然含有 $Z(x)$, 但是当我们使用 Bradley-Terry 模型之后，我们就可以得到真实的人类偏好分布，计算过程如下所示
 
 $$
 \begin{aligned}
