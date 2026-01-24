@@ -440,13 +440,9 @@ $$
 
 $$
 \begin{aligned}
-
 \nabla_\theta (\rho k_1) &= \rho s_\theta k_1+r\rho_\theta=\rho s_\theta(k_1+1)\\
-
 \nabla_\theta (\rho k_2) &= \rho s_\theta k_2+\rho\left(-\log \frac{\pi_{ref}}{\pi_\theta}s_\theta\right)=\rho s_\theta(k_1+k_2)\\
-
 \nabla_\theta (\rho k_3) &= \rho s_\theta k_3+\rho\left(1 - \frac{\pi_{ref}}{\pi_\theta}\right)s_\theta=\rho s_\theta\left(k_3+1-\frac{\pi_{ref}}{\pi_\theta}\right)=\rho s_\theta k_1
-
 \end{aligned}
 $$
 
@@ -454,13 +450,9 @@ $$
 
 $$
 \begin{aligned}
-
 \mathbb{E}_{\pi_{old}}[\nabla_\theta (\rho k_1)] &= \mathbb{E}_{\pi_{old}}[\rho s_\theta(k_1+1)]=\mathbb{E}_{\pi_{\theta}}[s_\theta k_1]=\nabla_\theta D_{KL}(\pi_\theta\parallel \pi_{ref})\\
-
 \mathbb{E}_{\pi_{old}}[\nabla_\theta (\rho k_2)] &= \mathbb{E}_{\pi_{old}}[\rho s_\theta(k_1+k_2)]=\nabla_\theta \mathbb{E}_{\pi_\theta}[k_2]\\
-
 \mathbb{E}_{\pi_{old}}[\nabla_\theta (\rho k_3)] &= \mathbb{E}_{\pi_{old}}[\rho s_\theta k_1]=\nabla_\theta D_{KL}(\pi_\theta\parallel \pi_{ref})
-
 \end{aligned}
 $$
 
@@ -502,13 +494,9 @@ $$
 
 $$
 \begin{aligned}
-
 \mathrm{var}[\nabla_\theta (\rho k_1)^Tu] - \mathrm{var}[\nabla_\theta (\rho k_3)^Tu] &= (\mathbb{E}_{\pi_{old}}[(\nabla_\theta (\rho k_1)^Tu)^2] -\mathbb{E}_{\pi_{old}}^2[\nabla_\theta (\rho k_1)^Tu] ) - (\mathbb{E}_{\pi_{old}}[(\nabla_\theta (\rho k_3)^Tu)^2] -\mathbb{E}_{\pi_{old}}^2[\nabla_\theta (\rho k_3)^Tu] ) \\
-
 &= \mathbb{E}_{\pi_{old}}[(\nabla_\theta (\rho k_1)^Tu)^2] - \mathbb{E}_{\pi_{old}}[(\nabla_\theta (\rho k_3)^Tu)^2]\\
-
 &= \mathbb{E}_{\pi_{old}}[\rho(x)^2(s(\theta)(x)^Tu)^2(2k_1(x)+1)]
-
 \end{aligned}
 $$
 
@@ -562,13 +550,9 @@ $$
 
 $$
 \begin{aligned}
-
 \nabla_\theta \mathcal{J}(\theta) &= \nabla_\theta\mathbb{E}_{\pi_\theta}\left[R\right] - \beta \nabla_\theta D_{KL}(\pi_\theta, \pi_{ref})\\
-
 &= \mathbb{E}_{\pi_\theta}\left[s_\theta R\right]-\beta \mathbb{E}_{\pi_\theta}\left[s_\theta\log \frac{\pi_\theta}{\pi_{ref}}\right]\\
-
 &= \mathbb{E}_{\pi_\theta}\left[s_\theta(R-\beta k_1) \right]
-
 \end{aligned}
 $$
 
@@ -586,13 +570,9 @@ $$
 
 $$
 \begin{aligned}
-
 \mathbb{E}_{\pi_\theta}\left[s_\theta k_i \right] &= \mathbb{E}_{\pi_\theta}\left[s_\theta \left(\frac{\pi_{ref}}{\pi_\theta}-1- \log \frac{\pi_{ref}}{\pi_\theta} \right)\right]\\
-
 &= \mathbb{E}_{\pi_\theta}\left[s_\theta \frac{\pi_{ref}}{\pi_\theta}\right] - \mathbb{E}_{\pi_\theta}\left[s_\theta \right] - \mathbb{E}_{\pi_\theta}\left[s_\theta \log \frac{\pi_{ref}}{\pi_\theta} \right]\\
-
 &=s_\theta k_1  -\nabla_\theta D_{KL}(\pi_{ref}\parallel \pi_\theta)
-
 \end{aligned}
 $$
 
@@ -608,11 +588,8 @@ $$
 
 $$
 \begin{align}
-
 &\rho s_\theta k_1\tag{loss}\\
-
 & \mathbb{E}_{\pi_{old}}[\rho s_\theta k_1]\tag{reward shaping}
-
 \end{align}
 $$
 
