@@ -9,13 +9,13 @@ categories:
 math: true
 ---
 
-# Introduction
+## Introduction
 
 我们知道，transformer使用position encoding的一个原因就是，attention layer具有置换不变性，也就是说，我们随机打乱输入token的顺序，并不影响其最终结果 (我们后面会证明，实际上只对key和value具有置换不变性，对query具有置换等变性，也就是改变query的顺序之后，结果的顺序也相应改变)。因此为了让模型学习到正确的上下文知识，我们需要加上position encoding。
 
 已有的工作大部分都在讨论如何构建更好的position encoding，但是鲜有工作探究为什么attention layer具有置换不变性. 因此，本文将从这一点出发，抽丝剥茧探究其内在原因，最后通过数学公式证明原始transformer是如何具有置换不变性的。
 
-# attention layer介绍
+## attention layer介绍
 
 原始transformer layer的架构比较简单，其结构具有`attention-LayerNorm-FFN-LayerNorm`的形式。给定输入 $X\in\mathbb{R}^{d\times m}$ 和上下文 $Y\in\mathbb{R}^{d\times n}$. 其中，attention的定义为
 
@@ -45,7 +45,7 @@ X = X + \mathrm{LayerNorm}(\mathrm{Attn}(X, Y, Y))\\
 X = X + \mathrm{LayerNorm}(\mathrm{FFN}(X))\\
 $$
 
-# 置换不变性的定义
+### 置换不变性的定义
 
 置换不变性(permutation invariant)的定义：假设 $f:\mathbb{R}^n\to\mathbb{R}^n$，如果
 
@@ -62,7 +62,7 @@ f(\sigma(\bm{x})) = \sigma(f(\bm{x}))
 $$
 则我们说 $f$是置换等变的.
 
-# attention的置换不变性与置换等变性
+## attention的置换不变性与置换等变性
 
 我们首先证明attention 对于key和value是置换不变的，即
 
@@ -106,7 +106,7 @@ $$
 但是，我们发现，尽管我们证明了attention具有置换不变性，我们却忽略了一件事：那就是我们计算query, key和value的时候，没有加上bias! 为什么bias如此重要呢？这是因为，$W\sigma(x) = \sigma(Wx)$, 但是 $W\sigma(X)\neq \sigma(Wx+b)$.
 因此，我们就会思考，难道是transformer实际上可以通过增加bias的方式来让模型学习到上下文知识？事实上并非如此，我们将要通过分析表明，我们计算query, key和value时，增加的query bias和key bias会被softmax操作给消除掉，而key bias则会被LayerNorm消除掉。因此，我们加与加bias，对attention的置换不变性没有任何影响。
 
-# Bias对attention layer的影响
+## Bias对attention layer的影响
 
 接下来，我们考虑在计算query, key和value时加入bias。为了简化，我们只考虑query为一个向量的情况，即 $X=\bm{x}\in\mathbb{R}^d$, 我们计算query, key和value如下：
 
@@ -168,7 +168,7 @@ $$
 
 到这里，看了参考文献3，我本以为可以进一步简化。但实际上并不行。参考文献3关于“transformer block is equivariant"的结果是错的，因为在attention layer之后还有一个LayerNorm，而LayerNorm不是置换不变的，这也是LayerNorm和BatchNorm之间的区别。也就是*如果我们在`nn.Linear`后加一个BatchNorm，那么`nn.Linear`的bias是无效的，反之如果是LayerNorm的话，则bias是有效的*.
 
-# 为什么没有bias
+## 为什么没有bias
 
 实际上这个问题并没有定论。特别是加入position encoding之后，就更难探究bias对最终结果的影响了。但是，我认为一个原因就是bias其实就是某种先验知识，假设输入满足高斯分布，那么我们有
 
@@ -178,17 +178,17 @@ $$
 
 加上先验知识后，当训练数据出现distribution shift之后，模型在训练过程中可能就会不稳定(PaLM). 而后来将LayerNorm替换为RMSNorm，使用RoPE而不是其他的additive position encoding, 我认为也是避免模型学习到先验知识，从而影响其泛化性。在未来，我认为transformer里应该是没有bias的，尽管这样效果可能会差一些，但是其稳定性更好，泛化性应该也会更好。
 
-# 结论
+## 结论
 
 在本文中，我们分析了attention的性质，我们发现，在原始transformer架构中，attention对于key和value有置换不变性，对于query有置换等变性。然后，我们给出了一些猜测，也就是bias会让模型产生先验知识，而这种先验知识很可能会影响训练的稳定性和模型的泛化性。
 
-# 参考文献
+## 参考文献
 
 - [Attention is All you Need](https://proceedings.neurips.cc/paper_files/paper/2017/file/3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf)
 - [Role of Bias Terms in Dot-Product Attention](https://arxiv.org/abs/2302.08626)
 - [Are Transformers universal approximators of sequence-to-sequence functions?](https://openreview.net/forum?id=ByxRM0Ntvr)
 
-# 附录
+## 附录
 
 下面是测试上面结论的python代码
 
