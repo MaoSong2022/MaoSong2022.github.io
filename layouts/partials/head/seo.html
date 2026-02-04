@@ -16,7 +16,10 @@
 {{- end -}}
 
 {{- /* Basic Meta Tags */ -}}
+{{- if not (.Scratch.Get "meta_description_rendered") -}}
 <meta name="description" content="{{ $description }}">
+{{- .Scratch.Set "meta_description_rendered" true -}}
+{{- end -}}
 <meta name="keywords" content="{{ delimit .Keywords ", " }}">
 {{- with .Site.Params.author -}}
 <meta name="author" content="{{ .name | default . }}">
