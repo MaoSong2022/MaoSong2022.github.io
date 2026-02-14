@@ -103,7 +103,11 @@ LLM 基于 [Kimi-k2](https://maosong.website/p/notes-on-kimi-k2/) 的 MoE 模型
 ![Pre-training recipe of Kimi-K2.5](Kimi-k2.5-pre-training.png)
 
 **Native Multimodal pre-training**
-在 Joint pre-training stage, Kimi-K2.5 还采用了一个与 [InternVL3](InternVL3.md) 一样的策略，即直接使用多模态数据进行预训练，作者探究了预训练阶段不同的数据对比，试验结果如下图所示
+在 Joint pre-training stage, Kimi-K2.5 还采用了一个与 [InternVL3](InternVL3.md) 类似的策略，即在预训练一开始直接使用多模态数据进行预训练。
+
+传统的多模态大模型往往基于一个比较成熟的 LLM backbone 来完成多模态大模型的训练，但是其问题在于成熟的 LLM 其表示空间会收敛到语言模态上，多模态信息的迁移能力比较差。[InternVL3](InternVL3.md) 虽然也是 native multimodal pre-training, 但是其仍然依赖于成熟的 LLM. Kimi K2.5 则是使用预训练阶段的 Kimi K2 作为 backbone 来避免表示空间的塌缩，在训练一开始即直接加入少量多模态数据来保持模型的多模态能力。
+
+作者探究了预训练阶段不同的数据对比，试验结果如下图所示
 
 |       | Vision Injection Timing | Vision-Text Ratio | Vision Knowledge | Vision  Reasoning | OCR  | Text  Knowledge | Text  Reasoning | Code |
 | ----- | ----------------------- | ----------------- | ---------------- | ----------------- | ---- | --------------- | --------------- | ---- |
