@@ -1,0 +1,790 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Training on Mao Song(毛松)'s Homepage</title><link>https://maosong.website/tags/training/</link><description>Recent content in Training on Mao Song(毛松)'s Homepage</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Sat, 24 Jan 2026 17:06:04 +0800</lastBuildDate><atom:link href="https://maosong.website/tags/training/index.xml" rel="self" type="application/rss+xml"/><item><title>LLM Memory Computation</title><link>https://maosong.website/p/llm-memory-computation/</link><pubDate>Sat, 17 Jan 2026 10:04:32 +0800</pubDate><guid>https://maosong.website/p/llm-memory-computation/</guid><description>&lt;p>本文中，我们将介绍如何计算 LLM 在训练和推理过程中的内存需求以及简要介绍对应的优化方法。&lt;/p>
+&lt;h2 id="introduction">&lt;a href="#introduction" class="header-anchor">&lt;/a>Introduction
+&lt;/h2>&lt;p>我们在本文中回答的核心问题为：&lt;/p>
+&lt;blockquote>
+&lt;p>在训练和推理时 LLM 所需要的内存是多少？如何进行优化内存占用？&lt;/p>
+&lt;/blockquote>
+&lt;p>为了回答这两个问题，我们需要回答以下问题：&lt;/p>
+&lt;ol>
+&lt;li>训练和推理时的内存由哪几部分组成？&lt;/li>
+&lt;li>训练和推理过程中哪个阶段是 memory-bound? 哪个阶段是 compute bound?&lt;/li>
+&lt;li>训练和推理过程中如何进行优化？&lt;/li>
+&lt;/ol>
+&lt;p>我们将首先介绍如何计算 LLM 在训练阶段和推理阶段的内存。接下来，我们针对可优化部分进行分析以及介绍相应的优化算法。后续，我们将针对每部分的优化进行详细介绍&lt;/p>
+&lt;h2 id="background">&lt;a href="#background" class="header-anchor">&lt;/a>Background
+&lt;/h2>&lt;p>首先我们介绍一下使用的 notation, 这与之前参数量，FLOPs 计算使用的 notation 基本一致。需要注意的是，我们直接使用参数量 $P$ 这个记号，这部分在 &lt;a class="link" href="https://maosong.website/p/llm-parameter-computation/" target="_blank" rel="noopener"
+>LLM parameter analysis&lt;/a> 中已经进行了详细介绍，因此我们略过这部分。&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>variable&lt;/th>
+&lt;th>description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>$P$&lt;/td>
+&lt;td>number of parameters&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>$L$&lt;/td>
+&lt;td>layers&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>$V$&lt;/td>
+&lt;td>vocabulary size&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>$d$&lt;/td>
+&lt;td>hidden size&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>$d_{ff}$&lt;/td>
+&lt;td>FFN hidden size&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>$s$&lt;/td>
+&lt;td>sequence length&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>$b$&lt;/td>
+&lt;td>batch size&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>$h$&lt;/td>
+&lt;td>number of attention heads&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>$d_h$&lt;/td>
+&lt;td>attention head dimension&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="assumption">&lt;a href="#assumption" class="header-anchor">&lt;/a>Assumption
+&lt;/h3>&lt;ol>
+&lt;li>没有特别说明的话，我们使用 BF16/FP16 作为精度，此时每个参数需要 $2$ byte 来表示&lt;/li>
+&lt;li>不使用 dropout (现代大模型普遍没有 dropout)&lt;/li>
+&lt;/ol>
+&lt;h2 id="computation">&lt;a href="#computation" class="header-anchor">&lt;/a>Computation
+&lt;/h2>&lt;h3 id="overview">&lt;a href="#overview" class="header-anchor">&lt;/a>Overview
+&lt;/h3>&lt;p>我们首先给出训练和推理阶段各部分的内存需求，然后我们给出详细的计算公式&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>component&lt;/th>
+&lt;th>训练&lt;/th>
+&lt;th>推理&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>weights&lt;/td>
+&lt;td>Fixed&lt;/td>
+&lt;td>Fixed&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>optimizer states&lt;/td>
+&lt;td>Fixed and massive&lt;/td>
+&lt;td>0&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>gradients&lt;/td>
+&lt;td>Fixed&lt;/td>
+&lt;td>0&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>activations&lt;/td>
+&lt;td>Large (stored for backprop)&lt;/td>
+&lt;td>Tiny (discarded after use)&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>KV cache&lt;/td>
+&lt;td>0&lt;/td>
+&lt;td>Large (grows with sequence)&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="training">&lt;a href="#training" class="header-anchor">&lt;/a>Training
+&lt;/h3>&lt;p>LLM 训练阶段对的内存开销包含三部分&lt;/p>
+$$
+\text{Memory}_{\text{train}} = \text{Memory}(\text{weight}) + \text{Memory}(\text{activation}) + \text{Memory}(\text{optimizer})+\text{Memory}(\text{gradient})
+$$&lt;h4 id="weights">&lt;a href="#weights" class="header-anchor">&lt;/a>Weights
+&lt;/h4>&lt;p>我们在前面已经介绍了如何计算大语言模型的参数量，这里我们就直接记为 $P$, 由于我们使用单精度，因此所需要的内存为 $2P$.&lt;/p>
+&lt;h4 id="activation">&lt;a href="#activation" class="header-anchor">&lt;/a>Activation
+&lt;/h4>&lt;p>激活值（activation）是前向传播过程中产生的中间张量，反向传播计算梯度时需复用这些张量，因此训练阶段需全程存储。我们用一个简单的例子来进行说明，假设我们有一层神经网络，定义为&lt;/p>
+$$
+\begin{aligned}
+\mathbf{z}_l &amp;= W_l\mathbf{a}_{l-1}+b_l\\
+\mathbf{a}_{l} &amp;= \phi(\mathbf{z}_l)
+\end{aligned}
+$$&lt;p>那么在反向传播过程中，我们有&lt;/p>
+$$
+\frac{\partial \mathcal{L}}{\partial W_l} = \frac{\partial \mathcal{L}}{\partial \mathbf{z}_l}\frac{\partial \mathbf{z}_l}{\partial W_l}=\frac{\partial \mathcal{L}}{\partial \mathbf{z}_l} \mathbf{a}_{l-1}
+$$&lt;p>也就是说，在计算第 $l$ 层的参数对应的梯度时，我们需要知道对应的输入 $\mathbf{a}_{l-1}$.&lt;/p>
+&lt;p>接下来，我们通过计算图来分析 LLM 所需要的 activation&lt;/p>
+&lt;p>&lt;strong>Attention&lt;/strong>
+Attention 的计算图如下所示&lt;/p>
+&lt;p>&lt;img src="https://maosong.website/p/llm-memory-computation/Attention-computation-graph.png"
+width="841"
+height="776"
+loading="lazy"
+alt="Computation graph of attention"
+class="gallery-image"
+data-flex-grow="108"
+data-flex-basis="260px"
+>&lt;/p>
+&lt;p>根据计算图，对应的 activation 为（注：这里我们不做任何优化，仅此理论上进行分析）：&lt;/p>
+&lt;ol>
+&lt;li>query, key, value projection: 共享输入，对应的 activation 大小为 $2bsd$.&lt;/li>
+&lt;li>$Q^TK$ : $Q$, $K$ 都需要保存，大小为 $4bsd$.&lt;/li>
+&lt;li>softmax: 需要保存 $2bhs^2$ 大小的输入&lt;/li>
+&lt;li>weighted sum of values: 两者都需要保存，前者大小为 $2bhs^2$, 后者大小为 $2bsd$&lt;/li>
+&lt;li>output projection layer: 需要保存输入，大小为 $2bsd$.&lt;/li>
+&lt;/ol>
+&lt;p>因此 attention 部分总共需要 $\boxed{10sbd+4bhs^2}$.&lt;/p>
+&lt;p>&lt;strong>FFN&lt;/strong>
+FFN 计算图如下所示&lt;/p>
+&lt;p>&lt;img src="https://maosong.website/p/llm-memory-computation/FFN-computation-graph.png"
+width="559"
+height="742"
+loading="lazy"
+alt="FFN computation graph"
+class="gallery-image"
+data-flex-grow="75"
+data-flex-basis="180px"
+>&lt;/p>
+&lt;p>根据计算图，对应的 activation （我们假设 MLP 是一个基于 SwiGLU 的 dense MLP, 其 hidden size $d_{ff}=8/3d$,）：&lt;/p>
+&lt;ol>
+&lt;li>MLP 的第一层输入大小为 $2sbd$,&lt;/li>
+&lt;li>MLP 的第二层输入大小为 $16/3sbd$,&lt;/li>
+&lt;li>SwiGLU 的输入为 $16/3sbd$&lt;/li>
+&lt;/ol>
+&lt;p>因此总的 activation 大小为 $\boxed{18sbd}$.&lt;/p>
+&lt;p>&lt;strong>LayerNorm&lt;/strong>
+LayerNorm 需要保存输入，大小为 $\boxed{2bsd}$.&lt;/p>
+&lt;p>以上三部分相加，我们就得到单一 transformer layer 所需要的 activation:&lt;/p>
+$$
+\begin{aligned}
+\mathrm{activation}(\mathrm{transformer}\_{\mathrm{block}})&amp;=\mathrm{activation}(\mathrm{PerNorm})+\mathrm{activation}(\mathrm{Attention})+\mathrm{activation}(\mathrm{PostNorm})+\mathrm{activation}(\mathrm{FFN})\\
+&amp;= 2bsd + (10bsd+4bhs^2) + 2bsd + 18bsd\\
+&amp;= \boxed{bs(32d+4hs)}
+\end{aligned}
+$$&lt;p>&lt;strong>output&lt;/strong>
+output 部分的计算图如下所示&lt;/p>
+&lt;p>&lt;img src="https://maosong.website/p/llm-memory-computation/output-computation-graph.png"
+width="381"
+height="545"
+loading="lazy"
+alt="Output computation graph"
+class="gallery-image"
+data-flex-grow="69"
+data-flex-basis="167px"
+>&lt;/p>
+&lt;p>根据计算图，对应的 activation 为：&lt;/p>
+&lt;ol>
+&lt;li>normalization 的输入大小为大小为 $2sbd$&lt;/li>
+&lt;li>&lt;code>lm_head&lt;/code> 的输入大小为 $2sbd$&lt;/li>
+&lt;li>loss 的输入大小为 $2bsV$&lt;/li>
+&lt;/ol>
+&lt;p>从而输出部分的 activation 大小为&lt;/p>
+$$
+\mathrm{activation}(\mathrm{output}) = \mathrm{activation}(\mathrm{FinalNorm})+\mathrm{activation}(\mathrm{lm\ head})+\mathrm{activation}(\mathrm{Loss}) = \boxed{4bsd+2bsV}
+$$&lt;p>因此，总的 activation 为&lt;/p>
+$$
+\begin{aligned}
+\text{Memory}(\text{activation}) &amp;= L*(\mathrm{transformer}\_{\mathrm{block}}) + \mathrm{activation}(\mathrm{output})\\
+&amp;= \boxed{Lsb(32d+4hs) +( 4bsd+2bsV)}
+\end{aligned}
+$$&lt;h4 id="gradients--optimizer-states">&lt;a href="#gradients--optimizer-states" class="header-anchor">&lt;/a>Gradients &amp;amp; Optimizer States
+&lt;/h4>&lt;p>现代优化器一般会使用高阶近似以及混合精度训练来提高训练的效率，这部分高阶近似也需要考虑内存占用。&lt;/p>
+&lt;p>&lt;strong>Gradients&lt;/strong>
+当 gradient 和 weight 精度一致时，对应的内存消耗一致，为 $\boxed{2P}$.&lt;/p>
+&lt;p>&lt;strong>Optimizer states&lt;/strong>
+&lt;a class="link" href="https://maosong.website/p/notes-on-adamw/" target="_blank" rel="noopener"
+>AdamW&lt;/a> 优化器会保存一阶和二阶动量，以及一份 master weights, 精度一般为 FP32:&lt;/p>
+&lt;ol>
+&lt;li>FP32 master weights: $4P$&lt;/li>
+&lt;li>FP32 first-order momentum: $4P$&lt;/li>
+&lt;li>FP32 second-order momentum: $4P$&lt;/li>
+&lt;/ol>
+&lt;p>因此优化器状态需要 $\boxed{12P}$ 内存。&lt;/p>
+&lt;p>对于其他优化器，我们也可以算出对应的内存需求，下表总结了 AdamW, bitsandbytes 和 SGD 三种 optimizer&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>optimizer&lt;/th>
+&lt;th>master weights (FP32)&lt;/th>
+&lt;th>momentum&lt;/th>
+&lt;th>variance&lt;/th>
+&lt;th>TOTAL&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>AdamW&lt;/td>
+&lt;td>$4P$&lt;/td>
+&lt;td>$4P$&lt;/td>
+&lt;td>$4P$&lt;/td>
+&lt;td>$12P$&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>bitsandbytes&lt;/td>
+&lt;td>$4P$&lt;/td>
+&lt;td>$P$&lt;/td>
+&lt;td>$P$&lt;/td>
+&lt;td>$6P$&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>SGD&lt;/td>
+&lt;td>$4P$&lt;/td>
+&lt;td>$4P$&lt;/td>
+&lt;td>0&lt;/td>
+&lt;td>$8P$&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>最终，训练阶段所需要的内存为&lt;/p>
+$$
+\text{Memory}_{\text{train}} = 16P+bs(32dL+4hsL+4d+2V)
+$$&lt;p>下面我们展示 LLaMA 系列训练时不同部分的内存占比 (batch size=64, AdamW, GB)&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Model&lt;/th>
+&lt;th>weights&lt;/th>
+&lt;th>gradients&lt;/th>
+&lt;th>optimizer_states&lt;/th>
+&lt;th>activations&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>LLaMA-7B&lt;/td>
+&lt;td>12.55&lt;/td>
+&lt;td>12.55&lt;/td>
+&lt;td>75.31&lt;/td>
+&lt;td>1545.81&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>LLaMA-13B&lt;/td>
+&lt;td>24.24&lt;/td>
+&lt;td>24.24&lt;/td>
+&lt;td>145.46&lt;/td>
+&lt;td>2410.31&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>LLaMA-33B&lt;/td>
+&lt;td>60.59&lt;/td>
+&lt;td>60.59&lt;/td>
+&lt;td>363.54&lt;/td>
+&lt;td>4691.06&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>LLaMA-65B&lt;/td>
+&lt;td>121.60&lt;/td>
+&lt;td>121.60&lt;/td>
+&lt;td>729.62&lt;/td>
+&lt;td>7691.81&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="inference">&lt;a href="#inference" class="header-anchor">&lt;/a>Inference
+&lt;/h3>&lt;p>LLM 推理阶段对的开销包含三部分&lt;/p>
+$$
+\text{Memory}_{\text{Inference}} = \text{Memory}(\text{weight}) + \text{Memory}(\text{activation}) + \text{Memory}(\text{KV cache})
+$$&lt;p>weight memory 的内存占用为 $\boxed{2P}$. activation 内存占用比较小，&lt;a class="link" href="https://blog.eleuther.ai/transformer-math/" target="_blank" rel="noopener"
+>transformer-math&lt;/a> 给出了一个经验值，即&lt;/p>
+$$
+\text{Memory}(\text{activation})\approx 0.2*\text{Memory}(\text{weight})=0.4P
+$$&lt;p>该经验值适用于 batch size = 1 的自回归推理场景。weight 和 activation 这两部分开销只与模型本身有关，第三部分 KV cache 则与我们的生成内容长度相关，下面我们详细进行介绍&lt;/p>
+&lt;h4 id="key-value-cache">&lt;a href="#key-value-cache" class="header-anchor">&lt;/a>Key Value Cache
+&lt;/h4>&lt;p>Key Value Cache (KV Cache) 是 LLM 在推理过程中为了避免重复计算历史 token 对应的 key 和 value 而使用的一个&lt;strong>空间换时间的缓存机制&lt;/strong>。&lt;/p>
+&lt;p>在 LLM 推理阶段，我们是 token-by-token 进行生成的，每次 attention 的计算都有如下形式&lt;/p>
+$$
+\begin{aligned}
+\mathbf{q_t} &amp;= W_Q\mathbf{x_t}\\
+\mathbf{k}_{:,t}&amp;=W_K[\mathbf{x_1},\dots,\mathbf{x_t}]\\
+\mathbf{v}_{:,t}&amp;=W_V[\mathbf{x_1},\dots,\mathbf{x_t}]\\
+\mathbf{o}_t&amp;=\mathrm{Attn}(\mathbf{q_t},\mathbf{k}_{:,t}, \mathbf{v}_{:,t})=\sum_{i=1}^t \frac{\alpha_{t,i}}{\sum_{t,i}\alpha_{t,i}}\mathbf{v_i},\ \alpha_{t,i} = \exp\left(\frac{\mathbf{q_t}^T\mathbf{k}_{i}}{\sqrt{d_k}}\right)
+\end{aligned}
+$$&lt;p>这里 $\mathbf{q_t}$ 是当前 token $\mathbf{x}_t$ 对应的 query, $\mathbf{k}_{:,t}$ 和 $\mathbf{v}_{:,t}$ 是历史 token $[\mathbf{x_1},\dots,\mathbf{x_t}]$ 对应的 key 和 value. 当我们处理下一个 token $\mathbf{x}_{t+1}$ 时， 对应的计算变成了&lt;/p>
+$$
+\begin{aligned}
+\mathbf{q_t} &amp;= W_Q\mathbf{x_t}\\
+\mathbf{k}_{:,t+1}&amp;=W_K[\mathbf{x_1},\dots,\mathbf{x_t},\mathbf{x}_{t+1}]=[\boxed{\mathbf{k}_{:,t}},W_K\mathbf{x}_{t+1}]\\
+\mathbf{v}_{:,t+1}&amp;=W_V[\mathbf{x_1},\dots,\mathbf{x_t},\mathbf{x}_{t+1}]=[\boxed{\mathbf{v}_{:,t}},W_V\mathbf{x}_{t+1}]\\
+\end{aligned}
+$$&lt;p>也就是说，我们每生成一个 token, 都要重新计算一次历史 token 对应的 key 和 value, 因此生成一个包含 $s$ 个 token 的 sequence 时，每个 token 都需要计算其前序 token 的 key 和 value, 其对应的计算量为&lt;/p>
+$$
+\sum_{t=1}^s \mathcal{O}(t) = \mathcal{O}(s^2)
+$$&lt;p>因此，一个自然的想法就是缓存历史 token 对应的 key 和 value, 在生成新的 token 时，我们只需从内存中加载计算好的结果，然后计算当前 token 对应的值 $W_K\mathbf{x}_{t+1}$ 和 $W_V\mathbf{x}_{t+1}$ 即可，这就是 KV cache. 使用 KV cache 之后，我们每次生成新的 token 时，仅需要计算当前 token 对应的 key 和 value, 此时总的计算复杂度为 $\mathcal{O}(s)$, 对应的空间复杂度为 $\mathcal{O}(s)$. 也就是以空间换时间。&lt;/p>
+&lt;p>容易推导出一个基于 Multi-head attention LLM 的 KV cache 如下&lt;/p>
+$$
+\text{Memory}(\text{KV cache}) = s \times 2 \times 2 \times L\times h \times d_h
+$$&lt;p>可以看到，KV Cache 占用不仅与模型配置有关，还与生成的 sequence length 有关，生成的 token 越多，KV Cache 这部分占用越高。&lt;/p>
+&lt;p>最终，推理阶段模型本身的内存占用为&lt;/p>
+$$
+\text{Memory}_{\text{Inference}} = 2.4P+4sLhd_h
+$$&lt;p>我们还是以 LLaMA 系列为例，结果如下 (batch size=1, GB, 括号里为 sequence length)&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Model&lt;/th>
+&lt;th>Weights&lt;/th>
+&lt;th>Activations&lt;/th>
+&lt;th>KV Cache (1024)&lt;/th>
+&lt;th>KV Cache (4096)&lt;/th>
+&lt;th>KV Cache (16384)&lt;/th>
+&lt;th>KV Cache (32768)&lt;/th>
+&lt;th>KV Cache (131072)&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>LLaMA-7B&lt;/td>
+&lt;td>12.55&lt;/td>
+&lt;td>2.51&lt;/td>
+&lt;td>0.25&lt;/td>
+&lt;td>1.00&lt;/td>
+&lt;td>4.00&lt;/td>
+&lt;td>8.00&lt;/td>
+&lt;td>32.00&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>LLaMA-13B&lt;/td>
+&lt;td>24.24&lt;/td>
+&lt;td>4.85&lt;/td>
+&lt;td>0.39&lt;/td>
+&lt;td>1.56&lt;/td>
+&lt;td>6.25&lt;/td>
+&lt;td>12.50&lt;/td>
+&lt;td>50.00&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>LLaMA-33B&lt;/td>
+&lt;td>60.59&lt;/td>
+&lt;td>12.12&lt;/td>
+&lt;td>0.76&lt;/td>
+&lt;td>3.05&lt;/td>
+&lt;td>12.19&lt;/td>
+&lt;td>24.38&lt;/td>
+&lt;td>97.50&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>LLaMA-65B&lt;/td>
+&lt;td>121.60&lt;/td>
+&lt;td>24.32&lt;/td>
+&lt;td>1.25&lt;/td>
+&lt;td>5.00&lt;/td>
+&lt;td>20.00&lt;/td>
+&lt;td>40.00&lt;/td>
+&lt;td>160.00&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>可以看到，随着输出长度增加，KV cache 的开销占比也逐渐了超过模型权重的内存占用。而实际中 KV cache 往往因 page granularity、padding 和 fragmentation 略高于理论值。&lt;/p>
+&lt;h3 id="summary">&lt;a href="#summary" class="header-anchor">&lt;/a>Summary
+&lt;/h3>&lt;p>我们将上面的结果汇总起来就得到下表的结果。&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>component&lt;/th>
+&lt;th>训练&lt;/th>
+&lt;th>推理&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>weights&lt;/td>
+&lt;td>$2P$&lt;/td>
+&lt;td>$2P$&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>optimizer states&lt;/td>
+&lt;td>$12P$&lt;/td>
+&lt;td>0&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>gradients&lt;/td>
+&lt;td>$2P$&lt;/td>
+&lt;td>0&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>activations&lt;/td>
+&lt;td>$Lsb(32d+4hs) +( 4bsd+2bsV)$&lt;/td>
+&lt;td>$\sim 0.4P$&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>KV cache&lt;/td>
+&lt;td>0&lt;/td>
+&lt;td>$4sLhd_h$&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>TOTAL&lt;/td>
+&lt;td>$16P+bs(32dL+4hsL+4d+2V)$&lt;/td>
+&lt;td>$2.4P+4sLhd_h$&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h2 id="analysis--optimizations">&lt;a href="#analysis--optimizations" class="header-anchor">&lt;/a>Analysis &amp;amp; Optimizations
+&lt;/h2>&lt;p>接下来，我们将简单介绍一下如何优化训练和推理过程中的内存占用，我们将优化方法总结如下表所示。后面我们将一一进行详细介绍&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Stage&lt;/th>
+&lt;th>methods&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>training&lt;/td>
+&lt;td>- activation checkpointing&lt;br>- flash attention&lt;br>- Parallelism&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>inference&lt;/td>
+&lt;td>- KV Cache Optimization&lt;br>- PagedAttention&lt;br>- RadixAttention&lt;br>- Attention mechanism&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="training-1">&lt;a href="#training-1" class="header-anchor">&lt;/a>Training
+&lt;/h3>&lt;h4 id="mixed-precision-training">&lt;a href="#mixed-precision-training" class="header-anchor">&lt;/a>Mixed Precision Training
+&lt;/h4>&lt;p>混合精度训练的核心思想是计算量大的模块使用低精度，计算量小的模块使用高精度。细节见 Mixed precision training, 最近的 &lt;a class="link" href="https://maosong.website/p/notes-on-deepseek-v3/" target="_blank" rel="noopener"
+>DeepSeek-V3&lt;/a> 还进一步使用了 FP8 精度进行训练，大幅度提高了训练效率。&lt;/p>
+&lt;h4 id="data-parallelism">&lt;a href="#data-parallelism" class="header-anchor">&lt;/a>Data Parallelism
+&lt;/h4>&lt;p>第一个并行策略是数据并行 (data parallelism), 其基本思想是把模型复制到多个 GPU 上，并行处理数据，然后对 loss 进行求和再进行反向传播。现在最常使用的是微软提出的 ZeRO, 其核心思想为把 optimizer states, gradients, weights 分布到不同的 GPU 上，然后需要的时候再汇总到一起。ZeRO 根据切分的部分不同可以分为三种策略，如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong.website/p/llm-memory-computation/ZeRO-architecture.png"
+width="1057"
+height="528"
+loading="lazy"
+alt="Architecture of ZeRO"
+class="gallery-image"
+data-flex-grow="200"
+data-flex-basis="480px"
+>&lt;/p>
+&lt;p>如上图所示，在 baseline 场景下，我们每个 GPU 上都保存有一份模型的 optimizer states, gradients, weights, 这就限制了 batch size, 进而降低了整体的计算效率。&lt;/p>
+&lt;p>ZeRO 的关键改进在于利用 GPU 可以互相通信的性质来将 tensor 存储在不同的 GPU 上，这时&lt;strong>每个 GPU 上不再保存完整的复制，而是独特的一部分数据&lt;/strong>，在参与计算时，GPU 通过 all gather 来把数据汇总在一起，如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong.website/p/llm-memory-computation/GPU-all-gather.gif"
+width="850"
+height="383"
+loading="lazy"
+alt="All-gather of GPU (sourced from How to scale your model)"
+class="gallery-image"
+data-flex-grow="221"
+data-flex-basis="532px"
+>&lt;/p>
+&lt;p>ZeRO1 只对 optimizer states 进行 shard, 因此其内存占用为&lt;/p>
+$$
+\text{Memory}_{\text{train}} = \text{Memory}(\text{weight}) + \text{Memory}(\text{activation}) + \frac{\text{Memory}(\text{optimizer})}{\text{\# GPUs}}+\text{Memory}(\text{gradient})
+$$&lt;p>ZeRO2 在 ZeRO1 的基础上进一步对 gradient 也进行 shard, 其内存占用为&lt;/p>
+$$
+\text{Memory}_{\text{train}} = \text{Memory}(\text{weight}) + \text{Memory}(\text{activation}) + \frac{\text{Memory}(\text{optimizer})+\text{Memory}(\text{gradient})}{\text{\# GPUs}}
+$$&lt;p>ZeRO3 在 ZeRO2 的基础上对 weight 也进行 shard, 其内存占用为&lt;/p>
+$$
+\text{Memory}_{\text{train}} = \text{Memory}(\text{activation}) + \frac{\text{Memory}(\text{weight}) + \text{Memory}(\text{optimizer})+\text{Memory}(\text{gradient})}{\text{\# GPUs}}
+$$&lt;p>一般来说，我们比较少使用 ZeRO3, 因为其通信开销变为了原来的 1.5 倍。&lt;/p>
+&lt;h4 id="activation-checkpointing">&lt;a href="#activation-checkpointing" class="header-anchor">&lt;/a>Activation Checkpointing
+&lt;/h4>&lt;p>上一节我们介绍了使用 DP 来减少固定部分 (weight, optimizer states, gradients) 部分的占用，但实际上训练时占用部分更多的是 activation, 这部分内存占用会严重影响 batch size 的设置进而影响整体计算效率。我们对固定部分（与模型参数量相关）和非固定部分（与 batch size 相关）进行一个对比，结果如下所示&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Metric&lt;/th>
+&lt;th>$d$&lt;/th>
+&lt;th>$b, s$&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>weight&lt;/td>
+&lt;td>quadratic ($d^2$)&lt;/td>
+&lt;td>independent&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>activation&lt;/td>
+&lt;td>linear ($d$)&lt;/td>
+&lt;td>linear ($bs$)&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>我们可以看到，虽然训练时 batch size 越大越好，但是由于 activation 也会随之增大，batch size 可能只能使用一个非常小的值。下图是 LLaMA 系列在 $b=64$ 时不同部分的内存占用：&lt;/p>
+&lt;p>&lt;img src="https://maosong.website/p/llm-memory-computation/memory_usage_bs-64.png"
+width="1200"
+height="600"
+loading="lazy"
+alt="memory usage of different components (bs=64)"
+class="gallery-image"
+data-flex-grow="200"
+data-flex-basis="480px"
+>&lt;/p>
+&lt;p>从图表可看出，LLaMA-65B 在 batch size=64 时，激活值占用内存超 80%，远高于权重 / 梯度 / 优化器状态，而且随着 batch size 增加，这个比例会进一步上升。&lt;/p>
+&lt;p>为了解决这个问题，我们一般会使用 &lt;strong>activation checkpointing&lt;/strong> 方法，这个方法是一个通过重新计算中间激活值，来减少内存占用的方法。其核心思想在于用计算复杂度换空间复杂度。&lt;a class="link" href="https://arxiv.org/pdf/2205.05198" target="_blank" rel="noopener"
+>Reducing Activation Recomputation in Large Transformer Models&lt;/a> 给出了不同的 checkpointing 策略，需要的算力也不同相同，我们下表进行总结&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>&lt;/th>
+&lt;th>No checkpointing&lt;/th>
+&lt;th>Selective checkpointing&lt;/th>
+&lt;th>full checkpointing&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>description&lt;/td>
+&lt;td>stores everything needed&lt;/td>
+&lt;td>store states stagely (e.g., the input to each layer)&lt;/td>
+&lt;td>only store the input to the model&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>memory&lt;/td>
+&lt;td>very high ($\text{Memory}(\text{activation})$)&lt;/td>
+&lt;td>medium&lt;/td>
+&lt;td>very low $2bsd$&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>extra compute&lt;/td>
+&lt;td>None&lt;/td>
+&lt;td>medium&lt;/td>
+&lt;td>very high $2Pbs$&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>一般来说我们会结合 model parallelism 和 selective checkpointing 来实现一个均衡&lt;/p>
+&lt;h4 id="model-parallelism">&lt;a href="#model-parallelism" class="header-anchor">&lt;/a>Model Parallelism
+&lt;/h4>&lt;p>与 DP 在数据维度上进行切分不同，model parallelism 通过对模型进行切分来提高内存使用效率。Model Parallelism 又可以分为 Pipeline Parallelism (PP) 和 Tensor Parallelisim (TP)&lt;/p>
+&lt;p>通过 PP 和 TP 我们可以将模型切分部署在多个 GPU 上进而减少内存占用，对应的计算方式为&lt;/p>
+$$
+\text{Memory}(\text{weight};\text{parallelism}) = \frac{\text{Memory}(\text{weight})}{\text{PP degree}\times\text{TP degree}}
+$$&lt;p>实际情况中，我们还可以结合 ZeRO 以及 Model Paralelism, 我们根据 PP degree 和 TP degree 来决定 DP degree&lt;/p>
+$$
+\text{DP degree} = \frac{\text{\# GPUs}}{\text{PP degree}\times\text{TP degree}}
+$$&lt;p>最终，我们把以上优化技巧汇总起来就得到 (假设我们采用 ZeRO1 和 Model Parallelism)&lt;/p>
+$$
+\text{Memory}_{\text{train}} \approx \frac{\text{Memory}(\text{weight})}{\text{PP degree}\times\text{TP degree}} + \frac{\text{Memory}(\text{activation})}{\text{TP degree}} + \frac{\text{Memory}(\text{optimizer})}{\text{\# GPUs}}+\frac{\text{Memory}(\text{gradient})}{\text{PP degree}}
+$$&lt;p>这里&amp;gt; activation 中 &lt;strong>被 tensor-parallel 的部分&lt;/strong> 按 TP degree 缩减。&lt;/p>
+&lt;p>关于 Parallelism 的具体细节见 Parallelism tutorial&lt;/p>
+&lt;h4 id="flash-attention">&lt;a href="#flash-attention" class="header-anchor">&lt;/a>Flash Attention
+&lt;/h4>&lt;p>在前面的分析中，我们给出了 attention softmax 这一部分的 activation 为 $2bhs^2$ 而 flashattention 通过 tiling 和 online-softmax 降低了这一部分的内存占用，进而提高整体的效率。&lt;/p>
+&lt;p>具体细节见 &lt;a class="link" href="https://maosong.website/p/notes-on-flashattention/" target="_blank" rel="noopener"
+>flash attention&lt;/a>&lt;/p>
+&lt;h3 id="inference-1">&lt;a href="#inference-1" class="header-anchor">&lt;/a>Inference
+&lt;/h3>&lt;h4 id="quantization">&lt;a href="#quantization" class="header-anchor">&lt;/a>Quantization
+&lt;/h4>&lt;p>quantization 是用低精度加载模型权重从而降低推理阶段模型参数内存占用的一个方法。比如说原始模型使用了 BF16 精度，那么我们可以通过使用 int8 量化来将模型权重对应的内存从 $2P$ 降低到 $P$. 现在一些模型还会在训练阶段就加入 quantization, 比如 quantization aware training 以及 post-training quantization 等。这部分细节可以参考 &lt;a class="link" href="https://arxiv.org/pdf/2312.03863" target="_blank" rel="noopener"
+>Efficient Large Language Models: A Survey&lt;/a>&lt;/p>
+&lt;h4 id="kv-cache-optimization">&lt;a href="#kv-cache-optimization" class="header-anchor">&lt;/a>KV Cache Optimization
+&lt;/h4>&lt;p>我们在前面已经介绍了 KV cache 可以通过以空间换时间来提高计算效率，但是随着输出长度增加，对应的 KV cache 也会越来越大，因此目前有相当一部分工作旨在降低 KV cache 占用，比如 KV Cache compression, quantization 等。这部分细节可以参考 &lt;a class="link" href="https://arxiv.org/pdf/2412.19442" target="_blank" rel="noopener"
+>A Survey on Large Language Model Acceleration based on KV Cache Management&lt;/a>&lt;/p>
+&lt;h4 id="attention">&lt;a href="#attention" class="header-anchor">&lt;/a>Attention
+&lt;/h4>&lt;p>实际上，相当一部分工作都是通过优化 attention 来降低&lt;/p>
+&lt;h4 id="inference-framework">&lt;a href="#inference-framework" class="header-anchor">&lt;/a>Inference Framework
+&lt;/h4>&lt;p>现在也有一些推理框架专注于提高 LLM 的推理效率，下面是两个比较流行的推理框架&lt;/p>
+&lt;ul>
+&lt;li>SGLang: 定制化强，适用于复杂任务如 RL 推理等&lt;/li>
+&lt;li>vLLM: 简单高效&lt;/li>
+&lt;/ul>
+&lt;p>对应的轻量化推理框架为&lt;/p>
+&lt;ul>
+&lt;li>nano-vLLM&lt;/li>
+&lt;li>mini-SGLang&lt;/li>
+&lt;/ul>
+&lt;p>这部分&lt;/p>
+&lt;h2 id="conclusion">&lt;a href="#conclusion" class="header-anchor">&lt;/a>Conclusion
+&lt;/h2>&lt;p>在本文中，我们详细介绍了 LLM 在训练和推理阶段的内存占用开销以及简要介绍了对应的优化方法。关键结论为：&lt;/p>
+&lt;ul>
+&lt;li>训练阶段内存核心瓶颈是激活值（随 batch size / 序列长度线性增长），推理阶段核心瓶颈是 KV Cache（随序列长度增长）；&lt;/li>
+&lt;li>训练优化优先通过 ZeRO（多卡）+ activation checkpointing（单卡）降低内存，推理优化优先通过 KV Cache 优化 + 量化降低内存；&lt;/li>
+&lt;li>所有内存计算均为理论值，实际落地需考虑显存碎片、硬件特性、通信开销等工程因素。&lt;/li>
+&lt;/ul>
+&lt;p>需要注意的是，所有内存计算均为理论值，实际落地需考虑显存碎片、硬件特性、通信开销等工程因素。下一步，我们将分别针对不同的优化方法来进行展开并详细介绍。&lt;/p>
+&lt;h2 id="references">&lt;a href="#references" class="header-anchor">&lt;/a>References
+&lt;/h2>&lt;ul>
+&lt;li>&lt;a class="link" href="https://blog.eleuther.ai/transformer-math/" target="_blank" rel="noopener"
+>transformer-math&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://kipp.ly/transformer-inference-arithmetic/" target="_blank" rel="noopener"
+>transformer inference arithmetic&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://zhuanlan.zhihu.com/p/687226668" target="_blank" rel="noopener"
+>https://zhuanlan.zhihu.com/p/687226668&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://arxiv.org/pdf/2205.05198" target="_blank" rel="noopener"
+>Reducing Activation Recomputation in Large Transformer Models&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://blog.eleuther.ai/transformer-math/" target="_blank" rel="noopener"
+>https://blog.eleuther.ai/transformer-math/&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://arxiv.org/pdf/2412.19442" target="_blank" rel="noopener"
+>A Survey on Large Language Model Acceleration based on KV Cache Management&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://arxiv.org/pdf/2312.03863" target="_blank" rel="noopener"
+>Efficient Large Language Models: A Survey&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;h2 id="appendix">&lt;a href="#appendix" class="header-anchor">&lt;/a>Appendix
+&lt;/h2>&lt;h3 id="activation-visualization">&lt;a href="#activation-visualization" class="header-anchor">&lt;/a>Activation Visualization
+&lt;/h3>&lt;p>LLaMA 系列的配置如下表所示&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Model&lt;/th>
+&lt;th>s&lt;/th>
+&lt;th>V&lt;/th>
+&lt;th>L&lt;/th>
+&lt;th>d&lt;/th>
+&lt;th>d_ff&lt;/th>
+&lt;th>h&lt;/th>
+&lt;th>h_d&lt;/th>
+&lt;th>P&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>LLaMA-7B&lt;/td>
+&lt;td>2048&lt;/td>
+&lt;td>32000&lt;/td>
+&lt;td>32&lt;/td>
+&lt;td>4096&lt;/td>
+&lt;td>11008&lt;/td>
+&lt;td>32&lt;/td>
+&lt;td>128&lt;/td>
+&lt;td>6738411520&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>LLaMA-13B&lt;/td>
+&lt;td>2048&lt;/td>
+&lt;td>32000&lt;/td>
+&lt;td>40&lt;/td>
+&lt;td>5120&lt;/td>
+&lt;td>13824&lt;/td>
+&lt;td>40&lt;/td>
+&lt;td>128&lt;/td>
+&lt;td>13015859200&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>LLaMA-33B&lt;/td>
+&lt;td>2048&lt;/td>
+&lt;td>32000&lt;/td>
+&lt;td>60&lt;/td>
+&lt;td>6656&lt;/td>
+&lt;td>17920&lt;/td>
+&lt;td>52&lt;/td>
+&lt;td>128&lt;/td>
+&lt;td>32528936960&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>LLaMA-65B&lt;/td>
+&lt;td>2048&lt;/td>
+&lt;td>32000&lt;/td>
+&lt;td>80&lt;/td>
+&lt;td>8192&lt;/td>
+&lt;td>22016&lt;/td>
+&lt;td>64&lt;/td>
+&lt;td>128&lt;/td>
+&lt;td>65285652480&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>对应的可视化代码如下&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;span class="lnt">21
+&lt;/span>&lt;span class="lnt">22
+&lt;/span>&lt;span class="lnt">23
+&lt;/span>&lt;span class="lnt">24
+&lt;/span>&lt;span class="lnt">25
+&lt;/span>&lt;span class="lnt">26
+&lt;/span>&lt;span class="lnt">27
+&lt;/span>&lt;span class="lnt">28
+&lt;/span>&lt;span class="lnt">29
+&lt;/span>&lt;span class="lnt">30
+&lt;/span>&lt;span class="lnt">31
+&lt;/span>&lt;span class="lnt">32
+&lt;/span>&lt;span class="lnt">33
+&lt;/span>&lt;span class="lnt">34
+&lt;/span>&lt;span class="lnt">35
+&lt;/span>&lt;span class="lnt">36
+&lt;/span>&lt;span class="lnt">37
+&lt;/span>&lt;span class="lnt">38
+&lt;/span>&lt;span class="lnt">39
+&lt;/span>&lt;span class="lnt">40
+&lt;/span>&lt;span class="lnt">41
+&lt;/span>&lt;span class="lnt">42
+&lt;/span>&lt;span class="lnt">43
+&lt;/span>&lt;span class="lnt">44
+&lt;/span>&lt;span class="lnt">45
+&lt;/span>&lt;span class="lnt">46
+&lt;/span>&lt;span class="lnt">47
+&lt;/span>&lt;span class="lnt">48
+&lt;/span>&lt;span class="lnt">49
+&lt;/span>&lt;span class="lnt">50
+&lt;/span>&lt;span class="lnt">51
+&lt;/span>&lt;span class="lnt">52
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">numpy&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="nn">np&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">matplotlib.pyplot&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="nn">plt&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">def&lt;/span> &lt;span class="nf">compute_memory&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">L&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">d&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">h&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">h_d&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">V&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">s&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">P&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">b&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">weights&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mi">2&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">P&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">gradients&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mi">2&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">P&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">optimizer_states&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mi">12&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">P&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">activations&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">L&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="n">s&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="n">b&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">32&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">d&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="mi">4&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">h&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">s&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="mi">4&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">b&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">s&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">d&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="mi">2&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">b&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">s&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="n">V&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s2">&amp;#34;weights&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">weights&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s2">&amp;#34;gradients&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">gradients&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s2">&amp;#34;optimizer_states&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">optimizer_states&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s2">&amp;#34;activations&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">activations&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">b&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mi">64&lt;/span> &lt;span class="c1"># batch size for memory calculation&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">memory_data&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">{}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">for&lt;/span> &lt;span class="n">model&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">params&lt;/span> &lt;span class="ow">in&lt;/span> &lt;span class="n">models&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">items&lt;/span>&lt;span class="p">():&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">memory&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">compute_memory&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">params&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s2">&amp;#34;L&amp;#34;&lt;/span>&lt;span class="p">],&lt;/span> &lt;span class="n">params&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s2">&amp;#34;d&amp;#34;&lt;/span>&lt;span class="p">],&lt;/span> &lt;span class="n">params&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s2">&amp;#34;h&amp;#34;&lt;/span>&lt;span class="p">],&lt;/span> &lt;span class="n">params&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s2">&amp;#34;h_d&amp;#34;&lt;/span>&lt;span class="p">],&lt;/span> &lt;span class="n">params&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s2">&amp;#34;V&amp;#34;&lt;/span>&lt;span class="p">],&lt;/span> &lt;span class="n">params&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s2">&amp;#34;s&amp;#34;&lt;/span>&lt;span class="p">],&lt;/span> &lt;span class="n">params&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s2">&amp;#34;P&amp;#34;&lt;/span>&lt;span class="p">],&lt;/span> &lt;span class="n">b&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">memory_data&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">model&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">memory&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">fig&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">ax&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">plt&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">subplots&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">figsize&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">12&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">6&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">model_names&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nb">list&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">memory_data&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">keys&lt;/span>&lt;span class="p">())&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">GB&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mi">1024&lt;/span> &lt;span class="o">**&lt;/span> &lt;span class="mi">3&lt;/span> &lt;span class="c1"># 1 GB in bytes&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">weights&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="n">memory_data&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">m&lt;/span>&lt;span class="p">][&lt;/span>&lt;span class="s2">&amp;#34;weights&amp;#34;&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="n">GB&lt;/span> &lt;span class="k">for&lt;/span> &lt;span class="n">m&lt;/span> &lt;span class="ow">in&lt;/span> &lt;span class="n">model_names&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">gradients&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="n">memory_data&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">m&lt;/span>&lt;span class="p">][&lt;/span>&lt;span class="s2">&amp;#34;gradients&amp;#34;&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="n">GB&lt;/span> &lt;span class="k">for&lt;/span> &lt;span class="n">m&lt;/span> &lt;span class="ow">in&lt;/span> &lt;span class="n">model_names&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">optimizer_states&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="n">memory_data&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">m&lt;/span>&lt;span class="p">][&lt;/span>&lt;span class="s2">&amp;#34;optimizer_states&amp;#34;&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="n">GB&lt;/span> &lt;span class="k">for&lt;/span> &lt;span class="n">m&lt;/span> &lt;span class="ow">in&lt;/span> &lt;span class="n">model_names&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">activations&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>&lt;span class="n">memory_data&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">m&lt;/span>&lt;span class="p">][&lt;/span>&lt;span class="s2">&amp;#34;activations&amp;#34;&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="n">GB&lt;/span> &lt;span class="k">for&lt;/span> &lt;span class="n">m&lt;/span> &lt;span class="ow">in&lt;/span> &lt;span class="n">model_names&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">x&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">np&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">arange&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">len&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">model_names&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">width&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mf">0.6&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># Stacked bar chart&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">p1&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">ax&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">bar&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">weights&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">width&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">label&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;Weights&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">p2&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">ax&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">bar&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">gradients&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">width&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">bottom&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">weights&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">label&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;Gradients&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">p3&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">ax&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">bar&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">optimizer_states&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">width&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">bottom&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">np&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">array&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">weights&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">np&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">array&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">gradients&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="n">label&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;Optimizer States&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">p4&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">ax&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">bar&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">activations&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">width&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">bottom&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">np&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">array&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">weights&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">np&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">array&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">gradients&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">np&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">array&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">optimizer_states&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="n">label&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;Activations&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">ax&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">set_xlabel&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;Model&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">ax&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">set_ylabel&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;Memory (GB)&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">ax&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">set_title&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="sa">f&lt;/span>&lt;span class="s1">&amp;#39;Memory Usage Breakdown for LLaMA Series (batch size=&lt;/span>&lt;span class="si">{&lt;/span>&lt;span class="n">b&lt;/span>&lt;span class="si">}&lt;/span>&lt;span class="s1">)&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">ax&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">set_xticks&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">ax&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">set_xticklabels&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">model_names&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">rotation&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">45&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">ha&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;right&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">ax&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">legend&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">ax&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">grid&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">axis&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;y&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">alpha&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mf">0.3&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">plt&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">tight_layout&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">plt&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">show&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div></description></item></channel></rss>
