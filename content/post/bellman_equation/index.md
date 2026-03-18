@@ -154,7 +154,7 @@ $$
 
 证明与 value function 的证明基本类似，我们这里略过。
 
-### Bellman Optimal Equation
+## Bellman Optimal Equation
 
 前面介绍了针对一般策略的 Bellman equation, 特别地，对于我们的目标最优策略，我们也可以而推导出对应的 Bellman equation.
 
