@@ -14,7 +14,7 @@ categories:
 
 ## Bellman Equations
 
-本节中，我们将要定义 value function, Q-function 以及这两个函数与 policy 之间的关系，这是我们介绍不同 RL 算法的基础
+本节中，我们将要定义 value function, Q-function 以及这两个函数与 policy 之间的关系，这是我们介绍不同 RL 算法的基础。这一节需要使用到 [不动点定理](https://maosong.website/p/fix-point-theorem/).
 
 我们定义 Value function 如下：
 
