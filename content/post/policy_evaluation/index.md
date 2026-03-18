@@ -55,24 +55,7 @@ $$
 
 这样，我们可以结合 SGD 与 MC 来近似 $V^\pi$
 
-```pseudo
-	\begin{algorithm}
-	\caption{Value function approximation with MC}
-	\begin{algorithmic}
-        \WHILE {not converged}
-            \STATE $s_0\sim p_0$, $t=0$
-            \WHILE {$s_t\neq <term>$}
-                \STATE $a_t\sim \pi(\cdot\mid s_t)$
-                \STATE $(r_t,s_{t+1})\sim p(\cdot,\cdot\mid s_t,a_t)$
-                \STATE $t\gets t+1$
-            \ENDWHILE
-            \STATE $T=t$
-            \STATE $g=\left(V_\phi(s_0)- \sum_{t=0}^{T-1}\gamma^tr_t\right)\nabla_\phi V_\phi(s_0)$
-            \STATE update $\phi$ using $g$ with an optimizer
-        \ENDWHILE
-	\end{algorithmic}
-	\end{algorithm}
-```
+![Value function approximation with MC](value-function-MC.png)
 
 ### Temporal Difference
 
@@ -108,19 +91,7 @@ $$
 
 这样，我们结合 TD 和 GSD 的算法就变成了
 
-```pseudo
-	\begin{algorithm}
-	\caption{Value function approximation with TD (not correct)}
-	\begin{algorithmic}
-        \WHILE {not converged}
-            \STATE $s_0\sim p_0$, $a_0\sim\pi(\cdot\mid s_0)$, $(r_0,s_1)\sim p(\cdot, \cdot\mid s_0,a_0)$
-            \STATE $y=\begin{cases}r_0+\gamma V_\phi(s_1),&\text{ if }s_1\neq <term>\\ r_0& \text{ otherwise} \end{cases}$
-            \STATE $g=(V_{\phi}(s_0)- y)\nabla_\phi V_{\phi}(s_0)$
-            \STATE update $\phi$ using $g$ with an optimizer
-        \ENDWHILE
-	\end{algorithmic}
-	\end{algorithm}
-```
+![Value function approximation with TD (wrong)](value-function-1-TD-wrong.png)
 
 接下来，我们需要关注如何计算 $g$,  直接通过 $g=\left(V_\phi(s)- r_0-\gamma V_\phi(s_1)\right)\nabla_\phi V_\phi(s)$ 来进行计算，这在数学上是没有问题的，但是从自动微分的角度不对，比如 Pytorch 对应的实现应该是
 
@@ -173,19 +144,7 @@ loss.backward()
 
 最终，我们的算法实现为
 
-```pseudo
-	\begin{algorithm}
-	\caption{Value function approximation with TD}
-	\begin{algorithmic}
-        \WHILE {not converged}
-            \STATE $s_0\sim p_0$, $a_0\sim\pi(\cdot\mid s_0)$, $(r_0,s_1)\sim p(\cdot, \cdot\mid s_0,a_0)$
-            \STATE $y=\begin{cases}r_0+\gamma \mathrm{sg}[V_\phi(s')],&\text{ if }s_1\neq <term>\\ r_0& \text{ otherwise} \end{cases}$
-            \STATE $g=(V_{\phi}(s_0)- y)\nabla_\phi V_{\phi}(s_0)$
-            \STATE update $\phi$ using $g$ with an optimizer
-        \ENDWHILE
-	\end{algorithmic}
-	\end{algorithm}
-```
+![Value function approximation with TD](value-function-1-TD.png)
 
 上述这种做法其实是 semi-gradient methods, 这类方法在参数更新时，只计算部分梯度的方法。虽然这种方法牺牲了严格的梯度下降性质，但是其能够保证更好的表现。
 
@@ -197,7 +156,7 @@ $$
 \begin{align}
 V^\pi(s) &=\mathbb{E}^\pi[r_0 + \gamma V^\pi(s_1)\mid s_0=s]\\
 &=\mathbb{E}^\pi[r_0 + \gamma \mathbb{E}^\pi[r_1 + \gamma V^\pi(s_1)\mid s_1]\mid s_0=s]\\
-&= \mathbb{E}^\pi[\mathbb{E}^\pi[r_0 + \gamma r_1 + \gamma^2 V^\pi(s_2) \mid s_1] \mid s_0=s] 
+&= \mathbb{E}^\pi[\mathbb{E}^\pi[r_0 + \gamma r_1 + \gamma^2 V^\pi(s_2) \mid s_1] \mid s_0=s]
 \end{align}
 $$
 
@@ -217,7 +176,7 @@ $$
 
 $$
 \begin{align} V^\pi(s) &= \mathbb{E}^\pi\left[\sum_{i=0}^{k-1} \gamma^i r_i + \gamma^k V^\pi(s_k) \mid s_0=s\right] \end{align}
-$$ 
+$$
 
 现在，我们可以基于 k-step transition 构建目标函数
 
@@ -227,23 +186,7 @@ $$
 
 使用前面分析的方法，我们就可以写出类似的算法
 
-```pseudo
-	\begin{algorithm}
-	\caption{Value function approximation with k-step TD}
-	\begin{algorithmic}
-        \WHILE {not converged}
-            \STATE $s_0\sim p_0$, $t=0$, $T=\infty$
-            \FOR {$t=0,\dots,k-1$} 
-                \STATE $a_t\sim\pi(\cdot\mid s_0)$
-                \STATE $(r_t,s_{t+1})\sim p(\cdot, \cdot\mid s_t,a_t)$
-            \ENDFOR
-            \STATE $y=\sum_{t=0}^{k-1}\gamma^tr_t+\gamma^k \mathrm{sg}[V_\phi(s_k)]$
-            \STATE $g=(V_{\phi}(s_0)- y)\nabla_\phi V_{\phi}(s_0)$
-            \STATE update $\phi$ using $g$ with an optimizer
-        \ENDWHILE
-	\end{algorithmic}
-	\end{algorithm}
-```
+![value function approximation with k-step TD](value-function-k-TD.png)
 
 一般来说，我们会令 $k=5$.
 
@@ -280,60 +223,15 @@ $$
 
 MC
 
-```pseudo
-	\begin{algorithm}
-	\caption{Q function approximation with MC}
-	\begin{algorithmic}
-        \WHILE {not converged}
-            \STATE $s_0\sim p_0$, $a_0\sim\pi(\cdot\mid s_0)$, $t=0$
-            \WHILE {$s_t\neq <term>$}
-                \STATE $a_t\sim \pi(\cdot\mid s_t)$
-                \STATE $(r_t,s_{t+1})\sim p(\cdot,\cdot\mid s_t,a_t)$
-                \STATE $t\gets t+1$
-            \ENDWHILE
-            \STATE $T=t$
-            \STATE $g=\left(Q_\phi(s_0,a_0)-\sum_{t=0}^{T-1}\gamma^tr_t\right)\nabla_\phi Q_\phi(s_0,a_0)$
-            \STATE update $\phi$ using $g$ with an optimizer
-        \ENDWHILE
-	\end{algorithmic}
-	\end{algorithm}
-```
+![Q function approximation with TD](q-function-1-TD.png)
 
 1-step Q-function TD learning
 
-```pseudo
-	\begin{algorithm}
-	\caption{Q function approximation with TD}
-	\begin{algorithmic}
-        \WHILE {not converged}
-            \STATE $s_0\sim p_0$, $a_0\sim\pi(\cdot\mid s_0)$, $(r_0,s_1)\sim p(\cdot, \cdot\mid s_0,a_0)$, $a_1\sim\pi(\cdot\mid s_1)$
-            \STATE $y=\begin{cases}r_0+\gamma \mathrm{sg}[Q_\phi(s_1,a_1)],&\text{ if }s_1\neq <term>\\ r_0& \text{ otherwise} \end{cases}$
-            \STATE $g=\left(Q_\phi(s_0,a_0)-y\right)\nabla_\phi Q_\phi(s_0,a_0)$
-            \STATE update $\phi$ using $g$ with an optimizer
-        \ENDWHILE
-	\end{algorithmic}
-	\end{algorithm}
-```
+![Q function approximation with TD](q-function-1-TD.png)
 
 k-step Q-function TD learning
 
-```pseudo
-	\begin{algorithm}
-	\caption{Q function approximation with k-step TD}
-	\begin{algorithmic}
-        \WHILE {not converged}
-            \STATE $s_0\sim p_0$, $t=0$, $T=\infty$
-            \FOR {$t=0,\dots,k-1$} 
-                \STATE $a_t\sim\pi(\cdot\mid s_0)$
-                \STATE $(r_t,s_{t+1})\sim p(\cdot, \cdot\mid s_t,a_t)$
-            \ENDFOR
-            \STATE $y=\sum_{t=0}^{k-1}\gamma^tr_t+\gamma^k \mathrm{sg}[Q_\phi(s_k,a_k)]$
-            \STATE $g=(Q_{\phi}(s_0,a_0)- y)\nabla_\phi Q_{\phi}(s_0,a_0)$
-            \STATE update $\phi$ using $g$ with an optimizer
-        \ENDWHILE
-	\end{algorithmic}
-	\end{algorithm}
-```
+![Q function approximation with k-step TD](q-function-k-TD.png)
 
 ## Conclusion
 
