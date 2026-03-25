@@ -14,502 +14,430 @@ categories:
 ---
 
 
-本文中，我们将介绍如何计算 LLM 在训练和推理过程中的内存需求以及简要介绍对应的优化方法。
 
-## Introduction
+## Motivation
 
-我们在本文中回答的核心问题为：
+我们从一个简单的问题开始
 
-> 在训练和推理时 LLM 所需要的内存是多少？如何进行优化内存占用？
+> 假如我有一张 80GB 的显卡，我想训练/推理一个 4B 的模型，我应该设置多大的 batch size 和 sequence length?
 
-为了回答这两个问题，我们需要回答以下问题：
+在这个 tutorial 中，我们将基于这个问题来进行思考和分析。我们将考虑更一般的问题形式：
 
-1. 训练和推理时的内存由哪几部分组成？
-2. 训练和推理过程中哪个阶段是 memory-bound? 哪个阶段是 compute bound?
-3. 训练和推理过程中如何进行优化？
+**Motivation:** 在训练和推理时 LLM 所需要的内存是多少？如何进行优化内存占用？
 
-我们将首先介绍如何计算 LLM 在训练阶段和推理阶段的内存。接下来，我们针对可优化部分进行分析以及介绍相应的优化算法。后续，我们将针对每部分的优化进行详细介绍
+为了回答以上问题，我们先介绍训练/推理阶段的内存计算，再针对可优化部分进行分析并介绍相应优化算法。
 
 ## Background
 
-首先我们介绍一下使用的 notation, 这与之前参数量，FLOPs 计算使用的 notation 基本一致。需要注意的是，我们直接使用参数量 $P$ 这个记号，这部分在 [LLM parameter analysis](https://maosong.website/p/llm-parameter-computation/) 中已经进行了详细介绍，因此我们略过这部分。
+### Transformer Architecture
 
-| variable | description               |
-| -------- | ------------------------- |
-| $P$      | number of parameters      |
-| $L$      | layers                    |
-| $V$      | vocabulary size           |
-| $d$      | hidden size               |
-| $d_{ff}$ | FFN hidden size           |
-| $s$      | sequence length           |
-| $b$      | batch size                |
-| $h$      | number of attention heads |
-| $d_h$    | attention head dimension  |
+以 Qwen3 为例，现代 LLM 的架构包含多层 Transformer Block，其中具体的模块不同的模型可能有改动。下图是对应的模型架构
 
-### Assumption
+![Architecture of Qwen3](slides/LM_architecture.png)
 
-1. 没有特别说明的话，我们使用 BF16/FP16 作为精度，此时每个参数需要 $2$ byte 来表示
-2. 不使用 dropout (现代大模型普遍没有 dropout)
+### Notation
 
-## Computation
+与参数量、FLOPs 计算所用记号一致；参数量 \(P\) 的推导见 [LLM parameter analysis](https://maosong.website/p/llm-parameter-computation/)。
+
+| 变量 | 含义 |
+|:---:|:---|
+| \(P\) | number of parameters |
+| \(L\) | layers |
+| \(V\) | vocabulary size |
+| \(d\) | hidden size |
+| \(d_{\text{ff}}\) | FFN hidden size |
+| \(s\) | sequence length |
+| \(b\) | batch size |
+| \(h\) | number of attention heads |
+| \(d_h\) | attention head dimension |
+
+### Assumptions
+
+1. 若无特别说明，使用 **BF16/FP16**，每个参数 **2** byte。
+2. 不使用 dropout（与现代大模型设定一致）。
+3. Attention 基于原始 multi-head attention.
+4. FFN 基于 SwiGLU.
+
+## Training Memory Analysis
+
+### Training Memory Components
+
+训练部分的内存占用由四部分组成：
+
+$$ \text{training\_memory} = \text{weight} + \text{activation} + \text{optimizer} + \text{gradient} $$
+
+- **Weights**: \(\boxed{2P}\)
+- **Gradients**（与权重同精度）: \(\boxed{2P}\)
+
+### Optimizer States
+
+**AdamW** 优化器需要维护两个动量状态：
+
+- 一阶动量 \(m_t\)：\(2P\)
+- 二阶动量 \(v_t\)：\(2P\)
+- 合计：\(2 \times 2P = \boxed{4P}\)
+
+AdamW [[2]](#references) 的更新规则如下：
+
+$$
+\begin{aligned}
+m_t &\leftarrow \beta_1 \cdot m_{t-1} + (1 - \beta_1) \cdot g_t \\
+v_t &\leftarrow \beta_2 \cdot v_{t-1} + (1 - \beta_2) \cdot g_t^2 \\
+\hat{m}_t &\leftarrow \frac{m_t}{1 - \beta_1^t}, \quad \hat{v}_t \leftarrow \frac{v_t}{1 - \beta_2^t} \\
+\theta_t &\leftarrow \theta_{t-1} - \alpha \left( \frac{\hat{m}_t}{\sqrt{\hat{v}_t} + \epsilon} + \lambda \theta_{t-1} \right)
+\end{aligned}
+$$
+
+### Activation
+
+激活值是前向传播过程中计算得到的中间结果，用于在反向传播时计算梯度。
+
+我们仅针对 linear layer 进行推导：
+
+$$
+\begin{aligned}
+\text{forward:} \quad & \mathbf{z}_\ell = W_\ell \mathbf{a}_{\ell-1} + b_\ell, \quad \mathbf{a}_\ell = \phi(\mathbf{z}_\ell) \\
+\text{backward:} \quad & \frac{\partial \mathcal{L}}{\partial W_\ell} = \frac{\partial \mathcal{L}}{\partial \mathbf{z}_\ell} \cdot \frac{\partial \mathbf{z}_\ell}{\partial W_\ell} = \frac{\partial \mathcal{L}}{\partial \mathbf{z}_\ell} \cdot \boxed{\mathbf{a}_{\ell-1}}
+\end{aligned}
+$$
+
+可以看到，计算第 \(\ell\) 层关于 \(W_\ell\) 的梯度时需要其输入 \(\mathbf{a}_{\ell-1}\)，因此训练时需保存每个模块对应的输入，也就是激活值 (activation)。
+
+#### Activation — Attention
+
+按计算图（无优化）可得需保存的激活：
+
+- Q/K/V 投影：共享输入 → \(2bsd\)
+- \(Q^\top K\)：Q, K 均需保存 → \(2 \times 2bsd = 4bsd\)
+- softmax 输入：\(2bhs^2\)
+- weighted sum 输入：\(2bhs^2 + 2bsd\)
+- output projection 输入：\(2bsd\)
+
+**Attention 合计：** \(\boxed{10bsd + 4bhs^2}\)
+
+#### Activation — FFN & LayerNorm
+
+**FFN**（SwiGLU，assume \(d_{\text{ff}} = 4d\)）：
+
+- 第一层输入：\(2bsd\)
+- SwiGLU 输入：\(2 \times d_{\text{ff}} \times d = 8bsd\)
+- 第二层输入：\(2 \times d_{\text{ff}} \times d = 8bsd\)
+- 合计：\(\boxed{18bsd}\)
+
+**LayerNorm**：保存输入 → \(\boxed{2bsd}\)
+
+#### Activation — Output
+
+**Output** 包含以下组成部分：
+
+- **FinalNorm** 输入：\(2bsd\)
+- **lm_head** 输入：\(2bsd\)
+- **Loss** 输入：\(2bsV\)
+
+合计：\(\boxed{4bsd + 2bsV}\)
+
+#### Activation — Total
+
+将上面的结果汇总在一起，得到：
+
+$$
+\begin{aligned}
+\text{activation} &= L \cdot \text{transformer\_block} + \text{output} \\
+&= L \cdot (\text{Pre\_Norm} + \textcolor{red}{\text{Attention}} + \text{Post\_Norm} + \text{FFN}) + \text{output} \\
+&= \boxed{bs(32dL + \textcolor{red}{4hsL} + 4d + 2V)} \\
+&\approx bsL(32d + \textcolor{red}{4hs}) \\
+&\approx \textcolor{red}{4bs^2hL}
+\end{aligned}
+$$
+
+> 注：在 Qwen3 中，\(2V / 32dL \approx 6\%\)，\(32dL / 4hsL \approx 2.5\%\)。
+
+可以看到，未优化的情况下，\(\text{activation} \propto bs^2\)。这里 \(s^2\) 主要由 attention 部分产生，后续 Flash Attention 就针对这一点进行了优化。
+
+### Total Training Memory
+
+将上面的结果进行汇总：
+
+$$
+\begin{aligned}
+\text{training\_memory} &= \text{weight} + \text{activation} + \text{optimizer} + \text{gradient} \\
+&= 2P + bs(32dL + 4hsL + 4d + 2V) + 4P + 2P \\
+&= 8P + bs(32dL + 4hsL + 4d + 2V) \quad \text{(exact)} \\
+&\approx 8P + 4bs^2hL
+\end{aligned}
+$$
+
+可以看到，训练阶段的内存占用分为**固定部分** (\(8P\)) 和**动态部分** (\(4bs^2hL\))，动态部分主要是 attention 的缓存。
+
+### Experiments
+
+我们分别针对 80GB 的显卡计算 Qwen3 系列模型的最高配置：
+
+| Model | \(P\) | \(L\) | \(h\) | \(s\) | predicted \(b\) | actual \(b\) |
+|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| Qwen3-0.6B | 0.6 | 28 | 16 | 512 | 68 | 34 |
+| Qwen3-1.7B | 1.7 | 28 | 16 | 512 | 42 | 28 |
+| Qwen3-4B | 4 | 36 | 32 | 512 | 16 | 12 |
+| Qwen3-8B | 8.1 | 36 | 32 | 512 | 4 | 2 |
+
+其中 predicted \(b\) 基于前面的准确公式计算得到；actual \(b\) 通过实验验证得到。注意我们这里的 prediction 没有考虑任何优化手段与其他内存开销，因此与实际值有出入。
+
+### Case Study
+
+我们分别使用 Qwen3-4B 和 Qwen3-8B 来进行实验（\(b=1\), \(s=512\)）。参考 [PyTorch 显存可视化与 Snapshot 数据分析](https://zhuanlan.zhihu.com/p/677203832)。
+
+## Inference Memory Analysis
+
+### Inference Components
+
+Inference 阶段内存占用主要与模型参数、KV cache 两部分相关：
+
+$$
+\text{Inference\_Memory} = \text{weight} + \text{activation} + \text{KV cache}
+$$
+
+- **Weights**: \(\boxed{2P}\)
+- **Activations**（经验值，batch size=1）: \(\approx 0.4P\)（参见 [transformer-math](https://blog.eleuther.ai/transformer-math/)）
+- **KV cache**：与序列长度相关，见后续分析。
+
+### KV Cache Mechanism
+
+LLM 推理中为避免重复计算历史 token 的 key/value 而使用的**空间换时间**的缓存机制。
+
+自回归时逐 token 生成，每步 attention 形式为（\(\mathbf{q}_t\) 当前 query，\(\mathbf{k}_{:,t}\) / \(\mathbf{v}_{:,t}\) 历史 K/V）：
+
+$$
+\mathbf{q}_t = W_Q \mathbf{x}_t, \quad \mathbf{k}_{:,t} = W_K[\mathbf{x}_1, \ldots, \mathbf{x}_t], \quad \mathbf{v}_{:,t} = W_V[\mathbf{x}_1, \ldots, \mathbf{x}_t]
+$$
+
+处理下一 token \(\mathbf{x}_{t+1}\) 时只需在已有结果后追加当前步：
+
+$$
+\mathbf{k}_{:,t+1} = [\mathbf{k}_{:,t},\, W_K \mathbf{x}_{t+1}], \quad \mathbf{v}_{:,t+1} = [\mathbf{v}_{:,t},\, W_V \mathbf{x}_{t+1}]
+$$
+
+- **缓存前**：每生成一个 token 都重新计算 → 总计算量 \(\sum_{t=1}^{s} \mathcal{O}(t) = \mathcal{O}(s^2)\)
+- **缓存后**：每步只算当前 token \(W_K \mathbf{x}_{t+1}\)、\(W_V \mathbf{x}_{t+1}\) → 计算量 \(\mathcal{O}(s)\)、空间占用 \(\mathcal{O}(s)\) —— **以空间换时间**
+
+### KV Cache Memory
+
+对于 multi-head attention，KV cache 的显存占用为：
+
+$$
+\text{Memory}(\text{KV cache}) = s \times 2 \times 2 \times L \times h \times d_h = \boxed{4sLhd_h}
+$$
+
+**因子含义：** \(s\) 序列长，第一个 \(2\) 为 K+V，第二个 \(2\) 为 BF16 的 2 bytes，\(L\) 层、\(h\) 头、\(d_h\) 头维度。
+
+**Remark:**
+
+- KV 占用与**模型配置**（\(L, h, d_h\)）和**序列长度** \(s\) 都有关，token 越多占用越高。
+- 实际中因 *page granularity*、*padding*、*fragmentation* 往往略高于理论值。
+- 长输出时 KV 占比会超过权重，成为推理瓶颈 → 见后续「KV Cache 优化」。
+
+### Total Inference Memory
+
+综合前面分析，推理阶段的总内存为：
+
+$$
+\boxed{\text{Inference\_Memory} \approx 2.4P + 4sLhd_h}
+$$
+
+可以看到，推理阶段也由固定部分（参数量，activation）以及动态部分（KV cache）组成。
+
+### Dynamic vs. Static
+
+由于 Qwen3 的 KV cache 计算为 \(4sLh_{kv}d_h\)，而不同模型只有 \(L\) 不一样，因此对于更大的模型，KV cache 显存占用超过模型权重的上下文长度更高。
+
+## Optimization
 
 ### Overview
 
-我们首先给出训练和推理阶段各部分的内存需求，然后我们给出详细的计算公式
+| 阶段 | 核心方法 | 典型技术 |
+|:---|:---|:---|
+| Training | 显存与效率提升 | Activation Checkpointing, Mixed Precision Training, Flash Attention, ZeRO, Pipeline/Model/Data Parallelism |
+| Inference | 长序列与速度优化 | KV Cache Optimization, Paged/Radix Attention, Faster Attention, Quantization |
 
-| component        | 训练                          | 推理                          |
-| ---------------- | --------------------------- | --------------------------- |
-| weights          | Fixed                       | Fixed                       |
-| optimizer states | Fixed and massive           | 0                           |
-| gradients        | Fixed                       | 0                           |
-| activations      | Large (stored for backprop) | Tiny (discarded after use)  |
-| KV cache         | 0                           | Large (grows with sequence) |
+### Mixed Precision Training
 
-### Training
+计算量大的部分用低精度，计算量小的部分用高精度。低精度参与运算，高精度避免 Overflow/Underflow。
 
-LLM 训练阶段对的内存开销包含三部分
+下表是 DeepSeek-V3 [[3]](#references) 使用的混合精度训练框架的显存分析：
 
-$$
-\text{Memory}_{\text{train}} = \text{Memory}(\text{weight}) + \text{Memory}(\text{activation}) + \text{Memory}(\text{optimizer})+\text{Memory}(\text{gradient})
-$$
+| Precision | BF16 | FP32 | BF16 |
+|:---|:---:|:---:|:---:|
+| **AMP** | No | Yes | Yes |
+| Weights | BF16 (2) | FP32 (4) | BF16 (2) |
+| Master weights | - | - | FP32 (4) |
+| Gradients | BF16 (2) | FP32 (4) | BF16 (2) |
+| Adam m | BF16 (2) | FP32 (4) | FP32 (4) |
+| Adam v | BF16 (2) | FP32 (4) | FP32 (4) |
+| **Static total (bytes/param)** | **8** | **16** | **16** |
 
-#### Weights
+**Remark:**
 
-我们在前面已经介绍了如何计算大语言模型的参数量，这里我们就直接记为 $P$, 由于我们使用单精度，因此所需要的内存为 $2P$.
+1. BF16 (w/ AMP) 与 FP32 (w/ AMP) 的静态显存占用相同，但 BF16 (w/ AMP) 的动态显存占用更低。
+2. 主流框架基本都使用了 BF16/FP8 (w/ AMP) 的训练方式。
 
-#### Activation
+### ZeRO
 
-激活值（activation）是前向传播过程中产生的中间张量，反向传播计算梯度时需复用这些张量，因此训练阶段需全程存储。我们用一个简单的例子来进行说明，假设我们有一层神经网络，定义为
+将 optimizer states / gradients / weights 按不同 GPU 切片存储，需要参与计算时再 all-gather 整合成完整参数。这样每张卡只需维护自己负责的一部分，大幅降低单卡显存需求 [[4]](#references)。
 
-$$
-\begin{aligned}
-\mathbf{z}_l &= W_l\mathbf{a}_{l-1}+b_l\\
-\mathbf{a}_{l} &= \phi(\mathbf{z}_l)
-\end{aligned}
-$$
+**ZeRO Stages:**
 
-那么在反向传播过程中，我们有
-
-$$
-\frac{\partial \mathcal{L}}{\partial W_l} = \frac{\partial \mathcal{L}}{\partial \mathbf{z}_l}\frac{\partial \mathbf{z}_l}{\partial W_l}=\frac{\partial \mathcal{L}}{\partial \mathbf{z}_l} \mathbf{a}_{l-1}
-$$
-
-也就是说，在计算第 $l$ 层的参数对应的梯度时，我们需要知道对应的输入 $\mathbf{a}_{l-1}$.
-
-接下来，我们通过计算图来分析 LLM 所需要的 activation
-
-**Attention**
-Attention 的计算图如下所示
-
-![Computation graph of attention](Attention-computation-graph.png)
-
-根据计算图，对应的 activation 为（注：这里我们不做任何优化，仅此理论上进行分析）：
-
-1. query, key, value projection: 共享输入，对应的 activation 大小为 $2bsd$.
-2. $Q^TK$ : $Q$, $K$ 都需要保存，大小为 $4bsd$.
-3. softmax: 需要保存 $2bhs^2$ 大小的输入
-4. weighted sum of  values: 两者都需要保存，前者大小为 $2bhs^2$, 后者大小为 $2bsd$
-5. output projection layer: 需要保存输入，大小为 $2bsd$.
-
-因此 attention 部分总共需要 $\boxed{10sbd+4bhs^2}$.
-
-**FFN**
-FFN 计算图如下所示
-
-![FFN computation graph](FFN-computation-graph.png)
-
-根据计算图，对应的 activation （我们假设 MLP 是一个基于 SwiGLU 的 dense MLP, 其 hidden size $d_{ff}=8/3d$,）：
-
-1. MLP 的第一层输入大小为 $2sbd$,
-2. MLP 的第二层输入大小为 $16/3sbd$,
-3. SwiGLU 的输入为 $16/3sbd$
-
-因此总的 activation 大小为 $\boxed{18sbd}$.
-
-**LayerNorm**
-LayerNorm 需要保存输入，大小为 $\boxed{2bsd}$.
-
-以上三部分相加，我们就得到单一 transformer layer 所需要的 activation:
+- **ZeRO-1**：shard optimizer states
 
 $$
-\begin{aligned}
-\mathrm{activation}(\mathrm{transformer}\_{\mathrm{block}})&=\mathrm{activation}(\mathrm{PerNorm})+\mathrm{activation}(\mathrm{Attention})+\mathrm{activation}(\mathrm{PostNorm})+\mathrm{activation}(\mathrm{FFN})\\
-&= 2bsd + (10bsd+4bhs^2) + 2bsd + 18bsd\\
-&= \boxed{bs(32d+4hs)}
-\end{aligned}
+\text{Training\_Memory} = \text{weight} + \text{activation} + \frac{\text{optimizer}}{\#\text{GPUs}} + \text{gradient}
 $$
 
-**output**
-output 部分的计算图如下所示
-
-![Output computation graph](output-computation-graph.png)
-
-根据计算图，对应的 activation 为：
-
-1. normalization 的输入大小为大小为 $2sbd$
-2. `lm_head` 的输入大小为 $2sbd$
-3. loss 的输入大小为 $2bsV$
-
-从而输出部分的 activation 大小为
+- **ZeRO-2**：shard optimizer states + gradients
 
 $$
-\mathrm{activation}(\mathrm{output}) = \mathrm{activation}(\mathrm{FinalNorm})+\mathrm{activation}(\mathrm{lm\ head})+\mathrm{activation}(\mathrm{Loss}) = \boxed{4bsd+2bsV}
+\text{Training\_Memory} = \text{weight} + \text{activation} + \frac{\text{optimizer} + \text{gradient}}{\#\text{GPUs}}
 $$
 
-因此，总的 activation 为
+- **ZeRO-3**：shard all
 
 $$
-\begin{aligned}
- \text{Memory}(\text{activation}) &= L*(\mathrm{transformer}\_{\mathrm{block}}) + \mathrm{activation}(\mathrm{output})\\
-&= \boxed{Lsb(32d+4hs) +( 4bsd+2bsV)}
-\end{aligned}
+\text{Training\_Memory} = \text{activation} + \frac{\text{weight} + \text{optimizer} + \text{gradient}}{\#\text{GPUs}}
 $$
 
-#### Gradients & Optimizer States
+> ZeRO-3 可极大降低单卡显存上限，但通信量也会提高。
 
-现代优化器一般会使用高阶近似以及混合精度训练来提高训练的效率，这部分高阶近似也需要考虑内存占用。
+### Model Parallelism
 
-**Gradients**
-当 gradient 和 weight 精度一致时，对应的内存消耗一致，为 $\boxed{2P}$.
-
-**Optimizer states**
-[AdamW](https://maosong.website/p/notes-on-adamw/) 优化器会保存一阶和二阶动量，以及一份 master weights, 精度一般为 FP32:
-
-1. FP32 master weights: $4P$
-2. FP32 first-order momentum: $4P$
-3. FP32 second-order momentum: $4P$
-
-因此优化器状态需要 $\boxed{12P}$ 内存。
-
-对于其他优化器，我们也可以算出对应的内存需求，下表总结了 AdamW, bitsandbytes 和 SGD 三种 optimizer
-
-| optimizer    | master weights (FP32) | momentum | variance | TOTAL |
-| ------------ | --------------------- | -------- | -------- | ----- |
-| AdamW        | $4P$                  | $4P$     | $4P$     | $12P$ |
-| bitsandbytes | $4P$                  | $P$      | $P$      | $6P$  |
-| SGD          | $4P$                  | $4P$     | 0        | $8P$  |
-
-最终，训练阶段所需要的内存为
+将模型切分到不同的 GPU 上，计算时，先 dispatch，再执行计算，最后通过 all-gather 等操作得到最终结果 [[5]](#references)。切分方式包括 PP (Pipeline Parallelism)、TP (Tensor Parallelism)、EP (Expert Parallelism) 等。
 
 $$
-\text{Memory}_{\text{train}} = 16P+bs(32dL+4hsL+4d+2V)
+\text{Training\_Memory} = \frac{\text{Memory}(\text{weight})}{\text{PP degree} \times \text{TP degree}}
 $$
 
-下面我们展示 LLaMA 系列训练时不同部分的内存占比 (batch size=64, AdamW, GB)
-
-| Model     | weights | gradients | optimizer_states | activations |
-| --------- | ------- | --------- | ---------------- | ----------- |
-| LLaMA-7B  | 12.55   | 12.55     | 75.31            | 1545.81     |
-| LLaMA-13B | 24.24   | 24.24     | 145.46           | 2410.31     |
-| LLaMA-33B | 60.59   | 60.59     | 363.54           | 4691.06     |
-| LLaMA-65B | 121.60  | 121.60    | 729.62           | 7691.81     |
-
-### Inference
-
-LLM 推理阶段对的开销包含三部分
+结合 ZeRO-1 与 Model Parallelism 时（activation 中与 TP 相关的部分按 TP degree 缩减）：
 
 $$
-\text{Memory}_{\text{Inference}} = \text{Memory}(\text{weight}) + \text{Memory}(\text{activation}) + \text{Memory}(\text{KV cache})
+\text{Memory}_{\text{train}} \approx \frac{\text{weight}}{\text{PP} \times \text{TP}} + \frac{\text{activation}}{\text{TP}} + \frac{\text{optimizer}}{\#\text{GPUs}} + \frac{\text{gradient}}{\text{PP}}
 $$
 
-weight memory 的内存占用为 $\boxed{2P}$. activation 内存占用比较小，[transformer-math](https://blog.eleuther.ai/transformer-math/) 给出了一个经验值，即
+### Activation Checkpointing
+
+在反向传播时，重新计算所需的输入，来达到以时间换空间的目的 [[6]](#references)。
+
+| | No ckpt | Selective ckpt | Full ckpt |
+|:---|:---:|:---:|:---:|
+| memory | 很高 | 中等 | 很低 \(\sim 2bsd\) |
+| extra compute | 无 | 中等 | 很高 \(\sim 2Pbs\) |
+
+> 实践中常结合 model parallelism 与 selective checkpointing 来实现 trade-off。
+
+### Flash Attention
+
+通过将 Attention 的计算进行分块，来提高内存访问效率以及降低反向传播时所需要的 activation 大小 [[7]](#references)。
+
+**Flash Attention** 通过 tiling 与 online-softmax 降低该部分显存并提升效率（详见 [notes on Flash Attention](https://maosong.website/p/notes-on-flashattention/)）。这样 attention 部分的显存就由 \(\text{activation} \propto bs^2\) 降低到了 \(\text{activation} \propto bs\)。
+
+**Theorem:** Flash Attention 输出 \(O = \text{softmax}(QK^T)V\)（correctness）。其时间复杂度为 \(\mathcal{O}(s^2 d)\)，空间复杂度为 \(\mathcal{O}(s)\)（memory savings）。
+
+### KV Cache Optimization
 
 $$
- \text{Memory}(\text{activation})\approx 0.2*\text{Memory}(\text{weight})=0.4P
+\text{Memory}(\text{KV cache}) = s \times 2 \times 2 \times L \times h \times d_h
 $$
 
-该经验值适用于 batch size = 1 的自回归推理场景。weight 和 activation 这两部分开销只与模型本身有关，第三部分 KV cache 则与我们的生成内容长度相关，下面我们详细进行介绍
+针对公式中各因子的优化方向 [[8]](#references)：
 
-#### Key Value Cache
+1. **\(s\)**: KV cache compression, eviction, selection
+2. **\(2\) (bytes)**: KV cache quantization
+3. **\(2\) (K+V)**: key-value sharing, MLA [[9]](#references)
+4. **\(h \times d_h\)**: MQA [[10]](#references), GQA [[11]](#references), MLA
 
-Key Value Cache (KV Cache) 是 LLM 在推理过程中为了避免重复计算历史 token 对应的 key 和 value 而使用的一个**空间换时间的缓存机制**。
+### Weight Quantization
 
-在 LLM 推理阶段，我们是 token-by-token 进行生成的，每次 attention 的计算都有如下形式
+使用低精度来表示高精度数值的方法，来减少内存占用/提高计算效率。
 
-$$
-\begin{aligned}
-\mathbf{q_t} &= W_Q\mathbf{x_t}\\
-\mathbf{k}_{:,t}&=W_K[\mathbf{x_1},\dots,\mathbf{x_t}]\\
-\mathbf{v}_{:,t}&=W_V[\mathbf{x_1},\dots,\mathbf{x_t}]\\
-\mathbf{o}_t&=\mathrm{Attn}(\mathbf{q_t},\mathbf{k}_{:,t}, \mathbf{v}_{:,t})=\sum_{i=1}^t \frac{\alpha_{t,i}}{\sum_{t,i}\alpha_{t,i}}\mathbf{v_i},\ \alpha_{t,i} = \exp\left(\frac{\mathbf{q_t}^T\mathbf{k}_{i}}{\sqrt{d_k}}\right)
-\end{aligned}
-$$
+| 量化时机 | 代表性工作 |
+|:---|:---|
+| 训练后量化 (PTQ) | GPTQ [[12]](#references), AWQ [[13]](#references), SmoothQuant [[14]](#references), GGUF [[15]](#references) |
+| 量化感知训练 (QAT) | LLM-QAT [[16]](#references), PEQA [[17]](#references) |
 
-这里 $\mathbf{q_t}$ 是当前 token $\mathbf{x}_t$ 对应的 query, $\mathbf{k}_{:,t}$ 和 $\mathbf{v}_{:,t}$ 是历史 token $[\mathbf{x_1},\dots,\mathbf{x_t}]$ 对应的 key 和 value. 当我们处理下一个 token $\mathbf{x}_{t+1}$ 时， 对应的计算变成了
+### Activation Offloading
 
-$$
-\begin{aligned}
-\mathbf{q_t} &= W_Q\mathbf{x_t}\\
-\mathbf{k}_{:,t+1}&=W_K[\mathbf{x_1},\dots,\mathbf{x_t},\mathbf{x}_{t+1}]=[\boxed{\mathbf{k}_{:,t}},W_K\mathbf{x}_{t+1}]\\
-\mathbf{v}_{:,t+1}&=W_V[\mathbf{x_1},\dots,\mathbf{x_t},\mathbf{x}_{t+1}]=[\boxed{\mathbf{v}_{:,t}},W_V\mathbf{x}_{t+1}]\\
-\end{aligned}
-$$
+将一部分参数/优化器状态/激活值等存储到 CPU 上，需要的时候再加载到 GPU 上。
 
-也就是说，我们每生成一个 token, 都要重新计算一次历史 token 对应的 key 和 value, 因此生成一个包含 $s$ 个 token 的 sequence 时，每个 token 都需要计算其前序 token 的 key 和 value, 其对应的计算量为
+| Offloading 场景 | 代表性工作 |
+|:---|:---|
+| 训练阶段 Offloading | ZeRO-Offload [[18]](#references) / ZeRO-Infinity, FSDP [[19]](#references) CPU Offload |
+| 推理阶段 Offloading | FlexGen [[20]](#references), vLLM [[21]](#references) KV Cache Offload |
+| MoE Offloading | KTransformers [[22]](#references), DeepSpeed-MoE [[23]](#references) |
 
-$$
-\sum_{t=1}^s \mathcal{O}(t) = \mathcal{O}(s^2)
-$$
+## Real Systems
 
-因此，一个自然的想法就是缓存历史 token 对应的 key 和 value, 在生成新的 token 时，我们只需从内存中加载计算好的结果，然后计算当前 token 对应的值 $W_K\mathbf{x}_{t+1}$ 和 $W_V\mathbf{x}_{t+1}$ 即可，这就是 KV cache. 使用 KV cache 之后，我们每次生成新的 token 时，仅需要计算当前 token 对应的 key 和 value, 此时总的计算复杂度为 $\mathcal{O}(s)$, 对应的空间复杂度为 $\mathcal{O}(s)$. 也就是以空间换时间。
+### Training Frameworks
 
-容易推导出一个基于 Multi-head attention LLM 的 KV cache 如下
+| Framework | Memory Optimizations |
+|:---|:---|
+| Megatron-LM [[5]](#references) | TP, SP, Activation Checkpointing |
+| DeepSpeed [[24]](#references) | ZeRO-1/2/3, CPU/NVMe Offload, Activation Checkpointing |
+| FSDP [[19]](#references) | Full parameter sharding, Gradient sharding, CPU Offload |
+| Colossal-AI [[25]](#references) | ZeRO, TP, PP, Activation Checkpointing |
 
-$$
-\text{Memory}(\text{KV cache}) = s \times 2 \times 2 \times L\times h \times d_h
-$$
+### Inference Frameworks
 
-可以看到，KV Cache 占用不仅与模型配置有关，还与生成的 sequence length 有关，生成的 token 越多，KV Cache 这部分占用越高。
-
-最终，推理阶段模型本身的内存占用为
-
-$$
-\text{Memory}_{\text{Inference}} = 2.4P+4sLhd_h
-$$
-
-我们还是以 LLaMA 系列为例，结果如下 (batch size=1, GB, 括号里为 sequence length)
-
-| Model     | Weights | Activations | KV Cache (1024) | KV Cache (4096) | KV Cache (16384) | KV Cache (32768) | KV Cache (131072) |
-| --------- | ------- | ----------- | --------------- | --------------- | ---------------- | ---------------- | ----------------- |
-| LLaMA-7B  | 12.55   | 2.51        | 0.25            | 1.00            | 4.00             | 8.00             | 32.00             |
-| LLaMA-13B | 24.24   | 4.85        | 0.39            | 1.56            | 6.25             | 12.50            | 50.00             |
-| LLaMA-33B | 60.59   | 12.12       | 0.76            | 3.05            | 12.19            | 24.38            | 97.50             |
-| LLaMA-65B | 121.60  | 24.32       | 1.25            | 5.00            | 20.00            | 40.00            | 160.00            |
-
-可以看到，随着输出长度增加，KV cache 的开销占比也逐渐了超过模型权重的内存占用。而实际中 KV cache 往往因 page granularity、padding 和 fragmentation 略高于理论值。
-
-### Summary
-
-我们将上面的结果汇总起来就得到下表的结果。
-
-| component        | 训练                           | 推理             |
-| ---------------- | ---------------------------- | -------------- |
-| weights          | $2P$                         | $2P$           |
-| optimizer states | $12P$                        | 0              |
-| gradients        | $2P$                         | 0              |
-| activations      | $Lsb(32d+4hs) +( 4bsd+2bsV)$ | $\sim 0.4P$    |
-| KV cache         | 0                            | $4sLhd_h$      |
-| TOTAL            | $16P+bs(32dL+4hsL+4d+2V)$    | $2.4P+4sLhd_h$ |
-
-## Analysis & Optimizations
-
-接下来，我们将简单介绍一下如何优化训练和推理过程中的内存占用，我们将优化方法总结如下表所示。后面我们将一一进行详细介绍
-
-| Stage     | methods                                                                                  |
-| --------- | ---------------------------------------------------------------------------------------- |
-| training  | - activation checkpointing<br>- flash attention<br>- Parallelism                         |
-| inference | - KV Cache Optimization<br>- PagedAttention<br>- RadixAttention<br>- Attention mechanism |
-
-### Training
-
-#### Mixed Precision Training
-
-混合精度训练的核心思想是计算量大的模块使用低精度，计算量小的模块使用高精度。细节见 Mixed precision training, 最近的 [DeepSeek-V3](https://maosong.website/p/notes-on-deepseek-v3/) 还进一步使用了 FP8 精度进行训练，大幅度提高了训练效率。
-
-#### Data Parallelism
-
-第一个并行策略是数据并行 (data parallelism), 其基本思想是把模型复制到多个 GPU 上，并行处理数据，然后对 loss 进行求和再进行反向传播。现在最常使用的是微软提出的 ZeRO, 其核心思想为把 optimizer states, gradients, weights 分布到不同的 GPU 上，然后需要的时候再汇总到一起。ZeRO 根据切分的部分不同可以分为三种策略，如下图所示
-
-![Architecture of ZeRO](ZeRO-architecture.png)
-
-如上图所示，在 baseline 场景下，我们每个 GPU 上都保存有一份模型的 optimizer states, gradients, weights, 这就限制了 batch size, 进而降低了整体的计算效率。
-
-ZeRO 的关键改进在于利用 GPU 可以互相通信的性质来将 tensor 存储在不同的 GPU 上，这时**每个 GPU 上不再保存完整的复制，而是独特的一部分数据**，在参与计算时，GPU 通过 all gather 来把数据汇总在一起，如下图所示
-
-![All-gather of GPU (sourced from "How to scale your model")](GPU-all-gather.gif)
-
-ZeRO1 只对 optimizer states 进行 shard, 因此其内存占用为
-
-$$
-\text{Memory}_{\text{train}} = \text{Memory}(\text{weight}) + \text{Memory}(\text{activation}) + \frac{\text{Memory}(\text{optimizer})}{\text{\# GPUs}}+\text{Memory}(\text{gradient})
-$$
-
-ZeRO2 在 ZeRO1 的基础上进一步对 gradient 也进行 shard, 其内存占用为
-
-$$
-\text{Memory}_{\text{train}} = \text{Memory}(\text{weight}) + \text{Memory}(\text{activation}) + \frac{\text{Memory}(\text{optimizer})+\text{Memory}(\text{gradient})}{\text{\# GPUs}}
-$$
-
-ZeRO3 在 ZeRO2 的基础上对 weight 也进行 shard, 其内存占用为
-
-$$
-\text{Memory}_{\text{train}} = \text{Memory}(\text{activation}) + \frac{\text{Memory}(\text{weight}) + \text{Memory}(\text{optimizer})+\text{Memory}(\text{gradient})}{\text{\# GPUs}}
-$$
-
-一般来说，我们比较少使用 ZeRO3, 因为其通信开销变为了原来的 1.5 倍。
-
-#### Activation Checkpointing
-
-上一节我们介绍了使用 DP 来减少固定部分 (weight, optimizer states, gradients) 部分的占用，但实际上训练时占用部分更多的是 activation, 这部分内存占用会严重影响 batch size 的设置进而影响整体计算效率。我们对固定部分（与模型参数量相关）和非固定部分（与 batch size 相关）进行一个对比，结果如下所示
-
-| Metric     | $d$               | $b, s$        |
-| ---------- | ----------------- | ------------- |
-| weight     | quadratic ($d^2$) | independent   |
-| activation | linear ($d$)      | linear ($bs$) |
-
-我们可以看到，虽然训练时 batch size 越大越好，但是由于 activation 也会随之增大，batch size 可能只能使用一个非常小的值。下图是 LLaMA 系列在 $b=64$ 时不同部分的内存占用：
-
-![memory usage of different components (bs=64)](memory_usage_bs-64.png)
-
-从图表可看出，LLaMA-65B 在 batch size=64 时，激活值占用内存超 80%，远高于权重 / 梯度 / 优化器状态，而且随着 batch size 增加，这个比例会进一步上升。
-
-为了解决这个问题，我们一般会使用 **activation checkpointing** 方法，这个方法是一个通过重新计算中间激活值，来减少内存占用的方法。其核心思想在于用计算复杂度换空间复杂度。[Reducing Activation Recomputation in Large Transformer Models](https://arxiv.org/pdf/2205.05198) 给出了不同的 checkpointing 策略，需要的算力也不同相同，我们下表进行总结
-
-|               | No checkpointing                               | Selective checkpointing                              | full checkpointing                |
-| ------------- | ---------------------------------------------- | ---------------------------------------------------- | --------------------------------- |
-| description   | stores everything needed                       | store states stagely (e.g., the input to each layer) | only store the input to the model |
-| memory        | very high ($\text{Memory}(\text{activation})$) | medium                                               | very low $2bsd$                   |
-| extra compute | None                                           | medium                                               | very high $2Pbs$                  |
-
-一般来说我们会结合 model parallelism 和 selective checkpointing 来实现一个均衡
-
-#### Model Parallelism
-
-与 DP 在数据维度上进行切分不同，model parallelism 通过对模型进行切分来提高内存使用效率。Model Parallelism 又可以分为 Pipeline Parallelism (PP) 和 Tensor Parallelisim (TP)
-
-通过 PP 和 TP 我们可以将模型切分部署在多个 GPU 上进而减少内存占用，对应的计算方式为
-
-$$
-\text{Memory}(\text{weight};\text{parallelism}) = \frac{\text{Memory}(\text{weight})}{\text{PP degree}\times\text{TP degree}}
-$$
-
-实际情况中，我们还可以结合 ZeRO 以及 Model Paralelism, 我们根据 PP degree 和 TP degree 来决定 DP degree
-
-$$
-\text{DP degree} = \frac{\text{\# GPUs}}{\text{PP degree}\times\text{TP degree}}
-$$
-
-最终，我们把以上优化技巧汇总起来就得到 (假设我们采用 ZeRO1 和 Model Parallelism)
-
-$$
-\text{Memory}_{\text{train}} \approx \frac{\text{Memory}(\text{weight})}{\text{PP degree}\times\text{TP degree}} + \frac{\text{Memory}(\text{activation})}{\text{TP degree}} + \frac{\text{Memory}(\text{optimizer})}{\text{\# GPUs}}+\frac{\text{Memory}(\text{gradient})}{\text{PP degree}}
-$$
-
-这里> activation 中 **被 tensor-parallel 的部分** 按 TP degree 缩减。
-
-关于 Parallelism 的具体细节见 Parallelism tutorial
-
-#### Flash Attention
-
-在前面的分析中，我们给出了 attention softmax 这一部分的 activation 为 $2bhs^2$ 而 flashattention 通过 tiling 和 online-softmax 降低了这一部分的内存占用，进而提高整体的效率。
-
-具体细节见 [flash attention](https://maosong.website/p/notes-on-flashattention/)
-
-### Inference
-
-#### Quantization
-
-quantization 是用低精度加载模型权重从而降低推理阶段模型参数内存占用的一个方法。比如说原始模型使用了 BF16 精度，那么我们可以通过使用 int8 量化来将模型权重对应的内存从 $2P$ 降低到 $P$. 现在一些模型还会在训练阶段就加入 quantization, 比如 quantization aware training 以及 post-training quantization 等。这部分细节可以参考 [Efficient Large Language Models: A Survey](https://arxiv.org/pdf/2312.03863)
-
-#### KV Cache Optimization
-
-我们在前面已经介绍了 KV cache 可以通过以空间换时间来提高计算效率，但是随着输出长度增加，对应的 KV cache 也会越来越大，因此目前有相当一部分工作旨在降低 KV cache 占用，比如 KV Cache compression, quantization 等。这部分细节可以参考 [A Survey on Large Language Model Acceleration based on KV Cache Management](https://arxiv.org/pdf/2412.19442)
-
-#### Attention
-
-实际上，相当一部分工作都是通过优化 attention 来降低
-
-
-#### Inference Framework
-
-现在也有一些推理框架专注于提高 LLM 的推理效率，下面是两个比较流行的推理框架
-
-- SGLang: 定制化强，适用于复杂任务如 RL 推理等
-- vLLM: 简单高效
-
-对应的轻量化推理框架为
-
-- nano-vLLM
-- mini-SGLang
-
-这部分
+| Framework | Key Techniques | Memory Optimizations |
+|:---|:---|:---|
+| vLLM [[21]](#references) | Paged Attention | KV cache paging, Continuous batching |
+| SGLang [[26]](#references) | Radix Attention | KV cache reuse, Efficient scheduling |
+| TensorRT-LLM [[27]](#references) | Kernel fusion | Weight quantization, KV cache optimization |
 
 ## Conclusion
 
-在本文中，我们详细介绍了 LLM 在训练和推理阶段的内存占用开销以及简要介绍了对应的优化方法。关键结论为：
+### Takeaway
 
-- 训练阶段内存核心瓶颈是激活值（随 batch size / 序列长度线性增长），推理阶段核心瓶颈是 KV Cache（随序列长度增长）；
-- 训练优化优先通过 ZeRO（多卡）+ activation checkpointing（单卡）降低内存，推理优化优先通过 KV Cache 优化 + 量化降低内存；
-- 所有内存计算均为理论值，实际落地需考虑显存碎片、硬件特性、通信开销等工程因素。
+| Components | Training | Inference | Optimization |
+|:---|:---:|:---:|:---|
+| weights | \(2P\) | \(2P\) | quantization |
+| optimizer states | \(4P\) | 0 | ZeRO, offloading |
+| gradients | \(2P\) | 0 | ZeRO |
+| activations | \(\sim 4Lhs^2b\) | \(\sim 0.4P\) | ckpt, offloading, flash attention |
+| KV cache | 0 | \(4sLhd_h\) | KV optimization, attention |
+| **TOTAL** | \(8P + 4Lhs^2b\) | \(2.4P + 4sLhd_h\) | |
 
-需要注意的是，所有内存计算均为理论值，实际落地需考虑显存碎片、硬件特性、通信开销等工程因素。下一步，我们将分别针对不同的优化方法来进行展开并详细介绍。
+- **训练**：瓶颈主要在激活值（随 batch size / 序列长度线性增长）。
+- **推理**：瓶颈主要在 KV Cache（随序列长度增长）。
+
+### Future Directions
+
+1. More efficient architecture (attention, MoE).
+2. Scalable training/inference framework.
+3. Software-hardware co-design algorithms.
 
 ## References
 
-- [transformer-math](https://blog.eleuther.ai/transformer-math/)
-- [transformer inference arithmetic](https://kipp.ly/transformer-inference-arithmetic/)
-- <https://zhuanlan.zhihu.com/p/687226668>
-- [Reducing Activation Recomputation in Large Transformer Models](https://arxiv.org/pdf/2205.05198)
-- <https://blog.eleuther.ai/transformer-math/>
-- [A Survey on Large Language Model Acceleration based on KV Cache Management](https://arxiv.org/pdf/2412.19442)
-- [Efficient Large Language Models: A Survey](https://arxiv.org/pdf/2312.03863)
+1. An Yang et al., "Qwen3 Technical Report," arXiv:2505.09388, 2025.
+2. Ilya Loshchilov and Frank Hutter, "Decoupled Weight Decay Regularization," arXiv:1711.05101, 2019.
+3. DeepSeek-AI, "DeepSeek-V3 Technical Report," arXiv:2412.19437, 2025.
+4. Samyam Rajbhandari et al., "ZeRO: Memory Optimizations Toward Training Trillion Parameter Models," arXiv:1910.02054, 2020.
+5. Mohammad Shoeybi et al., "Megatron-LM: Training Multi-Billion Parameter Language Models Using Model Parallelism," arXiv:1909.08053, 2020.
+6. Vijay Korthikanti et al., "Reducing Activation Recomputation in Large Transformer Models," arXiv:2205.05198, 2022.
+7. Tri Dao et al., "FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness," arXiv:2205.14135, 2022.
+8. Haoyang Li et al., "A Survey on Large Language Model Acceleration based on KV Cache Management," arXiv:2412.19442, 2025.
+9. DeepSeek-AI, "DeepSeek-V2: A Strong, Economical, and Efficient Mixture-of-Experts Language Model," arXiv:2405.04434, 2024.
+10. Noam Shazeer, "Fast Transformer Decoding: One Write-Head is All You Need," arXiv:1911.02150, 2019.
+11. Joshua Ainslie et al., "GQA: Training Generalized Multi-Query Transformer Models from Multi-Head Checkpoints," arXiv:2305.13245, 2023.
+12. Elias Frantar et al., "GPTQ: Accurate Post-Training Quantization for Generative Pre-trained Transformers," arXiv:2210.17323, 2023.
+13. Ji Lin et al., "AWQ: Activation-aware Weight Quantization for LLM Compression and Acceleration," arXiv:2306.00978, 2024.
+14. Guangxuan Xiao et al., "SmoothQuant: Accurate and Efficient Post-Training Quantization for Large Language Models," arXiv:2211.10438, 2024.
+15. Georgi Gerganov, "ggml: Tensor library for machine learning," [GitHub](https://github.com/ggerganov/ggml), 2023.
+16. Zechun Liu et al., "LLM-QAT: Data-Free Quantization Aware Training for Large Language Models," arXiv:2305.17888, 2023.
+17. Jeonghoon Kim et al., "Memory-Efficient Fine-Tuning of Compressed Large Language Models via sub-4-bit Integer Quantization," arXiv:2305.14152, 2023.
+18. Jie Ren et al., "ZeRO-Offload: Democratizing Billion-Scale Model Training," arXiv:2101.06840, 2021.
+19. Yanli Zhao et al., "PyTorch FSDP: Experiences on Scaling Fully Sharded Data Parallel," arXiv:2304.11277, 2023.
+20. Ying Sheng et al., "FlexGen: High-Throughput Generative Inference of Large Language Models with a Single GPU," arXiv:2303.06865, 2023.
+21. Woosuk Kwon et al., "Efficient Memory Management for Large Language Model Serving with PagedAttention," SOSP, 2023.
+22. Hongtao Chen et al., "KTransformers: Unleashing the Full Potential of CPU/GPU Hybrid Inference for MoE Models," SOSP, 2025.
+23. Samyam Rajbhandari et al., "DeepSpeed-MoE: Advancing Mixture-of-Experts Inference and Training to Power Next-Generation AI Scale," arXiv:2201.05596, 2022.
+24. Jeff Rasley et al., "DeepSpeed: System Optimizations Enable Training Deep Learning Models with Over 100 Billion Parameters," KDD, 2020.
+25. Shenggui Li et al., "Colossal-AI: A Unified Deep Learning System For Large-Scale Parallel Training," ICPP, 2023.
+26. Lianmin Zheng et al., "SGLang: Efficient Execution of Structured Language Model Programs," NeurIPS, 2024.
+27. NVIDIA Corporation, "TensorRT-LLM: A TensorRT Toolset for Optimizing LLM Inference," [GitHub](https://github.com/NVIDIA/TensorRT-LLM), 2023.
 
-## Appendix
-
-### Activation Visualization
-
-LLaMA 系列的配置如下表所示
-
-| Model     | s    | V     | L   | d    | d_ff  | h   | h_d | P           |
-| --------- | ---- | ----- | --- | ---- | ----- | --- | --- | ----------- |
-| LLaMA-7B  | 2048 | 32000 | 32  | 4096 | 11008 | 32  | 128 | 6738411520  |
-| LLaMA-13B | 2048 | 32000 | 40  | 5120 | 13824 | 40  | 128 | 13015859200 |
-| LLaMA-33B | 2048 | 32000 | 60  | 6656 | 17920 | 52  | 128 | 32528936960 |
-| LLaMA-65B | 2048 | 32000 | 80  | 8192 | 22016 | 64  | 128 | 65285652480 |
-
-对应的可视化代码如下
-
-```python
-import numpy as np
-import matplotlib.pyplot as plt
-
-def compute_memory(L, d, h, h_d, V, s, P, b):
-    weights = 2 * P
-    gradients = 2 * P
-    optimizer_states = 12 * P
-    activations = L*s*b*(32 * d + 4 * h * s) + (4 * b * s * d + 2 * b * s * V)
-    return {
-        "weights": weights,
-        "gradients": gradients,
-        "optimizer_states": optimizer_states,
-        "activations": activations,
-    }
-
-
-b = 64  # batch size for memory calculation
-memory_data = {}
-
-for model, params in models.items():
-    memory = compute_memory(params["L"], params["d"], params["h"], params["h_d"], params["V"], params["s"], params["P"], b)
-    memory_data[model] = memory
-
-fig, ax = plt.subplots(figsize=(12, 6))
-
-model_names = list(memory_data.keys())
-GB = 1024 ** 3  # 1 GB in bytes
-
-weights = [memory_data[m]["weights"] / GB for m in model_names]
-gradients = [memory_data[m]["gradients"] / GB for m in model_names]
-optimizer_states = [memory_data[m]["optimizer_states"] / GB for m in model_names]
-activations = [memory_data[m]["activations"] / GB for m in model_names]
-
-x = np.arange(len(model_names))
-width = 0.6
-
-# Stacked bar chart
-p1 = ax.bar(x, weights, width, label='Weights')
-p2 = ax.bar(x, gradients, width, bottom=weights, label='Gradients')
-p3 = ax.bar(x, optimizer_states, width, bottom=np.array(weights) + np.array(gradients), label='Optimizer States')
-p4 = ax.bar(x, activations, width, bottom=np.array(weights) + np.array(gradients) + np.array(optimizer_states), label='Activations')
-
-ax.set_xlabel('Model')
-ax.set_ylabel('Memory (GB)')
-ax.set_title(f'Memory Usage Breakdown for LLaMA Series (batch size={b})')
-ax.set_xticks(x)
-ax.set_xticklabels(model_names, rotation=45, ha='right')
-ax.legend()
-ax.grid(axis='y', alpha=0.3)
-
-plt.tight_layout()
-plt.show()
-```
