@@ -1,0 +1,230 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>AIMO on Mao Song(毛松)'s Homepage</title><link>https://maosong.website/tags/aimo/</link><description>Recent content in AIMO on Mao Song(毛松)'s Homepage</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Wed, 15 Apr 2026 09:52:18 +0800</lastBuildDate><atom:link href="https://maosong.website/tags/aimo/index.xml" rel="self" type="application/rss+xml"/><item><title>Notes on OpenMath-Nemotron</title><link>https://maosong.website/p/notes-on-openmath-nemotron/</link><pubDate>Wed, 15 Apr 2026 09:50:39 +0800</pubDate><guid>https://maosong.website/p/notes-on-openmath-nemotron/</guid><description>&lt;p>NVIDIA 在 AIMO-2 比赛中的 winning solution.&lt;/p>
+&lt;h2 id="introduction">&lt;a href="#introduction" class="header-anchor">&lt;/a>Introduction
+&lt;/h2>&lt;p>AIMO 是一个专门针对 AI 模型的数学奥林匹克竞赛，参赛选手需要训练模型在有限的计算资源下解决 50 个高难度数学问题。&lt;/p>
+&lt;p>NVIDIA 主要进行了三点改进：&lt;/p>
+&lt;ol>
+&lt;li>构建了包含 540K 高质量的数学推理数据集以及 3.2M long reasoning solutions&lt;/li>
+&lt;li>构建了一个集成 code execution 的方法来合成 1.7M TIR solutions&lt;/li>
+&lt;li>构建了一个 pipeline 来训练模来从多个 candidates 中选出最好的答案&lt;/li>
+&lt;/ol>
+&lt;p>最终，NVIDIA 的方案解决了 34 个数学问题。&lt;/p>
+&lt;h2 id="methods">&lt;a href="#methods" class="header-anchor">&lt;/a>Methods
+&lt;/h2>&lt;h3 id="data-preparation">&lt;a href="#data-preparation" class="header-anchor">&lt;/a>Data Preparation
+&lt;/h3>&lt;p>首先作者从 AoPS 上收集得到大量数学问题，然后剔除掉初中级别的数学题目，接下来，作者构建了一个 pipeline 用于提取问题以及对应的答案，这里作者使用了 Qwen2.5-32B-Instruct 模型来完成这个任务，处理流程有：&lt;/p>
+&lt;ol>
+&lt;li>使用 LLM 来识别并提取所有的问题&lt;/li>
+&lt;li>对问题进行分类：proof, MCQ, binary, valid&lt;/li>
+&lt;li>transformation: 将证明题展缓为 answer based question&lt;/li>
+&lt;li>answer extraction: 提取最终答案&lt;/li>
+&lt;li>decontamination: 移除与 math benchmark 高度相似的数据&lt;/li>
+&lt;/ol>
+&lt;p>经过数据处理之后，每个阶段的数据量如下表所示&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Pipeline Stage&lt;/th>
+&lt;th>Data Size&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>Original forum discussions&lt;/td>
+&lt;td>620K&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Extracted problems&lt;/td>
+&lt;td>580K&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Removing “bad” problems&lt;/td>
+&lt;td>550K&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Benchmark decontamination&lt;/td>
+&lt;td>540K&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>最终数据集的统计如下&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Subset&lt;/th>
+&lt;th>Size&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>Converted proofs&lt;/td>
+&lt;td>260K&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>With extracted answer&lt;/td>
+&lt;td>190K&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>No extracted answer&lt;/td>
+&lt;td>90K&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Total&lt;/td>
+&lt;td>540K&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>接下来，作者基于 AIME 和 HMMT 构建了一个验证集，验证集包含了 256 个问题。&lt;/p>
+&lt;p>为了生成 cot solution, 作者首先使用 &lt;code>Qwen2.5-72B-Math-Instruct&lt;/code> 来给数据进行难度分级，接下来作者使用 &lt;code>DeepSeek-R1&lt;/code> 和 &lt;code>QwQ-32B&lt;/code> 来生成 32 个 candidate solution. 最后作者使用 &lt;code>Qwen2.5-32B-Instruct&lt;/code> 来 judge 生成的答案，最终的数据汇总如下所示&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Model&lt;/th>
+&lt;th>all&lt;/th>
+&lt;th>after filtering&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>QwQ-32B&lt;/td>
+&lt;td>1.0M&lt;/td>
+&lt;td>0.5M&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>DeepSeek-R1&lt;/td>
+&lt;td>4.2M&lt;/td>
+&lt;td>2.7M&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Total&lt;/td>
+&lt;td>5.2M&lt;/td>
+&lt;td>3.2M&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="tool-integrated-reasoning">&lt;a href="#tool-integrated-reasoning" class="header-anchor">&lt;/a>Tool Integrated Reasoning
+&lt;/h3>&lt;p>作者认为对于 instruction model, 我们可以在 long reasoning 过程中保持其 instruction following 能力，然后作者使用 &lt;code>LIMO-Qwen-32B&lt;/code> 来生成带有 python code execution 的 solution, 最终得到了 1.2M solution.&lt;/p>
+&lt;p>然而，作者发现合成的数据里有一部分工具调用是无效的，为了过滤数据，作者使用了 &lt;code>Qwen2.5-32B-Instruct&lt;/code> 来对 code block 进行分类，分类使用了两个标准：&lt;/p>
+&lt;ol>
+&lt;li>novel calculation/verification: 代码执行是否产生了比较好的结果或者简化了之前的步骤&lt;/li>
+&lt;li>significant/modrate/trivial. 代码是否完成了 solution 比较重要的一部分&lt;/li>
+&lt;/ol>
+&lt;p>作者还移除了结果不对的数据以及包含 2 个以上 code block 的数据，经过这个过程后，得到了 &lt;code>stage-0 TIR data&lt;/code>, 包含 15k samples.&lt;/p>
+&lt;p>然后，作者使用 &lt;code>QwQ-32B&lt;/code> 来在 &lt;code>stage-0 TIR data&lt;/code> 上微调 7 个 epoch, 再生成 700K 样本并过滤得到 260K 样本。&lt;/p>
+&lt;p>作者最后使用了一个 14B 的模型重复上面的过程，这个模型训练使用了 &lt;code>QwQ-32B&lt;/code> 生成的答案。&lt;/p>
+&lt;p>最终，TIR 数据集包含了 1.7M 样本。为了控制模型工具调用的次数，作者还在 prompt 里说明了可用的工具调用次数&lt;/p>
+&lt;h3 id="generative-solution-selection">&lt;a href="#generative-solution-selection" class="header-anchor">&lt;/a>Generative Solution Selection
+&lt;/h3>&lt;p>在本节中，作者构建了一个从 candidate solution summaries 中挑选最优答案的方法。作者发现从多个 solution 中进行对比然后挑选出最优答案比给单独答案进行打分效果更好。&lt;/p>
+&lt;p>首先，作者使用 &lt;code>Qwen-2.5-32B-Instruct&lt;/code> 来给 solution 生成 summary, summary 的 max length 为 2028 token. 如果 Summary 的答案和预测答案不一致，样本会被丢掉。&lt;/p>
+&lt;p>为了实现 GenSelect inference, 作者首先随机采样 多个 candidate solution summary 组成 sample group, 然后使用 &lt;code>QwQ-32B&lt;/code> 来进行挑选过滤得到 565K 数据集&lt;/p>
+&lt;p>为了进一步减少计算消耗，作者使用 summary 来进行训练，结果发现模型的准确率下降不到 $1-2\%$. 作者通过实验发现 GenSelect 可以有效提高模型 CoT 以及 TIR 场景下的准确率。&lt;/p>
+&lt;h2 id="experiments">&lt;a href="#experiments" class="header-anchor">&lt;/a>Experiments
+&lt;/h2>&lt;p>作者基于 Qwen-2.5-Base 系列模型进行训练，包括 1.5B, 7B, 14B 和 32B.&lt;/p>
+&lt;p>为了有效提高模型上下文，作者将 RoPE 的 base frequency 提高到 500K.&lt;/p>
+&lt;p>训练使用了三个任务：&lt;/p>
+&lt;ol>
+&lt;li>COT solution generation&lt;/li>
+&lt;li>TIR solution generation&lt;/li>
+&lt;li>GenSelect&lt;/li>
+&lt;/ol>
+&lt;p>最终数据集包含了 5.5M 样本（3.2M CoT, 1.7M TIR, 566K GenSelect)&lt;/p>
+&lt;p>使用了 NeMo-Aligner 来加速训练，使用 model merging 来得到更好的效果。&lt;/p>
+&lt;p>试验结果如下图所示&lt;/p>
+&lt;p>&lt;img src="https://maosong.website/p/notes-on-openmath-nemotron/openmath-nemotron-performance.png"
+width="1484"
+height="606"
+loading="lazy"
+alt="performance of openmath-nemotron"
+class="gallery-image"
+data-flex-grow="244"
+data-flex-basis="587px"
+>&lt;/p>
+&lt;p>作者还构建了一个更难问题的数据集，包含了 2.2M 样本，作者使用了 32B 的模型进行训练，结果如下图所示&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Model&lt;/th>
+&lt;th>First SFT&lt;/th>
+&lt;th>Second SFT&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>1.5B CoT&lt;/td>
+&lt;td>55.1&lt;/td>
+&lt;td>58.2&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>1.5B TIR&lt;/td>
+&lt;td>64.1&lt;/td>
+&lt;td>64.5&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>7B CoT&lt;/td>
+&lt;td>61.3&lt;/td>
+&lt;td>62.5&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>7B TIR&lt;/td>
+&lt;td>71.1&lt;/td>
+&lt;td>70.7&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>14B CoT&lt;/td>
+&lt;td>62.9&lt;/td>
+&lt;td>65.2&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>14B TIR&lt;/td>
+&lt;td>74.6&lt;/td>
+&lt;td>73.4&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h2 id="submission">&lt;a href="#submission" class="header-anchor">&lt;/a>Submission
+&lt;/h2>&lt;p>针对 Kaggle 竞赛，作者进一步进行了改进&lt;/p>
+&lt;p>首先，作者使用 &lt;code>Qwen2.5-14B-Base&lt;/code> 在 2.2M CoT solutions 上进行训练 8 epoch. 然后作者在 15K Stage-0 TIR samples 上轻量化微调，最后作者对 CoT checkpoint 以及 TIR checkpoint 进行 model merging. 作者并没有使用 GenSelect.&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Model&lt;/th>
+&lt;th>maj@16&lt;/th>
+&lt;th>pass@16&lt;/th>
+&lt;th>length&lt;/th>
+&lt;th>code&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>CoT&lt;/td>
+&lt;td>62.9&lt;/td>
+&lt;td>76.2&lt;/td>
+&lt;td>11203&lt;/td>
+&lt;td>-&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>TIR&lt;/td>
+&lt;td>66.8&lt;/td>
+&lt;td>80.1&lt;/td>
+&lt;td>15834&lt;/td>
+&lt;td>2.73&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>CoT_0.3 + TIR_0.7&lt;/td>
+&lt;td>69.1&lt;/td>
+&lt;td>81.3&lt;/td>
+&lt;td>12489&lt;/td>
+&lt;td>0.85&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>在推理上，作者使用了 TensorRT-LLM 将模型转换为 TensorRT 格式&lt;/p>
+&lt;p>作者还使用了 ReDrafter 来实现 speculative decoding.&lt;/p>
+&lt;h2 id="conclusion">&lt;a href="#conclusion" class="header-anchor">&lt;/a>Conclusion
+&lt;/h2>&lt;p>作者在本文中构建了一个大规模的数学推理数据集 OpenMathReasoning, 包含了 540K 问题，3.2M long CoT solutions, 1.7M TIR solutiosn 以及 566K GenSelect traces.&lt;/p>
+&lt;p>作者还训练得到了 OpenMath-Nemotron 模型系列，该模型系列在 AIMO-2 上取得了 SOTA 的成绩。&lt;/p>
+&lt;h2 id="references">&lt;a href="#references" class="header-anchor">&lt;/a>References
+&lt;/h2>&lt;ul>
+&lt;li>&lt;a class="link" href="http://arxiv.org/abs/2504.16891" target="_blank" rel="noopener"
+>AIMO-2 winning solution: building state-of-the-art mathematical reasoning models with OpenMathReasoning dataset&lt;/a>&lt;/li>
+&lt;li>&lt;a class="link" href="https://www.kaggle.com/competitions/ai-mathematical-olympiad-progress-prize-2" target="_blank" rel="noopener"
+>AI Mathematical Olympiad - Progress Prize 2&lt;/a>&lt;/li>
+&lt;/ul></description></item></channel></rss>
