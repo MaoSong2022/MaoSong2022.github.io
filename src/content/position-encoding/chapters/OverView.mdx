@@ -1,19 +1,8 @@
----
-title: Notes on Position encoding
-description: 从Absolute position encoding到RoPE
-authors:
-- name: Mao Song
-  url: https://maosong.website/
-published: 2025-05-19 10:46:39+0800
-modified: 2025-05-19 10:46:39+0800
-tags:
-- position encoding
-categories:
-- LLM
-- Tutorial
-showPdf: false
-seoThumbImage: /posts/notes-on-position-encoding/RoPE_binary_position_encoding.png
----
+
+import Image from '../../../components/Image.astro';
+import rope_binary_position_encoding from '../../../assets/image/RoPE_binary_position_encoding.png';
+import rope_sinusoidal_position_encoding from '../../../assets/image/RoPE_sinusoidal_position_encoding.png';
+import rope_long_term_decay from '../../../assets/image/RoPE_long_term_decay.png';
 
 > 本文前半部分参考 [参考文献1](https://huggingface.co/blog/designing-positional-encoding)，推荐大家看博客原文。
 
@@ -28,10 +17,6 @@ seoThumbImage: /posts/notes-on-position-encoding/RoPE_binary_position_encoding.p
 ```python
 import torch
 import torch.nn as nn
-import Image from '../../../components/Image.astro';
-import rope_binary_position_encoding from '../../../assets/image/RoPE_binary_position_encoding.png';
-import rope_sinusoidal_position_encoding from '../../../assets/image/RoPE_sinusoidal_position_encoding.png';
-import rope_long_term_decay from '../../../assets/image/RoPE_long_term_decay.png';
 from transformers import AutoTokenizer, AutoModel
 
 model_id = "meta-llama/Llama-3.2-1B"
