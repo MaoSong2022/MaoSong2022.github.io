@@ -2,13 +2,15 @@
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { browseCategoryHref, browseTagHref } from "../utils/browse-links";
 import { parseArticleGlob, type SiteArticleEntry } from "../utils/site-articles";
+import { getAllArticleBundleLastModifiedIso } from "../utils/article-modified";
 
 const articleGlob = import.meta.glob<{ frontmatter: Record<string, unknown> }>(
   "../content/*/article.{md,mdx}",
   { eager: true },
 );
 
-const articles = parseArticleGlob(articleGlob);
+const modifiedBySlug = await getAllArticleBundleLastModifiedIso();
+const articles = await parseArticleGlob(articleGlob, modifiedBySlug);
 
 const categories = [
   ...new Set(articles.map((a) => a.category).filter(Boolean) as string[]),
@@ -22,7 +24,7 @@ type BrowseRow = {
   slug: string;
   url: string;
   title: string;
-  published: string;
+  displayDate: string;
   description: string;
   category: string;
   tags: string[];
@@ -32,7 +34,7 @@ const browseArticles: BrowseRow[] = articles.map((a: SiteArticleEntry) => ({
   slug: a.slug,
   url: a.url,
   title: a.title,
-  published: a.published ?? "",
+  displayDate: a.displayDate ?? "",
   description: a.description ?? "",
   category: a.category ?? "",
   tags: a.tags,
@@ -43,14 +45,14 @@ const yearWeight = (year: string): number => {
   return Number.isNaN(parsed) ? -1 : parsed;
 };
 
-const getArticleYear = (published: string): string => {
-  const match = /^(\d{4})/.exec(published.trim());
+const getArticleYear = (rawDate: string): string => {
+  const match = /^(\d{4})/.exec(rawDate.trim());
   return match?.[1] ?? "Unknown";
 };
 
 const archiveMap = new Map<string, SiteArticleEntry[]>();
 for (const article of articles) {
-  const year = getArticleYear(article.published ?? "");
+  const year = getArticleYear(article.modified ?? article.published ?? "");
   const grouped = archiveMap.get(year);
   if (grouped) {
     grouped.push(article);
@@ -201,8 +203,8 @@ const description =
                   <a class="article-index__link" href={a.url}>
                     {a.title}
                   </a>
-                  {a.published ? (
-                    <span class="article-index__meta">{a.published}</span>
+                  {a.displayDate ? (
+                    <span class="article-index__meta">{a.displayDate}</span>
                   ) : null}
                   {a.description ? (
                     <p class="article-index__desc">{a.description}</p>

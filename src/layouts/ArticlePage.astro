@@ -19,9 +19,10 @@ interface Props {
     default: any;
     frontmatter?: Record<string, unknown>;
   };
+  lastModified?: string;
 }
 
-const { articleMod: ArticleMod } = Astro.props;
+const { articleMod: ArticleMod, lastModified } = Astro.props as Props;
 
 // Default OG image served from public/
 const ogDefaultUrl = "/thumb.auto.jpg";
@@ -133,9 +134,11 @@ if (normalizedAuthors.length === 0) {
   });
 }
 const authorNames: string[] = normalizedAuthors.map((a) => a.name);
-const published = articleFM?.published ?? undefined;
+const published =
+  typeof articleFM?.published === "string" ? articleFM.published : undefined;
 const modified =
-  (articleFM as any)?.modified ??
+  lastModified ??
+  ((articleFM as any)?.modified as string | undefined) ??
   (articleFM as any)?.updatedDate ??
   (articleFM as any)?.lastmod ??
   published;
@@ -369,7 +372,8 @@ const links: Array<{ label: string; url: string; icon?: string }> =
         authors={normalizedAuthors as any}
         affiliations={normalizedAffiliations as any}
         affiliation={articleFM?.affiliation}
-        published={articleFM?.published}
+        published={published}
+        modified={modified}
         links={links}
       />
     ) : (
@@ -380,7 +384,7 @@ const links: Array<{ label: string; url: string; icon?: string }> =
         authors={normalizedAuthors as any}
         affiliations={normalizedAffiliations as any}
         affiliation={articleFM?.affiliation}
-        published={articleFM?.published}
+        published={published}
         modified={modified}
         doi={doi}
         pdfProOnly={articleFM?.pdfProOnly}
