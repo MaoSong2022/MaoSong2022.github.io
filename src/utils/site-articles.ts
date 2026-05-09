@@ -65,7 +65,7 @@ export function parseArticleGlob(
       const category = normalizeCategory(fm.category ?? fm.categories);
       return {
         slug,
-        url: `/p/${slug}/`,
+        url: `/blog/${slug}/`,
         title,
         published,
         description,

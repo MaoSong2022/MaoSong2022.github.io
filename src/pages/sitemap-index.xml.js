@@ -27,7 +27,7 @@ export async function GET(context) {
     const slug = match[1];
     const frontmatter = mod?.frontmatter ?? {};
     pages.push({
-      path: `/p/${slug}/`,
+      path: `/blog/${slug}/`,
       lastmod:
         typeof frontmatter.modified === "string"
           ? frontmatter.modified
