@@ -1,8 +1,12 @@
+import { formatDisplayDate } from "./date-format";
+
 export type SiteArticleEntry = {
   slug: string;
   url: string;
   title: string;
   published?: string;
+  modified?: string;
+  displayDate?: string;
   description?: string;
   /** Trimmed strings from frontmatter `tags`. */
   tags: string[];
@@ -48,17 +52,27 @@ function normalizeCategory(raw: unknown): string | undefined {
 }
 
 /** Normalize frontmatter from eager `import.meta.glob` over each `content/<slug>/article.{md,mdx}` module. */
-export function parseArticleGlob(
+export async function parseArticleGlob(
   articleGlob: Record<string, { frontmatter?: Record<string, unknown> }>,
-): SiteArticleEntry[] {
+  modifiedBySlug: Record<string, string> = {},
+): Promise<SiteArticleEntry[]> {
   const articles: SiteArticleEntry[] = Object.entries(articleGlob).map(
-    ([path, mod]) => {
+    ([path, mod]): SiteArticleEntry => {
       const match = path.match(/content\/([^/]+)\/article\.(?:md|mdx)$/);
       const slug = match?.[1] ?? "unknown";
       const fm = mod?.frontmatter ?? {};
       const title = flatTitle(fm.title) || slug;
       const published =
         typeof fm.published === "string" ? fm.published : undefined;
+      const frontmatterModified =
+        typeof fm.modified === "string"
+          ? fm.modified
+          : typeof fm.updatedDate === "string"
+            ? fm.updatedDate
+            : typeof fm.lastmod === "string"
+              ? fm.lastmod
+              : undefined;
+      const modified = modifiedBySlug[slug] ?? frontmatterModified ?? published;
       const description =
         typeof fm.description === "string" ? fm.description : undefined;
       const tags = normalizeTags(fm.tags);
@@ -68,6 +82,8 @@ export function parseArticleGlob(
         url: `/blog/${slug}/`,
         title,
         published,
+        modified,
+        displayDate: formatDisplayDate(modified ?? published) ?? modified ?? published,
         description,
         tags,
         category,
@@ -76,8 +92,8 @@ export function parseArticleGlob(
   );
 
   articles.sort((a, b) => {
-    const ta = Date.parse(a.published ?? "") || 0;
-    const tb = Date.parse(b.published ?? "") || 0;
+    const ta = Date.parse(a.modified ?? a.published ?? "") || 0;
+    const tb = Date.parse(b.modified ?? b.published ?? "") || 0;
     if (tb !== ta) return tb - ta;
     return a.slug.localeCompare(b.slug);
   });

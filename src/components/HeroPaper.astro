@@ -5,6 +5,7 @@ import {
   normalizeAuthors,
   getLinkIcon,
 } from "./heroUtils";
+import { formatDisplayDate } from "../utils/date-format";
 
 const {
   title,
@@ -13,6 +14,7 @@ const {
   affiliations = [],
   affiliation,
   published,
+  modified,
   links = [],
 } = Astro.props as HeroProps;
 
@@ -36,6 +38,7 @@ const resolvedAffiliations =
     : affiliation
       ? [{ id: 1, name: affiliation }]
       : [];
+const visibleDate = formatDisplayDate(modified ?? published);
 ---
 
 <section class="hero-paper">
@@ -84,9 +87,9 @@ const resolvedAffiliations =
         ))}
       </span>
     )}
-    {published && (
+    {visibleDate && (
       <span class="hero-paper-meta__segment hero-paper-meta__segment--muted">
-        {published}
+        {visibleDate}
       </span>
     )}
   </div>

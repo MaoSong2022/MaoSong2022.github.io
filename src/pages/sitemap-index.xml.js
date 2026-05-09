@@ -1,3 +1,6 @@
+import { getAllArticleBundleLastModifiedIso } from "../utils/article-modified";
+import { parseArticleGlob } from "../utils/site-articles";
+
 function escapeXml(value) {
   return String(value)
     .replaceAll("&", "&amp;")
@@ -12,6 +15,8 @@ export async function GET(context) {
   const articleGlob = import.meta.glob("../content/*/article.{md,mdx}", {
     eager: true,
   });
+  const modifiedBySlug = await getAllArticleBundleLastModifiedIso();
+  const articles = await parseArticleGlob(articleGlob, modifiedBySlug);
 
   const pages = [
     { path: "/", lastmod: undefined },
@@ -21,19 +26,10 @@ export async function GET(context) {
     { path: "/rss.xml", lastmod: undefined },
   ];
 
-  for (const [path, mod] of Object.entries(articleGlob)) {
-    const match = path.match(/content\/([^/]+)\/article\.(?:md|mdx)$/);
-    if (!match) continue;
-    const slug = match[1];
-    const frontmatter = mod?.frontmatter ?? {};
+  for (const article of articles) {
     pages.push({
-      path: `/blog/${slug}/`,
-      lastmod:
-        typeof frontmatter.modified === "string"
-          ? frontmatter.modified
-          : typeof frontmatter.published === "string"
-            ? frontmatter.published
-            : undefined,
+      path: article.url,
+      lastmod: article.modified ?? article.published,
     });
   }
 

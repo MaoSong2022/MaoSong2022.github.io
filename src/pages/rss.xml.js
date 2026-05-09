@@ -1,5 +1,6 @@
 import { SITE_DESCRIPTION, SITE_TITLE } from "../consts";
 import { parseArticleGlob } from "../utils/site-articles";
+import { getAllArticleBundleLastModifiedIso } from "../utils/article-modified";
 
 function escapeXml(value) {
   return String(value)
@@ -14,12 +15,13 @@ export async function GET(context) {
   const articleGlob = import.meta.glob("../content/*/article.{md,mdx}", {
     eager: true,
   });
-  const posts = parseArticleGlob(articleGlob);
+  const modifiedBySlug = await getAllArticleBundleLastModifiedIso();
+  const posts = await parseArticleGlob(articleGlob, modifiedBySlug);
 
   const site = new URL(context.site);
   const items = posts
     .map((post) => {
-      const publishedMs = Date.parse(post.published ?? "");
+      const publishedMs = Date.parse(post.modified ?? post.published ?? "");
       const pubDate = Number.isNaN(publishedMs)
         ? undefined
         : new Date(publishedMs).toUTCString();

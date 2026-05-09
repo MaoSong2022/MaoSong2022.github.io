@@ -7,6 +7,7 @@ import {
   stripHtml,
   slugify,
 } from "./heroUtils";
+import { formatDisplayDate } from "../utils/date-format";
 
 const {
   title,
@@ -16,6 +17,7 @@ const {
   affiliations = [],
   affiliation,
   published,
+  modified,
   doi,
   pdfProOnly = false,
   showPdf = true,
@@ -38,6 +40,7 @@ const hasMultipleAffiliations =
 
 const pdfBase = titleRaw ? stripHtml(titleRaw) : stripHtml(title);
 const pdfFilename = `${slugify(pdfBase)}.pdf`;
+const visibleDate = formatDisplayDate(modified ?? published);
 ---
 
 <section class="hero">
@@ -126,14 +129,12 @@ const pdfFilename = `${slugify(pdfBase)}.pdf`;
         </div>
       )
     }
-    {
-      published && (
-        <div class="meta-container-cell meta-container-cell--published">
-          <h3>Published</h3>
-          <p>{published}</p>
-        </div>
-      )
-    }
+    {visibleDate && (
+      <div class="meta-container-cell meta-container-cell--published">
+        <h3>Updated</h3>
+        <p>{visibleDate}</p>
+      </div>
+    )}
     {doi && (
       <div class="meta-container-cell meta-container-cell--doi">
         <h3>DOI</h3>

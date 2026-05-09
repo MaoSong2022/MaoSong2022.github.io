@@ -10,13 +10,15 @@ import avatarSrc from "../../public/avatar.jpg";
 import { SITE_NEWS } from "../data/site-news";
 import { browseCategoryHref, browseTagHref } from "../utils/browse-links";
 import { parseArticleGlob } from "../utils/site-articles";
+import { getAllArticleBundleLastModifiedIso } from "../utils/article-modified";
 
 const articleGlob = import.meta.glob<{ frontmatter: Record<string, unknown> }>(
   "../content/*/article.{md,mdx}",
   { eager: true },
 );
 
-const articles = parseArticleGlob(articleGlob);
+const modifiedBySlug = await getAllArticleBundleLastModifiedIso();
+const articles = await parseArticleGlob(articleGlob, modifiedBySlug);
 const latest = articles.slice(0, 4);
 
 const newsItems = [...SITE_NEWS].sort((a, b) => {
@@ -124,7 +126,7 @@ function newsDateIso(raw: string): string | undefined {
             ({
               url,
               title,
-              published,
+              displayDate,
               description: desc,
               category,
               tags,
@@ -141,8 +143,8 @@ function newsDateIso(raw: string): string | undefined {
                 <a class="article-index__link" href={url}>
                   {title}
                 </a>
-                {published ? (
-                  <span class="article-index__meta">{published}</span>
+                {displayDate ? (
+                  <span class="article-index__meta">{displayDate}</span>
                 ) : null}
                 {desc ? <p class="article-index__desc">{desc}</p> : null}
                 {tags.length > 0 ? (
