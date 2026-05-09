@@ -1,0 +1,84 @@
+## PPO
+
+在上一节中，我们介绍了 TRPO 算法，TRPO 算法是一个二阶算法，TRPO 大幅度提高了 sample efficiency, 但是其问题在于计算/优化太过复杂。因此，PPO 就通过 clip 等技巧保留了 TRPO 思想并降低了计算难度。
+
+在 TRPO 算法中，我们的优化问题形式为：
+
+$$
+\begin{align}
+\max_{\theta}\ &\mathcal{K}(\theta;\theta_{old}) = \mathbb{E}_{\tau\sim(p_0,\pi_{\theta_{old}}, p),a_t'\sim\pi_{\theta_{old}}(\cdot\mid s_t)}\left[\sum_{t=0}^{T-1}\frac{\pi_\theta(a_t'\mid s_t)}{\pi_{\theta_{old}}(a_t'\mid s_t)}A^{\pi_{\theta_{old}}}(s_t,a_t')\right]\\
+\mathrm{s.t.}\ &\max_{s\in\mathcal{S}}\mathrm{KL}(\pi_\theta(\cdot\mid s)\mid\mid \pi_{\theta_{old}}(\cdot\mid s))\leq \delta
+\end{align}
+$$
+
+TRPO 的核心思想为，当 $\pi_{\theta}$ 和 $\pi_{\theta_{old}}$ 比较接近时，我们的目标函数 $\mathcal{K}(\theta;\theta_{old})$ 与 policy gradient 的目标函数 $\mathcal{J}(\theta)$ 梯度误差比较小。
+
+PPO 针对这一点核心观点进行了扩展，我们可以通过另一种形式来约束 **$\pi_{\theta}$ 和 $\pi_{\theta_{old}}$ 比较接近**，即
+
+$$
+r_t(\theta) := \frac{\pi_\theta(a_t'\mid s_t)}{\pi_{\theta_{old}}(a_t'\mid s_t)} \approx 1
+$$
+
+基于这个思想，我们可以丢弃 TRPO 的约束，直接对 $r_t(\theta)$ 进行约束，这个约束可以使用 $\mathrm{clip}$ 函数来实现，此时优化的目标函数就变成了
+
+$$
+\mathcal{J}(\theta) = \mathbb{E}_{(q,a)\sim\mathcal{D},o_{\leq t}\sim \pi_{\theta_{old}}(\cdot\mid q)}\left[ \mathrm{clip}\left(r_t(\theta), 1-\epsilon, 1+\epsilon\right)\hat{A}_t \right]
+$$
+
+这里 $\epsilon>0$ 是一个超参数，类似于 TRPO 中的 $\delta$.
+
+$$
+\mathrm{clip}(x,\ell, r)=\begin{cases}
+\ell, &\text{ if }x\leq \ell\\
+x, &\text{ if }\ell<x<r\\
+r, &\text{ if }x \geq r
+\end{cases}
+$$
+
+现在我们已经通过 $\mathrm{clip}$ 抛弃了 TRPO 复杂的约束了。我们来分析一下目标函数的性质，我们将不同的结果总结为下表
+
+| $\hat{A}_t$ | $r_t$                     | objective               | gradient                     | description                |
+| ----------- | ------------------------- | ----------------------- | ---------------------------- | -------------------------- |
+| $>0$        | $r>1+\epsilon$            | $(1+\epsilon)\hat{A}_t$ | 0                            | 好动作，比 old policy 概率更大，不更新  |
+| $>0$        | $[1-\epsilon,1+\epsilon]$ | $r_t\hat{A}_t$          | $\nabla_\theta r_t\hat{A}_t$ | 好动作，与 old policy 概率差不多，更新  |
+| $>0$        | $r<1-\epsilon$            | $(1-\epsilon)\hat{A}_t$ | 0                            | 好动作，比 old policy 概率更小，不更新  |
+| $<0$        | $r>1+\epsilon$            | $(1+\epsilon)\hat{A}_t$ | 0                            | 坏动作，比 old policy 概率更大，不更新  |
+| $<0$        | $[1-\epsilon,1+\epsilon]$ | $r_t\hat{A}_t$          | $\nabla_\theta r_t\hat{A}_t$ | 坏动作，比 old policy 概率差不多，更新  |
+| $<0$        | $r<1-\epsilon$            | $(1-\epsilon)\hat{A}_t$ | 0                            | 坏动作，比 old policy 概率差更小，不更新 |
+
+从结果中我们可以看出，只有当 $r_t\approx 1$ 时，我们才会更新我们的模型，对于 $\hat{A}_t>0, r_t<1-\epsilon$ 和 $\hat{A}_t<0, r_t<1-\epsilon$ 这两种应该更新的情况，我们并没有更新，我们的 sample efficiency 很低。为了解决这个问题，我们在 $\mathrm{clip}$ 的基础上，进一步加入一个 $\min$ 函数来进行控制，这样，我们就得到了 PPO 的目标函数：
+
+$$
+\mathcal{J}_{\mathrm{PPO}}(\theta) = \mathbb{E}_{(q,a)\sim\mathcal{D},o_{\leq t}\sim \pi_{\theta_{old}}(\cdot\mid q)}\left[ \min\left(r_t(\theta)\hat{A}_t,\mathrm{clip}\left(r_t(\theta), 1-\epsilon, 1+\epsilon\right)\hat{A}_t\right) \right]
+$$
+
+此时，我们再对目标函数进行分析，就得到
+
+| $\hat{A}_t$ | $r_t$            | objective               | gradient                     | description                    |
+| ----------- | ---------------- | ----------------------- | ---------------------------- | ------------------------------ |
+| $>0$        | $>1+\epsilon$    | $(1+\epsilon)\hat{A}_t$ | $0$                          | 好动作，比 old policy 概率更大，不需要更新    |
+| $>0$        | $\leq1+\epsilon$ | $r_t\hat{A}_t$          | $\nabla_\theta r_t\hat{A}_t$ | 好动作，与 old policy 概率差不多或更小，需要更新 |
+| $<0$        | $\geq1-\epsilon$ | $r_t\hat{A}_t$          | $\nabla_\theta r_t\hat{A}_t$ | 坏动作，比 old policy 概率更小，不需要概率    |
+| $<0$        | $<1-\epsilon$    | $(1-\epsilon)\hat{A}_t$ | $0$                          | 坏动作，与 old policy 概率差不多或更高，概率   |
+
+可以看到，此时 PPO 的目标函数就解决了 sample efficiency 过低的问题了。
+
+### PPO in RLHF
+
+其中
+
+$$
+r_t(\theta) = \frac{\pi_{\theta}(o_t\mid q, o_{< t})}{\pi_{\theta_{old}}(o_t\mid q, o_{< t})}
+$$
+
+$(q,a)$ 是从数据集 $\mathcal{D}$ 采样的 QA pair，$\epsilon>0$ 是一个超参数，$\hat{A}_t$ 是 $t$ 时刻的优势估计 (advantage estimator). 给定 value function $V$ 以及 reward function $R$, $\hat{A}_t$ 通过计算 GAE 得到：
+
+$$
+\hat{A}_t^{\mathrm{GAE}(\gamma, \lambda)}=\sum_{k=0}^{\infty}(\gamma\lambda)^k\delta_{t+k}
+$$
+
+其中
+
+$$
+\delta_k = R_k + \gamma V(s_{k+1})-V(s_k),\quad 0\leq \gamma,\lambda\leq 1
+$$

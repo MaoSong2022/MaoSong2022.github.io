@@ -1,0 +1,20 @@
+## GRPO
+
+相比于 [PPO](PPO.md)，GRPO 不依赖于 value function, 因此不需要使用 reward model. GRPO 通过一组输出来估计 value $V(s)$, 然后进行更新。具体来说，给定 QA pair $(q,a)$, 我们从 $\pi_{\theta_{old}}$ 中采样 $G$ 个输出 $\{o_i\}_{i=1}^G$, 接下来我们基于 reward $\{R_i\}_{i=1}^G$ 使用如下表达式来估计 group-level reward:
+
+$$
+\hat{A}_{i,t} = \frac{r_i - \mathrm{mean}(\{R_i\}_{i=1}^G)}{\mathrm{std}(\{R_i\}_{i=1}^G)}
+$$
+
+最后，GRPO 的训练目标与 PPO 类似，只不过将 $\hat{A}_t$ 替换为 $\hat{A}_{i,t}$, 然后在分组上进行了归一化：
+
+$$
+\mathcal{J}_{\mathrm{GRPO}}(\theta) = \mathbb{E}_{(q,a)\sim\mathcal{D},\{o_i\}_{i=1}^G\sim \pi_{\theta_{old}}(\cdot\mid q)}\left[ \frac{1}{G}\sum_{i=1}^G\frac{1}{|o_i|}\sum_{t=1}^{|o_i|}\min\left(r_{i,t}(\theta)\hat{A}_{i,t},\mathrm{clip}\left(r_{i,t}(\theta), 1-\epsilon, 1+\epsilon\right)\hat{A}_{i,t}\right) \right]
+$$
+
+其中，
+
+$$
+r_{i,t}(\theta) = \frac{\pi_{\theta}(o_{i,t}\mid q, o_{i,< t})}{\pi_{\theta_{old}}(o_{i,t}\mid q, o_{i,< t})}
+$$
+
