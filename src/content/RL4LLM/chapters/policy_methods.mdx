@@ -1,0 +1,365 @@
+## Policy Based Methods
+
+policy-based methods 的 motivation 很好理解，我们想要找到一个 optimal policy, 那我们就采集一些数据，通过一些方法来不停改进当前策略 $\pi$, 直到当前策略达到最优。
+
+根据采样数据所使用 policy 的不同，policy-based methods 一般会被分为两类：
+
+1. on-policy: 采集数据的 policy 和训练更新的 policy 一致
+2. off-policy: 采集数据的 policy 和训练更新的 policy 不一致
+
+这两者的核心区别在于：我们更新模型所使用的数据是否由当前模型产生？如果回答是，则说明算法是 On-policy, 反之则说明是 Off-policy.
+
+on-policy 和 off-policy 对比
+
+|                    | on-policy                          | off-policy              |
+| ------------------ | ---------------------------------- | ----------------------- |
+| examples           | PPO, TRPO                          | DQN, DPO, DDPG          |
+| sampled from       | current policy                     | arbitrary policy        |
+| exploration        | yes                                | no                      |
+| infra efficiency   | low (needs to generate new sample) | high                    |
+| training stability | unstable                           | more stable             |
+| compute cost       | high                               | low                     |
+| best for           | exploration is needed              | reused past experiences |
+
+### Policy Gradient Theorem
+
+我们的目标仍然是最大化累计奖励，目标函数为
+
+$$
+\max_{\pi}\mathcal{J}(\theta)=\mathbb{E}_{s_0\sim p_0}\left[V^{\pi_\theta}(s_0)\right]=\mathbb{E}_{s_0\sim p_0}^{\pi_\theta}\left[\sum_{t=0}^{T-1}\gamma^tr_t\right]
+$$
+
+我们首先将采集到的轨迹数据 $\tau$ 进行展开
+
+$$
+\tau = (s_0,a_0,r_0,\dots,s_{T-1}, a_{T-1}, r_{T-1}, s_T)
+$$
+
+$\tau$ 的概率分布可以写为
+
+$$
+p_\theta(\tau) = p_0(s_0)\prod_{t=0}^{T-1} p(r_t,s_{t+1}\mid s_t,a_t)\pi_\theta(a_t\mid s_t)
+$$
+
+我们使用 cumulative return 的定义，就得到
+
+$$
+\mathcal{J}(\theta)=\mathbb{E}_{s_0\sim p_0}^\pi\left[\sum_{t=0}^{T-1}\gamma^tr_t\right] = \mathbb{E}_{s_0\sim p_0,a_t\sim\pi_\theta(\cdot\mid s_t), (r_t,s_{t+1})\sim p(\cdot,\cdot\mid s_t,a_t)}^\pi\left[\sum_{t=0}^{T-1}\gamma^tr_t\right] = \mathbb{E}_{\tau\sim(p_0,\pi_\theta, p)}\left[G_0(\tau)\right]
+$$
+
+此时，目标函数的梯度为
+
+$$
+\begin{align}
+\nabla_\theta \mathcal{J}(\theta)&=\nabla_\theta\mathbb{E}_{\tau\sim(p_0,\pi_\theta, p)}\left[G_0(\tau)\right]\\
+&= \sum_\tau G_0(\tau)\nabla_\theta p_\theta(\tau)\\
+&= \sum_\tau p_\theta(\tau)G_0(\tau) \nabla_\theta \log p_\theta(\tau)\\
+&= \mathbb{E}_{\tau\sim(p_0,\pi_\theta, p)}\left[G_0(\tau)\nabla_\theta \log p_\theta(\tau)\right]\\
+&= \mathbb{E}_{\tau\sim(p_0,\pi_\theta, p)}\left[ \sum_{t=0}^{T-1}\nabla_\theta\log\pi_\theta(a_t\mid s_t)G_0(\tau)\right]
+\end{align}
+$$
+
+这里我们使用了如下不等式
+
+$$
+\nabla_\theta p_\theta(\tau)=p_\theta(\tau)\nabla_\theta \log p_\theta(\tau)
+$$
+
+以及
+
+$$
+\nabla_\theta \log p_\theta(\tau) = \nabla_\theta \log \left[p_0(s_0)\prod_{t=0}^{T-1} p(r_t,s_{t+1}\mid s_t,a_t)\pi_\theta(a_t\mid s_t)\right] = \sum_{t=0}^{T-1}\log\pi_\theta(a_t\mid s_t)
+$$
+
+一些教材上还有另一种表达形式，使用了 Q-function, 即
+
+$$
+\nabla_\theta \mathcal{J}(\theta) = \mathbb{E}_{\tau\sim(p_0,\pi_\theta, p)}\left[ \sum_{t=0}^{T-1}\nabla_\theta\log\pi_\theta(a_t\mid s_t)Q^\pi(s_t,a_t)\right]
+$$
+
+我们可以对其进行证明，证明需要用到 [Expectation](Expectation.md) 中的全概率公式。注意到
+
+$$
+\begin{align}
+\nabla_\theta \mathcal{J}(\theta)&=\mathbb{E}_{\tau\sim(p_0,\pi_\theta, p)}\left[\sum_{t=0}^{T-1}G_0(\tau)\nabla_\theta \log \pi_\theta(a_t\mid s_t)\right]\\
+&= \sum_{t=0}^{T-1}\mathbb{E}_{\tau\sim(p_0,\pi_\theta, p)}\left[G_0(\tau)\nabla_\theta \log\pi_\theta(a_t\mid s_t)\right]\\
+&=\sum_{t=0}^{T-1}\mathbb{E}_{\tau_{:t}\sim(p_0,\pi_\theta, p)}\left[\mathbb{E}_{\tau_{:t}\sim(p_0,\pi_\theta, p)}\left[G_0(\tau)\nabla_\theta \log\pi_\theta(a_t\mid s_t)\mid \tau_{:t}\right]\right]\\
+&=\sum_{t=0}^{T-1}\mathbb{E}_{\tau_{:t}\sim(p_0,\pi_\theta, p)}\left[\nabla_\theta \log\pi_\theta(a_t\mid s_t)\mathbb{E}_{\tau_{:t}\sim(p_0,\pi_\theta, p)}\left[G_0(\tau)\mid \tau_{:t}\right]\right]\\
+&=\sum_{t=0}^{T-1}\mathbb{E}_{\tau_{:t}\sim(p_0,\pi_\theta, p)}\left[\nabla_\theta \log\pi_\theta(a_t\mid s_t)\mathbb{E}_{\tau_{:t}\sim(p_0,\pi_\theta, p)}\left[G_0(\tau)\mid s_t,a_t\right]\right]\\
+&=\sum_{t=0}^{T-1}\mathbb{E}_{\tau_{:t}\sim(p_0,\pi_\theta, p)}\left[\nabla_\theta \log\pi_\theta(a_t\mid s_t)Q^\pi(s_t,a_t)\right]
+\end{align}
+$$
+
+这里第三个等式使用了全概率公式，第四个等式是因为 $\nabla_\theta \log\pi_\theta(a_t\mid s_t)$ 相对于 $\tau_{:t}$ 来说是一个常数，第五个等式是因为 Markov property, 最后一个等式使用了 Q-function 的定义。
+
+### Vanilla Policy Gradient Methods
+
+令
+
+$$
+\hat{g} := \sum_{t=0}^{T-1}\nabla_\theta\log\pi_\theta(a_t\mid s_t)G_0(\tau)
+$$
+
+则 $\hat{g}$ 是 $\nabla_\theta \mathcal{J}(\theta)$ 的一个无偏估计。
+
+基于 MC 思想，我们可以得到最简单的 policy gradient algorithm, 也就是 REINFORCE 算法
+
+```pseudo
+	\begin{algorithm}
+	\caption{Policy Gradient with MC (REINFORCE)}
+	\begin{algorithmic}
+    	\STATE initial policy parameters $\theta_0$.
+        \FOR {$k=0,1,\dots$}
+            \STATE Sample $M$ trajectories $\{\tau_i\}$ according to policy $\pi_{\theta_k}$
+            \STATE estimate the gradient via MC: 
+            $$
+            \hat{g}=\frac{1}{M}\sum_{i=1}^M\sum_{t=0}^{T_i-1}\nabla_\theta\log\pi_{\theta_k}(a_t\mid s_t)G_0(\tau_i)
+            $$
+            \STATE update $\theta_k$ using $\hat{g}$ with an optimizer
+        \ENDFOR
+	\end{algorithmic}
+	\end{algorithm}
+```
+
+### Variance Reduction
+
+$g$ 虽然是 $\nabla_\theta \mathcal{J}(\theta)$ 的一个无偏估计，但是使用 $g$ 作为估计会出现比较大的方差，我们本节主要介绍如何减少 $g$ 作为估计的方差，这里需要用到 policy gradient baseline invariance 的性质
+
+### Baseline Invariance
+
+我们有如下等式
+
+$$
+\mathbb{E}_{\tau\sim(p_0,\pi_\theta, p)}\left[ \sum_{t=0}^{T-1}\nabla_\theta\log\pi_\theta(a_t\mid s_t)\sum_{t=0}^{T-1}r(s_t)\right] = \mathbb{E}_{\tau\sim(p_0,\pi_\theta, p)}\left[ \sum_{t=0}^{T-1}\nabla_\theta\log\pi_\theta(a_t\mid s_t)\left(\sum_{t=0}^{T-1}r(s_t)-b(s_t)\right)\right]
+$$
+
+其中 $b$ 是一个仅与状态有关的函数或者常数。上述等式说明我们可以通过改变 $b$ 来调整 policy gradient 的 variance, 为了证明这个等式，我们证明
+
+$$
+\mathbb{E}_{\tau\sim(p_0,\pi_\theta, p)}\left[b(s_t)\nabla_\theta \log p_\theta(a_t\mid s_t)\right]=0
+$$
+
+注意到
+
+$$
+\begin{align}
+\mathbb{E}_{\tau\sim(p_0,\pi_\theta, p)}\left[b(s_t)\nabla_\theta \log p_\theta(a_t\mid s_t)\right] &= \mathbb{E}_{s_0\sim p_0}\left[b(s_t)\mathbb{E}_{a_t\sim\pi_\theta(\cdot\mid s_t)}\left[\nabla_\theta \log \pi_\theta(a_t\mid s_t)\right]\right]\\
+&= \mathbb{E}_{s_0\sim p_0}\left[b(s_t)\sum_{a}\nabla_\theta \pi_\theta(a\mid s)\right]\\
+&= \mathbb{E}_{s_0\sim p_0}\left[b(s_t)\nabla_\theta \sum_{a}\pi_\theta(a\mid s)\right]\\
+&= \mathbb{E}_{s_0\sim p_0}\left[b(s_t)\nabla_\theta 1\right]\\
+&=0
+\end{align}
+$$
+
+因此，我们就得到了如上结论。$\blacksquare$
+
+我们将 $b(s_t)$ 称为 **baseline**.
+
+### Reward to Go
+
+Reward to go 的基本思想是，对于时刻 $t$, 过去的轨迹 $s_0,r_0,\dots,r_{t-1}$ 不应该被考虑，因为它们都已经固定了,加入它们会产生额外的 variance, 此时，我们对应的 $b(s_t)$ 定义为
+
+$$
+b(s_t) = \sum_{k=0}^{t}\gamma^k r_k
+$$
+
+此时，我们的 policy gradient 为
+
+$$
+\nabla_\theta \mathcal{J}(\theta)=\mathbb{E}_{\tau\sim(p_0,\pi_\theta, p)}\left[ \sum_{t=0}^{T-1}\nabla_\theta\log\pi_\theta(a_t\mid s_t)\sum_{k=t}^{T-1}r(s_{k})\right]
+$$
+
+对应的 REINFORCE 算法改进版本为
+
+```pseudo
+	\begin{algorithm}
+	\caption{Policy Gradient with MC and reward to go (REINFORCE)}
+	\begin{algorithmic}
+    	\STATE initial policy parameters $\theta_0$.
+        \FOR {$k=0,1,\dots$}
+            \STATE Sample $M$ trajectories $\{\tau_i\}$ according to policy $\pi_{\theta_k}$
+            \STATE estimate the gradient via MC: 
+            $$
+            \hat{g}=\frac{1}{M}\sum_{i=1}^M\nabla_\theta\log\pi_{\theta_k}(a_t\mid s_t)\gamma^tG_t(\tau_i)
+            $$
+            \STATE update $\theta_k$ using $\hat{g}$ with an optimizer
+        \ENDFOR
+	\end{algorithmic}
+	\end{algorithm}
+```
+
+### Optimal Baseline
+
+我们可以从理论上推导出最优 baseline.
+
+**Lemma**
+
+令 $s$ 和 $a$ 为随机变量，$w(s,a)$, $Q(s,a)$, $b(s)$ 为函数，则
+
+$$
+b^* = \arg\min_{b(\cdot)} \mathbb{E}_{a,s}\left[w^2(s,a)\left(Q(s,a)-b(s)\right)^2\right]
+$$
+
+其中
+
+$$
+b^*(s) = \frac{\mathbb{E}_{a\mid s}\left[w^2(s,a)Q(s,a)\mid s\right]}{\mathbb{E}_{a\mid s}\left[w^2(s,a)\mid s\right]}
+$$
+
+证明
+
+$$
+\begin{align}
+\mathbb{E}_{a,s}\left[w^2(s,a)\left(Q(s,a)-b(s)\right)^2\right]&= \mathbb{E}_{a,s}\left[w^2(s,a)\left(Q(s,a)-b^*(s)+b^*(s)-b(s)\right)^2\right]\\
+&= \mathbb{E}_{a,s}\left[w^2(s,a)\left(Q(s,a)-b^*(s)\right)^2\right]+\mathbb{E}_{a,s}\left[w^2(s,a)\left(b^*(s)-b(s)\right)^2\right]\\
+&+2\mathbb{E}_{a,s}\left[w^2(s,a)\left(Q(s,a)-b^*(s)\right)\left(b^*(s)-b(s)\right)\right]\\
+&= \mathbb{E}_{a,s}\left[w^2(s,a)\left(Q(s,a)-b^*(s)\right)^2\right]+\mathbb{E}_{a,s}\left[w^2(s,a)\left(b^*(s)-b(s)\right)^2\right]\\
+&\geq \mathbb{E}_{a,s}\left[w^2(s,a)\left(Q(s,a)-b^*(s)\right)^2\right]
+\end{align}
+$$
+
+其中第三个等式用到了
+
+$$
+\begin{align}
+\mathbb{E}_{a,s}\left[w^2(s,a)\left(Q(s,a)-b^*(s)\right)\left(b^*(s)-b(s)\right)\right]&= \mathbb{E}_{s}\left[\mathbb{E}_{a\mid s}\left[w^2(s,a)\left(Q(s,a)-b^*(s)\right)\left(b^*(s)-b(s)\right)\right]\mid s\right]\\
+&= \mathbb{E}_{s}\left[\left(\mathbb{E}_{a\mid s}\left[w^2(s,a)Q(s,a)\mid s\right] - \mathbb{E}_{a\mid s}\left[w^2(s,a)\mid s\right]b^*(s)\right)\left(b^*(s)-b(s)\right)\right]\\
+&=0
+\end{align}
+$$
+
+证毕。$\blacksquare$
+
+基于上述引理，我们可以得到关于 baseline invariance 中的最优 basline:
+
+$$
+b^*(s) =\frac{\mathbb{E}_{a_t\sim\pi_\theta(\cdot\mid s_t)}\left[(\nabla_\theta\log\pi_\theta(a_t\mid s_t))^2Q^{\pi_\theta}(s,a)\mid s\right]}{\mathbb{E}_{a_t\sim\pi_\theta(\cdot\mid s_t)}\left[\nabla_\theta\log\pi_\theta(a_t\mid s_t))^2\mid s\right]}
+$$
+
+理论上我们可以使用 $b^*(s_t)$ 作为 baseline,但是实际上有趣其表达式太复杂，我们一般使用其简化版本，简化版本移除了 $b^*(s)$ 中的 $\nabla_\theta\log\pi_\theta(a_t\mid s_t)$, 这样我们的一个估计就是
+
+$$
+b(s) = \frac{\mathbb{E}_{a_t\sim\pi_\theta(\cdot\mid s_t)}\left[Q^{\pi_\theta}(s,a)\mid s\right]}{\mathbb{E}_{a_t\sim\pi_\theta(\cdot\mid s_t)}\left[1\mid s\right]} = V^{\pi_\theta}(s)
+$$
+
+$b(s)=V^{\pi_\theta}(s)$ 并不是最优 baseline, 但是其性质比较好。
+
+我们将 $b(s)=V^{\pi_\theta}(s)$ 带入就得到经典的 policy gradient 表达式
+
+$$
+\nabla_\theta \mathcal{J}(\theta)=\mathbb{E}_{\tau\sim(p_0,\pi_\theta, p)}\left[ \sum_{t=0}^{T-1}\nabla_\theta\log\pi_\theta(a_t\mid s_t)\left(Q^{\pi_\theta}(s_t,a_t)-V^{\pi_\theta}(s_t)\right)\right]
+$$
+
+我们定义
+
+$$
+A^{\pi_\theta}(s_t,a_t) := Q^{\pi_\theta}(s_t,a_t)-V^{\pi_\theta}(s_t)
+$$
+
+为 $a_t$ 在 $s_t$ 处的 **advantage**. 注意到 $V^{\pi_\theta}(s_t)$ 评估了当前状态下沿着策略 $\pi_\theta$ 所能够获得的 discounted return, 因此 advantage 说明了 action $a_t$ 对于 $\pi_\theta$ 的平均好坏程度：
+
+- 如果 $A^{\pi_\theta}(s_t,a_t) >0$, 则说明 $a_t$ （平均意义下）相对于 $\pi_\theta$ 来说是一个更好的 action
+- 反之如果 $A^{\pi_\theta}(s_t,a_t) <0$, 则说明 $a_t$ （平均意义下）相对于 $\pi_\theta$ 来说是一个更坏的 action
+
+实际场景下，由于 $V^{\pi_\theta}(s_t)$ 未知，使用前面的 value iteration 方法，我们可以使用估计
+
+$$
+\hat{A}^{\pi_\theta}(s_t,a_t) := Q^{\pi_\theta}(s_t,a_t)-V^{\phi}(s_t)
+$$
+
+来代替。
+
+对于最优策略 $\pi^*$，我们有
+
+$$
+A^{\pi^*}(s_t,a_t) := Q^{\pi^*}(s_t,a_t)-V^{\pi^*}(s_t)\leq 0
+$$
+
+证明也很简单，注意到 $V^{\pi^*}(s_t)=\max_{a}Q^{\pi^*}(s_t,a_t)$ 即可。
+
+最后，我们的 REINFORCE 算法改进如下
+
+```pseudo
+	\begin{algorithm}
+	\caption{Policy Gradient with MC and value function (REINFORCE)}
+	\begin{algorithmic}
+    	\STATE initial policy parameters $\theta_0$.
+        \FOR {$k=0,1,\dots$}
+            \STATE Sample $M$ trajectories $\{\tau_i\}$ according to policy $\pi_{\theta_k}$
+            \STATE estimate the gradient via MC: 
+            $$
+            \hat{g}=\frac{1}{M}\sum_{i=1}^M\nabla_\theta\log\pi_{\theta_k}(a_t\mid s_t)\gamma^t(Q^{\pi_\theta}(s_t,a_t)-V^{\phi}(s_t))
+            $$
+            \STATE update $\theta_k$ using $\hat{g}$ with an optimizer
+        \ENDFOR
+	\end{algorithmic}
+	\end{algorithm}
+```
+
+### Rao–Blackwell Theorem
+
+我们在前面介绍了不同的降低 variance 的方法，但是我们还没有在理论上回答为什么可以降低 variance, 本节我们将基于 Rao-Blackwell theorem 来回答这个问题
+
+**Theorem**
+
+令 $X$ 和 $Y$ 为随机变量， 令 $\hat{I}_1(X,Y)$ 为 $I$ 的一个无偏估计，即
+
+$$
+I = \mathbb{E}_{XY}[\hat{I}_1(XY)]
+$$
+
+令 $\hat{I}_2(Y)=\mathbb{E}_{X\mid Y}[\hat{I}_1(X,Y)\mid Y]$, 则 $\hat{I}_2$ 也是 $I$ 的一个无偏估计，并且
+
+$$
+\mathrm{var}[\hat{I}_2]\leq\mathrm{var}[\hat{I}_1]
+$$
+
+$\hat{I}_2$ 被称为 $\hat{I}_1(X,Y)$ 的**Rao-Blackwellized estimator**.
+
+证明
+
+由 [Expectation](Expectation.md) 中的 law of total expectation, 我们有
+
+$$
+\mathbb{E}_{XY}[\hat{I}_2(XY) ]=\mathbb{E}_{Y}[\mathbb{E}_{X\mid Y}[\hat{I}_1(X,Y)\mid Y]]=\mathbb{E}_{XY}[\hat{I}_1(XY) ]=I
+$$
+
+其次，我们有
+
+$$
+\begin{align}
+\mathrm{var}[\hat{I}_2]&=\mathbb{E}_{Y}[(I-\hat{I}_2(Y))^2]\\
+&= \mathbb{E}_{Y}[\left(\mathbb{E}_{X\mid Y}\left[I-\hat{I}_1(X,Y)\mid Y\right]\right)^2]\\
+&\leq\mathbb{E}_{Y}[\left(\mathbb{E}_{X\mid Y}\left[(I-\hat{I}_1(X,Y))^2\mid Y\right]\right)]\\
+&= \mathbb{E}_{Y}[(I-\hat{I}_1(X,Y))^2]\\
+&=\mathrm{var}[\hat{I}_1]
+\end{align}
+$$
+
+这里不等式使用了 Jensen's inequality. 证毕。$\blacksquare$
+
+Rao–Blackwell Theorem 说明了我们可以通过构造一个新的无偏估计，这个新的无偏估计相对于原始的无偏估计，有更小的方差。
+
+### Overview
+
+最后，我们把前面的 basline 使用统一的公式进行表示，记
+
+$$
+\nabla_\theta \mathcal{J}(\theta)=\mathbb{E}_{\tau\sim(p_0,\pi_\theta, p)}\left[\Psi(\tau)\nabla_\theta \log p_\theta(\tau)\right]=\mathbb{E}_{\tau\sim(p_0,\pi_\theta, p)}\left[\sum_{t=0}^T\Psi_t(\tau)\nabla_\theta \log p_\theta(\tau)\right]
+$$
+
+则
+
+| Method       | Expression                                                |
+| ------------ | --------------------------------------------------------- |
+| Vallinna     | $\Psi_t(\tau)=G_0(\tau)=Q^\pi(s_t,a_t)$                   |
+| Return to go | $\Psi_t(\tau)=\sum_{k=t}^T\gamma^{k-t}r_k$                |
+| Advantage    | $\Psi_t(\tau)=A^{\pi}(s_t,a_t)=Q^\pi(s_t,a_t)-V^\pi(s_t)$ |
+
+### Experiments
+
+在本节中，我们将对比 REINFORCE 算法的不同变体。我们使用
+
+### Conclusion
+
+在本节中，我们推导了 policy gradient 的具体形式，然后针对 REINFORCE 算法 variance 过高的问题，我们介绍了不同的减少 variance 的方法。最后，我们从理论上分析了为什么这些方法可以降低 variance.

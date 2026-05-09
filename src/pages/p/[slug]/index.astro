@@ -1,0 +1,27 @@
+---
+import ArticlePage from "../../../layouts/ArticlePage.astro";
+
+export async function getStaticPaths() {
+  const loaders = import.meta.glob("../../../content/*/article.{md,mdx}");
+  const entries = await Promise.all(
+    Object.entries(loaders).map(async ([path, load]) => {
+      const match = path.match(/content\/([^/]+)\/article\.(?:md|mdx)$/);
+      if (!match) return null;
+      const slug = match[1];
+      const articleMod = await load();
+      return {
+        params: { slug },
+        props: { articleMod },
+      };
+    }),
+  );
+  return entries.filter(
+    (e): e is { params: { slug: string }; props: { articleMod: unknown } } =>
+      e !== null,
+  );
+}
+
+const { articleMod } = Astro.props;
+---
+
+<ArticlePage articleMod={articleMod as any} />

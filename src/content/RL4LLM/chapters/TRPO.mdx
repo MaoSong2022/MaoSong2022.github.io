@@ -1,0 +1,158 @@
+## TRPO
+
+在本文中，我们探讨如何提高 policy gradient methods 的 sample efficiency.
+
+在上一节中介绍的 REINFORCE 算法中，我们每次都需要基于当前策略 $\pi_\theta$ 来进行采样。因此，算法的效率受采样效率所影响。
+
+一个自然的想法是，我们能否利用已有的数据集来进行训练，也就是 off-policy 版本的 policy gradient algorithm.
+
+
+我们的目标函数为
+
+$$
+\max_{\pi}\mathcal{J}(\theta)=\mathbb{E}_{s_0\sim p_0}\left[V^{\pi_\theta}(s_0)\right]
+$$
+
+我们假设有两个 policy 的参数, $\theta$ 和 $\theta_{old}$, 我们分析一下两个 policy 对应的目标函数之间的 difference:
+
+$$
+\begin{align}
+\mathcal{J}(\theta)  -\mathcal{J}(\theta_{old}) &= \mathcal{J}(\theta) - \mathbb{E}_{s_0\sim p_0}\left[V^{\pi_{\theta_{old}}}(s_0)\right]\\
+&= \mathcal{J}(\theta) - \mathbb{E}_{\tau\sim (p_0,\pi_\theta, p)}\left[V^{\pi_{\theta_{old}}}(s_0)\right]\\
+&= \mathcal{J}(\theta) - \mathbb{E}_{\tau\sim (p_0,\pi_\theta, p)}\left[\sum_{t=0}^{T-1}\gamma^tV^{\pi_{\theta_{old}}}(s_t)-\sum_{t=1}^{T-1}\gamma^tV^{\pi_{\theta_{old}}}(s_t)\right]\\
+&= \mathbb{E}_{\tau\sim (p_0,\pi_\theta, p)}\left[\sum_{t=0}^{T-1}\gamma^t r_t\right] + \mathbb{E}_{\tau\sim (p_0,\pi_\theta, p)}\left[\sum_{t=0}^{T-1}\gamma^t\left(\gamma V^{\pi_{\theta_{old}}}(s_{t+1})-V^{\pi_{\theta_{old}}}(s_t)\right)\right]\\
+&= \mathbb{E}_{\tau\sim (p_0,\pi_\theta, p)}\left[\sum_{t=0}^{T-1}\gamma^t\left(r_t+\gamma V^{\pi_{\theta_{old}}}(s_{t+1})-V^{\pi_{\theta_{old}}}(s_t)\right)\right]\\
+&= \mathbb{E}_{\tau\sim (p_0,\pi_\theta, p)}\left[\sum_{t=0}^{T-1}\gamma^t\left(\gamma Q^{\pi_{\theta_{old}}}(s_{t}, a_t)-V^{\pi_{\theta_{old}}}(s_t)\right)\right]\\
+&= \mathbb{E}_{\tau\sim (p_0,\pi_\theta, p)}\left[\sum_{t=0}^{T-1}\gamma^t A^{\pi_{\theta_{old}}}(s_t,a_t)\right]\\
+\end{align}
+$$
+
+我们进一步展开得到
+
+$$
+\begin{align}
+\mathcal{J}(\theta)  -\mathcal{J}(\theta_{old}) &= \mathbb{E}_{\tau\sim (p_0,\pi_\theta, p)}\left[\sum_{t=0}^{T-1}\gamma^t A^{\pi_{\theta_{old}}}(s_t,a_t)\right]\\
+&= \mathbb{E}_{s_0\sim p_0, a_0\sim\pi_\theta(\cdot\mid s_0)}\left[A^{\pi_{\theta_{old}}}(s_0,a_0)+\mathbb{E}^{\pi_\theta}\left[\sum_{t=1}^{T-1}\gamma^t A^{\pi_{\theta_{old}}}(s_t,a_t)\mid s_0, a_0\right]\right]\\
+&= \mathbb{E}_{s_0\sim p_0, a_0\sim\pi_\theta(\cdot\mid s_0),a_0'\sim \pi_{\theta_{old}}(\cdot\mid s_0)}\left[\frac{\pi_{\theta}(a_0'\mid s_0)}{\pi_{\theta_{old}}(a_0'\mid s_0)}A^{\pi_{\theta_{old}}}(s_0,a_0')+\mathbb{E}^{\pi_\theta}\left[\sum_{t=1}^{T-1}\gamma^t A^{\pi_{\theta_{old}}}(s_t,a_t)\mid s_0, a_0\right]\right]\\
+&=\dots (\text{keep enrolling the summation})\\
+&= \mathbb{E}_{\tau\sim (p_0,\pi_\theta, p),a_t'\sim \pi_{\theta_{old}}(\cdot\mid s_t)}\left[\sum_{t=0}^{T-1}\gamma^t \frac{\pi_{\theta}(a_t'\mid s_t)}{\pi_{\theta_{old}}(a_t'\mid s_t)}A^{\pi_{\theta_{old}}}(s_t,a_t')\right]\\
+\end{align}
+$$
+
+因此，我们有
+
+$$
+\mathcal{J}(\theta) = \mathbb{E}_{\tau\sim(p_0,\pi_\theta, p),a_t'\sim\pi_{\theta_{old}}(\cdot\mid s_t)}\left[\sum_{t=0}^{T-1}\gamma^t\frac{\pi_\theta(a_t'\mid s_t)}{\pi_{\theta_{old}}(a_t'\mid s_t)}A^{\pi_{\theta_{old}}}(s_t,a_t')\right]+C
+$$
+
+但是，现在我们的更姓还是依赖于 $\pi_\theta$, 这很难处理。因此 TRPO 的思想就是，**当 $\pi_\theta$ 与 $\pi_{\theta_{old}}$ 充分接近时，使用 $\pi_{\theta_{old}}$ 来替换 $\pi_\theta$**, 这样，上面目标函数就变成了
+
+$$
+\begin{align}
+\max_{\theta}\ &\mathcal{K}(\theta;\theta_{old}) = \mathbb{E}_{\tau\sim(p_0,\pi_{\theta_{old}}, p),a_t'\sim\pi_{\theta_{old}}(\cdot\mid s_t)}\left[\sum_{t=0}^{T-1}\gamma^t\frac{\pi_\theta(a_t'\mid s_t)}{\pi_{\theta_{old}}(a_t'\mid s_t)}A^{\pi_{\theta_{old}}}(s_t,a_t')\right]\\
+\mathrm{s.t.}\ &\pi_{\theta_{old}}\approx \pi_\theta
+\end{align}
+$$
+
+我们可以证明
+
+$$
+\nabla \mathcal{J}(\theta)\mid _{\theta=\theta_{old}} = \nabla_\theta \mathcal{K}(\theta;\theta_{old})\mid _{\theta=\theta_{old}}
+$$
+
+这就是 TRPO 的核心改进，在实际求解时，我们将上面的问题规范为如下形式
+
+$$
+\begin{align}
+\max_{\theta}\ &\mathcal{K}(\theta;\theta_{old}) = \mathbb{E}_{\tau\sim(p_0,\pi_{\theta_{old}}, p),a_t'\sim\pi_{\theta_{old}}(\cdot\mid s_t)}\left[\sum_{t=0}^{T-1}\gamma^t\frac{\pi_\theta(a_t'\mid s_t)}{\pi_{\theta_{old}}(a_t'\mid s_t)}A^{\pi_{\theta_{old}}}(s_t,a_t')\right]\\
+\mathrm{s.t.}\ &\max_{s\in\mathcal{S}}\mathrm{KL}(\pi_\theta(\cdot\mid s)\mid\mid \pi_{\theta_{old}}(\cdot\mid s))\leq \delta
+\end{align}
+$$
+
+这里 $\delta>0$ 为一个超参数。
+
+现在我们可以采样多条轨迹 $\tau^{(i)}\sim (p_0,\pi_{\theta_{old}}, p)$ 再使用 MC 方法来估计目标函数 $\mathcal{K}(\theta;\theta_{old})$
+
+$$
+\mathcal{K}(\theta;\theta_{old}) = \mathbb{E}_{\tau\sim(p_0,\pi_{\theta_{old}}, p),a_t\sim\pi_{\theta_{old}}(\cdot\mid s_t)}\left[\sum_{t=0}^{T-1}\gamma^t\frac{\pi_\theta(a_t\mid s_t)}{\pi_{\theta_{old}}(a_t\mid s_t)}A^{\pi_{\theta_{old}}}(s_t,a_t)\right]\approx \frac{1}{N}\sum_{i=1}^N\sum_{t=0}^{T^{(i)}-1}\gamma^t\frac{\pi_\theta(a_t^{(i)}\mid s_t^{(i)})}{\pi_{\theta_{old}}(a_t^{(i)}\mid s_t^{(i)})}\hat{A}_t
+$$
+
+这里 $\hat{A}_t\approx A^{\pi_{\theta_{old}}}(s_t,a_t)$ 是一个 advantage estimator.  注意上面的 estimator 当 $N$ 变大以及 $\pi_{\theta}\approx \pi_{\theta_{old}}$ 时比较准确。
+
+### Gamma Trick
+
+
+
+### Overview
+
+我们把上面的结果整理为如下算法
+
+```pseudo
+	\begin{algorithm}
+	\caption{TRPO MC}
+	\begin{algorithmic}
+    	\STATE initial policy parameters $\theta_0$, initial value function parameters $\phi_0$.
+    	\STATE hyperparameters: $\delta>0$
+        \FOR {$k=0,1,\dots$}
+            \STATE Sample $N$ trajectories $\{\tau_i\}$ according to $(p_0,\pi_{\theta_k}, p)$
+            \STATE Solve
+            $$
+            \begin{aligned}
+            \max_{\theta_{k+1}}\ &\frac{1}{N}\sum_{i=1}^N\sum_{t=0}^{T^{(i)}-1}\gamma^t\frac{\pi_{\theta_{k+1}}(a_t^{(i)}\mid s_t^{(i)})}{\pi_{\theta_k}(a_t^{(i)}\mid s_t^{(i)})}\hat{A}_t\\
+\mathrm{s.t.}\ &\max_{s\in\mathcal{S}}\mathrm{KL}(\pi_{\theta_{k+1}}(\cdot\mid s)\mid\mid \pi_{\theta_{k}}(\cdot\mid s))\leq \delta
+            \end{aligned}
+            $$
+            \STATE $\hat{R}_t^{(i)}=\gamma^{t'-t}r_{t'}^{(i)}$, $i=1,\dots,N$, $t=1,\dots,T^{(i)}-1$
+            \STATE update the value model
+            $$
+            \min_{\phi} \frac1N\sum_{i=1}^N\frac{1}{T^{(i)}}\sum_{t=0}^{T^{(i)}-1}\frac12\left(V_{\phi}(s_t^{(i)})-\hat{R}_t^{(i)}\right)^2
+            $$
+
+        \ENDFOR
+	\end{algorithmic}
+	\end{algorithm}
+```
+
+关于这个优化问题的解法可以参考后续 discussion 章节
+
+### Experiments
+
+### Discussion
+
+### Connection with TRO
+
+我们将目标函数和约束进行泰勒展开得到
+
+$$
+\begin{align}
+\mathcal{K}(\theta;\theta_{old}) &\approx g^T(\theta-\theta_k) \\
+\mathrm{KL}(\theta\mid\mid \theta_k)&\approx \frac12(\theta-\theta_k)^TH(\theta-\theta_k)
+\end{align}
+$$
+
+这样我们的优化目标就近似为
+
+$$
+\begin{align}
+\max_{\theta}\ & g^T(\theta-\theta_k)\\
+\mathrm{s.t.}\ & \frac12(\theta-\theta_k)^TH(\theta-\theta_k)\leq\delta
+\end{align}
+$$
+
+这个目标函数与 TRO (trust region methods) 一致，因此我们可以使用类似的做法来解决，我们可以得到上面问题的准确表达式
+
+$$
+\theta_{k+1} = \theta_k  + \sqrt{\frac{2\delta}{g^TH^{-1}g}}H^{-1}g
+$$
+
+但是，由于我们使用了 Taylor 展开，实际上我们的更新并不一定满足 KL divergence 的约束，TRPO 对此进行了改进，即在更新时加入了 line search 来使得 $\theta_{k+1}$ 满足 KL divergence 约束。
+
+$$
+\theta_{k+1} = \theta_k  + \alpha^j\sqrt{\frac{2\delta}{g^TH^{-1}g}}H^{-1}g
+$$
+
+其中 $\alpha\in(0,1)$ 是 backtracking line search 的参数， $j$ 是使得 $\theta_{k+1}$ 满足 KL divergence 约束的最小正整数 $k$.
+
+### Drawbacks
+
+虽然 TRPO 的理论形式非常简单，但是实际上实现起来很麻烦。其根本原因在于这个约束比较难以满足，原始论文中使用了 line search 来解决这个问题，但是当状态空间大了之后，速度会显著下降，这也是 PPO 的核心贡献之一。

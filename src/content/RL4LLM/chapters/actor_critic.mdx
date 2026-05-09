@@ -1,0 +1,166 @@
+## Actor Critic Methods
+
+在上一节中， 我们介绍了经典的 policy gradient 形式，并基于 policy gradient 构建了经典的 REINFORCE 算法，我们还使用了 baseline invariance 性质来降低 policy gradient 的 variance, 并得到了最终的 advantage 形式。
+
+在本节中，我们将要针对 advantage 进行进一步探讨，介绍如何将 value based methods 和 policy based methods 结合起来得到 actor-critic methods.
+
+### Actor-Critic
+
+我们首先考虑最简单的 actor-critic algorithm, 注意到
+
+$$
+\nabla_\theta \mathcal{J}(\theta) = \mathbb{E}_{\tau\sim(p_0,\pi_\theta, p)}\left[ \sum_{t=0}^{T-1}\nabla_\theta\log\pi_\theta(a_t\mid s_t)Q^{\pi_\theta}(s_t,a_t)\right]
+$$
+
+因此，其对应的 policy gradient methods 为
+
+$$
+\theta_{k+1} = \theta_k + \alpha \mathbb{E}_{\tau\sim(p_0,\pi_\theta, p)}\left[ \sum_{t=0}^{T-1}\nabla_\theta\log\pi_\theta(a_t\mid s_t)Q^{\pi_\theta}(s_t,a_t)\right]
+$$
+
+在前面的章节中，我们介绍了基于 MC 和 TD 两种方式来估计 $Q^{\pi_\theta}(s_t,a_t)$, 在本节中我们江浙两类方法进行分类：
+
+1. 如果 $Q^{\pi_\theta}(s_t,a_t)$ 由 MC 来进行估计，则我们将其称为 REINFORCE 或者 Monte Carlo policy gradient.
+2. 如果 $Q^{\pi_\theta}(s_t,a_t)$ 由 TD learning 来进行估计，则我们将其称为 **actor-critic**, 这是我们本节的重点介绍内容
+
+最简单的 actor-critic algorithm 如下所示
+
+```pseudo
+	\begin{algorithm}
+	\caption{Q actor-critic}
+	\begin{algorithmic}
+    	\STATE initial policy parameters $\theta_0$, value function parameters $\phi_0$.
+        \FOR {$t=0,1,T-1$}
+            \STATE $a_t\sim\pi_{\theta}(\cdot\mid s_t)$, $r_t,s_{t+1}\sim p(\cdot,\cdot\mid s_t,a_t)$, $a_{t+1}\sim\pi_{\theta}(\cdot\mid s_{t+1})$ 
+            \STATE (ACTOR) policy update
+            $$
+            \theta_{t+1} = \theta_t + \alpha_{\theta}\log\pi_{\theta}(a_t\mid s_t)Q^{\phi_t}(s_t,a_t)
+            $$
+            \STATE (CRITIC) value update
+            $$
+            \phi_{t+1} = \phi_t + \alpha_\phi\left[r_{t}+\gamma Q^{\phi_t}(s_{t+1},a_{t+1})-Q^{\phi_t}(s_t,a_t)\right]\nabla_\phi Q^{\phi_t}(s_t,a_t)
+            $$
+        \ENDFOR
+	\end{algorithmic}
+	\end{algorithm}
+```
+
+### Advantage Actor-Critic (A2C)
+
+在上一节中，我们介绍了 QAC, 但实际上我们用的更多的是 advantage actor-critic, 其梯度如下所示
+
+$$
+\nabla_\theta \mathcal{J}(\theta)=\mathbb{E}_{\tau\sim(p_0,\pi_\theta, p)}\left[ \sum_{t=0}^{T-1}\nabla_\theta\log\pi_\theta(a_t\mid s_t)A^{\pi_\theta}(s_t,a_t)\right]
+$$
+
+注意到
+
+$$
+A^{\pi_\theta}(s_t,a_t)=Q^{\pi_\theta}(s_t,a_t)-V^{\pi_\theta}(s_t) = \mathbb{E}^{\pi_\theta}\left[r_t + \gamma V^{\pi_\theta}(s_{t+1})-V^{\pi_\theta}(s_t)\mid s_t, a_t\right]
+$$
+
+因此我们可以用 TD error 来进行近似：
+
+$$
+\hat{A}_t= r_t + \gamma V_{\phi_t}(s_{t+1})-V_{\phi_t}(s_t)
+$$
+
+这样我们就得到了 A2C 算法
+
+```pseudo
+	\begin{algorithm}
+	\caption{Advantage actor-critic}
+	\begin{algorithmic}
+    	\STATE initial policy parameters $\theta_0$, value function parameters $\phi_0$.
+        \FOR {$t=0,1,T-1$}
+            \STATE $a_t\sim\pi_{\theta}(\cdot\mid s_t)$, $r_t,s_{t+1}\sim p(\cdot,\cdot\mid s_t,a_t)$, $a_{t+1}\sim\pi_{\theta}(\cdot\mid s_{t+1})$
+            \STATE advantage estimation
+            $$
+            \hat{A}_t\approx r_t + \gamma V_{\phi_t}(s_{t+1})-V_{\phi_t}(s_t)
+            $$ 
+            \STATE (ACTOR) policy update
+            $$
+            \theta_{t+1} = \theta_t + \alpha_{\theta}\log\pi_{\theta}(a_t\mid s_t)\hat{A}_t
+            $$
+            \STATE (CRITIC) value update
+            $$
+            \phi_{t+1} = \phi_t + \alpha_\phi\hat{A}_t\nabla_\phi V^{\phi_t}(s_t)
+            $$
+        \ENDFOR
+	\end{algorithmic}
+	\end{algorithm}
+```
+
+### GAE
+
+在上一节中，我们介绍了我们可以用 1-step TD error 来近似 advantage,
+
+对比结果如下表所示
+
+| Method      | bias          | variance      |
+| ----------- | ------------- | ------------- |
+| TD error    | can be biased | low variance  |
+| MC estimate | unbiased      | high variance |
+
+为了实现更好的 bias-variance trade-off, GAE 提出了使用一个参数 $\lambda\in[0,1]$ 来控制 bias 和 variance 之间的权重，其表达式如下所示
+
+$$
+\hat{A}_t^{GAE(\gamma,\lambda)} = \sum_{\ell=0}^{\infty}(\gamma\lambda)^{\ell}\delta_{t+\ell}
+$$
+
+其中
+
+$$
+\delta_t = r_t + \gamma V_{\phi_t}(s_{t+1})-V_{\phi_t}(s_t)
+$$
+
+我们可以探究不同的 $\lambda$ 对应的估计：
+
+当 $\lambda=0$ 时，我们有
+
+$$
+\hat{A}_t^{GAE(\gamma,0)} = (\gamma\cdot0)^0\delta_t=\delta_t
+$$
+
+此时，GAE 就退化成了 one-step TD error estimate,
+
+当 $\lambda=1$ 时，我们有
+
+$$
+\hat{A}_t^{GAE(\gamma,1)} = \sum_{\ell=0}^{\infty}\gamma^{\ell}\delta_{t+\ell}=\sum_{\ell=0}^{\infty}\gamma^{\ell}\left(r_t + \gamma V_{\phi_t}(s_{t+1})-V_{\phi_t}(s_t)\right)
+$$
+
+如果我们假设这里使用的是真实的 value function 的话，那么我们有
+
+$$
+\hat{A}_t^{GAE(\gamma,1)} \approx \sum_{\ell=0}^{\infty}\gamma^{\ell}r_{t+\ell+1}-V(s_t)=Q^{\pi_\theta}(s_t,a_t)-V(s_t)
+$$
+
+当 $0<\lambda<1$ 时，$GAE$ 是 TD error estimate 与 MC estimate 的一个插值，$\lambda$ 越大，estimate 越依赖 long term reward information, 其 bias 越低，但是相应的 variance 越高。$\lambda$ 越小，estimate 月依赖于当前的 value function estimate, 其 variance 越低，但是相应的其 bias 越高
+
+实际计算过程中，我们使用如下方法来进行计算
+
+```pseudo
+	\begin{algorithm}
+	\caption{Generalized Advantage Estimation (GAE)}
+	\begin{algorithmic}
+    	\STATE policy parameters $\theta$, value function parameters $\phi$.
+    	\STATE sample a trajectory $\tau\sim(p_0,\pi_\theta, p)$
+        \FOR {$t=0,1,\dots,T-1$}
+            \STATE compute TD errors
+            $$
+            \delta_t = r_t + \gamma V_{\phi}(s_{t+1})-V_{\phi}(s_t)
+            $$
+        \ENDFOR
+        \STATE initialization: $\hat{A}_{T}^{GAE}=0$
+        \FOR {$t=T-1,\dots, 0$}
+            \STATE iterate backward
+            $$
+                \hat{A}_t^{GAE} = \delta_t + \gamma\lambda \hat{A}_{t+1}^{GAE}
+            $$
+        \ENDFOR
+	\end{algorithmic}
+	\end{algorithm}
+```
+
+GAE 的主要优点在于其相对于 MC estimate 可以大幅度降低 variance, 从而提高训练的稳定性以及效率

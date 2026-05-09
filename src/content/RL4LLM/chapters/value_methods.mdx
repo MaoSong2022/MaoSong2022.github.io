@@ -1,0 +1,49 @@
+## Value Based Methods
+
+value-based methods 的 motivation 就是给当前策略 $\pi$ 一个引导，让 agent 学会执行达到更有价值的 states 的策略。
+
+### TD Learning
+
+
+
+### Function Form
+
+当 state space 太大或者连续的 state space 时，我们前面的方法就不适用了，我们需要使用模型 $V_{\phi}$ 来近似 $V^{\pi}$, 我们将目标函数设置为
+
+$$
+J(\phi) = \mathbb{E}_{s}\left[\frac12\left(V^{\pi}(s)-V_{\phi}(s)\right)^2\right]
+$$
+
+> Remark
+> 这里我们假设 $s\in\mathcal{S}$ 通过均匀采样得到。
+
+我们可以使用随机梯度下降法来进行求解，目标函数的梯度为
+
+$$
+\nabla_\phi J(\phi)=-\mathbb{E}_{s}[(V^{\pi}(s)-V_{\phi}(s))\nabla_\phi V_{\phi}(s)]
+$$
+
+从而随机梯度下降法的形式为
+
+$$
+\phi_{k+1} = \phi_k - \alpha_k\nabla_\phi J(\phi)\approx \phi_k + \alpha_k(V^{\pi}(s)-V_{\phi}(s))\nabla_\phi V_{\phi}(s)
+$$
+
+但是现在我们需要计算 $V^{\pi}(s)$, 我们有两种方法来近似：
+
+第一种方法是使用 MC 来进行近似，即
+
+$$
+V^{\pi}(s)= \mathbb{E}^{\pi}[G_0\mid s_0=s]\approx G_0
+$$
+
+第二种方法是使用 TD learning 来近似
+
+$$
+V^{\pi}(s) \approx r_t + \gamma V_{\phi}(s_{t+1})
+$$
+
+### DQN
+
+与上一节一样，DQA 实际上就是针对 optimal policy 应用 TD learning，我们目标函数为
+

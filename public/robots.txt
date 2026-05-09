@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://maosong.website/sitemap-index.xml
+LLMs-Txt: https://maosong.website/llms.txt
