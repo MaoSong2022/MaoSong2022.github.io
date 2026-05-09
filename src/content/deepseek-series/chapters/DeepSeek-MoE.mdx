@@ -7,14 +7,14 @@ import deepseekmoe_ablation_number_activated_experts from '../../../assets/image
 
 DeepSeek 在 2024 年 1 月发布了 DeepSeekMoE, 一个解决 MoE 模型 specialization 不足以及 redundancy 问题的大模型系列。
 
-## Introduction
+## DeepSeek-MoE
 
 作者首先回顾了已有 MoE 模型的不足，主要有两点：
 
 1. knowledge hybridity: 已有 MoE 模型的专家个数比较少，这就导致每个专家需要掌握更多样化的知识，提高了训练难度
 2. knowledge redundancy: 不同专家掌握的知识可能有重叠，从而导致了模型参数的 redundancy
 
-为了解决这两个问题，作者提出了 DeepSeek-MoE, DeepSeek-MoE 主要做出了两点改变：
+为了解决这两个问题，作者提出了 DeepSeek-MoE [@DeepSeek-MoE], DeepSeek-MoE 主要做出了两点改变：
 
 1. Fine-Grained Expert Segmentation: 作者使用了更多的专家，来提高每个专家的 specialization, 降低训练成本
 2. Shared Expert Isolation: 作者在 Routing expert 的基础上，加入了 shared expert 来学习 common knowledge.
@@ -23,7 +23,6 @@ DeepSeek 在 2024 年 1 月发布了 DeepSeekMoE, 一个解决 MoE 模型 specia
 
 作者还进一步将模型 scale 到了 16B-A2.8B 和 145B-A22B, 实验结果均验证了模型的 scaling 效果。
 
-## Method
 
 ### Preliminary
 
@@ -146,7 +145,6 @@ $$
 | shared experts    | 1    | 2     | 4      |
 | training tokens   | 100B | 2T    | 245B   |
 
-## Experiments
 
 ### Alignment
 
@@ -178,10 +176,3 @@ $$
 
 实验结果显示，DeepSeekMoE 仅需激活 4 个路由专家，就可以达到与 GShard 相同的表现。**这说明了 DeepSeekMoE 模型中每个专家可以学习到更准确的知识。**
 
-## Conclusion
-
-作者在本文中提出了 DeepSeekMoE 架构，来提高 MoE 模型中专家的利用效率。为了达到这一点，作者首先使用了更细粒度的专家，降低每个专家的学习成本，然后，作者使用了共享专家，来降低不同专家之间的知识冗余。作者先在 2B 的模型上验证了方法的有效性，然后作者将模型 scale 到了 16B 和 125B。结果显示模型的效果均超过了以前的工作。
-
-## References
-
-- [arxiv](http://arxiv.org/abs/2401.06066)
