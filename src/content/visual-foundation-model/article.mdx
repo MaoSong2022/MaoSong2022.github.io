@@ -14,11 +14,19 @@ tableOfContentsAutoCollapse: true
 showPdf: true
 ---
 
+import HtmlEmbed from '../../components/HtmlEmbed.astro';
+
+
 在本文中，我们将回顾总结visual foundation models的发展历程以及最新的进展，这里的visual foundation model指的的是 CLIP [@CLIP], SigLIP [@SigLIP] 这类主要作为多模态大模型vision encoder的模型。
 
 ## Overview
 
-TODO: add a plot to show years, affils, params and performance on ImageNet-1K
+<HtmlEmbed
+  id="fig-imagenet-model-performance"
+  src="d3-imagenet-model-performance.html"
+  title="Model performance over time (ImageNet)"
+  desc={`X-axis is published year, Y-axis is ImageNet Top-1 accuracy, and bubble size encodes number of parameters. Hover a bubble to view model, affiliation, parameters, and score.`}
+/>
 
 ## Methods
 
