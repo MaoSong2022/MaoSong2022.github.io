@@ -1,3 +1,6 @@
+import Algorithm from '../../../components/Algorithm.astro';
+
+
 ## Policy Based Methods
 
 policy-based methods 的 motivation 很好理解，我们想要找到一个 optimal policy, 那我们就采集一些数据，通过一些方法来不停改进当前策略 $\pi$, 直到当前策略达到最优。
@@ -104,22 +107,18 @@ $$
 
 基于 MC 思想，我们可以得到最简单的 policy gradient algorithm, 也就是 REINFORCE 算法
 
-```pseudo
-	\begin{algorithm}
-	\caption{Policy Gradient with MC (REINFORCE)}
-	\begin{algorithmic}
-    	\STATE initial policy parameters $\theta_0$.
-        \FOR {$k=0,1,\dots$}
-            \STATE Sample $M$ trajectories $\{\tau_i\}$ according to policy $\pi_{\theta_k}$
-            \STATE estimate the gradient via MC: 
-            $$
-            \hat{g}=\frac{1}{M}\sum_{i=1}^M\sum_{t=0}^{T_i-1}\nabla_\theta\log\pi_{\theta_k}(a_t\mid s_t)G_0(\tau_i)
-            $$
-            \STATE update $\theta_k$ using $\hat{g}$ with an optimizer
-        \ENDFOR
-	\end{algorithmic}
-	\end{algorithm}
-```
+<Algorithm title="Policy Gradient with MC (REINFORCE)">
+
+1. Initialize policy parameters $\theta_0$.
+2. **for** $k=0,1,\dots$:
+   - Sample $M$ trajectories $\{\tau_i\}$ according to policy $\pi_{\theta_k}$.
+   - Estimate the gradient via MC:
+     $$
+     \hat{g}=\frac{1}{M}\sum_{i=1}^M\sum_{t=0}^{T_i-1}\nabla_\theta\log\pi_{\theta_k}(a_t\mid s_t)G_0(\tau_i)
+     $$
+   - Update $\theta_k$ using $\hat{g}$ with an optimizer.
+
+</Algorithm>
 
 ### Variance Reduction
 
@@ -171,22 +170,18 @@ $$
 
 对应的 REINFORCE 算法改进版本为
 
-```pseudo
-	\begin{algorithm}
-	\caption{Policy Gradient with MC and reward to go (REINFORCE)}
-	\begin{algorithmic}
-    	\STATE initial policy parameters $\theta_0$.
-        \FOR {$k=0,1,\dots$}
-            \STATE Sample $M$ trajectories $\{\tau_i\}$ according to policy $\pi_{\theta_k}$
-            \STATE estimate the gradient via MC: 
-            $$
-            \hat{g}=\frac{1}{M}\sum_{i=1}^M\nabla_\theta\log\pi_{\theta_k}(a_t\mid s_t)\gamma^tG_t(\tau_i)
-            $$
-            \STATE update $\theta_k$ using $\hat{g}$ with an optimizer
-        \ENDFOR
-	\end{algorithmic}
-	\end{algorithm}
-```
+<Algorithm title="Policy Gradient with MC and reward to go (REINFORCE)">
+
+1. Initialize policy parameters $\theta_0$.
+2. **for** $k=0,1,\dots$:
+   - Sample $M$ trajectories $\{\tau_i\}$ according to policy $\pi_{\theta_k}$.
+   - Estimate the gradient via MC:
+     $$
+     \hat{g}=\frac{1}{M}\sum_{i=1}^M\nabla_\theta\log\pi_{\theta_k}(a_t\mid s_t)\gamma^tG_t(\tau_i)
+     $$
+   - Update $\theta_k$ using $\hat{g}$ with an optimizer.
+
+</Algorithm>
 
 ### Optimal Baseline
 
@@ -279,22 +274,18 @@ $$
 
 最后，我们的 REINFORCE 算法改进如下
 
-```pseudo
-	\begin{algorithm}
-	\caption{Policy Gradient with MC and value function (REINFORCE)}
-	\begin{algorithmic}
-    	\STATE initial policy parameters $\theta_0$.
-        \FOR {$k=0,1,\dots$}
-            \STATE Sample $M$ trajectories $\{\tau_i\}$ according to policy $\pi_{\theta_k}$
-            \STATE estimate the gradient via MC: 
-            $$
-            \hat{g}=\frac{1}{M}\sum_{i=1}^M\nabla_\theta\log\pi_{\theta_k}(a_t\mid s_t)\gamma^t(Q^{\pi_\theta}(s_t,a_t)-V^{\phi}(s_t))
-            $$
-            \STATE update $\theta_k$ using $\hat{g}$ with an optimizer
-        \ENDFOR
-	\end{algorithmic}
-	\end{algorithm}
-```
+<Algorithm title="Policy Gradient with MC and value function (REINFORCE)">
+
+1. Initialize policy parameters $\theta_0$.
+2. **for** $k=0,1,\dots$:
+   - Sample $M$ trajectories $\{\tau_i\}$ according to policy $\pi_{\theta_k}$.
+   - Estimate the gradient via MC:
+     $$
+     \hat{g}=\frac{1}{M}\sum_{i=1}^M\nabla_\theta\log\pi_{\theta_k}(a_t\mid s_t)\gamma^t(Q^{\pi_\theta}(s_t,a_t)-V^{\phi}(s_t))
+     $$
+   - Update $\theta_k$ using $\hat{g}$ with an optimizer.
+
+</Algorithm>
 
 ### Rao–Blackwell Theorem
 
