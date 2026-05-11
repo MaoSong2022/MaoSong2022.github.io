@@ -1,21 +1,22 @@
 
-Dual Chunk Attention (DCA) 由阿里巴巴在 2024 年 9 月份提出，DCA 是一个无需训练的，扩展 LLM 上下文长度的方法，后续，DCA 被应用于 Qwen2, Qwen2.5, Qwen2.5-1M 以及 Qwen3 中，与 [YARN](/p/notes-on-yarn/) 一起作为扩展模型上下文的有效手段
 
-## Introduction
+## Dual Chunk Attention (DCA)
 
-提升 LLM 上下文长度的方法可以分为两类：一类是 training-free 的，包括 LM-infinite 和 StreamingLLM 等，这些方法以损失 long range dependency 为代价来保持较低的 perplexity。另一类为了保留全局信息，则是通过外插来扩展模型的上下文，主要工作我们在 [YARN](/p/notes-on-yarn/) 中已经回顾了。
+
+提升 LLM 上下文长度的方法可以分为两类：一类是 training-free 的，包括 LM-infinite 和 StreamingLLM 等，这些方法以损失 long range dependency 为代价来保持较低的 perplexity。
+另一类为了保留全局信息，则是通过外插来扩展模型的上下文，如 YaRN [@YaRN].
 
 第二类方法的问题在于，其依赖训练，在 training-free 的 setting 下，这些方法也会导致 perplexity 的上升
 
-因此，在本文中，作者就提出了 Dual Chunk Attention (DCA) ，一个无需训练的，扩展 LLM 上下文长度的方法。DCA 的主要做法是将 attention 的计算进行分块，这样就可以提高计算效率。
+因此，在本文中，作者就提出了 Dual Chunk Attention (DCA) [@DCA]，一个无需训练的，扩展 LLM 上下文长度的方法。DCA 的主要做法是将 attention 的计算进行分块，这样就可以提高计算效率。
 
 通过实验，作者给出了三点关键发现：
 
 1. **Extrapolation**： DCA 可以在无需训练的情况下，将 LLM 的上下文提升到 32K，而不导致 Perplexity 大幅度增加
-2. **Orthogonality**： DCA 可以和其他方法一起使用，如 [YARN](/p/notes-on-yarn/), 这一点已经在 Qwen2.5-1M 以及 Qwen3 中得到了应用
+2. **Orthogonality**： DCA 可以和其他方法一起使用，如 YaRN [@YaRN], 这一点已经在 Qwen2.5-1M 以及 Qwen3 中得到了应用
 3. **Long Context Understanding**: DCA 可以在无需训练的情况下，在长上下文设置下，达到已有 SOTA 模型的表现
 
-## Preliminary
+### Preliminary
 
 对于一个长度为 $L$ 的 token 序列，我们首先定义对应的 position id 如下
 
@@ -29,13 +30,13 @@ $$
 \langle f(\mathbf{q}, i), f(\mathbf{k}, j)\rangle =\langle R_{\theta,i}\mathbf{q}, R_{\theta,j}\mathbf{k}\rangle =\mathbf{q}^TR_{\theta, i-j}\mathbf{k}
 $$
 
-具体细节参考 [Position Encoding](/p/notes-on-position-encoding/) 中的 RoPE 部分介绍。这里面的关键在于，最后的结果只与相对位置 $i-j$ 相关，而与绝对位置 $i$ 和 $j$ 无关。因此，我们可以用一个相对位置矩阵 $M\in\mathbb{R}^{L\times L}$ 来表示这个信息，其中 $M_{ij}=P_{\mathbf{q},i}-  P_{\mathbf{k},j}$ 代表了第 $i$ 个位置的 query $\mathbf{q}$ 和第 $j$ 个位置的 key $\mathbf{k}$ 的相对位置信息，其示意图如下所示
+具体细节参考 [Position Encoding](/blog/notes-on-position-encoding/) 中的 RoPE 部分介绍。这里面的关键在于，最后的结果只与相对位置 $i-j$ 相关，而与绝对位置 $i$ 和 $j$ 无关。因此，我们可以用一个相对位置矩阵 $M\in\mathbb{R}^{L\times L}$ 来表示这个信息，其中 $M_{ij}=P_{\mathbf{q},i}-  P_{\mathbf{k},j}$ 代表了第 $i$ 个位置的 query $\mathbf{q}$ 和第 $j$ 个位置的 key $\mathbf{k}$ 的相对位置信息，其示意图如下所示
 
 ![Relative Position Visualization](/posts/dual-chunk-attention/DCA_relative_position_visualization.png)
 
-原始版本的 RoPE 的问题在于，在训练时，模型没有见过更长的上下文，因此其泛化性也最差，这一点在 [YARN](/p/notes-on-yarn/) 已经得到了验证
+原始版本的 RoPE 的问题在于，在训练时，模型没有见过更长的上下文，因此其泛化性也最差，这一点在 YaRN [@YaRN] 已经得到了验证
 
-## Method
+### Method
 
 DCA 的关键在于将 sequence 分割为若干个 Chunk，然后将 attention 的计算拆分为三个部分：
 
@@ -175,7 +176,7 @@ $$
 \end{cases}
 $$
 
-## Code
+### Code
 
 首先是 `RotaryEmbedding` 部分的修改
 
@@ -256,7 +257,7 @@ class Attention(nn.Module):
         attn_output = merge_attn_outputs(flash_results)
 ```
 
-## Evaluation
+### Evaluation
 
 ![Perplexity evaluation on PG19](/posts/dual-chunk-attention/DCA_perplexity_evaluation_PG19.png)
 
@@ -264,7 +265,7 @@ class Attention(nn.Module):
 
 ![Efficiency of DCA](/posts/dual-chunk-attention/DCA_efficiency_analysis.png)
 
-可以看到，在 [flash attention](/p/notes-on-flashattention/) 的基础上加上 DCA 之后，内存占用和推理时间并没有发生太大变化
+可以看到，在 flash attention [@FlashAttention] 的基础上加上 DCA 之后，内存占用和推理时间并没有发生太大变化
 
 作者还分析了三种 attention 对结果的贡献，如下图所示
 
@@ -272,11 +273,3 @@ class Attention(nn.Module):
 
 结果显示，intra block 的 perplexity 是最低的，但是其在下游任务上表现是最差的。当三者结合在一起之后，perplexity 和下游任务上的表现都是最好的。
 
-## Conclusion
-
-本文中，我们回顾了 Qwen 系列扩展大模型上下文的方法 Dual Chunk Attention （DCA） 通过将 attention 切分成更小的 chunk，然后将 attention 的计算分为 intra-chunk，inter-chunk 和 successive-chunk，分别处理 chunk 内部，chunk 之间以及相邻 chunk 的 attention，通过这种方式，在无需训练的情况下，我们可以有效将模型上下文长度扩展 4 倍以上。
-
-## References
-
-- [Arxiv](http://arxiv.org/abs/2402.17463)
-- [Github](https://github.com/HKUNLP/ChunkLlama/tree/main)

@@ -5,8 +5,74 @@
   year      = {2017}
 }
 
+@misc{DCA,
+  title={Training-Free Long-Context Scaling of Large Language Models}, 
+  author={Chenxin An and Fei Huang and Jun Zhang and Shansan Gong and Xipeng Qiu and Chang Zhou and Lingpeng Kong},
+  year={2024},
+  eprint={2402.17463},
+  archivePrefix={arXiv},
+  primaryClass={cs.CL},
+  url={https://arxiv.org/abs/2402.17463}, 
+}
+
+
+@misc{YaRN,
+  title={YaRN: Efficient Context Window Extension of Large Language Models}, 
+  author={Bowen Peng and Jeffrey Quesnelle and Honglu Fan and Enrico Shippole},
+  year={2026},
+  eprint={2309.00071},
+  archivePrefix={arXiv},
+  primaryClass={cs.CL},
+  url={https://arxiv.org/abs/2309.00071}, 
+}
+
+@misc{MQA,
+  title={Fast Transformer Decoding: One Write-Head is All You Need}, 
+  author={Noam Shazeer},
+  year={2019},
+  eprint={1911.02150},
+  archivePrefix={arXiv},
+  primaryClass={cs.NE},
+  url={https://arxiv.org/abs/1911.02150}, 
+}
+
+@inproceedings{GQA,
+  title={{GQA}: Training Generalized Multi-Query Transformer Models from Multi-Head Checkpoints},
+  author={Joshua Ainslie and James Lee-Thorp and Michiel de Jong and Yury Zemlyanskiy and Federico Lebron and Sumit Sanghai},
+  booktitle={The 2023 Conference on Empirical Methods in Natural Language Processing},
+  year={2023},
+  url={https://openreview.net/forum?id=hmOwOZWzYE}
+}
+
+
+@misc{MFA,
+  title={Multi-matrix Factorization Attention}, 
+  author={Jingcheng Hu and Houyi Li and Yinmin Zhang and Zili Wang and Shuigeng Zhou and Xiangyu Zhang and Heung-Yeung Shum and Daxin Jiang},
+  year={2025},
+  eprint={2412.19255},
+  archivePrefix={arXiv},
+  primaryClass={cs.LG},
+  url={https://arxiv.org/abs/2412.19255}, 
+}
+
+@inproceedings{NSA,
+  title = {Native Sparse Attention: Hardware-Aligned and Natively Trainable Sparse Attention},
+  author = {Yuan, Jingyang  and Gao, Huazuo  and Dai, Damai  and Luo, Junyu  and Zhao, Liang  and Zhang, Zhengyan  and Xie, Zhenda  and Wei, Yuxing  and Wang, Lean  and Xiao, Zhiping  and Wang, Yuqing  and Ruan, Chong  and Zhang, Ming  and Liang, Wenfeng  and Zeng, Wangding},
+  booktitle = {Proceedings of the 63rd Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers)},
+  year = {2025},
+  url = {https://aclanthology.org/2025.acl-long.1126/},
+}
+
+@inproceedings{GatedAttention,
+  title={Gated Attention for Large Language Models: Non-linearity, Sparsity, and Attention-Sink-Free},
+  author={Zihan Qiu and Zekun Wang and Bo Zheng and Zeyu Huang and Kaiyue Wen and Songlin Yang and Rui Men and Le Yu and Fei Huang and Suozhi Huang and Dayiheng Liu and Jingren Zhou and Junyang Lin},
+  booktitle={The Thirty-ninth Annual Conference on Neural Information Processing Systems},
+  year={2026},
+  url={https://openreview.net/forum?id=1b7whO4SfY}
+}
+
 @inproceedings{FlashAttention,
-  title={FlashAttention: Fast and Memory-Efficient Exact Attention with {IO}-Awareness},
+  title={FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness},
   author={Tri Dao and Daniel Y Fu and Stefano Ermon and Atri Rudra and Christopher Re},
   booktitle={Advances in Neural Information Processing Systems},
   editor={Alice H. Oh and Alekh Agarwal and Danielle Belgrave and Kyunghyun Cho},
@@ -14,7 +80,7 @@
   url={https://openreview.net/forum?id=H4DqfPSibmx}
 }
 
-@inproceedings{FlashAttention-2,
+@inproceedings{FlashAttention2,
   title={FlashAttention-2: Faster Attention with Better Parallelism and Work Partitioning},
   author={Tri Dao},
   booktitle={The Twelfth International Conference on Learning Representations},
@@ -22,37 +88,35 @@
   url={https://openreview.net/forum?id=mZn2Xyh9Ec}
 }
 
-@inproceedings{FlashAttention-3,
-author = {Shah, Jay and Bikshandi, Ganesh and Zhang, Ying and Thakkar, Vijay and Ramani, Pradeep and Dao, Tri},
-title = {FlashAttention-3: fast and accurate attention with asynchrony and low-precision},
-year = {2024},
-isbn = {9798331314385},
-publisher = {Curran Associates Inc.},
-address = {Red Hook, NY, USA},
-abstract = {Attention, as a core layer of the ubiquitous Transformer architecture, is the bottleneck for large language models and long-context applications. FLASHATTENTION elaborated an approach to speed up attention on GPUS through minimizing memory reads/writes. However, it has yet to take advantage of new capabilities present in recent hardware, with FLASHATTENTION-2 achieving only 35\% utilization on the H100 GPU. We develop three main techniques to speed up attention on Hopper GPUs: exploiting asynchrony of the Tensor Cores and TMA to (1) overlap overall computation and data movement via warp-specialization and (2) interleave block-wise matmul and softmax operations, and (3) block quantization and incoherent processing that leverages hardware support for FP8 low-precision. We demonstrate that our method, FLASHATTENTION-3, achieves speedup on H100 GPUs by 1.5-2.0\texttimes{} with BF16 reaching up to 840 TFLOPs/s (85\% utilization), and with FP8 reaching 1.3 PFLOPs/s. We validate that FP8 FLASHATTENTION-3 achieves 2.6\texttimes{} lower numerical error than a baseline FP8 attention.},
-booktitle = {Proceedings of the 38th International Conference on Neural Information Processing Systems},
-articleno = {2193},
-numpages = {28},
-location = {Vancouver, BC, Canada},
-series = {NIPS '24}
+@inproceedings{FlashAttention3,
+  author = {Shah, Jay and Bikshandi, Ganesh and Zhang, Ying and Thakkar, Vijay and Ramani, Pradeep and Dao, Tri},
+  title = {FlashAttention-3: fast and accurate attention with asynchrony and low-precision},
+  year = {2024},
+  isbn = {9798331314385},
+  publisher = {Curran Associates Inc.},
+  address = {Red Hook, NY, USA},
+  booktitle = {Proceedings of the 38th International Conference on Neural Information Processing Systems},
+  articleno = {2193},
+  numpages = {28},
+  location = {Vancouver, BC, Canada},
+  series = {NIPS '24}
 }
 
-@misc{FlashAttention-4,
-      title={FlashAttention-4: Algorithm and Kernel Pipelining Co-Design for Asymmetric Hardware Scaling}, 
-      author={Ted Zadouri and Markus Hoehnerbach and Jay Shah and Timmy Liu and Vijay Thakkar and Tri Dao},
-      year={2026},
-      eprint={2603.05451},
-      archivePrefix={arXiv},
-      primaryClass={cs.CL},
-      url={https://arxiv.org/abs/2603.05451}, 
+@misc{FlashAttention4,
+  title={FlashAttention-4: Algorithm and Kernel Pipelining Co-Design for Asymmetric Hardware Scaling}, 
+  author={Ted Zadouri and Markus Hoehnerbach and Jay Shah and Timmy Liu and Vijay Thakkar and Tri Dao},
+  year={2026},
+  eprint={2603.05451},
+  archivePrefix={arXiv},
+  primaryClass={cs.CL},
+  url={https://arxiv.org/abs/2603.05451}, 
 }
 
 @misc{jordan2024muon,
-  author       = {Keller Jordan and Yuchen Jin and Vlado Boza and Jiacheng You and
-                  Franz Cesista and Laker Newhouse and Jeremy Bernstein},
-  title        = {Muon: An optimizer for hidden layers in neural networks},
-  year         = {2024},
-  url          = {https://kellerjordan.github.io/posts/muon/}
+  author= {Keller Jordan and Yuchen Jin and Vlado Boza and Jiacheng You and Franz Cesista and Laker Newhouse and Jeremy Bernstein},
+  title= {Muon: An optimizer for hidden layers in neural networks},
+  year= {2024},
+  url= {https://kellerjordan.github.io/posts/muon/}
 }
 
 @inproceedings{ViT,
@@ -84,22 +148,17 @@ series = {NIPS '24}
 }
 
 @inproceedings{QK-Norm,
-  title = "Query-Key Normalization for Transformers",
-  author = "Henry, Alex  and
-    Dachapally, Prudhvi Raj  and
-    Pawar, Shubham Shantaram  and
-    Chen, Yuxuan",
-  editor = "Cohn, Trevor  and
-    He, Yulan  and
-    Liu, Yang",
+  title = {Query-Key Normalization for Transformers},
+  author = {Henry, Alex  and Dachapally, Prudhvi Raj  and Pawar, Shubham Shantaram  and Chen, Yuxuan},
+  editor = {Cohn, Trevor  and He, Yulan  and Liu, Yang},
   booktitle = "Findings of the Association for Computational Linguistics: EMNLP 2020",
-  month = nov,
-  year = "2020",
-  address = "Online",
-  publisher = "Association for Computational Linguistics",
-  url = "https://aclanthology.org/2020.findings-emnlp.379/",
-  doi = "10.18653/v1/2020.findings-emnlp.379",
-  pages = "4246--4253",
+  month = {nov},
+  year = {2020},
+  address = {Online},
+  publisher = {Association for Computational Linguistics},
+  url = {https://aclanthology.org/2020.findings-emnlp.379/},
+  doi = {10.18653/v1/2020.findings-emnlp.379},
+  pages = {4246--4253},
 }
 
 @article{CLIP,
