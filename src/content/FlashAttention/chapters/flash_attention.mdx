@@ -9,7 +9,6 @@ import flashattention_block_sparse_algorithm from '../../../assets/image/flashat
 import flashattention_block_sparse_efficiency from '../../../assets/image/flashattention-block-sparse-efficiency.png';
 import flashattention_ablation_block_size from '../../../assets/image/flashattention-ablation-block-size.png';
 
-作者提出了 flashattention, 一个通过降低 multi head attention 内存访问开销来提高 attention 计算效率的方法
 
 ## Introduction
 
@@ -18,7 +17,7 @@ Transformer 的 attention 是一个平方度复杂度的算法，这个平方复
 1. 从时间复杂度上入手，比如使用稀疏 attention 机制或者线性注意力机制
 2. 从空间复杂度上入手，比如使用 [GQA](/p/notes-on-gqa/), [MQA](/p/notes-on-mqa/) 等减少内存的访问开销
 
-本文提出的 flashattention 就属于降低空间复杂度的一种做法。作者认为，我们应该设计一种 **IO-aware** 的 attention 算法，来减少 attention 计算式的内存访问开销，进而提高 attention 的计算效率。
+本文提出的 flash attention [@FlashAttention] 就属于降低空间复杂度的一种做法。作者认为，我们应该设计一种 **IO-aware** 的 attention 算法，来减少 attention 计算式的内存访问开销，进而提高 attention 的计算效率。
 
 作者首先提到，一个未解决的问题就是：
 

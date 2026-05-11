@@ -206,7 +206,7 @@ TODO
 
 ### Online Softmax
 
-注意到我们在计算 softmax 时，需要加载 $\mathbf{z}$ 的全部信息，如果 $\mathbf{z}$ 非常大的话，会产生频繁的内存读写进而影响整体效率。因此 [flash attention](/p/notes-on-flashattention/) 中提出了 online softmax 算法来减少内存访问开销。
+注意到我们在计算 softmax 时，需要加载 $\mathbf{z}$ 的全部信息，如果 $\mathbf{z}$ 非常大的话，会产生频繁的内存读写进而影响整体效率。因此 flash attention [@FlashAttention] 中提出了 online softmax 算法来减少内存访问开销。
 
 其具体做法是假设我们的输入被分为若干个 block, 即 $\mathbf{z}=[\mathbf{z}^1;\dots,\mathbf{z}^n]\in\mathbb{R}^K$, 这里 $\mathbf{z}^i\in\mathbb{R}^{K/n}$ ($K\mod n=0$).
 

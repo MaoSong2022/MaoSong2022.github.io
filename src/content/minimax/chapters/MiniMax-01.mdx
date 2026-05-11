@@ -267,7 +267,7 @@ $$
 为了处理不同长度的 sequence, 作者使用了 sequence packing 的技巧。
 
 **Varlen Ring Attention**
-当前主要是使用 ring attention 来划分数据，但是 ring-attention 与 sequence packing 是冲突的。已有工作如 [flash attention](/p/chinchilla-scaling-law/) 支持 varlen data packing, 但是不支持 ring attention; 而 TransformerEngine 实现了 ring attention, 但不支持真正的 varlen. 因此作者的目的就是解决这个问题。
+当前主要是使用 ring attention 来划分数据，但是 ring-attention 与 sequence packing 是冲突的。已有工作如 flash attention [@FlashAttention] 支持 varlen data packing, 但是不支持 ring attention; 而 TransformerEngine 实现了 ring attention, 但不支持真正的 varlen. 因此作者的目的就是解决这个问题。
 
 TransformerEngine 的问题在于每个 sequence 必须是 $2\times \texttt{size}_{CP}$ 的整数倍，当 CP 很大且样本长度分布未知的时候，padding 会很严重，导致算力和内存消耗严重。
 

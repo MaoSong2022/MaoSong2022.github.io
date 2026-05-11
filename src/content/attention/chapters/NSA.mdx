@@ -131,7 +131,7 @@ $$
 
 #### Kernel Design
 
-接下来是针对硬件设计进行的优化。由于 flash attention 2 对 compression attention 以及 sliding window attention 已经支持的比较好，作者这里介绍了如何针对 selection attention 进行优化。
+接下来是针对硬件设计进行的优化。由于 flash attention 2 [@FlashAttention-2] 对 compression attention 以及 sliding window attention 已经支持的比较好，作者这里介绍了如何针对 selection attention 进行优化。
 
 ## Experiments
 
@@ -187,7 +187,7 @@ NSA 配置如下
 
 ## Analysis
 
-接下来，作者分析了 NSA 的性质。作者首先对比了 NSA 和 flash attention 2 的训练速度，结果如下图所示
+接下来，作者分析了 NSA 的性质。作者首先对比了 NSA 和 flash attention 2 [@FlashAttention-2] 的训练速度，结果如下图所示
 
 ![Performance comparison between NSA and flash attention 2](/posts/notes-on-nsa/NSA-training-speed-performance.png)
 
