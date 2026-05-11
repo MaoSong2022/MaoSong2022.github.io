@@ -1,0 +1,55 @@
+## Softmax Attention
+
+### Introduction
+
+令 $d$ 为 hidden size, $n_h$ 为 attention heads 的个数，$\ell$ 为 transformer layer 的层数，$d_h$ 为每个 head 的 dimension, $h_t\in\mathbb{R}^d$ 为 attention layer 中第 $t$ 个 token 对应的 hidden states。
+对于标准的 MHA, 我们首先计算 Q, K, V 如下：
+
+$$
+q_t=W^{Q}h_t,\quad k_t=W^Kh_t,\quad v_t = W^Vh_t
+$$
+
+其中，$W^Q,W^K,W^V\in\mathbb{R}^{d_hn_h\times d}$ 分别为 query, key, value projection layer 的权重。接下来 MHA 的计算方式如下
+
+$$
+\begin{aligned}
+o_{t,i} &= \sum_{j=1}^t\mathrm{softmax}_j\left(\frac{q_{t,i}^Tk_{j,i}}{\sqrt{d_h}}\right)v_{j,i},\\
+u_t&= W^O[o_{t,1};o_{t,2};\dots,;o_{t,n_h}]
+\end{aligned}
+$$
+
+其中 $q_t=[q_{t,1};q_{t,2};\dots,;q_{t,n_h}]$,  $k_t=[k_{t,1};k_{t,2};\dots,;k_{t,n_h}]$, $v_t=[v_{t,1};v_{t,2};\dots,;v_{t,n_h}]$.
+$W^O\in\mathbb{R}^{d\times d_hn_h}$ 为 output projection 的权重。
+在 inference 阶段，每个 token 需要缓存其 key 以及 value 对应的值，从而每个 token 的 kv cache 占用为 $2n_hd_h\ell$.
+当序列长度过大时，KV cache 会影响整体的 inference efficiency.
+
+对于 multi-head attention, 我们假设其 hidden size 为 $d$, 有 $h$ 个 heads, 每个 head 的 size 为 $d_h=d/h$, 输入 sequence 长度为 $n$, batch size 为 $d$.
+则总的 arithmetic operations 为 $O(bnd^2)$.
+总的内存访问量为 $O(bnd + bhn^2+d^2)$, 第一项是 $Q,K,V$ 的内存占用（$Q,K,V$ 分别是 query, key 和 value layer 的输出），第二项是 attention score 的占用，第三项是 query, key 和 value layer 的权重。
+
+因此，其 **Memory Access Ratio** (MAR), 也就是内存访问量 与 arithmetic operations 之比为
+
+$$
+O\left(\frac1k + \frac{1}{bn}\right)
+$$
+
+对于现代的 GPU 来说，其一般算力比较强，但是内存访问带宽相对较慢，因此我们希望 MAR 越低越好，以充分发挥 GPU 的算力。
+
+### Analysis
+
+在训练的时候，由于我们知道 ground truth sequence, 因此我们可以并行计算。但是在 inference 的时候，我们只能 token-by-token 进行计算，因此我们分析一下 token-by-token 场景下的 MAR
+
+我们整体的 arithmetic operations 还是 $O(bnd^2)$.
+
+但是，现在我们要调用 $n$ 次 multi-head attention, 因此我们总的内存访问量为 $O(bn^2d + nd^2)$,  第一项是 $K$ 和 $V$ , 第二项是 query, key 和 value layer 的权重。
+
+这种情况下，MAR 就变成了
+
+$$
+O\left(\frac{n}{d} + \frac{1}{b}\right)
+$$
+
+当 $n\approx d$ 或者 $b\approx 1$ 时，MAR 就非常接近于 1，意味着内存带宽成了一个主要的瓶颈。为了解决这个问题，我们有两种做法：
+
+1. 提升 batch size $b$, 也就是同时 inference 多次
+2. 降低 $K$ 和 $V$ 的大小

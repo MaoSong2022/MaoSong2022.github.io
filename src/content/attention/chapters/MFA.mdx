@@ -1,19 +1,18 @@
 
-阶跃星辰等提出了 Multi-matrix Factorization Attention (MFA), 一个新型注意力机制，用于在 KV cache 限制下最大化模型的表现。
 
-## Introduction
+## Multi-matrix Factorization Attention (MFA)
 
 multi-head attention (MHA) 的问题在于，其 KV cache 的内存占用（memory footprint）随 sequence length 以及 batch size 线性增长，从而成为了 LLM 在 decoding 阶段的瓶颈。
 
-为了解决 MHA 的内存占用过高问题，已有的工作如 [MQA](/p/notes-on-mqa/), [GQA](/p/notes-on-gqa/) 等通过共享 key, value projection 来降低 KV cache size. 而 [DeepSeek-V3](/p/notes-on-deepseek-v3/) 提出的 MLA 则是通过对 key, value projection 进行 low-rank compression, 然后只存储 latents 的方法来降低 KV cache size.
+为了解决 MHA 的内存占用过高问题，已有的工作如 MQA [@MQA], GQA [@GQA] 等通过共享 key, value projection 来降低 KV cache size. 而 [DeepSeek-V3](/p/notes-on-deepseek-v3/) 提出的 MLA 则是通过对 key, value projection 进行 low-rank compression, 然后只存储 latents 的方法来降低 KV cache size.
 
 但是，已有的这些方法的问题在于，当我们设置 KV cache budget 之后，它们的表现就比标准的 MHA 要差。
 
 基于以上这些发现，作者首先分析了已有 attention 机制的 modeling capacity, 然后使用一个统一的框架来表示这些 attention 机制。作者发现，attention heads 的个数以及 dimension 对模型表现有较大影响。
 
-基于这个发现，作者提出了 **Multi-matrix Factorization Attention (MFA)**,  以及其变体 **MFA-Key-Reuse (MFA-KR)**.  MFA 的主要目的是在有限的 KV cache size 下提高模型的表现。
+基于这个发现，作者提出了 **Multi-matrix Factorization Attention (MFA)** [@MFA],  以及其变体 **MFA-Key-Reuse (MFA-KR)**.  MFA 的主要目的是在有限的 KV cache size 下提高模型的表现。
 
-## Background
+### Background
 
 作者首先介绍了 GMHA 的概念，GMHA 由三部分组成：
 
@@ -61,7 +60,7 @@ $$
 
 其中，$S_Q,S_K,S_V\in\mathbb{R}^{d\times C}$ 在所有的 heads 中是共享的，$Q_c,K_c,V_c\in\mathbb{R}^{C\times h_d}$ 是每个 head 的 query, key, value projection layer 的参数， 是 latent factorization 的维度。与 FPBA 相比，我们可以看到，MLA 实际上是在 $d/m$ 个 head 上共享了参数，其中，$W_c$ 和 $U_c$ 分别由秩为  的低秩分解 $S_QQ_cK_c^TS_K^T$ 以及 $S_VV_cO_c^T$ 近似。尽管模型中 $C>h_d$, 但是最终的 rank 仍然是 $h_d$, 因此模型的表现也就受到了限制。
 
-## Method
+### Method
 
 对已有的 attention 分析之后，作者认为，要提高模型的表现，attention 需要做到亮点：
 
@@ -114,7 +113,7 @@ $$
 | MLA    | $2C$     | $5dC + d^2$     | $m$   | $h_d$                  | $C$                         | $mh_d$            |
 | MFA    | $2C$     | $3Cd + 2mC^2$   | $m$   | $C$                    | $C$                         | $mC$              |
 
-## Code
+### Code
 
 ```python
 class Step3vAttention(nn.Module):
@@ -164,12 +163,3 @@ class Step3vAttention(nn.Module):
 
         ...
 ```
-
-## Conclusion
-
-作者在本文中提出了 MFA 以及 MFA-KR, 一个在 KV cache 有限的条件下最大限度提高 attention 表达能力的 attention 机制。
-
-## References
-
-- [Multi-matrix Factorization Attention](http://arxiv.org/abs/2412.19255)
-- [Step v3 code](https://huggingface.co/stepfun-ai/step3/blob/main/modeling_step3.py)
