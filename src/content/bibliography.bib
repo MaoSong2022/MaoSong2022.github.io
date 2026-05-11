@@ -5,6 +5,48 @@
   year      = {2017}
 }
 
+@inproceedings{FlashAttention,
+  title={FlashAttention: Fast and Memory-Efficient Exact Attention with {IO}-Awareness},
+  author={Tri Dao and Daniel Y Fu and Stefano Ermon and Atri Rudra and Christopher Re},
+  booktitle={Advances in Neural Information Processing Systems},
+  editor={Alice H. Oh and Alekh Agarwal and Danielle Belgrave and Kyunghyun Cho},
+  year={2022},
+  url={https://openreview.net/forum?id=H4DqfPSibmx}
+}
+
+@inproceedings{FlashAttention-2,
+  title={FlashAttention-2: Faster Attention with Better Parallelism and Work Partitioning},
+  author={Tri Dao},
+  booktitle={The Twelfth International Conference on Learning Representations},
+  year={2024},
+  url={https://openreview.net/forum?id=mZn2Xyh9Ec}
+}
+
+@inproceedings{FlashAttention-3,
+author = {Shah, Jay and Bikshandi, Ganesh and Zhang, Ying and Thakkar, Vijay and Ramani, Pradeep and Dao, Tri},
+title = {FlashAttention-3: fast and accurate attention with asynchrony and low-precision},
+year = {2024},
+isbn = {9798331314385},
+publisher = {Curran Associates Inc.},
+address = {Red Hook, NY, USA},
+abstract = {Attention, as a core layer of the ubiquitous Transformer architecture, is the bottleneck for large language models and long-context applications. FLASHATTENTION elaborated an approach to speed up attention on GPUS through minimizing memory reads/writes. However, it has yet to take advantage of new capabilities present in recent hardware, with FLASHATTENTION-2 achieving only 35\% utilization on the H100 GPU. We develop three main techniques to speed up attention on Hopper GPUs: exploiting asynchrony of the Tensor Cores and TMA to (1) overlap overall computation and data movement via warp-specialization and (2) interleave block-wise matmul and softmax operations, and (3) block quantization and incoherent processing that leverages hardware support for FP8 low-precision. We demonstrate that our method, FLASHATTENTION-3, achieves speedup on H100 GPUs by 1.5-2.0\texttimes{} with BF16 reaching up to 840 TFLOPs/s (85\% utilization), and with FP8 reaching 1.3 PFLOPs/s. We validate that FP8 FLASHATTENTION-3 achieves 2.6\texttimes{} lower numerical error than a baseline FP8 attention.},
+booktitle = {Proceedings of the 38th International Conference on Neural Information Processing Systems},
+articleno = {2193},
+numpages = {28},
+location = {Vancouver, BC, Canada},
+series = {NIPS '24}
+}
+
+@misc{FlashAttention-4,
+      title={FlashAttention-4: Algorithm and Kernel Pipelining Co-Design for Asymmetric Hardware Scaling}, 
+      author={Ted Zadouri and Markus Hoehnerbach and Jay Shah and Timmy Liu and Vijay Thakkar and Tri Dao},
+      year={2026},
+      eprint={2603.05451},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL},
+      url={https://arxiv.org/abs/2603.05451}, 
+}
+
 @misc{jordan2024muon,
   author       = {Keller Jordan and Yuchen Jin and Vlado Boza and Jiacheng You and
                   Franz Cesista and Laker Newhouse and Jeremy Bernstein},

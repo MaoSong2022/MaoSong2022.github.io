@@ -89,7 +89,7 @@ $$
 
 ### Pre-training
 
-预训练细节不多，主要是使用了 [flash attention](/p/notes-on-flashattention/) 进行加速计算，使用了 Triton 进行了 kernel 的优化，gpt-oss-120b 训练了 120M H100-hours, gpt-oss-20B 的训练时间是 gpt-oss-120Bd 的十分之一左右
+预训练细节不多，主要是使用了 flash attention [@FlashAttention] 进行加速计算，使用了 Triton 进行了 kernel 的优化，gpt-oss-120b 训练了 120M H100-hours, gpt-oss-20B 的训练时间是 gpt-oss-120Bd 的十分之一左右
 
 ### Post-training
 
