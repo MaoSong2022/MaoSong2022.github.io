@@ -132,6 +132,124 @@ const isPaper = template === "paper";
 
       return true;
     };
+
+    const stripLeadingOrdinal = (root) => {
+      if (!root) return;
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      const firstText = walker.nextNode();
+      if (!firstText || typeof firstText.textContent !== "string") return;
+      firstText.textContent = firstText.textContent.replace(/^\s*\d+\.\s*/, "");
+    };
+
+    const extractFirstRefId = (el) => {
+      if (!el) return "";
+      if (el.id) return el.id;
+      const nested = el.querySelector("[id]");
+      return nested?.id || "";
+    };
+
+    const normalizeReferenceItem = (item) => {
+      if (!item) return null;
+      const li = document.createElement("li");
+      const cloned = item.cloneNode(true);
+      const itemId = extractFirstRefId(item);
+      if (itemId) li.id = itemId;
+
+      // Remove CSL left margin numbers to avoid duplicate/colliding numbering.
+      cloned.querySelectorAll(".csl-left-margin").forEach((n) => n.remove());
+      const inline = cloned.querySelector(".csl-right-inline");
+      const contentRoot = inline || cloned;
+
+      const childNodes = Array.from(contentRoot.childNodes || []);
+      if (childNodes.length > 0) {
+        childNodes.forEach((n) => li.appendChild(n.cloneNode(true)));
+      } else {
+        li.textContent = contentRoot.textContent || "";
+      }
+
+      stripLeadingOrdinal(li);
+      const hasMeaningfulText = (li.textContent || "").replace(/\s+/g, "").length > 0;
+      const hasLink = li.querySelector("a") != null;
+      if (!hasMeaningfulText && !hasLink) return null;
+      return li;
+    };
+
+    const extractReferenceItems = (container) => {
+      if (!container) return [];
+      const items = [];
+
+      if (container.tagName === "OL") {
+        container.querySelectorAll(":scope > li").forEach((li) => {
+          const normalized = normalizeReferenceItem(li);
+          if (normalized) items.push(normalized);
+        });
+        return items;
+      }
+
+      const cslEntries = container.querySelectorAll(".csl-entry");
+      if (cslEntries.length > 0) {
+        cslEntries.forEach((entry) => {
+          const normalized = normalizeReferenceItem(entry);
+          if (normalized) items.push(normalized);
+        });
+        return items;
+      }
+
+      const listItems = container.querySelectorAll("li");
+      if (listItems.length > 0) {
+        listItems.forEach((li) => {
+          const normalized = normalizeReferenceItem(li);
+          if (normalized) items.push(normalized);
+        });
+        return items;
+      }
+
+      Array.from(container.children || []).forEach((child) => {
+        const normalized = normalizeReferenceItem(child);
+        if (normalized) items.push(normalized);
+      });
+      return items;
+    };
+
+    const normalizeRefText = (text) =>
+      String(text || "")
+        .replace(/^\s*\d+\.\s*/, "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toLowerCase();
+
+    const dedupeKeyForRef = (li) => {
+      const id = li.id || "";
+      if (id) return `id:${id}`;
+      const href = li.querySelector('a[href^="http"]')?.getAttribute("href");
+      if (href) return `url:${href.trim().toLowerCase()}`;
+      return `txt:${normalizeRefText(li.textContent)}`;
+    };
+
+    const buildMergedReferencesBlock = (refContainers) => {
+      if (!Array.isArray(refContainers) || refContainers.length === 0) return null;
+      const mergedOl = document.createElement("ol");
+      mergedOl.className = "references";
+      const seen = new Set();
+
+      refContainers.forEach((container) => {
+        const items = extractReferenceItems(container);
+        items.forEach((item) => {
+          const key = dedupeKeyForRef(item);
+          if (seen.has(key)) return;
+          seen.add(key);
+          mergedOl.appendChild(item);
+        });
+      });
+
+      if (mergedOl.children.length === 0) return null;
+      const section = document.createElement("section");
+      section.id = "references";
+      section.setAttribute("data-merged-references", "1");
+      section.appendChild(mergedOl);
+      return section;
+    };
+
     const run = () => {
       // Prevent multiple runs
       if (footer.dataset.processed === "true") return false;
@@ -177,13 +295,15 @@ const isPaper = template === "paper";
         "div.footnotes",
       ]);
 
-      // Move all reference blocks found outside the footer
+      // Merge all bibliography fragments into a single ordered list.
       let movedRefs = false;
-      allRefsEls.forEach((el) => {
-        if (moveIntoFooter(el, "References")) {
-          movedRefs = true;
-        }
-      });
+      const mergedRefsEl = buildMergedReferencesBlock(allRefsEls);
+      if (mergedRefsEl) {
+        ensureHeading("References");
+        target.appendChild(mergedRefsEl);
+        allRefsEls.forEach((el) => el.remove());
+        movedRefs = true;
+      }
 
       const movedNotes = moveIntoFooter(footnotesEl, "Footnotes");
 
