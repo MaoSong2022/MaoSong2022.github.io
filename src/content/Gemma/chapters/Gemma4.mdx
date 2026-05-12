@@ -1,0 +1,47 @@
+## Gemma 4
+
+
+| Feature | E2B | E4B | 26B 4A | 31B |
+| :--- | :--- | :--- | :--- | :--- |
+| Architecture | Dense | Dense | MoE (4B Active) | Dense |
+| Context Window | 128K | 128K | 256K | 256K |
+| Modalities | Text, Vision, Audio | Text, Vision, Audio | Text, Vision | Text, Vision |
+| Target Hardware | Pixel & Qualcomm | Pixel & Qualcomm | MacBook / Cloud | V100 32GB |
+
+
+Gemma 4 31B:
+- architecture: wide dense model with 60 layers
+- benchmark: #3 spot on the global Arena AI leaderboard
+- context: 256k context length, 1024 sliding window size, 5:1 local global layer ratio
+- agentic foundation: thinking mode, function calling, structured json output
+
+
+Gemma 4 26B A4B
+- expert mix: 128 total experts, 1 shared expert, 8 active experts
+- active parameters: 3.8b parameters
+- context: 256k context length, 1024 sliding window size, 5:1 local global layer ratio
+- kv cache reuse: shared kv cache across 8 layers
+
+Gemma 4 E4B
+- PLE integration: per layer embedding
+- multimodal native: audio, vision, Textcontext: 128k context length, 512 sliding window size
+
+
+
+### architecture 
+
+- 5:1 ratio of local to global layers (4:1 for E2B models)
+- sliding window attention
+
+
+### multimodal
+- 550M ViT for 31B/26B models
+- 150M ViT for E2B/E4B models
+
+variable aspect ratios and variable resolution in images: 70, 140, 280, 560, 1120 soft token budgets
+
+
+audio 
+
+- 305M audio encoder: audio conformer
+- 
