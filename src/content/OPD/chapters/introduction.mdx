@@ -1,0 +1,29 @@
+import Sidenote from '../../../components/Sidenote.astro';
+
+## Introduction
+
+现代LLM的训练一般划分为多个阶段：
+
+1. pre-train: 用于帮助模型掌握世界知识
+2. mid-train: 弥补 pre-train 和 SFT 之间的鸿沟，提高模型的 long context 能力以及初步的指令跟随能力 [@zhang2025interplaypretrainingmidtrainingrl].
+3. SFT: 提高模型的指令跟随能力
+4. RL: 通过 RLHF [@ouyang2022traininglanguagemodelsfollow] 进行对齐或者通过 RLVR [@DeepSeek-R1] 来提高模型的 reasoning 能力。
+
+我们在本文中探讨 SFT 阶段的一些方法，虽然也由一些工作尝试直接从 base model 直接进行 RL 的训练，比如 DeepSeek-R1 [@DeepSeek-R1],
+
+但是模型最终的表现较差
+
+<Sidenote>
+  需要参考文献
+</Sidenote>
+
+在 SFT 阶段，我们一般会使用一个 teacher model 生产的数据来训练我们的 student model,
+通过让 student model 模仿teacher model的行为，我们可以提高student model的指令跟随能力。但是，随着训练的进行，模型会开始过拟合，因此大部分模型的SFT只训练1 epoch.
+
+而RL则相反，student model 进行rollout, verifier 给予奖励，然后student model更新策略来进行提升，模型的上限取决于我们的verifier.
+
+另一方面，虽然RL的性能更强，但是其需要的算力也更多，而SFT训练起来则非常高效。
+
+一个比较简单的做法是在SFT的基础上加入 rejection sampling (RS), 即先让student model进行rollout, 只保留rollout正确的那些样本来训练。
+RS-SFT 的效果比SFT更好，但是，这并没有解决compounding问题。
+

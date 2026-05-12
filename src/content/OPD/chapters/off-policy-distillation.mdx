@@ -1,0 +1,24 @@
+
+### Off Policy Distillation
+
+实际上，我们可以将SFT视作一个蒸馏过程。
+
+
+我们令 $(x,y)\sim\mathcal{D}$ 为一个 prompt-response pair, 令 $\pi_\theta$ 和 $\pi_T$ 分别为学生模型以及教师模型，
+采样时，我们记上下文为 $c_t=(x, y_{<t})$, 这样 $\pi_\theta$ 和 $\pi_T$ 采样的概率分布分别为 $\pi_{\theta}(\cdot\mid c_t)$, $\pi_T(\cdot\mid c_t)$.
+
+原始的knowledge distillation 要求学生模型模仿教师模型的行为，我们可以用 KL divergence 来量化模仿的好坏，对应的目标函数为
+
+$$
+\mathcal{L}_{KD}(\theta) = \mathbb{E}_{(x,y)\sim\mathcal{D}}\left[\mathrm{KL}(\pi_T(\cdot\mid c_t)\mid\mid \pi_\theta(\cdot\mid c_t))\right]
+$$
+
+
+针对不同的教师模型, 我们可以分类如下：
+
+1. Black-box teacher models: 一般是商业化模型，比如 Claude-4.7, Gemini-3.0 等，这类模型我们只能获取其输出。
+2. Different-family teacher models: 开源的不同结构或者不同训练方式的模型，这类模型由于tokenizer/training recipe不同，我们很难对齐教师模型和学生模型的输出模式
+3. Same-family teacher models: 开源的相同结构以及相同训练方式的模型，这类模型一般tokenizer相同，架构相同，chat template也相同，不同的点在于model size, 比如 Qwen3 [@Qwen3] 系列模型
+
+总的来说，蒸馏的难度为 black-box teacher models > Different-family teacher models > Same-family teacher models.
+
