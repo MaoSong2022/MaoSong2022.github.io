@@ -493,7 +493,8 @@ def apply_rotary_pos_emb(q, k, cos, sin, position_ids=None, unsqueeze_dim=1):
 
 ```
 
-## References
+## Transformer based models
 
-1. [Qwen3 transformer source code](https://github.com/huggingface/transformers/blob/main/src/transformers/models/qwen3/modeling_qwen3.py)
-2. [position encoding blog](https://huggingface.co/blog/designing-positional-encoding)
+1. Encoder-decoder: text to text, T5, mT5, ByT5
+2. Encoder only: BERT, DistilBERT, RoBERTa
+3. Decoder only: GPT, LLaMA, Qwen, DeepSeek
