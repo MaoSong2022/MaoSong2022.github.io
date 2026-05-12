@@ -1,5 +1,5 @@
 export const SITE_URL = "https://maosong.website";
-export const SITE_TITLE = "Mao Song(毛松)'s Homepage";
+export const SITE_TITLE = "Homepage";
 export const SITE_DESCRIPTION =
   "Mao Song's technical blog covering machine learning, large language models (LLMs), deep learning research, and AI innovations.";
 export const SITE_AUTHOR = "Mao Song";
