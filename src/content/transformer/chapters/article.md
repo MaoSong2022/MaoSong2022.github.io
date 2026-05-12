@@ -1,21 +1,7 @@
----
-title: Formal Algorithms for Transformer
-description: An formal algorithm describing how transformer works.
-authors:
-- name: Mao Song
-  url: https://maosong.website/
-published: 2024-05-02 13:13:12+0800
-modified: 2024-05-02 13:13:12+0800
-tags:
-- Transformer
-categories:
-- LLM
-showPdf: false
----
 
-This post is a notes on understanding how transformer works in an algorithm perspective.
 
-# Introduction
+
+## Introduction
 
 Transformer is a neural architecture that is used for neural language processing. Transformer receives an embedding matrix, which represents a sentence as input, and outputs a matrix of the same size as the embedding matrix, then the output can be used for downstream tasks.
 
