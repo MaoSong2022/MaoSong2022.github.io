@@ -21,6 +21,8 @@ import Kaplan_learning_rate_schedule_results from '../../../assets/image/Kaplan-
 
 ## Introduction
 
+OpenAI 提出了针对decoder only LLM的scaling law [@Kaplan].
+
 作者首先就总结了本文的发现，主要有以下几点：
 
 1. 损失与模型的 scale , 即除开 embedding 的模型参数，数据集大小以及算力强相关，与 model shape 比如 depth 或者 width 关系不大
@@ -58,13 +60,13 @@ $$
 L(N) = \left(\frac{N_C}{N}\right)^{\alpha_N}, \alpha_N\sim 0.076, N_C\sim 8.8\times 10^{13}
 $$
 
-2. 给定模型参数大小 $N$ ,  损失与数据集大小 $D$ 之间的关系为
+1. 给定模型参数大小 $N$ ,  损失与数据集大小 $D$ 之间的关系为
 
 $$
 L(D) = \left(\frac{D_C}{D}\right)^{\alpha_D}, \alpha_D\sim 0.095, D_C\sim 5.4\times 10^{13}
 $$
 
-3. 给定足够大的数据集 $D$ 和最优模型大小 $N$ 时，损失与算力 $C$ 之间的关系为
+1. 给定足够大的数据集 $D$ 和最优模型大小 $N$ 时，损失与算力 $C$ 之间的关系为
 
 $$
 L(C_{\min}) = \left(\frac{C_C^{\min}}{C_{\min}}\right)^{\alpha_D}, \alpha_C^{\min}\sim 0.050, C_C^{\min}\sim 3.1\times 10^{8}
@@ -80,7 +82,7 @@ $$
 L(N,D) = \left[\left(\frac{N_c}{N}\right)^{\frac{\alpha_N}{\alpha_D}}+ \frac{D_c}{D}\right]^{\alpha_D}
 $$
 
-4. 当数据集充分大时，损失与模型参数大小以及更新步数 $S$ 的关系如下
+1. 当数据集充分大时，损失与模型参数大小以及更新步数 $S$ 的关系如下
 
 $$
 L(N, S) = \left(\frac{N_C}{N}\right)^{\alpha_N} +\left(\frac{S_C}{S_{\min}(S)}\right)^{\alpha_S}
@@ -88,13 +90,13 @@ $$
 
 这里 $S_C\approx 2.1\times 10^3$, $\alpha_S\approx 0.76$, $S_{\min}(S)$ 是估计出来的最小优化步数
 
-5. 最优的 batch size 与损失函数之间的关系如下
+1. 最优的 batch size 与损失函数之间的关系如下
 
 $$
 B_{crit}(L) = \frac{B_*}{L^{1/\alpha_B}}, B_*\sim 2*10^8 \text{ tokens}, \alpha_B\sim 0.21
 $$
 
-6. 给定算力 $C$ 且无其他限制时，模型参数，数据及大小，batch size 和更新参数与算力之间的关系如下
+1. 给定算力 $C$ 且无其他限制时，模型参数，数据及大小，batch size 和更新参数与算力之间的关系如下
 
 $$
 N\propto C^{\alpha_C^{\min}/\alpha_N}, B\propto C^{\alpha_C^{\min}/\alpha_B}, S\propto C^{\alpha_C^{\min}/\alpha_S}, D=BS
