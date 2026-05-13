@@ -323,8 +323,7 @@
   publisher = {Association for Computational Linguistics},
   url       = {https://aclanthology.org/D18-2012/},
   doi       = {10.18653/v1/D18-2012},
-  pages     = {66--71},
-  abstract  = {This paper describes SentencePiece, a language-independent subword tokenizer and detokenizer designed for Neural-based text processing, including Neural Machine Translation. It provides open-source C++ and Python implementations for subword units. While existing subword segmentation tools assume that the input is pre-tokenized into word sequences, SentencePiece can train subword models directly from raw sentences, which allows us to make a purely end-to-end and language independent system. We perform a validation experiment of NMT on English-Japanese machine translation, and find that it is possible to achieve comparable accuracy to direct subword training from raw sentences. We also compare the performance of subword training and segmentation with various configurations. SentencePiece is available under the Apache 2 license at \url{https://github.com/google/sentencepiece}.}
+  pages     = {66--71}
 }
 
 @inproceedings{Unigram,
@@ -339,8 +338,7 @@
   publisher = {Association for Computational Linguistics},
   url       = {https://aclanthology.org/P18-1007/},
   doi       = {10.18653/v1/P18-1007},
-  pages     = {66--75},
-  abstract  = {Subword units are an effective way to alleviate the open vocabulary problems in neural machine translation (NMT). While sentences are usually converted into unique subword sequences, subword segmentation is potentially ambiguous and multiple segmentations are possible even with the same vocabulary. The question addressed in this paper is whether it is possible to harness the segmentation ambiguity as a noise to improve the robustness of NMT. We present a simple regularization method, subword regularization, which trains the model with multiple subword segmentations probabilistically sampled during training. In addition, for better subword sampling, we propose a new subword segmentation algorithm based on a unigram language model. We experiment with multiple corpora and report consistent improvements especially on low resource and out-of-domain settings.}
+  pages     = {66--75}
 }
 
 @inproceedings{WordPiece,
@@ -365,7 +363,6 @@
   url           = {https://arxiv.org/abs/2512.07783}
 }
 
-% RLHF
 @misc{ouyang2022traininglanguagemodelsfollow,
   title         = {Training language models to follow instructions with human feedback},
   author        = {Long Ouyang and Jeff Wu and Xu Jiang and Diogo Almeida and Carroll L. Wainwright and Pamela Mishkin and Chong Zhang and Sandhini Agarwal and Katarina Slama and Alex Ray and John Schulman and Jacob Hilton and Fraser Kelton and Luke Miller and Maddie Simens and Amanda Askell and Peter Welinder and Paul Christiano and Jan Leike and Ryan Lowe},
@@ -384,7 +381,6 @@
   url       = {https://openreview.net/forum?id=HPuSIXJaa9}
 }
 
-% Qwen
 @misc{Qwen3,
   title         = {Qwen3 Technical Report},
   author        = {An Yang and Anfeng Li and Baosong Yang and Beichen Zhang and Binyuan Hui and Bo Zheng and Bowen Yu and Chang Gao and Chengen Huang and Chenxu Lv and Chujie Zheng and Dayiheng Liu and Fan Zhou and Fei Huang and Feng Hu and Hao Ge and Haoran Wei and Huan Lin and Jialong Tang and Jian Yang and Jianhong Tu and Jianwei Zhang and Jianxin Yang and Jiaxi Yang and Jing Zhou and Jingren Zhou and Junyang Lin and Kai Dang and Keqin Bao and Kexin Yang and Le Yu and Lianghao Deng and Mei Li and Mingfeng Xue and Mingze Li and Pei Zhang and Peng Wang and Qin Zhu and Rui Men and Ruize Gao and Shixuan Liu and Shuang Luo and Tianhao Li and Tianyi Tang and Wenbiao Yin and Xingzhang Ren and Xinyu Wang and Xinyu Zhang and Xuancheng Ren and Yang Fan and Yang Su and Yichang Zhang and Yinger Zhang and Yu Wan and Yuqiong Liu and Zekun Wang and Zeyu Cui and Zhenru Zhang and Zhipeng Zhou and Zihan Qiu},
@@ -396,7 +392,6 @@
 }
 
 
-% OPD
 @inproceedings{MiniLM,
   author    = {Wang, Wenhui and Wei, Furu and Dong, Li and Bao, Hangbo and Yang, Nan and Zhou, Ming},
   title     = {MINILM: deep self-attention distillation for task-agnostic compression of pre-trained transformers},
@@ -404,7 +399,6 @@
   isbn      = {9781713829546},
   publisher = {Curran Associates Inc.},
   address   = {Red Hook, NY, USA},
-  abstract  = {Pre-trained language models (e.g., BERT [12] and its variants) have achieved remarkable success in varieties of NLP tasks. However, these models usually consist of hundreds of millions of parameters which brings challenges for fine-tuning and online serving in real-life applications due to latency and capacity constraints. In this work, we present a simple and effective approach to compress large Transformer [42] based pre-trained models, termed as deep self-attention distillation. The small model (student) is trained by deeply mimicking the self-attention module, which plays a vital role in Transformer networks, of the large model (teacher). Specifically, we propose distilling the self-attention module of the last Transformer layer of the teacher, which is effective and flexible for the student. Furthermore, we introduce the scaled dot-product between values in the self-attention module as the new deep self-attention knowledge, in addition to the attention distributions (i.e., the scaled dot-product of queries and keys) that have been used in existing works. Moreover, we show that introducing a teacher assistant [26] also helps the distillation of large pre-trained Transformer models. Experimental results demonstrate that our monolingual model outperforms state-of-the-art baselines in different parameter size of student models. In particular, it retains more than 99\% accuracy on SQuAD 2.0 and several GLUE benchmark tasks using 50\% of the Transformer parameters and computations of the teacher model. We also obtain competitive results in applying deep self-attention distillation to multilingual pre-trained models.},
   booktitle = {Proceedings of the 34th International Conference on Neural Information Processing Systems},
   articleno = {485},
   numpages  = {13},
