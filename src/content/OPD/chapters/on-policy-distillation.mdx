@@ -3,10 +3,9 @@ import Sidenote from '../../../components/Sidenote.astro';
 ## On Policy Distillation
 
 基于前文的讨论，我们可以看到，off policy distillation 很容易过拟合，且上限不高，但是使用RL又需要比较高的算力。
-
 我们能否结合RL的 on-policy 的特点和SFT的训练高效性呢？答案是 on policy distillation.
 On policy distillation 最初由 MiniLM [@MiniLM] 提出，Thinking Machine Lab 对其进行了系统的验证。
-现在，on policy distillation 已经成为了一个快速提高小模型能力的方法
+现在，on policy distillation 已经成为了一个快速提高模型能力的方法
 
 前文已经提到，off policy distillation 要求学生模型模仿 teacher model的输出 (logits or tokens), 这忽略了student model本身的能力.
 on-policy distillation则是相反，让教师模型来纠正学生模型的输出(logits), 从而让学生模型学习更快更好。
@@ -19,7 +18,7 @@ $$
 \end{equation}}
 $$
 
-通过probability chain rule, 我们可以将上面的目标函数 [Equation (1)](#opd_objective) 转换为token层面的等价形式
+通过 probability chain rule, 我们可以将上面的 [目标函数](#opd_objective) 转换为token层面的等价形式
 
 $$
 \htmlId{opd_token_level_objective}{\begin{equation}
@@ -29,13 +28,18 @@ $$
 
 这里 $\hat{c}_t=(x, \hat{y}_{<t})$, $T$ 为sequence length.
 
-可以看到，现在我们的学习方式编程了，教师模型对于学生模型输出的拟合程度。并且，教师模型会给学生模型每个token进行打分，提供了 dense reward.
+可以看到，现在学生模型的上下文不再是教师模型的输出 $c_t=(x, y_{<t})$, 而是学生模型自己输出的上下文。教师模型通过给学生模型输出的每个token进行打分来提供dense reward.
 
 OPD效果好的原因主要有以下几点：
 
 1. cheaper sampling: 教师模型只需要执行一次prefill 就可以完成一次指导，而prefill效率与开销要远低于decoding.
 2. on-policy: on policy 让学生模型可以不停改进自己的策略
 3. Reverse KL: 我们在 [KL divergence](https://maosong.website/blog/kl-divergence/) 中已经介绍了forward KL 与 reverse KL的不同之处，前者是mean seeking, 后者是mode seeking. 而mode seeking能够保证模型取得更好的表现。
+
+## Self Distillation
+
+OPD的问题在于，其要求教师模型满足same-family, 而实际上，很多教师模型是black box model, 比如人类或者different family, 比如 DeepSeek-R1 [@DeepSeek-R1] 与 Qwen3 [Qwen3]
+针对different family OPD, 我们可以使用self-distillation, 即我们的教师模型和学生模型是同一个，我们通过prompt engineering或者in context learning 来将模型转换为teacher model, 相关工作有 SDFT [@SDFT] 以及 OPSD [OPSD] 等。
 
 ## Analysis
 
@@ -45,13 +49,63 @@ will brown [@will2026opd] 从梯度的角度对不同训练范式进行了分析
 对于 GRPO [@DeepSeek-Math] 而言，一个sequence中的每个token共享advantage, 因此大部分token可能对答案的正确性并没有太多贡献，它们只是恰好在正确的sequence里而已。
 而我们在RL中使用larg batch size, low learning rate的原因是这些相关性比较低的token可以互相抵消，RL可以凭借sparse reward来提升模型的表现。
 
-对SFT而言。
+对SFT而言，每个token都有一个one-hot label, 因此其reward是dense的。
+但是，SFT的梯度并不是zero-mean的，这意味着随着训练进行，模型会逐渐靠近$\pi_T$或者训练数据分布，这也就降低了模型的泛化能力。
+尽管SFT的梯度不是zero-mean, 但是由于数据的多样性，能够保证模型不会被OOD sample带偏，并且SFT本质上是强化模型已经掌握或者半掌握的知识，这也就避免了模型训练的崩塌。
+总的来说，SFT是一个biased but unconcentrated method.
+
+对于 OPD 来说，与OPD一样，其reward 也是 dense 的。
+但是在OPD中，学生模型倾向于从输出差异比较大的哪些 'pivot token' 中进行学习，因此，一小部分token占据了大部分的training signal.
+
+最终，不同方法的对比如下所示
+
+| Method | Density | Bias | Concentration | Uses |
+| --- | --- | --- | --- | --- |
+| RL | sparse | unbiased | diffuse | large batches, patient |
+| SFT | dense | biased toward data | diffuse | data is on-distribution |
+| OPD | dense | biased toward teacher | diffuse | teacher is same-family |
+| OPSD | dense | biased toward self+hint | concentrated on pivot token | aggressive clipping is in place |
+
+### Unified Framework
+
+我们还可以使用一个统一的公式来统一这些方法
+
+$$
+\nabla_\theta J(\theta) = \mathbb{E}_{x\sim\mathcal{D}, \hat{y}\sim \mu_\alpha(\cdot\mid x)}\left[\sum_{i}A_t(x,\hat{y})\nabla_\theta\log \pi_\theta(\hat{y}_t\mid \hat{y}\mid \hat{y}_{<t})\right]
+$$
+
+其中
+
+$$
+\begin{aligned}
+\mu_\alpha &= \alpha \pi_\theta + (1-\alpha)\pi_{data}\\
+A_t &= \lambda\cdot\left[\log \pi_T(\hat{y}_t\mid c_T)-\log \pi_\theta(\hat{y}_t\mid \hat{y}_{<t})\right] + (1-\lambda) [R(\hat{y})-b(x)]
+\end{aligned}
+$$
+
+这里
+
+- $\alpha\in[0,1]$ 表示数据分布on-policy的程度
+- $\lambda\in[0,1]$ 表示advantage在sequence-level和token-level之间的一个trade-off.
+
+这样，不同的方法就是不同的参数配置
+
+| Method | $A$ | $\lambda$ | $\pi_T$ | Note |
+| --- | --- | --- | --- | --- |
+| SFT | $0$ | $1$ | $\delta$ | teacher is the ground truth |
+| RL | $1$ | $0$ | None | on-policy |
+| OPD | $1$ | $1$ | external same-family model | tokenizer + recipe match |
+| OPSD | $1$ | $1$ | self conditioned on $y^*$ | teacher choice is what shifts |
 
 <Sidenote>
   关于GRPO的细节可以参考 [Policy Optimization Methods](/blog/policy-optimization/).
 </Sidenote>
 
-## discussion
+### Find a teacher
 
-OPD的问题在于，其要求教师模型满足same-family, 而实际上，很多教师模型是black box model, 比如人类或者different family, 比如 DeepSeek-R1 [@DeepSeek-R1] 与 Qwen3 [Qwen3]
-针对different family OPD, 我们可以使用self-distillation, 即我们的教师模型和学生模型是同一个，我们通过prompt engineering或者in context learning 来将模型转换为teacher model, 相关工作有 SDFT [@SDFT] 以及 OPSD [OPSD] 等。
+五种策略：
+
+1. 单任务prompt optimization: 针对某个具体任务，寻找一个合适的prompt作为教师模型
+2. 训练一个模型，专门把复杂的包含答案的hard hint改写成minimal hint
+3. online RL: 让教师模型和学生模型一起进化
+4. RL + OPD: 同时使用教师的KL信号和环境的奖励信号
