@@ -1,4 +1,5 @@
-import Note from '../../../components/Note.astro';
+import Algorithm from "../../../components/Algorithm.astro";
+import Note from "../../../components/Note.astro";
 
 ## Value-Based Methods
 
@@ -55,7 +56,7 @@ DQN 的两个关键技术：
 
 1. **Experience Replay**: 使用 replay buffer 存储过去的 transitions，从中随机采样进行训练。这打破了数据之间的相关性，提高了样本效率.
 2. **Target Network**: 使用一个独立的 target network $Q_{\phi^{-}}$ 来计算 TD target, 其参数 $\phi^{-}$ 定期从 $\phi$ 复制（或通过 Polyak averaging 更新）。这稳定了训练过程.
-</Note>
+   </Note>
 
 带有 target network 和 stop-gradient 的 DQN 目标函数为：
 
@@ -81,37 +82,38 @@ loss = loss.mean()
 
 ### DQN Algorithm
 
-```
-Algorithm: DQN with Experience Replay
+<Algorithm title="DQN with Experience Replay">
 
-Initialize replay buffer D with capacity N
-Initialize Q-network Q_phi with random weights
-Initialize target network Q_target with weights phi_target = phi
+1. Initialize replay buffer $\mathcal{D}$ with capacity $N$.
+2. Initialize Q-network $Q_{\phi}$ with random weights.
+3. Initialize target network $Q_{\phi^{-}}$ with weights $\phi^{-} = \phi$.
+4. **for** episode = $1, \dots, M$:
+   - $s_0 \sim p_0$.
+   - **for** $t = 0, \dots, T-1$:
+     - Select action with $\epsilon$-greedy:
+       $$
+       a_t = \begin{cases}
+       \arg\max_a Q_{\phi}(s_t, a), & \text{with prob } 1 - \epsilon \\
+       \text{random action},         & \text{with prob } \epsilon
+       \end{cases}
+       $$
+     - $(r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)$.
+     - Store $(s_t, a_t, r_t, s_{t+1})$ in $\mathcal{D}$.
+     - Sample random minibatch $\{(s_i, a_i, r_i, s'_i)\}$ from $\mathcal{D}$.
+     - Compute target:
+       $$
+       y_i = \begin{cases}
+       r_i + \gamma \max_{a'} Q_{\phi^{-}}(s'_i, a'), & \text{if not terminal} \\
+       r_i,                                              & \text{if terminal}
+       \end{cases}
+       $$
+     - Update Q-network:
+       $$
+       \mathcal{L} = \frac{1}{|\text{batch}|} \sum_i \frac{1}{2} (Q_{\phi}(s_i, a_i) - y_i)^2, \quad \phi \gets \phi - \alpha \nabla_{\phi} \mathcal{L}
+       $$
+     - Every $C$ steps: $\phi^{-} \gets \phi$.
 
-for episode = 1, M:
-    s0 ~ p0
-    for t = 0, T-1:
-        # epsilon-greedy exploration
-        at = argmax_a Q_phi(st, a) with prob 1-epsilon
-        at = random action           with prob epsilon
-
-        (rt, s_{t+1}) ~ p(·,· | st, at)
-        Store (st, at, rt, s_{t+1}) in D
-
-        # Sample minibatch from D
-        Sample random minibatch {(s_i, a_i, r_i, s'_i)} from D
-
-        # Compute target
-        y_i = r_i + gamma * max_a' Q_target(s'_i, a')   (if not terminal)
-        y_i = r_i                                        (if terminal)
-
-        # Update Q-network
-        loss = mean(0.5 * (Q_phi(s_i, a_i) - y_i)^2)
-        phi = phi - alpha * grad_phi loss
-
-        # Update target network periodically
-        Every C steps: phi_target = phi
-```
+</Algorithm>
 
 ### Extensions of DQN
 
@@ -129,13 +131,13 @@ $$
 
 ### Value-Based Methods v.s. Policy-Based Methods
 
-|  | Value-Based | Policy-Based |
-| :--- | :--- | :--- |
-| 核心思想 | 学习 value/Q-function, 间接得到策略 | 直接优化策略参数 |
-| 代表算法 | DQN, Double DQN, Dueling DQN | REINFORCE, PPO, TRPO |
-| 策略形式 | 隐式 (从 Q 值推导) | 显式 (参数化策略) |
-| 适用场景 | 离散动作空间 | 离散/连续动作空间 |
-| 收敛性 | 较好 | 需要基线/advantage 降低方差 |
+|          | Value-Based                         | Policy-Based                |
+| :------- | :---------------------------------- | :-------------------------- |
+| 核心思想 | 学习 value/Q-function, 间接得到策略 | 直接优化策略参数            |
+| 代表算法 | DQN, Double DQN, Dueling DQN        | REINFORCE, PPO, TRPO        |
+| 策略形式 | 隐式 (从 Q 值推导)                  | 显式 (参数化策略)           |
+| 适用场景 | 离散动作空间                        | 离散/连续动作空间           |
+| 收敛性   | 较好                                | 需要基线/advantage 降低方差 |
 
 ### Connection with LLM
 

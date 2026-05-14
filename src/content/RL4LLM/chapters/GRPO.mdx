@@ -1,4 +1,5 @@
-import Note from '../../../components/Note.astro';
+import Algorithm from "../../../components/Algorithm.astro";
+import Note from "../../../components/Note.astro";
 
 ## GRPO
 
@@ -34,7 +35,10 @@ $$
 这里 advantage $\hat{A}_{i,t}$ 与时间步 $t$ 无关（仅与 group 中的 reward 排名相关），这使得 GRPO 能够直接使用 outcome-level reward.
 
 <Note variant="info" emoji="💡">
-直观理解：同一 prompt 下的 $G$ 个 response 中，高于平均奖励的 response 获得正的 advantage, 低于平均奖励的 response 获得负的 advantage. 这与 PPO 中 $A_t = Q_t - V_t$ 的思想一致：$V_t$ 是"平均意义上的 expected return", 起到 baseline 的作用.
+  直观理解：同一 prompt 下的 $G$ 个 response 中，高于平均奖励的 response
+  获得正的 advantage, 低于平均奖励的 response 获得负的 advantage. 这与 PPO 中
+  $A_t = Q_t - V_t$ 的思想一致：$V_t$ 是"平均意义上的 expected return", 起到
+  baseline 的作用.
 </Note>
 
 **GRPO Objective**:
@@ -59,14 +63,14 @@ GRPO 中 $\hat{A}_{i,t}$ 对所有 token 使用相同的 advantage 值（基于 
 
 ### GRPO v.s. PPO
 
-|  | PPO | GRPO |
-| :--- | :--- | :--- |
-| Value function | 需要训练 $V_{\phi}$ | 不需要 |
-| Advantage estimation | GAE (per-token) | Group-level 归一化 (per-response) |
-| Reward 要求 | Token-level reward (需要 reward model) | Outcome-level reward (verifier 即可) |
-| 计算开销 | 更高 (需训练 critic) | 更低 |
-| 采样效率 | 较高 | 需要更多样本 ($G$ 个 response per prompt) |
-| KL 正则化 | 通常使用 KL penalty | 通常直接使用 reward shaping |
+|                      | PPO                                    | GRPO                                      |
+| :------------------- | :------------------------------------- | :---------------------------------------- |
+| Value function       | 需要训练 $V_{\phi}$                    | 不需要                                    |
+| Advantage estimation | GAE (per-token)                        | Group-level 归一化 (per-response)         |
+| Reward 要求          | Token-level reward (需要 reward model) | Outcome-level reward (verifier 即可)      |
+| 计算开销             | 更高 (需训练 critic)                   | 更低                                      |
+| 采样效率             | 较高                                   | 需要更多样本 ($G$ 个 response per prompt) |
+| KL 正则化            | 通常使用 KL penalty                    | 通常直接使用 reward shaping               |
 
 ### KL Divergence Regularization
 
@@ -90,29 +94,33 @@ $$
 
 GRPO 的典型训练流程如下：
 
-```
-Algorithm: GRPO Training
+<Algorithm title="GRPO Training">
 
-Input: Dataset D of prompts, reference model pi_ref, group size G
-Initialize: policy pi_theta = pi_ref
+- **Input**: Dataset $\mathcal{D}$ of prompts, reference model $\pi_{\mathrm{ref}}$, group size $G$.
+- **Initialize**: policy $\pi_{\theta} = \pi_{\mathrm{ref}}$.
 
-for each training iteration:
-    1. Sample a batch of prompts {q} from D
+**for** each training iteration:
 
-    2. For each prompt q, sample G responses {o_i} from pi_theta:
-        o_i ~ pi_theta(· | q),  i = 1, ..., G
+1. Sample a batch of prompts $\{q\}$ from $\mathcal{D}$.
+2. For each prompt $q$, sample $G$ responses $\{o_i\}$ from $\pi_{\theta}$:
+   $$
+   o_i \sim \pi_{\theta}(\cdot \mid q), \quad i = 1, \dots, G
+   $$
+3. Compute reward for each response:
+   $$
+   R_i = R_{\mathrm{task}}(o_i) - \beta \, \mathrm{KL}(\pi_{\theta} \| \pi_{\mathrm{ref}})
+   $$
+4. Compute group-level advantage:
+   $$
+   \hat{A}_i = \frac{R_i - \mathrm{mean}(\{R\})}{\mathrm{std}(\{R\})}
+   $$
+5. Update $\pi_{\theta}$ using GRPO objective:
+   $$
+   \mathcal{L} = \frac{1}{G} \sum_{i=1}^{G} \frac{1}{|o_i|} \sum_{t=1}^{|o_i|} \min\!\left(r_{i,t}(\theta) \hat{A}_i, \; \mathrm{clip}\!\left(r_{i,t}(\theta), 1 - \epsilon, 1 + \epsilon\right) \hat{A}_i\right)
+   $$
+6. (Optional) Update $\pi_{\mathrm{ref}}$ periodically.
 
-    3. Compute reward for each response:
-        R_i = R_task(o_i) - beta * KL(pi_theta || pi_ref)
-
-    4. Compute group-level advantage:
-        A_i = (R_i - mean({R})) / std({R})
-
-    5. Update pi_theta using GRPO objective:
-        L = 1/G * sum_i 1/|o_i| * sum_t min(r_{i,t} * A_i, clip(r_{i,t}, 1-eps, 1+eps) * A_i)
-
-    6. (Optional) Update pi_ref periodically
-```
+</Algorithm>
 
 ### Why GRPO Works for LLM
 
