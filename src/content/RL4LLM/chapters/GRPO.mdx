@@ -1,20 +1,123 @@
+import Note from '../../../components/Note.astro';
+
 ## GRPO
 
-相比于 [PPO](PPO.md)，GRPO 不依赖于 value function, 因此不需要使用 reward model. GRPO 通过一组输出来估计 value $V(s)$, 然后进行更新。具体来说，给定 QA pair $(q,a)$, 我们从 $\pi_{\theta_{old}}$ 中采样 $G$ 个输出 $\{o_i\}_{i=1}^G$, 接下来我们基于 reward $\{R_i\}_{i=1}^G$ 使用如下表达式来估计 group-level reward:
+GRPO (Group Relative Policy Optimization) 是 DeepSeek 提出的 RL 算法，相比于 PPO，GRPO 不依赖于 value function（因此也不需要 reward model 来训练 critic），而是通过同一 prompt 下的多组输出来估计 advantage.
+
+### Motivation
+
+PPO 需要维护一个 value function $V_{\phi}$ 来估计 advantage $A_t$:
 
 $$
-\hat{A}_{i,t} = \frac{r_i - \mathrm{mean}(\{R_i\}_{i=1}^G)}{\mathrm{std}(\{R_i\}_{i=1}^G)}
+\hat{A}_t^{\mathrm{GAE}} = \sum_{k=0}^{\infty} (\gamma\lambda)^k \delta_{t+k}, \quad \delta_k = r_k + \gamma V_{\phi}(s_{k+1}) - V_{\phi}(s_k)
 $$
 
-最后，GRPO 的训练目标与 PPO 类似，只不过将 $\hat{A}_t$ 替换为 $\hat{A}_{i,t}$, 然后在分组上进行了归一化：
+但是在 LLM 场景下，训练 value function 会带来额外的计算和内存开销：
+
+1. 需要额外训练一个与 policy model 规模相当的 critic model
+2. 需要 reward model 提供的 token-level reward（而很多 verifier 只提供 outcome-level reward）
+
+GRPO 的核心思想：**用同一 prompt 下的一组输出来估计 baseline（即群体级别的相对奖励），从而避免训练 value function.**
+
+### Algorithm
+
+给定 QA pair $(q, a)$, 从 $\pi_{\theta_{old}}$ 中采样 $G$ 个输出 $\{o_i\}_{i=1}^G$, 并获取对应的 reward $\{R_i\}_{i=1}^G$.
+
+**Advantage Estimation**：
+
+GRPO 使用 group-level 归一化来估计 advantage:
 
 $$
-\mathcal{J}_{\mathrm{GRPO}}(\theta) = \mathbb{E}_{(q,a)\sim\mathcal{D},\{o_i\}_{i=1}^G\sim \pi_{\theta_{old}}(\cdot\mid q)}\left[ \frac{1}{G}\sum_{i=1}^G\frac{1}{|o_i|}\sum_{t=1}^{|o_i|}\min\left(r_{i,t}(\theta)\hat{A}_{i,t},\mathrm{clip}\left(r_{i,t}(\theta), 1-\epsilon, 1+\epsilon\right)\hat{A}_{i,t}\right) \right]
+\hat{A}_{i,t} = \frac{R_i - \mathrm{mean}(\{R_i\}_{i=1}^G)}{\mathrm{std}(\{R_i\}_{i=1}^G)}
 $$
 
-其中，
+这里 advantage $\hat{A}_{i,t}$ 与时间步 $t$ 无关（仅与 group 中的 reward 排名相关），这使得 GRPO 能够直接使用 outcome-level reward.
+
+<Note variant="info" emoji="💡">
+直观理解：同一 prompt 下的 $G$ 个 response 中，高于平均奖励的 response 获得正的 advantage, 低于平均奖励的 response 获得负的 advantage. 这与 PPO 中 $A_t = Q_t - V_t$ 的思想一致：$V_t$ 是"平均意义上的 expected return", 起到 baseline 的作用.
+</Note>
+
+**GRPO Objective**:
+
+GRPO 的训练目标与 PPO 类似，但在分组上进行了归一化：
 
 $$
-r_{i,t}(\theta) = \frac{\pi_{\theta}(o_{i,t}\mid q, o_{i,< t})}{\pi_{\theta_{old}}(o_{i,t}\mid q, o_{i,< t})}
+\mathcal{J}_{\mathrm{GRPO}}(\theta) = \mathbb{E}_{(q, a) \sim \mathcal{D}, \, \{o_i\}_{i=1}^G \sim \pi_{\theta_{old}}(\cdot \mid q)}\left[ \frac{1}{G} \sum_{i=1}^G \frac{1}{|o_i|} \sum_{t=1}^{|o_i|} \min\left(r_{i,t}(\theta) \hat{A}_{i,t}, \; \mathrm{clip}\left(r_{i,t}(\theta), 1 - \epsilon, 1 + \epsilon\right) \hat{A}_{i,t}\right) \right]
 $$
 
+其中:
+
+$$
+r_{i,t}(\theta) = \frac{\pi_{\theta}(o_{i,t} \mid q, o_{i,<t})}{\pi_{\theta_{old}}(o_{i,t} \mid q, o_{i,<t})}
+$$
+
+是 importance sampling ratio，衡量新旧策略在 token $o_{i,t}$ 处的概率比.
+
+<Note variant="warn" emoji="⚠️">
+GRPO 中 $\hat{A}_{i,t}$ 对所有 token 使用相同的 advantage 值（基于 outcome reward）。这与 PPO 使用 GAE 得到 per-token advantage 不同.
+</Note>
+
+### GRPO v.s. PPO
+
+|  | PPO | GRPO |
+| :--- | :--- | :--- |
+| Value function | 需要训练 $V_{\phi}$ | 不需要 |
+| Advantage estimation | GAE (per-token) | Group-level 归一化 (per-response) |
+| Reward 要求 | Token-level reward (需要 reward model) | Outcome-level reward (verifier 即可) |
+| 计算开销 | 更高 (需训练 critic) | 更低 |
+| 采样效率 | 较高 | 需要更多样本 ($G$ 个 response per prompt) |
+| KL 正则化 | 通常使用 KL penalty | 通常直接使用 reward shaping |
+
+### KL Divergence Regularization
+
+在实际的 RLHF/GRPO 训练中，通常会在 reward 中减去一个 KL 惩罚项，以防止模型偏离 reference model 太远:
+
+$$
+R_i = R_{\mathrm{task}}(o_i) - \beta \, \mathrm{KL}(\pi_{\theta} \| \pi_{\mathrm{ref}})
+$$
+
+其中 $\beta > 0$ 是超参数，$\pi_{\mathrm{ref}}$ 是 reference model (通常是 SFT 后的模型).
+
+常用的 KL 估计方式包括：
+
+1. **Kullback-Leibler divergence**: $\mathrm{KL}(\pi_{\theta} \| \pi_{\mathrm{ref}}) = \mathbb{E}_{o \sim \pi_{\theta}}\left[\log\frac{\pi_{\theta}(o \mid q)}{\pi_{\mathrm{ref}}(o \mid q)}\right]$
+2. **Unbiased KL estimator**: DeepSeek 使用的低方差估计，形式为：
+   $$
+   \mathrm{KL}(\pi_{\theta} \| \pi_{\mathrm{ref}}) = \frac{\pi_{\mathrm{ref}}(o_{i,t} \mid q, o_{i,<t})}{\pi_{\theta}(o_{i,t} \mid q, o_{i,<t})} - \log\frac{\pi_{\mathrm{ref}}(o_{i,t} \mid q, o_{i,<t})}{\pi_{\theta}(o_{i,t} \mid q, o_{i,<t})} - 1
+   $$
+
+### Training Pipeline
+
+GRPO 的典型训练流程如下：
+
+```
+Algorithm: GRPO Training
+
+Input: Dataset D of prompts, reference model pi_ref, group size G
+Initialize: policy pi_theta = pi_ref
+
+for each training iteration:
+    1. Sample a batch of prompts {q} from D
+
+    2. For each prompt q, sample G responses {o_i} from pi_theta:
+        o_i ~ pi_theta(· | q),  i = 1, ..., G
+
+    3. Compute reward for each response:
+        R_i = R_task(o_i) - beta * KL(pi_theta || pi_ref)
+
+    4. Compute group-level advantage:
+        A_i = (R_i - mean({R})) / std({R})
+
+    5. Update pi_theta using GRPO objective:
+        L = 1/G * sum_i 1/|o_i| * sum_t min(r_{i,t} * A_i, clip(r_{i,t}, 1-eps, 1+eps) * A_i)
+
+    6. (Optional) Update pi_ref periodically
+```
+
+### Why GRPO Works for LLM
+
+1. **无需求解 value function**: 在 LLM 场景下，action space (词表) 和 state space (上下文) 极大，训练 value function 是非常困难且昂贵的。GRPO 通过 group 比较自然避免了这一问题.
+
+2. **Outcome-level reward 友好**: 许多 LLM 任务（如数学推理、代码生成）只有最终的 outcome reward (答案正确与否)。GRPO 可以直接利用 outcome reward，无需 reward model 提供 token-level reward.
+
+3. **简单高效**: GRPO 的实现相对简单，无需维护 critic network，计算和内存开销更小.

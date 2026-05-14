@@ -6,131 +6,156 @@ import RL4LLM_process from '../../../assets/image/RL-process.png';
 
 ## RL Basics
 
-RL 的基本思想是通过与环境进行交互，获取奖励来进行学习
+RL 的基本思想是让 agent 通过与环境交互，学习到最优策略。
 
-RL 的定义如下
-
-> 强化学习是一个通过构建可以与环境进行交互的 agent 来解决控制和决策任务的学习框架，交互的方式为 agent 执行 action, 然后环境给予奖励
+> 强化学习是一个通过构建可以与环境进行交互的 agent 来解决控制和决策任务的学习框架，交互的方式为 agent 执行 action, 然后环境给予反馈。
 
 RL 的执行过程如下所示
 
-<Image src={RL4LLM_process} alt="The RL process (source from sutton)" />
+<Image src={RL4LLM_process} alt="The RL process (source from Sutton)" />
 
-RL 的数学建模依赖于 Markov decision process, 下面我们先介绍相关概念
+RL 的数学建模依赖于 Markov Decision Process, 下面我们先介绍相关概念。
 
-### Definition
+### Markov Decision Process (MDP)
 
-> 一个 Markov decision process (MDP) 包含如下模块：
+> MDP 是描述强化学习的数学模型，形式化为：
+>
+> 1. **状态 (State)**: $s_t \in \mathcal{S}$, $\mathcal{S}$ 为状态空间。
+> 2. **动作 (Action)**: $a_t \in \mathcal{A}$, $\mathcal{A}$ 为动作空间。
+> 3. **奖励 (Reward)**: $r_t \in \mathbb{R}$，环境对 agent 执行动作 $a_t$ 的反馈。
+> 4. **终止时间 (Terminal Time)**: $T$，且定义 $s_T = \langle\text{term}\rangle$ 为终止状态。
+> 5. **初始状态分布 (Initial State)**: $s_0 \sim p_0$.
+> 6. **状态转移概率 (Transition Probability)**: $(r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)$.
+> 7. **马尔可夫性 (Markov Property)**: $p(s_{t+1} \mid s_t, a_t, \ldots) = p(s_{t+1} \mid s_t, a_t),\ p(r_t \mid s_t, a_t, \ldots) = p(r_t \mid s_t, a_t)$.
 
-> 1. 时间 $t=0,1,\dots,T$.
-> 2. 状态 $s_t\in\mathcal{S}\cup\{\langle term\rangle\}$, 其中 $\mathcal{S}$ 是状态空间 (state space)
-> 3. 动作 $a_t\in\mathcal{A}$ , 其中 $\mathcal{A}$ 是动作空间 (action space)
-> 4. 奖励 $r_t\in\mathbb{R}$, 环境对 agent 当前 action $a_t$ 给予的反馈
-> 5. 终止时间 $T$, 额外定义 $s_T=\langle term\rangle$ 为终止状态
-> 6. 初始状态分布 $s_o\sim p_0$.
-> 7. 转换概率 (transition probability):  $r_t,s_{t+1}\sim p(\cdot,\cdot\mid s_t,a_t)$.
-> 8. 轨迹 $\tau=(s_0,a_0,r_0,s_1,a_1,r_1,\dots,s_{T-1},a_{T-1}, r_{T-1}, s_T)$.
-> 9. **Markov property**. $t+1$ 时刻的状态仅与 $t$ 时刻的状态与动作相关，即 $p(s_{t+1}\mid s_t,a_t,\dots,a_0,a_0)=p(s_{t+1}\mid s_t,a_t)$ 以及 $p(r_{t}\mid s_t,a_t,\dots,s_0,a_t)=p(r_t\mid s_t,a_t)$.
+为了简化，我们采用以下约定：
 
-我们会对一些表达式进行简化：
+1. 当 $r_t$ 完全由 $(s_t,a_t)$ 决定时，记为 $r_t = r(s_t, a_t)$.
+2. 假设状态转移函数是平稳的 (stationary), 即 $p_t(r,s'\mid s,a) = p(r,s'\mid s,a)$.
+3. $a_t$ 由策略 $\pi$ 决定，确定性策略记为 $a_t = \pi(s_t)$, 随机策略记为 $a_t \sim \pi(\cdot \mid s_t)$.
+4. 通常我们使用神经网络表示策略，即 $\pi = \pi_\theta$, 其中 $\theta$ 为网络参数。
 
-1. 当 $r_t$ 完全由 $(s_t,a_t)$ 决定时，我们记为 $r_t=r(s_t,a_t)$
-2. 我们假设状态转移函数是平稳的 (stationary), 即 $p_t(r,s'\mid s,a)=p(r,s'\mid s,a)$。
-3. $a_t$ 通常由一个策略 $\pi$ 决定， 当 $\pi$ 完全由 $s_t$ 决定时，我们记为 $a_t=\pi(s_t)$, 反之，$a_t$ 从 $\pi$ 中采样得到，即 $a_t\sim\pi(\cdot\mid s_t)$.
-4. 一般我们会使用一个神经网络来表示 $\pi$, 即 $\pi=\pi_\theta$, 这里 $\theta$ 就是神经网络的参数。
+### Trajectory
 
-我们可以将轨迹写为如下形式
+> Trajectory (rollout) 定义为 agent 与环境完整的一次交互过程：
+> $$
+> \tau = (s_0, a_0, r_0, s_1, a_1, r_1, \ldots, s_{T-1}, a_{T-1}, r_{T-1}, s_T)
+> $$
 
-$$
-p(\tau\mid s_0, \pi, p) =  p_0(s_0)\prod_{i=1}^{T-1}\pi(a_t\mid s_t)p(r_t, s_{t+1}\mid r_t,s_t)
-$$
-
-### Classification
-
-#### Definition Based
-
-**state and observation**
-
-通常来说，state 包含了当前进行决策所需要的所有信息（环境信息，历史信息，agent 自身信息），这种情况下 MDP 的 Markov 性质成立。实际上 agent 获取的可能只是一部分信息，即 agent 获取的为 observation, 这种情况下 MDP 特化为 Partially Observable Markov Decision Process (POMDP), 此时我们的 Markov 性质就不再对 observation 成立，我们的问题也变的更加困难。
-
-> Takeaway
-> State 表示整个环境的完整表示，而 observation 则是环境的部分表示
-
-对于 LLM 来说，我们可以获取历史状态的所有信息，因此我们可以将 RL for LLM 视作一个 MDP 问题。
-
-**action space**
-
-action space  $\mathcal{A}$ 可以是连续的，比如上下左右四个方向，也可以是连续的，比如方向盘的角度
-
-**episodic and continuing**
-
-根据任务的终止时间 $T$，我们可以将任务分为 episodic task 和 continuing task, 当 $T=\infty$ 时， 我们的任务称为 continual task，比如游戏, 否则称之为 episodic task, 比如股票预测.
-
-除了 POMDP 之外，MDP 也有一些其他的推广形式：
-
-1. non-stationary dynamics, 即不同时间步的状态转移函数不同
-2. pre-determined terminal time $T$. 终止时间指定，因为 $p_{T-1}(\langle term\rangle\mid s_{T-1}, a_{T-1})=1$ 且 $p_{t+1}(\langle term\rangle\mid s_{t}, a_{t})=0$, $\forall t\in[T-2]$, 所以此时 MDP 为 non-stationary,
-3. policy $\pi_t$ may be time-dependent, 一般来说仅在 non-stationary dynamics 中有必要
-4. actions may depend on states, 即 $a_t\in\mathcal{A}(s_t)$.
-
-由于 $T$ 也是一个随机变量，因此 $\mathbb{E}[\sum_{t=0}^T\cdot]\neq\sum_{t=0}^T\mathbb{E}[\cdot]$.
-
-为了简化，我们一般会使用一个等价的，不会停止的 MDP:
-
-1. the MDP never stops,  即 $T=\infty$
-2. $s_t\in\mathcal{S}\cup\{\langle term\rangle\}$, 这里 $\langle term\rangle$ 是一个 normal state.
-3. absorbing state: 当 $s_t=\langle term\rangle$ 时， $r_t=0, s_{t+1}=\langle term\rangle$, 即状态不会离开 $\langle term\rangle$.
-4. $\pi(\cdot\mid\langle term\rangle)$ 不产生任何影响
-
-#### Model Based
-
-### RL Objective
-
-<Note variant="info" emoji="💡">RL 的最终目标为最大化累计奖励，称为 expected return, 这个目标基于**reward hypothesis**, 即*所有的目标都可以被描述为最大化 expected return*..</Note>
-
-目标函数表达式如下
+轨迹的概率分布为：
 
 $$
-\max_{\pi}\quad \mathbb{E}_{s_0\sim p_0}^\pi\left[\sum_{t=0}^{T-1}r_t\right]
+p(\tau \mid s_0, \pi, p) = p_0(s_0) \prod_{t=0}^{T-1} \pi(a_t \mid s_t) \, p(r_t, s_{t+1} \mid s_t, a_t)
 $$
 
-由于未来存在不确定性，我们会对这种不确定性施加惩罚，即时间越远，其对于当前的 reward 就越低，这其实就是经济学中的现值 (present value, PV), 因此我们实际上优化的目标函数是 expected discounted  return:
+<Note variant="info">
+- 轨迹的概率分布由初始状态分布、策略以及环境模型共同决定，记为 $\tau \sim (p_0, \pi, p)$.
+- 本教程仅考虑 finite horizon MDP, 即 $T < \infty$.
+</Note>
+
+### Expected Return
+
+> Expected (discounted) return 定义为：
+> $$
+> R(\tau) = \sum_{t=0}^{T-1} \gamma^t r_t
+> $$
+> 其中 $\gamma \in (0, 1]$ 是 **discount factor**, 用于将未来的奖励折现到当前时刻。
+
+我们还会使用另一个符号 $G_0$ 来表示 expected return：
 
 $$
-\max_{\pi}\quad \mathbb{E}_{s_0\sim p_0}^\pi\left[\sum_{t=0}^{T-1}\gamma^tr_t\right]
+G_0 = \sum_{t=0}^{T-1} \gamma^t r_t
 $$
 
-这里 $\gamma \in (0, 1]$ 是一个超参数，我们定义
+$G_0$ 存在如下递推关系：
 
 $$
-G_t = r_t +\gamma r_{t+1}+\cdots+\gamma^{T-1-t}r_{T-1}=\sum_{t'=t}^{T-1}\gamma^{t'-t}r_{t'}
+G_0 = r_0 + \gamma G_1
 $$
 
-$G_t$ 被称为 **discounted  return**.
+### Objective of RL
 
-> 注意
-> 这里的期望 $\mathbb{E}_{s_0\sim p_0}^\pi$ 对应的随机变量为 $a_t\sim\pi(\cdot\mid s_t)$, $(r_t,s_{t+1})\sim p(\cdot,\cdot\mid s_t,a_t)$.
+<Note variant="info">
+**Reward Hypothesis**: 所有的目标都可以被描述为最大化 expected return.
+</Note>
+
+RL 的最终目标为最大化 expected return, 形式化为：
+
+$$
+\max_{\pi} \quad \mathbb{E}_{\tau \sim (p_0, \pi, p)}^\pi \, R(\tau) = \max_{\pi} \quad \mathbb{E}_{s_0 \sim p_0}^\pi \left[ \sum_{t=0}^{T-1} \gamma^t r_t \right]
+$$
+
+这里期望 $\mathbb{E}^\pi$ 对应的随机变量为 $a_t \sim \pi(\cdot \mid s_t)$, $(r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)$.
 
 ### Connection with LLM
 
-我们将 LLM 记为 $p_{\theta}$, 这里 $\theta$ 是 LLM 的参数，将 LLM 的输入记为 $x$, 这里 $x$ 一般就是一个 prompt, LLM 每次生成一个新的 token, 我们记为 $y_i$, 表达式为
+LLM 的建模方式：
 
 $$
-y_i \sim p(y\mid y_{<i}, x)
+y_i \sim \mathrm{LLM}(\cdot \mid y_{<i}, x)
 $$
 
-RL 和 LLM 的对应关系如下
+其中 $x$ 是输入的 prompt, $y_{<i}$ 是已经生成的部分，$y_i$ 是下一个要生成的 token.
 
-| RL            | LLM                                   |
-| :-------------: | :-------------------------------------: |
-| policy        | LLM $p_{\theta}$                      |
-| initial state | prompt $x$                            |
-| action        | a single output token $y_i$           |
-| state         | prompt and output token $(y_{<i}, x)$ |
-| reward        | verifier or reward model              |
+RL 和 LLM 的对应关系如下：
 
-注意到我们并没有对 environment 进行建模，我们可以这样进行理解：
+| RL              | LLM                                   |
+| :-------------: | :-----------------------------------: |
+| policy $\pi$    | LLM $\mathrm{LLM}(\cdot \mid y_{<i}, x)$ |
+| initial state $s_0$ | prompt $x$                         |
+| action $a_t$    | current token $y_i$                   |
+| state $s_t$     | context $(y_{<i}, x)$                 |
 
-1. LLM 中的 environment 仅仅是对 token 进行简单拼接
-2. environment 承担了 reward model + 文本世界的功能，其中奖励由 reward model 给定或者人类反馈，且 environment 使用 `<eos>` 来标记终止条件
+<Note variant="warn">
+注意到我们并没有对 environment 和 reward 进行建模，可以这样理解：
 
+1. LLM 中的 environment 仅仅是对 token 进行简单拼接：$s_{t+1} = \mathrm{concat}(y_i, s_t)$.
+2. Reward 由 verifier, reward model (PRM, ORM) 或者 human feedback 给定.
+</Note>
+
+### Action Space and State Space for LLM
+
+- action = token index $y_i$ $\Rightarrow$ Action space = vocabulary of the LLM
+- state = context $(y_{<i}, x)$ $\Rightarrow$ State space = all possible contexts of the LLM
+
+| 模型类别 | 模型名称 | 词表大小 |
+| :------: | :------: | :------: |
+| 商业闭源 | GPT-5 | $\sim$200,000 |
+| | Claude Sonnet 3.7 | $\sim$100,000 |
+| | Gemini 3.0 | $\sim$256,144 |
+| 主流开源 | Qwen 3 | 151,936 |
+| | DeepSeek-V3 | 129,280 |
+| | MiniMax-M2.5 | 200,064 |
+| | GLM-5 | 154,880 |
+
+LLM 中，action space ($|V|$) 非常大，state space ($|V|^i$) 更大。
+
+### Classification
+
+**state and observation**
+
+State 包含了当前进行决策所需要的所有信息（环境信息，历史信息，agent 自身信息），此时 MDP 的 Markov 性质成立。如果 agent 获取的只是部分信息 (observation), 此时 MDP 特化为 Partially Observable Markov Decision Process (POMDP).
+
+对于 LLM 来说，我们可以获取历史状态的所有信息，因此 RL for LLM 可视为一个 MDP 问题。
+
+**action space**
+
+Action space $\mathcal{A}$ 可以是离散的（如上下左右），也可以是连续的（如方向盘角度）。
+
+**episodic and continuing**
+
+根据任务的终止时间 $T$，分为 episodic task ($T < \infty$) 和 continuing task ($T = \infty$)，如游戏 vs 股票预测。
+
+为了方便分析，我们将 episodic MDP 转化为等价的不会停止的 MDP：
+
+1. MDP never stops, 即 $T = \infty$.
+2. $s_t \in \mathcal{S} \cup \{\langle\text{term}\rangle\}$, $\langle\text{term}\rangle$ 是一个 absorbing state.
+3. 当 $s_t = \langle\text{term}\rangle$ 时，$r_t = 0$, $s_{t+1} = \langle\text{term}\rangle$.
+4. $\pi(\cdot \mid \langle\text{term}\rangle)$ 不产生任何影响.
+
+### Takeaway
+
+- RL 的基础是 MDP, 其核心假设是 Markov property, 即未来的状态和奖励只与当前状态和动作有关，与历史无关。
+- RL 通过 Reward Hypothesis, 将目标转化为最大化 expected return.
+- 从 RL 角度看，LLM 本身是一个 policy, 其初始状态为 prompt, 动作空间为 vocabulary 中的 token index, 奖励由多方面给定，environment 仅对 token 进行简单拼接。
+- 虽然 action space 和 state space 是离散的，但是其数量级非常大，因此我们通常使用函数逼近来近似 value function 和 Q-function.
