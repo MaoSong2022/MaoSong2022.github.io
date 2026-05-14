@@ -10,3 +10,5 @@ export const SITE_SOCIAL_IMAGE = "/avatar.jpg";
 export const SITE_LICENSE = "The content of this article is licensed under CC BY 4.0, but the website template and code remain licensed under CC BY-NC-SA 4.0.";
 /** Short tagline shown on the home page under your avatar. */
 export const SITE_SLOGAN = "Delving into the latent unknown.";
+export const GOOGLE_SCHOLAR_ID = "o9l8nXoAAAAJ";
+export const GITHUB_USERNAME = "MaoSong2022";

@@ -1,5 +1,12 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
+import {
+  SITE_DESCRIPTION,
+  SITE_SLOGAN,
+  SITE_TITLE,
+  GITHUB_USERNAME,
+  GOOGLE_SCHOLAR_ID,
+} from "../consts";
 
 const pageTitle = "About";
 const description =
@@ -121,7 +128,7 @@ const description =
       <div class="social-links-section">
         <div class="social-grid">
           <a
-            href="https://scholar.google.com/citations?user=BaqGkQQAAAAJ"
+            href="https://scholar.google.com/citations?user=${GOOGLE_SCHOLAR_ID}"
             class="social-card scholar-card"
             target="_blank"
             rel="noopener noreferrer"
@@ -146,7 +153,7 @@ const description =
           </a>
 
           <a
-            href="https://github.com/MaoSong2022"
+            href="https://github.com/${GITHUB_USERNAME}"
             class="social-card github-card"
             target="_blank"
             rel="noopener noreferrer"
