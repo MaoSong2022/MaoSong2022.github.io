@@ -81,7 +81,13 @@ $$
 
 ### Gamma Trick
 
+在实际实现中，由于 discount factor $\gamma < 1$, 远期 advantage 对梯度的贡献会指数级衰减。为了提高效率，TRPO 中常常使用 $\gamma = 1$ 来简化计算，但此时需要另外一种形式的约束来保证目标函数的有界性。这被称为 **gamma trick**：通过适当选择 $\gamma$ 的值来平衡 bias 和 variance.
 
+更具体地，当 $\gamma < 1$ 时：
+
+1. 远期奖励对当前决策的影响被衰减，这在经济学中是合理的（现值概念）.
+2. 有助于减少远期估计的方差（远期的 $V^{\pi}$ 估计不确定性更大）.
+3. 在 TRPO 的 derivation 中，$\gamma$ 出现在目标函数的 discount 和中，使用较小的 $\gamma$ 可以使 $\pi_{\theta} \approx \pi_{\theta_{old}}$ 的近似更准确.
 
 ### Overview
 

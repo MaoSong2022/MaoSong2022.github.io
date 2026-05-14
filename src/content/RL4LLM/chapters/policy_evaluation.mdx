@@ -1,367 +1,362 @@
 import Algorithm from '../../../components/Algorithm.astro';
+import Note from '../../../components/Note.astro';
 
 ## Policy Evaluation
 
-这一节我们讨论如何评估 (evaluate) 一个 policy. 要评估一个 policy $\pi$, 我们需要求出对应的 value function $V^\pi$.
+### Why Policy Evaluation?
+
+在强化学习中，我们通常希望回答一个基本问题：
+
+**给定一个策略 $\pi$，它到底"好不好"？**
+
+更具体地说，我们希望知道 agent 在不同状态下遵循该策略时，未来能够获得多大的长期回报.
+
+这个问题本质上对应于求解策略 $\pi$ 的 value function $V^{\pi}$. 虽然上一节已经知道 $V^{\pi}$ 满足 Bellman equation，但当状态空间较大、动作空间较大时，直接进行精确求解往往计算代价较高.
+
+**核心思想**：利用 Bellman equation、采样和函数逼近，高效地估计或拟合给定策略对应的 value function $V^{\pi}$.
 
 ### Monte Carlo
 
-注意到
+注意到：
 
 $$
-V^\pi(s) = \mathbb{E}^\pi\left[\sum_{t=0}^{T-1}\gamma^tr_t\mid s_0=s\right]
+V^{\pi}(s) = \mathbb{E}^{\pi}\left[\sum_{t=0}^{T-1} \gamma^t r_t \mid s_0 = s\right]
 $$
 
-我们可以利用 Monte Carlo (MC) 方法来进行估计，即从 $s_0=s$ 出发，独立随机采样 $N$ 条轨迹
+我们可以利用 Monte Carlo (MC) 方法来进行估计，即从 $s_0 = s$ 出发，独立随机采样 $N$ 条轨迹：
 
 $$
-\{s, a_0^{(i)},r_0^{(i)},\dots,a_{T^{(i)}-1}^{(i)},r_{T^{(i)}-1}^{(i)}, s^{(i)}_{T^{(i)}}\}, i=1,\dots,N
+\{\tau^{(i)} = (s_0^{(i)}, a_0^{(i)}, r_0^{(i)}, \dots, a_{T^{(i)}-1}^{(i)}, r_{T^{(i)}-1}^{(i)}, s_{T^{(i)}}^{(i)})\}, \quad i = 1, \dots, N
 $$
 
-然后我们使用样本平均来近似期望
+然后使用样本平均来近似期望：
 
 $$
-V^\pi(s) = \mathbb{E}^\pi\left[\sum_{t=0}^{T-1}\gamma^tr_t\mid s_0=s\right]\approx \frac{1}{N}\sum_{i=1}^N\sum_{t=0}^{T^{(i)}-1}\gamma^tr_t^{(i)}
+V^{\pi}(s) = \mathbb{E}^{\pi}[R(\tau) \mid s_0 = s] \approx \frac{1}{N} \sum_{i=1}^{N} R(\tau^{(i)})
 $$
 
-如果 $\mathcal{S}$ 比较小，我们可以遍历 $s\in\mathcal{S}$ 来估计 $V^\pi$.
+如果 $\mathcal{S}$ 比较小，我们可以遍历 $s \in \mathcal{S}$ 来估计 $V^{\pi}$. 但是，如果 $\mathcal{S}$ 比较大，这种方法的计算复杂度较高.
 
-当 $\mathcal{S}$ 非常大或者连续时，我们需要使用神经网络 $V_\phi$ 来近似 $V^\pi$,
+<Note variant="info" emoji="💡">
+- **优点**: 简单、直观、无需环境模型
+- **缺点**: 必须等轨迹结束后才能得到一次完整的估计
+</Note>
+
+### Objective of Value-Based Methods
+
+当状态空间较大或连续时，我们使用函数逼近来近似 $V^{\pi}$. 使用函数 $V_{\phi}$ 来近似 $V^{\pi}$, 其中 $\phi$ 是函数的参数，使用最小二乘误差作为损失函数：
 
 $$
-\min_{\phi} \mathcal{L}(\phi) =\mathbb{E}_{s\sim p_0}\left[\frac12\left(V_\phi(s)-V^\pi(s)\right)^2\right]
+\min_{\phi} \mathcal{L}(\phi) = \mathbb{E}_{s \sim p_0}\left[\frac{1}{2}\left(V_{\phi}(s) - V^{\pi}(s)\right)^2\right]
 $$
 
-对上面的目标函数求导得到
+对目标函数求导：
 
 $$
-\begin{align}
-\nabla_\phi \mathcal{L}(\phi) &= \mathbb{E}_{s\sim p_0}\left[\left(V_\phi(s)-V^\pi(s)\right)\nabla_\phi V_\phi(s)\right]\\
-&= \mathbb{E}_{s\sim p_0}\left[\left(V_\phi(s)- \mathbb{E}^\pi\left[\sum_{t=0}^{T-1}\gamma^tr_t\mid s_0=s\right]\right)\nabla_\phi V_\phi(s)\right]\\
-&=\mathbb{E}_{s\sim p_0}\left[\mathbb{E}^\pi\left[\left(V_\phi(s)- \sum_{t=0}^{T-1}\gamma^tr_t\right)\nabla_\phi V_\phi(s)\mid s_0=s\right]\right]\\
-&= \mathbb{E}_{s\sim p_0}^\pi\left[\left(V_\phi(s)- \sum_{t=0}^{T-1}\gamma^tr_t\right)\nabla_\phi V_\phi(s)\mid s_0=s\right]\\
-\end{align}
+\begin{aligned}
+\nabla_{\phi} \mathcal{L}(\phi) &= \mathbb{E}_{s \sim p_0}\left[\left(V_{\phi}(s) - V^{\pi}(s)\right)\nabla_{\phi} V_{\phi}(s)\right] \\
+&= \mathbb{E}_{s \sim p_0}\left[\left(V_{\phi}(s) - \mathbb{E}^{\pi}[G_0 \mid s_0 = s]\right)\nabla_{\phi} V_{\phi}(s)\right] \\
+&= \mathbb{E}_{s \sim p_0}\left[\mathbb{E}^{\pi}\left[\left(V_{\phi}(s) - G_0\right)\nabla_{\phi} V_{\phi}(s) \mid s_0 = s\right]\right] \\
+&= \mathbb{E}_{s \sim p_0}^{\pi}\left[\left(V_{\phi}(s) - G_0\right)\nabla_{\phi} V_{\phi}(s) \mid s_0 = s\right]
+\end{aligned}
 $$
 
-这样，我们可以结合 SGD 与 MC 来近似 $V^\pi$
+现在可以使用 MC 方法来估计梯度：
+
+$$
+\nabla_{\phi} \mathcal{L}(\phi) \approx g := \frac{1}{N}\sum_{i=1}^{N} \left(V_{\phi}(s^{(i)}) - R(\tau^{(i)})\right)\nabla_{\phi} V_{\phi}(s^{(i)})
+$$
+
+结合 MC 和 SGD 的算法如下：
 
 <Algorithm title="Value function approximation with MC">
 
 **while** not converged:
 
-1. $s_0\sim p_0$, set $t=0$.
-2. **while** $s_t\neq \langle term\rangle$:
-    - $a_t\sim \pi(\cdot\mid s_t)$
-    - $(r_t,s_{t+1})\sim p(\cdot,\cdot\mid s_t,a_t)$
-    - $t\gets t+1$
-3. Set $T=t$.
-4. $g=\left(V_\phi(s_0)- \sum_{t=0}^{T-1}\gamma^tr_t\right)\nabla_\phi V_\phi(s_0)$.
+1. $s_0 \sim p_0$, set $t = 0$.
+2. **while** $s_t \neq \langle\text{term}\rangle$:
+    - $a_t \sim \pi(\cdot \mid s_t)$
+    - $(r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)$
+    - $t \gets t + 1$
+3. Set $T = t$.
+4. $g = \left(V_{\phi}(s_0) - \sum_{t=0}^{T-1} \gamma^t r_t\right)\nabla_{\phi} V_{\phi}(s_0)$.
 5. Update $\phi$ using $g$ with an optimizer.
 
 </Algorithm>
 
-### Temporal Difference
+### Temporal Difference Learning
 
-Temporal difference (TD) learning 通过相邻两步的转换关系来近似函数。注意到，
-
-$$
-V^\pi(s) =\mathbb{E}^\pi[r_0 + \gamma V^\pi(s_1)\mid s_0=s]
-$$
-
-与前面的方法类似，我们先采样然后使用 MC 来进行估计
+Temporal difference (TD) learning 通过相邻两步的转换关系来近似 value function. 注意到：
 
 $$
-V^\pi(s) =\mathbb{E}^\pi[r_0 + \gamma V^\pi(s_1)\mid s_0=s]\approx \frac{1}N\sum_{i=1}^N\left(r_0^{(i)} + \gamma V^\pi(s_1^{(i)})\right)
+V^{\pi}(s_t) = \mathbb{E}^{\pi}[r_t + \gamma V^{\pi}(s_{t+1}) \mid s_t]
 $$
 
-同样的，当 $\mathcal{S}$ 比较大或者连续时，我们构造损失函数
+**定义 (TD target)**:
 
 $$
-\min_{\phi} \mathcal{L}(\phi) =\mathbb{E}_{s\sim p_0}\left[\frac12\left(V_\phi(s)-V^\pi(s)\right)^2\right]
+\overline{V}_t = r_t + \gamma V^{\pi}(s_{t+1})
 $$
 
-对应的梯度为
+**定义 (TD error)**:
 
 $$
-\nabla_\phi \mathcal{L}(\phi) =\mathbb{E}_{s\sim p_0}^\pi\left[\left(V_\phi(s)- r_0-\gamma V^\pi(s_1)\right)\nabla_\phi V_\phi(s)\mid s_0=s\right]
+\delta_t = V^{\pi}(s_t) - \left(r_t + \gamma V^{\pi}(s_{t+1})\right)
 $$
 
-但是，这里存在的问题在于，我们使用了 $V^\pi(s_1)$, 而这个值是未知的，因此，一个做法是使用当前的 value function $V_\phi$ 来进行代替，即
+TD learning 本质上就是**通过新的信息和新的预测来更新旧的预测**.
+
+当 $\mathcal{S}$ 比较大或连续时，我们构造损失函数：
 
 $$
-\nabla_\phi \mathcal{L}(\phi) \approx \mathbb{E}_{s\sim p_0}^\pi\left[\left(V_\phi(s)- r_0-\gamma V_\phi(s_1)\right)\nabla_\phi V_\phi(s)\mid s_0=s\right]
+\min_{\phi} \mathcal{L}(\phi) = \mathbb{E}_{s \sim p_0}\left[\frac{1}{2}\left(V_{\phi}(s) - V^{\pi}(s)\right)^2\right] = \mathbb{E}_{s \sim p_0}\left[\frac{1}{2}\left(V_{\phi}(s) - r_0 - \gamma V^{\pi}(s_1)\right)^2\right]
 $$
 
-这样，我们结合 TD 和 GSD 的算法就变成了
+对应的梯度为：
+
+$$
+\nabla_{\phi} \mathcal{L}(\phi) = \mathbb{E}_{s \sim p_0}^{\pi}\left[\left(V_{\phi}(s) - r_0 - \gamma \boxed{V^{\pi}(s_1)}\right)\nabla_{\phi} V_{\phi}(s) \mid s_0 = s\right]
+$$
+
+这里使用了 $V^{\pi}(s_1)$, 但这个值是未知的. 因此一个做法是使用当前的 value function $V_{\phi}$ 来进行代替：
+
+$$
+\nabla_{\phi} \mathcal{L}(\phi) \approx \mathbb{E}_{s \sim p_0}^{\pi}\left[\left(V_{\phi}(s) - r_0 - \gamma V_{\phi}(s_1)\right)\nabla_{\phi} V_{\phi}(s) \mid s_0 = s\right]
+$$
+
+结合 TD 和 SGD 的 naive 算法如下：
 
 <Algorithm title="Value function approximation with TD (not correct)">
 
 **while** not converged:
 
-1. $s_0\sim p_0$, $a_0\sim\pi(\cdot\mid s_0)$, $(r_0,s_1)\sim p(\cdot, \cdot\mid s_0,a_0)$.
+1. $s_0 \sim p_0$, $a_0 \sim \pi(\cdot \mid s_0)$, $(r_0, s_1) \sim p(\cdot, \cdot \mid s_0, a_0)$.
 2. $$
-   y=\begin{cases}
-   r_0+\gamma V_\phi(s_1),& \text{if } s_1\neq \langle term\rangle\\
-   r_0 & \text{otherwise}
+   y = \begin{cases}
+   r_0 + \gamma V_{\phi}(s_1), & \text{if } s_1 \neq \langle\text{term}\rangle \\
+   r_0,                        & \text{otherwise}
    \end{cases}
    $$
-3. $g=(V_{\phi}(s_0)- y)\nabla_\phi V_{\phi}(s_0)$.
+3. $g = (V_{\phi}(s_0) - y) \nabla_{\phi} V_{\phi}(s_0)$.
 4. Update $\phi$ using $g$ with an optimizer.
 
 </Algorithm>
 
-接下来，我们需要关注如何计算 $g$,  直接通过 $g=\left(V_\phi(s)- r_0-\gamma V_\phi(s_1)\right)\nabla_\phi V_\phi(s)$ 来进行计算，这在数学上是没有问题的，但是从自动微分的角度不对，比如 Pytorch 对应的实现应该是
+### Stop-Gradient Analysis
+
+尽管上述算法在数学上是正确的，但从自动微分的角度来看是不正确的. 比如 PyTorch 对应的实现应该是：
 
 ```python
 pred = V_phi(s0)
 target = r + gamma * V_phi(s1)
-td_error = pred - target    
+td_error = pred - target
 loss = 0.5 * td_error ** 2
 loss.backward()
 ```
 
-可以看到，我们实际上求的梯度是
+可以看到，实际求的梯度是：
 
 $$
-\nabla_\phi\left[\frac12\left(V_\phi(s)-(r+\gamma V_\phi(s'))\right)^2\right]=(V_\phi(s)-(r+\gamma V_\phi(s'))(\nabla_\phi V_\phi(s)-\nabla_\phi V_\phi(s'))
+\nabla_{\phi}\left[\frac{1}{2}\left(V_{\phi}(s) - (r + \gamma V_{\phi}(s'))\right)^2\right] = (V_{\phi}(s) - (r + \gamma V_{\phi}(s')))(\nabla_{\phi} V_{\phi}(s) - \nabla_{\phi} V_{\phi}(s'))
 $$
 
-这显然与 $g$ 不相等。
+这显然与 $g$ 不相等.
 
-为了解决这个问题，我们需要使用 [stop-gradient](stop-gradient.md) 的技巧来避免 $V_\phi(s')$ 参与反向传播，这个时候，我们的目标函数就变成了
+为了解决这个问题，需要使用 **stop-gradient** 技巧来避免 $V_{\phi}(s')$ 参与反向传播，此时目标函数变为：
 
 $$
-\frac12\left(V_\phi(s)-(r+\gamma\ \mathrm{sg}[V_\phi(s')])\right)^2
+\frac{1}{2}\left(V_{\phi}(s) - (r + \gamma \, \mathrm{sg}[V_{\phi}(s')])\right)^2
 $$
 
-其中 $\mathrm{sg}[\cdot]$ 是 stop-gradient operator, 满足
+其中 $\mathrm{sg}[\cdot]$ 是 stop-gradient operator, 满足：
 
 $$
 \mathrm{sg}[x] = \begin{cases}
-x &\text{forward pass}\\
-0 &\text{backward pass}
+x & \text{forward pass} \\
+0 & \text{backward pass}
 \end{cases}
 $$
 
-这样其梯度就是
+这样其梯度就是：
 
 $$
-\nabla_\phi\left[\frac12\left(V_\phi(s)-(r+\gamma\ \mathrm{sg}[V_\phi(s')])\right)^2\right]=(V_\phi(s)-(r+\gamma V_\phi(s'))\nabla_\phi V_\phi(s)=g
+\nabla_{\phi}\left[\frac{1}{2}\left(V_{\phi}(s) - (r + \gamma \, \mathrm{sg}[V_{\phi}(s')])\right)^2\right] = (V_{\phi}(s) - (r + \gamma V_{\phi}(s')))\nabla_{\phi} V_{\phi}(s) = g
 $$
 
-对应的 python 代码为
+对应的 Python 代码为：
 
 ```python
 pred = V_phi(s0)
 target = r + gamma * V_phi(s1)
-td_error = pred - target.detach()  # sop gradient operator
+td_error = pred - target.detach()  # stop-gradient operator
 loss = 0.5 * td_error ** 2
 loss.backward()
 ```
 
-最终，我们的算法实现为
+最终，正确的 TD 算法如下：
 
 <Algorithm title="Value function approximation with TD">
 
 **while** not converged:
 
-1. $s_0\sim p_0$, $a_0\sim\pi(\cdot\mid s_0)$, $(r_0,s_1)\sim p(\cdot, \cdot\mid s_0,a_0)$.
+1. $s_0 \sim p_0$, $a_0 \sim \pi(\cdot \mid s_0)$, $(r_0, s_1) \sim p(\cdot, \cdot \mid s_0, a_0)$.
 2. $$
-   y=\begin{cases}
-   r_0+\gamma\, \mathrm{sg}[V_\phi(s_1)],& \text{if } s_1\neq \langle term\rangle\\
-   r_0 & \text{otherwise}
+   y = \begin{cases}
+   r_0 + \gamma \, \mathrm{sg}[V_{\phi}(s_1)], & \text{if } s_1 \neq \langle\text{term}\rangle \\
+   r_0,                                         & \text{otherwise}
    \end{cases}
    $$
-3. $g=(V_{\phi}(s_0)- y)\nabla_\phi V_{\phi}(s_0)$.
+3. $g = (V_{\phi}(s_0) - y) \nabla_{\phi} V_{\phi}(s_0)$.
 4. Update $\phi$ using $g$ with an optimizer.
 
 </Algorithm>
 
-上述这种做法其实是 semi-gradient methods, 这类方法在参数更新时，只计算部分梯度的方法。虽然这种方法牺牲了严格的梯度下降性质，但是其能够保证更好的表现。
+<Note variant="warn" emoji="⚠️">
+上述做法其实是 **semi-gradient methods**, 这类方法在参数更新时，只计算部分梯度。虽然这种方法牺牲了严格的梯度下降性质，但是其能够保证更好的表现.
+</Note>
 
-### K-step TD
+### k-step TD
 
-我们可以进一步推广 TD 到多步的场景，注意到
-
-$$
-\begin{align}
-V^\pi(s) &=\mathbb{E}^\pi[r_0 + \gamma V^\pi(s_1)\mid s_0=s]\\
-&=\mathbb{E}^\pi[r_0 + \gamma \mathbb{E}^\pi[r_1 + \gamma V^\pi(s_1)\mid s_1]\mid s_0=s]\\
-&= \mathbb{E}^\pi[\mathbb{E}^\pi[r_0 + \gamma r_1 + \gamma^2 V^\pi(s_2) \mid s_1] \mid s_0=s] 
-\end{align}
-$$
-
-由重期望定理（Law of Total Expectation）：
+我们可以进一步推广 TD 到多步场景，注意到：
 
 $$
-\mathbb{E}^\pi[\mathbb{E}^\pi[X \mid s_1] \mid s_0=s] = \mathbb{E}^\pi[X \mid s_0=s]
+\begin{aligned}
+V^{\pi}(s) &= \mathbb{E}^{\pi}[r_0 + \gamma V^{\pi}(s_1) \mid s_0 = s] \\
+&= \mathbb{E}^{\pi}[r_0 + \gamma \mathbb{E}^{\pi}[r_1 + \gamma V^{\pi}(s_2) \mid s_1] \mid s_0 = s] \\
+&= \mathbb{E}^{\pi}[\mathbb{E}^{\pi}[r_0 + \gamma r_1 + \gamma^2 V^{\pi}(s_2) \mid s_1] \mid s_0 = s]
+\end{aligned}
 $$
 
- 因此：
+由重期望定理 (Law of Total Expectation)：
 
 $$
-V^\pi(s) = \mathbb{E}^\pi[r_0 + \gamma r_1 + \gamma^2 V^\pi(s_2) \mid s_0=s]
+\mathbb{E}^{\pi}[\mathbb{E}^{\pi}[X \mid s_1] \mid s_0 = s] = \mathbb{E}^{\pi}[X \mid s_0 = s]
 $$
 
-重复这个过程 k 次,得到 k 步展开：
+因此：
 
 $$
-\begin{align} V^\pi(s) &= \mathbb{E}^\pi\left[\sum_{i=0}^{k-1} \gamma^i r_i + \gamma^k V^\pi(s_k) \mid s_0=s\right] \end{align}
-$$ 
-
-现在，我们可以基于 k-step transition 构建目标函数
-
-$$
-\min_{\phi} \mathcal{L}(\phi) =\mathbb{E}_{s\sim p_0}\left[\frac12\left(V_\phi(s)-\left(\sum_{i=0}^{k-1} \gamma^i r_i + \gamma^k V^\pi(s_k)\right)\right)^2\right]
+V^{\pi}(s) = \mathbb{E}^{\pi}[r_0 + \gamma r_1 + \gamma^2 V^{\pi}(s_2) \mid s_0 = s]
 $$
 
-使用前面分析的方法，我们就可以写出类似的算法
+重复这个过程 k 次，得到 k 步展开：
+
+$$
+V^{\pi}(s) = \mathbb{E}^{\pi}\left[\sum_{i=0}^{k-1} \gamma^i r_i + \gamma^k V^{\pi}(s_k) \mid s_0 = s\right]
+$$
+
+基于 k-step transition 构建目标函数并应用 stop-gradient：
 
 <Algorithm title="Value function approximation with k-step TD">
 
 **while** not converged:
 
-1. $s_0\sim p_0$, set $t=0$, $T=\infty$.
-2. **for** $t=0,\ldots,k-1$:
-    - $a_t\sim\pi(\cdot\mid s_t)$
-    - $(r_t,s_{t+1})\sim p(\cdot, \cdot\mid s_t,a_t)$
-3. $y=\sum_{t=0}^{k-1}\gamma^tr_t+\gamma^k \mathrm{sg}[V_\phi(s_k)]$.
-4. $g=(V_{\phi}(s_0)- y)\nabla_\phi V_{\phi}(s_0)$.
+1. $s_0 \sim p_0$, set $t = 0$.
+2. **for** $t = 0, \ldots, k-1$:
+    - $a_t \sim \pi(\cdot \mid s_t)$
+    - $(r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)$
+3. $ y = \begin{cases}
+   \sum_{t=0}^{k-1} \gamma^t r_t + \gamma^k \, \mathrm{sg}[V_{\phi}(s_k)], & \text{if } s_k \neq \langle\text{term}\rangle \\
+   \sum_{t=0}^{k-1} \gamma^t r_t, & \text{otherwise}
+   \end{cases} $
+4. $g = (V_{\phi}(s_0) - y) \nabla_{\phi} V_{\phi}(s_0)$.
 5. Update $\phi$ using $g$ with an optimizer.
 
 </Algorithm>
 
-一般来说，我们会令 $k=5$.
+一般来说，$k = 5$ 是一个常用的选择.
 
 ### MC v.s. TD
 
-TD 本质上一种 bootstrapping, 当需要使用 $V^\pi$ 时，我们使用 $V_\phi$ 来代替。两者对比如下
+| 方法 | 特点 |
+| :--: | :--- |
+| MC | 需要完整的一次采样，无偏但 variance 高 |
+| TD | 通过 bootstrap 提高采样效率，有偏但 variance 低 |
 
-1. MC 需要完整的一次采样，但是 TD 可以通过 bootstrap 提高采样效率。
-2. 当 $V_\phi$ 与 $V^\pi$ 差距较大时，boostraping 会导致训练不稳定，而 MC 则相对稳定
+TD 本质上是 bootstrap: 当需要使用 $V^{\pi}$ 时，用 $V_{\phi}$ 来代替. 当 $V_{\phi}$ 与 $V^{\pi}$ 差距较大时，bootstrap 会导致训练不稳定，而 MC 则相对稳定.
 
-### Q-function
+### Q-Function Evaluation
 
-对于 Q-function, 我们也可以设计类似的算法。
+对于 Q-function, 我们也可以设计类似的算法.
 
-对于 MC, 我们有
-
-$$
-Q^{\pi}(s,a) = \mathbb{E}^{\pi}\left[\sum_{t=0}^{T-1}\gamma^tr_t\mid s_0=s, a_0=a\right]\approx \frac1N\sum_{i=1}^N\sum_{t=0}^{T^{(i)}-1}\gamma^tr_t^{(i)}
-$$
-
-当使用模型来近似时，我们的目标函数为
+对于 MC, 有：
 
 $$
-\min_{\phi} \mathcal{L}(\phi) =\mathbb{E}_{s\sim p_0, a\sim\pi(\cdot\mid s)}\left[\frac12\left(Q_\phi(s,a)-Q^\pi(s,a)\right)^2\right]
+Q^{\pi}(s, a) = \mathbb{E}^{\pi}\left[\sum_{t=0}^{T-1} \gamma^t r_t \mid s_0 = s, a_0 = a\right] \approx \frac{1}{N} \sum_{i=1}^{N} \sum_{t=0}^{T^{(i)}-1} \gamma^t r_t^{(i)}
 $$
 
-对应的梯度
+当使用模型来近似时，目标函数为：
 
 $$
-\nabla_\phi \mathcal{L}(\phi)= \mathbb{E}_{s\sim p_0}^\pi\left[\left(Q_\phi(s_0,a_0)-\sum_{t=0}^{T-1}\gamma^tr_t\right)\nabla_\phi Q_\phi(s_0,a_0)\right]
+\min_{\phi} \mathcal{L}(\phi) = \mathbb{E}_{s \sim p_0, \, a \sim \pi(\cdot \mid s)}\left[\frac{1}{2}\left(Q_{\phi}(s, a) - Q^{\pi}(s, a)\right)^2\right]
 $$
 
-下面是对应的算法
+对应的梯度：
 
-MC
+$$
+\nabla_{\phi} \mathcal{L}(\phi) = \mathbb{E}_{s \sim p_0, \, a \sim \pi(\cdot \mid s)}^{\pi}\left[\left(Q_{\phi}(s_0, a_0) - \sum_{t=0}^{T-1} \gamma^t r_t\right)\nabla_{\phi} Q_{\phi}(s_0, a_0)\right]
+$$
 
-<Algorithm title="Q function approximation with MC">
+<Algorithm title="Q-function approximation with MC">
 
 **while** not converged:
 
-1. $s_0\sim p_0$, $a_0\sim\pi(\cdot\mid s_0)$, set $t=0$.
-2. **while** $s_t\neq \langle term\rangle$:
-    - $a_t\sim \pi(\cdot\mid s_t)$
-    - $(r_t,s_{t+1})\sim p(\cdot,\cdot\mid s_t,a_t)$
-    - $t\gets t+1$
-3. Set $T=t$.
-4. $g=\left(Q_\phi(s_0,a_0)-\sum_{t=0}^{T-1}\gamma^tr_t\right)\nabla_\phi Q_\phi(s_0,a_0)$.
+1. $s_0 \sim p_0$, $a_0 \sim \pi(\cdot \mid s_0)$, set $t = 0$.
+2. **while** $s_t \neq \langle\text{term}\rangle$:
+    - $a_t \sim \pi(\cdot \mid s_t)$
+    - $(r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)$
+    - $t \gets t + 1$
+3. Set $T = t$.
+4. $g = \left(Q_{\phi}(s_0, a_0) - \sum_{t=0}^{T-1} \gamma^t r_t\right) \nabla_{\phi} Q_{\phi}(s_0, a_0)$.
 5. Update $\phi$ using $g$ with an optimizer.
 
 </Algorithm>
 
-1-step Q-function TD learning
-
-<Algorithm title="Q function approximation with TD">
+<Algorithm title="Q-function approximation with TD">
 
 **while** not converged:
 
-1. $s_0\sim p_0$, $a_0\sim\pi(\cdot\mid s_0)$, $(r_0,s_1)\sim p(\cdot, \cdot\mid s_0,a_0)$, $a_1\sim\pi(\cdot\mid s_1)$.
+1. $s_0 \sim p_0$, $a_0 \sim \pi(\cdot \mid s_0)$, $(r_0, s_1) \sim p(\cdot, \cdot \mid s_0, a_0)$, $a_1 \sim \pi(\cdot \mid s_1)$.
 2. $$
-   y=\begin{cases}
-   r_0+\gamma\, \mathrm{sg}[Q_\phi(s_1,a_1)],& \text{if } s_1\neq \langle term\rangle\\
-   r_0 & \text{otherwise}
+   y = \begin{cases}
+   r_0 + \gamma \, \mathrm{sg}[Q_{\phi}(s_1, a_1)], & \text{if } s_1 \neq \langle\text{term}\rangle \\
+   r_0,                                               & \text{otherwise}
    \end{cases}
    $$
-3. $g=\left(Q_\phi(s_0,a_0)-y\right)\nabla_\phi Q_\phi(s_0,a_0)$.
+3. $g = \left(Q_{\phi}(s_0, a_0) - y\right) \nabla_{\phi} Q_{\phi}(s_0, a_0)$.
 4. Update $\phi$ using $g$ with an optimizer.
 
 </Algorithm>
 
-k-step Q-function TD learning
-
-<Algorithm title="Q function approximation with k-step TD">
+<Algorithm title="Q-function approximation with k-step TD">
 
 **while** not converged:
 
-1. $s_0\sim p_0$, set $t=0$, $T=\infty$.
-2. **for** $t=0,\ldots,k-1$:
-    - $a_t\sim\pi(\cdot\mid s_t)$
-    - $(r_t,s_{t+1})\sim p(\cdot, \cdot\mid s_t,a_t)$
-3. $y=\sum_{t=0}^{k-1}\gamma^tr_t+\gamma^k \mathrm{sg}[Q_\phi(s_k,a_k)]$
-4. $g=(Q_{\phi}(s_0,a_0)- y)\nabla_\phi Q_{\phi}(s_0,a_0)$
+1. $s_0 \sim p_0$, set $t = 0$.
+2. **for** $t = 0, \ldots, k-1$:
+    - $a_t \sim \pi(\cdot \mid s_t)$
+    - $(r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)$
+3. $y = \sum_{t=0}^{k-1} \gamma^t r_t + \gamma^k \, \mathrm{sg}[Q_{\phi}(s_k, a_k)]$
+4. $g = (Q_{\phi}(s_0, a_0) - y) \nabla_{\phi} Q_{\phi}(s_0, a_0)$
 5. Update $\phi$ using $g$ with an optimizer.
 
 </Algorithm>
 
 ### Policy Iteration Methods
 
-介绍完 policy evaluation 之后，我们可以设计针对 policy 的 policy iteration 算法，其基本思想是交替进行 policy evaluation 和 policy improvement.
+介绍完 policy evaluation 之后，我们可以设计 policy iteration 算法，其基本思想是交替进行 policy evaluation 和 policy improvement:
 
 $$
-\begin{align}
-&\text{Compute }V^{\pi^k} \text{ and }Q^{\pi^k}\tag{Policy evaluation}\\
-&\pi^{k+1}(s) = \arg\max_{a\in\mathcal{A}}\mathbb{E}_{a\sim \pi(\cdot\mid s),\ (r,s')\sim p(\cdot,\cdot\mid s,a_0))}\left[r+\gamma V^{\pi^k}(s')\mid s,a\right]\tag{Policy improvement}
-\end{align}
+\begin{aligned}
+&\text{Compute } V^{\pi^k} \text{ and } Q^{\pi^k} &\quad&\text{(Policy evaluation)} \\
+&\pi^{k+1}(s) = \arg\max_{a \in \mathcal{A}} \mathbb{E}_{(r, s') \sim p(\cdot, \cdot \mid s, a)}\left[r + \gamma V^{\pi^k}(s') \mid s, a\right] &\quad&\text{(Policy improvement)}
+\end{aligned}
 $$
 
-policy iteration 算法的正确性如下
-
-**Theorem**
-
-> 考虑上面的 policy iteration 算法，假设 $\gamma\in(0,1)$, $|\mathcal{S}|<\infty$ $|\mathcal{A}|<\infty$ 以及 $|r|\leq R<\infty, \mathrm{a.s.}$.  那么
+**Theorem**: 考虑上述 policy iteration 算法，假设 $\gamma \in (0, 1)$, $|\mathcal{S}| < \infty$, $|\mathcal{A}| < \infty$ 以及 $|r| \leq R < \infty$, a.s. 那么：
 
 $$
-V^{\pi^{k+1}}\geq V^{\pi^k},k=1,2,\dots
+V^{\pi^{k+1}} \geq V^{\pi^k}, \quad k = 1, 2, \dots
 $$
 
-> 并且，存在 $K\in\mathbb{N}$ 满足 $V^{\pi^k}=V^*$. 也就是说，有限步之后，我们就可以得到最优策略。
-
-**证明**
-
-由于 $V^{\pi^{k+1}}, V^{\pi^k}$ 是 value function, 因此它们满足 Bellman equation
-
-$$
-\begin{align}
-V^{\pi^{k+1}} &= \mathbb{E}_{a\sim \pi(\cdot\mid s),\ (r,s')\sim p(\cdot,\cdot\mid s,a_0))}\left[r^{k+1}+\gamma V^{\pi^{k+1}}(s')\mid s\right]\\
-V^{\pi^{k}} &= \mathbb{E}_{a\sim \pi(\cdot\mid s),\ (r,s')\sim p(\cdot,\cdot\mid s,a_0))}\left[r^k+\gamma V^{\pi^{k}}(s')\mid s\right]
-\end{align}
-$$
-
-因为
-
-$$
-\pi^{k+1}(s) = \arg\max_{a\in\mathcal{A}}\mathbb{E}_{a\sim \pi(\cdot\mid s),\ (r,s')\sim p(\cdot,\cdot\mid s,a_0))}\left[r+\gamma V^{\pi^k}(s')\mid s,a\right]
-$$
-
-我们有
-
-$$
-r+\gamma V^{\pi^{k+1}}(s') \geq r+\gamma V^{\pi^k}(s')
-$$
-
-从而 $V^{\pi^{k+1}}\geq V^{\pi^k}$. $\blacksquare$
-
-### Experiments
-
+并且存在 $K \in \mathbb{N}$ 满足 $V^{\pi^K} = V^*$. 也就是说，有限步之后就可以得到最优策略.
