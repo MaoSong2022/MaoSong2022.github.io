@@ -185,7 +185,7 @@ const bibKey = `${keyAuthor}${year ?? ""}_${keyTitle}`;
 const doi = (ArticleMod as any)?.frontmatter?.doi
   ? String((ArticleMod as any).frontmatter.doi)
   : undefined;
-const bibtex = `@misc{${bibKey},\n  title={${titleFlat}},\n  author={${authorsBib}},\n  ${year ? `year={${year}},\n  ` : ""}${doi ? `doi={${doi}}` : ""}\n}`;
+const bibtex = `@misc{${bibKey},\n  title={${titleFlat}},\n  author={${authorsBib}},\n  ${year ? `year={${year}},\n  ` : ""}${doi ? `doi={${doi}},\n  ` : ""}url={${Astro.url.href}}\n}`;
 const envCollapse = false;
 const tableOfContentAutoCollapse = Boolean(
   (articleFM as any)?.tableOfContentAutoCollapse ??
