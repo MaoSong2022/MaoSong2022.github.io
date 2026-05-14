@@ -56,7 +56,7 @@ DQN 的两个关键技术：
 
 1. **Experience Replay**: 使用 replay buffer 存储过去的 transitions，从中随机采样进行训练。这打破了数据之间的相关性，提高了样本效率.
 2. **Target Network**: 使用一个独立的 target network $Q_{\phi^{-}}$ 来计算 TD target, 其参数 $\phi^{-}$ 定期从 $\phi$ 复制（或通过 Polyak averaging 更新）。这稳定了训练过程.
-   </Note>
+</Note>
 
 带有 target network 和 stop-gradient 的 DQN 目标函数为：
 

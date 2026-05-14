@@ -1,8 +1,8 @@
-import Image from '../../../components/Image.astro';
-import FullWidth from '../../../components/FullWidth.astro';
-import Note from '../../../components/Note.astro';
+import Image from "../../../components/Image.astro";
+import FullWidth from "../../../components/FullWidth.astro";
+import Note from "../../../components/Note.astro";
 
-import RL4LLM_process from '../../../assets/image/RL-process.png';
+import RL4LLM_process from "../../../assets/image/RL-process.png";
 
 ## RL Basics
 
@@ -38,6 +38,7 @@ RL 的数学建模依赖于 Markov Decision Process, 下面我们先介绍相关
 ### Trajectory
 
 > Trajectory (rollout) 定义为 agent 与环境完整的一次交互过程：
+>
 > $$
 > \tau = (s_0, a_0, r_0, s_1, a_1, r_1, \ldots, s_{T-1}, a_{T-1}, r_{T-1}, s_T)
 > $$
@@ -56,9 +57,11 @@ $$
 ### Expected Return
 
 > Expected (discounted) return 定义为：
+>
 > $$
 > R(\tau) = \sum_{t=0}^{T-1} \gamma^t r_t
 > $$
+>
 > 其中 $\gamma \in (0, 1]$ 是 **discount factor**, 用于将未来的奖励折现到当前时刻。
 
 我们还会使用另一个符号 $G_0$ 来表示 expected return：
@@ -76,7 +79,7 @@ $$
 ### Objective of RL
 
 <Note variant="info">
-**Reward Hypothesis**: 所有的目标都可以被描述为最大化 expected return.
+  **Reward Hypothesis**: 所有的目标都可以被描述为最大化 expected return.
 </Note>
 
 RL 的最终目标为最大化 expected return, 形式化为：
@@ -99,34 +102,34 @@ $$
 
 RL 和 LLM 的对应关系如下：
 
-| RL              | LLM                                   |
-| :-------------: | :-----------------------------------: |
-| policy $\pi$    | LLM $\mathrm{LLM}(\cdot \mid y_{<i}, x)$ |
-| initial state $s_0$ | prompt $x$                         |
-| action $a_t$    | current token $y_i$                   |
-| state $s_t$     | context $(y_{<i}, x)$                 |
+|         RL          |                   LLM                    |
+| :-----------------: | :--------------------------------------: |
+|    policy $\pi$     | LLM $\mathrm{LLM}(\cdot \mid y_{<i}, x)$ |
+| initial state $s_0$ |                prompt $x$                |
+|    action $a_t$     |           current token $y_i$            |
+|     state $s_t$     |          context $(y_{<i}, x)$           |
 
 <Note variant="warn">
 注意到我们并没有对 environment 和 reward 进行建模，可以这样理解：
 
 1. LLM 中的 environment 仅仅是对 token 进行简单拼接：$s_{t+1} = \mathrm{concat}(y_i, s_t)$.
 2. Reward 由 verifier, reward model (PRM, ORM) 或者 human feedback 给定.
-</Note>
+   </Note>
 
 ### Action Space and State Space for LLM
 
 - action = token index $y_i$ $\Rightarrow$ Action space = vocabulary of the LLM
 - state = context $(y_{<i}, x)$ $\Rightarrow$ State space = all possible contexts of the LLM
 
-| 模型类别 | 模型名称 | 词表大小 |
-| :------: | :------: | :------: |
-| 商业闭源 | GPT-5 | $\sim$200,000 |
-| | Claude Sonnet 3.7 | $\sim$100,000 |
-| | Gemini 3.0 | $\sim$256,144 |
-| 主流开源 | Qwen 3 | 151,936 |
-| | DeepSeek-V3 | 129,280 |
-| | MiniMax-M2.5 | 200,064 |
-| | GLM-5 | 154,880 |
+| 模型类别 |     模型名称      |   词表大小    |
+| :------: | :---------------: | :-----------: |
+| 商业闭源 |       GPT-5       | $\sim$200,000 |
+|          | Claude Sonnet 3.7 | $\sim$100,000 |
+|          |    Gemini 3.0     | $\sim$256,144 |
+| 主流开源 |      Qwen 3       |    151,936    |
+|          |    DeepSeek-V3    |    129,280    |
+|          |   MiniMax-M2.5    |    200,064    |
+|          |       GLM-5       |    154,880    |
 
 LLM 中，action space ($|V|$) 非常大，state space ($|V|^i$) 更大。
 
