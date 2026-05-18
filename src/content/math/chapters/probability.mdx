@@ -1,0 +1,35 @@
+import Definition from '../../../components/Definition.astro'
+import Theorem from '../../../components/Theorem.astro'
+import Image from '../../../components/Image.astro';
+
+## Probability
+
+### Estimator
+
+首先我们给出估计 (estimator) 的概念：
+
+给定一个随机变量 $X\sim p$, 令 $x_1,\dots,x_n\sim p$ 为 $X$ 的采样， 我们可以基于 $x_1,\dots,x_n$ 构造一个关于 $X$ 的估计 $u(x_1,\dots,x_n)$, 比如，我们可以令
+
+$$
+u(x_1,\dots,x_n) = \frac{1}{n}x_i
+$$
+
+来估计均值 $\mathbb{E}[X]$.
+
+注意到，我们的估计 $u$ 与我们采样的数据 $x_1,\dots,x_n$ 有关，而 $x_1,\dots,x_n$ 它们本身也存在一定随机性，我们用 $u(X_1,\dots,X_n)$来表示这种随机性。
+接下来，基于估计的性质，我们可以给不同的估计进行分类。
+首先，是无偏估计的定义：
+
+<Definition term='Unbiased Estimator'>
+如果说
+
+$$
+\mathbb{E}[u(X_1,\dots,X_n)]=X
+$$
+
+则我们说 $u(X_1,\dots,X_n)$ 是随机变量 $X$ 的一个无偏估计 (unbiased estimator).
+</Definition>
+
+### Law of Total Expectation
+
+TODO
