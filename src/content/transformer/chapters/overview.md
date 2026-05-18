@@ -1,6 +1,4 @@
 
-
-
 ## Introduction
 
 Transformer is a neural architecture that is used for neural language processing. Transformer receives an embedding matrix, which represents a sentence as input, and outputs a matrix of the same size as the embedding matrix, then the output can be used for downstream tasks.
