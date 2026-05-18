@@ -1,5 +1,7 @@
 import Algorithm from '../../../components/Algorithm.astro';
 import Note from '../../../components/Note.astro';
+import Definition from '../../../components/Definition.astro'
+import Theorem from '../../../components/Theorem.astro'
 
 ## Policy Evaluation
 
@@ -92,19 +94,22 @@ $$
 V^{\pi}(s_t) = \mathbb{E}^{\pi}[r_t + \gamma V^{\pi}(s_{t+1}) \mid s_t]
 $$
 
-**定义 (TD target)**:
+<Definition term='TD Learning'>
+
+TD learning 是一个**通过新的信息和新的预测来更新旧的预测**的学习范式.
+对于 value function, 我们定义 **TD target** 为:
 
 $$
 \overline{V}_t = r_t + \gamma V^{\pi}(s_{t+1})
 $$
 
-**定义 (TD error)**:
+定义 **TD error** 为
 
 $$
 \delta_t = V^{\pi}(s_t) - \left(r_t + \gamma V^{\pi}(s_{t+1})\right)
 $$
 
-TD learning 本质上就是**通过新的信息和新的预测来更新旧的预测**.
+</Definition>
 
 当 $\mathcal{S}$ 比较大或连续时，我们构造损失函数：
 
@@ -353,6 +358,10 @@ $$
 \end{aligned}
 $$
 
+算法的正确性由如下定理保证
+
+<Theorem>
+
 **Theorem**: 考虑上述 policy iteration 算法，假设 $\gamma \in (0, 1)$, $|\mathcal{S}| < \infty$, $|\mathcal{A}| < \infty$ 以及 $|r| \leq R < \infty$, a.s. 那么：
 
 $$
@@ -360,3 +369,8 @@ V^{\pi^{k+1}} \geq V^{\pi^k}, \quad k = 1, 2, \dots
 $$
 
 并且存在 $K \in \mathbb{N}$ 满足 $V^{\pi^K} = V^*$. 也就是说，有限步之后就可以得到最优策略.
+</Theorem>
+
+<Theorem variant='proof'>
+TODO
+</Theorem>
