@@ -11,6 +11,8 @@
 @import './components/_form.css';
 @import './components/_mermaid.css';
 @import './components/_algorithm.css';
+@import './components/_definition.css';
+@import './components/_theorem.css';
 @import './_site-pages.css';
 
 .demo-wide,

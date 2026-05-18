@@ -1,0 +1,59 @@
+.content-grid > main .article-theorem,
+.site-page .article-theorem {
+  margin: var(--spacing-4) 0 var(--block-spacing-y);
+  padding: var(--spacing-4) var(--spacing-5);
+  border: 1px solid var(--border-color);
+  border-left: 3px solid var(--primary-color);
+  border-radius: calc(var(--button-radius) * 1.25);
+  background: var(--surface-bg);
+}
+
+.article-theorem__title {
+  margin: 0 0 var(--spacing-3);
+  padding-bottom: var(--spacing-2);
+  font-size: 0.95rem;
+  font-weight: 600;
+  font-style: italic;
+  color: var(--text-color);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.article-theorem__body {
+  font-size: 0.9375rem;
+  line-height: 1.65;
+  color: var(--text-color);
+}
+
+.article-theorem__body > :first-child {
+  margin-top: 0;
+}
+
+.article-theorem__body > :last-child {
+  margin-bottom: 0;
+}
+
+.article-theorem__body .katex-display {
+  margin: var(--spacing-3) 0;
+}
+
+/* Variants */
+.article-theorem--theorem {
+  border-left-color: #4a90d9;
+}
+
+.article-theorem--lemma {
+  border-left-color: #2ecc71;
+}
+
+.article-theorem--corollary {
+  border-left-color: #9b59b6;
+}
+
+.article-theorem--proof {
+  border-left-color: var(--border-color);
+  background: color-mix(in oklab, var(--border-color) 5%, var(--surface-bg));
+}
+
+.article-theorem--proposition {
+  border-left-color: #e67e22;
+}
