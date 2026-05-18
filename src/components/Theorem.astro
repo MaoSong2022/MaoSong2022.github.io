@@ -1,0 +1,23 @@
+---
+interface Props {
+  title: string;
+  variant?: "theorem" | "lemma" | "corollary" | "proof" | "proposition";
+}
+
+const { title, variant = "theorem" } = Astro.props;
+
+const labelMap = {
+  theorem: "Theorem",
+  lemma: "Lemma",
+  corollary: "Corollary",
+  proof: "Proof",
+  proposition: "Proposition",
+} as const;
+---
+
+<figure class={`article-theorem article-theorem--${variant}`}>
+  <figcaption class="article-theorem__title">{labelMap[variant]}: {title}</figcaption>
+  <div class="article-theorem__body">
+    <slot />
+  </div>
+</figure>

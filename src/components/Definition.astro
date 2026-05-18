@@ -1,0 +1,14 @@
+---
+interface Props {
+  term: string;
+}
+
+const { term } = Astro.props;
+---
+
+<figure class="article-definition">
+  <figcaption class="article-definition__title">Definition: {term}</figcaption>
+  <div class="article-definition__body">
+    <slot />
+  </div>
+</figure>

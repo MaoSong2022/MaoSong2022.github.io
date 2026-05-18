@@ -1,0 +1,36 @@
+.content-grid > main .article-definition,
+.site-page .article-definition {
+  margin: var(--spacing-4) 0 var(--block-spacing-y);
+  padding: var(--spacing-4) var(--spacing-5);
+  border: 1px solid var(--border-color);
+  border-left: 3px solid var(--primary-color);
+  border-radius: calc(var(--button-radius) * 1.25);
+  background: var(--surface-bg);
+}
+
+.article-definition__title {
+  margin: 0 0 var(--spacing-3);
+  padding-bottom: var(--spacing-2);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-color);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.article-definition__body {
+  font-size: 0.9375rem;
+  line-height: 1.65;
+  color: var(--text-color);
+}
+
+.article-definition__body > :first-child {
+  margin-top: 0;
+}
+
+.article-definition__body > :last-child {
+  margin-bottom: 0;
+}
+
+.article-definition__body .katex-display {
+  margin: var(--spacing-3) 0;
+}
