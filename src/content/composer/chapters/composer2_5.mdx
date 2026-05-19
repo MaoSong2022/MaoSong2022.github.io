@@ -1,0 +1,58 @@
+import Glossary from "../../../components/Glossary.astro";
+import Sidenote from "../../../components/Sidenote.astro";
+
+## Composer2.5
+
+Composer 2.5 [@Composer2_5] 在 [Composer2](#Composer2) 的基础上做了如下改进：
+
+- 扩大训练规模
+- 构建更复杂的 RL 环境
+- 引入新的学习方法
+- 改进 Composer
+
+作者还改进了模型在 communication style 以及 effort calibration 等方面的行为
+
+<Glossary
+  term="Credit Assignment"
+  definition="让模型决定哪个action (token) 对模型最终的输出影响最大，从而更好地进行学习。"
+/>
+
+算法上，作者提到了 credit assignment 问题，为了解决这个这个问题，作者采用了 `targeted textual feedback` 策略，一个 on policy distillation方法 [@zhao2026selfdistilledreasoneronpolicyselfdistillation; @SDFT].
+其具体做法就是，在上下文中加入一些提示，然后将使用带有提示的prompt作为输入的model作为teacher model, 使用原始prompt作为输入的model作为student model进行 on policy distillation,
+通过这个方法我们可以提供更加dense的training signal.
+
+数据上，Composer 2.5还是用了比 Composer 2 多25倍的合成任务数据。
+
+训练上，作者使用了 Muon [@jordan2024muon] 优化器，但是对于较大的矩阵，直接进行正交花是非常慢的，因此，作者进行了针对性优化：
+
+- 针对 attention, 作者在每个 attention head 上分别进行正交化
+- 针对 MoE, 作者对每个 expert 分别进行正交化
+
+由于parallelism, 不同模块权重可能分布在不同GPU上，Newton-Schulz算法必须使用完整矩阵，因此作者设计了一套pipeline来进行计算：
+
+1. batch: 把形状一样的small tensots集中起来
+2. all-to-all: 把不同GPU上的专家权重汇总得到一个完整的矩阵
+3. compute: 执行Newton-Schulz算法
+4. all-to-all dispatch: 分发专家权重
+
+<Sidenote>
+  See [Overview of optimizers for
+  LLMs](https://maosong.website/blog/optimizer/#Muon) for more details.
+</Sidenote>
+
+在infra上，作者使用了HSDP, HSDP 针对 FSDP [@FSDP] 进行了优化，针对不同的模块使用了不同的策略：
+
+- 对于non-expert weights, 由于每个token计算都需要加载，因此作者将其限制在一个node或者一个rack上，来减少通信开销
+- 对于expert weights, 由于 MoE 稀疏激活的性质，作者使用了更大的expert sharding mesh 来提高计算效率
+
+最终，作者使用了 CP=2, EP=8 的训练配置。现在专家和非专家是解耦的，我们可以复用统一批GPU (8 GPUs):
+
+- 对于非专家权重，这 8 GPUs 可以分解为 DP4 $\times$ CP2, 通信只在2 GPU上进行
+- 对于专家权重，这 8GPUs 可以分解为 DP1 $\times$ EP8, 来减少优化器的计算和显存压力。
+
+price (per 1M tokens)
+
+| Model Variant                | Input | Output | Cache Write | Cache Read | Notes                                       |
+| ---------------------------- | ----- | ------ | ----------- | ---------- | ------------------------------------------- |
+| Composer 2.5                 | $0.50 | $2.50  | -           | $0.2       | Standard pricing                            |
+| Composer 2.5 (Fast, default) | $3.00 | $15.00 | -           | $0.5       | Same intelligence, faster speed, lower cost |
