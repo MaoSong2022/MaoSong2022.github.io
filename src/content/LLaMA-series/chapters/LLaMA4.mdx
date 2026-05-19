@@ -1,33 +1,32 @@
+import Image from "../../../components/Image.astro";
+import architecture from "../../../assets/image/architecture.png";
 
-import Image from '../../../components/Image.astro';
-import architecture from '../../../assets/image/architecture.png';
-
-# 介绍
+## LLaMA4
 
 Meta在2025年4月10号发布了LLaMA4系列，包含三个模型：Llama 4 Scout, Llama 4 Maverick 以及Llama 4 Behemoth, 三个模型都基于MoE架构，且支持多模态
 
-| Model | Layers | Heads (Q / KV) | Context Length | #Parameters (activated/total) | #Experts (activated/total)| #Tokens |
-| ----- | ------------- | ---------- | ------------- | -------------------------- | --------------------------|-----|
-| LLaMA 4 Behemoth | - |-| - | 288B / 2T | (1 shared + 1 routed) / 16 | -|
-| LLaMA 4 Maverick | 48 |40/8| 1M | 17B / 109B | (1 shared + 1 routed) / 128 | ~22T |
-| LLaMA 4 Scout | 48 |40/8| 10M | 17B / 400B | (1 shared + 1 routed) / 16 | ~40T |
+| Model            | Layers | Heads (Q / KV) | Context Length | #Parameters (activated/total) | #Experts (activated/total)  | #Tokens |
+| ---------------- | ------ | -------------- | -------------- | ----------------------------- | --------------------------- | ------- |
+| LLaMA 4 Behemoth | -      | -              | -              | 288B / 2T                     | (1 shared + 1 routed) / 16  | -       |
+| LLaMA 4 Maverick | 48     | 40/8           | 1M             | 17B / 109B                    | (1 shared + 1 routed) / 128 | ~22T    |
+| LLaMA 4 Scout    | 48     | 40/8           | 10M            | 17B / 400B                    | (1 shared + 1 routed) / 16  | ~40T    |
 
 训练数据截止到2024年8月。LLaMa4支持200多种语言，其中100多种语言的训练token数超过了1B
 
-# 亮点
+### 亮点
 
 1. 原生多模态
-LLaMA 4是一个原生多模态架构
+   LLaMA 4是一个原生多模态架构
 2. 超长上下文
-LLaMA 4的上下文超过了1M
+   LLaMA 4的上下文超过了1M
 3. iRoPE
-通过交替dense和MoE MLP来提高整体推理效率
+   通过交替dense和MoE MLP来提高整体推理效率
 4. 基于MetaCLIP的vision encoder
 5. MetaP
-使用MetaP来调整超参数
+   使用MetaP来调整超参数
 6. FP8精度训练
 
-# Pre-training
+### Pre-training
 
 LLaMA 4 仍然是一个基于transformer的架构，但是引入了MoE，其示意图如下所示
 
@@ -72,7 +71,7 @@ class Llama4UnfoldConvolution(nn.Module):
 2. FP8 precision：与 [DeepSeek-V3](/p/notes-on-deepseek-v3/) 一样，使用FP8精度进行训练
 3. mid-training：在预训练阶段之后，额外增加了一个训练阶段，来提高模型的长上下文等关键能力
 
-# Post-training
+### Post-training
 
 post-training包括三个阶段：
 
@@ -86,31 +85,31 @@ post-training包括三个阶段：
 
 DPO的目的是为了提升模型输出的质量
 
-# 评测
+### 评测
 
-|benchmark | LLaMA 4 Maverick |LLaMA 4 Maverick | LLaMA 4 Scout | Gemeni 2.0 Flash | GPT-4o |
-|---| ---| ---|---|---|---|
-|MMMU |76.1| 73.4 | 69.4| 71.7 | 69.1 |
-|Math Vista | 73.7 | 70.7| 73.1 | 63.8 |
-| ChartQA |-| 90.0 |88.8| 88.3 | 85.7|
-|DocVQA | -|94.4 | 94.4| - | 92.8|
-|LiveCodeBench|49.4| 43.4 |32.8| 34.5 | 32.3|
-|MMLU Pro|82.2 |80.5 | 74.3| 77.6| -|
-|GPQA Diamond|73.7| 69.8 |57.2| 60.1|53.6|
+| benchmark     | LLaMA 4 Maverick | LLaMA 4 Maverick | LLaMA 4 Scout | Gemeni 2.0 Flash | GPT-4o |
+| ------------- | ---------------- | ---------------- | ------------- | ---------------- | ------ |
+| MMMU          | 76.1             | 73.4             | 69.4          | 71.7             | 69.1   |
+| Math Vista    | 73.7             | 70.7             | 73.1          | 63.8             |
+| ChartQA       | -                | 90.0             | 88.8          | 88.3             | 85.7   |
+| DocVQA        | -                | 94.4             | 94.4          | -                | 92.8   |
+| LiveCodeBench | 49.4             | 43.4             | 32.8          | 34.5             | 32.3   |
+| MMLU Pro      | 82.2             | 80.5             | 74.3          | 77.6             | -      |
+| GPQA Diamond  | 73.7             | 69.8             | 57.2          | 60.1             | 53.6   |
 
-# 结论
+### 结论
 
 LLaMA 4 采用了MoE架构，是一个原生的多模态大模型系列。在架构上，与DeepSeek-MoE, aria和OLMoE不同，LLaMA4并没有增加expert granularity，[OLMoE](/p/notes-on-olmoe/)分析认为，增加granularity可以提高模型的flexibility，
 下面总结了一下相关模型的参数
 
-| Model | Layers | Heads (Q / KV) | Context Length | #Parameters (activated/total) | #Experts (activated/total)| #Tokens |
-| ----- | ------------- | ---------- | ------------- | -------------------------- | --------------------------|-----|
-|DeepSeek-MoE(144.6B)|62|32/32|2048|22.2B/144.6B|(1 shared + 7 routed)/64|245B|
-|DeepSeek-V3|61|128(MLA)|128K|37B/671B|(1 shared + 8 routed)/257|14.8T|
-|Aria|28|20/20|64K|3.5B/24.9B|(2 shared+ 6 routed)/66|6.4T(text)|
-|OLMoE|16|16/16|4096|1.3B/6.9B|8/64|5T|
-| LLaMA 4 Maverick | 48 |40/8| 1M | 17B / 109B | (1 shared + 1 routed) / 128 | ~22T |
-| LLaMA 4 Scout | 48 |40/8| 10M | 17B / 400B | (1 shared + 1 routed) / 16 | ~40T |
+| Model                | Layers | Heads (Q / KV) | Context Length | #Parameters (activated/total) | #Experts (activated/total)  | #Tokens    |
+| -------------------- | ------ | -------------- | -------------- | ----------------------------- | --------------------------- | ---------- |
+| DeepSeek-MoE(144.6B) | 62     | 32/32          | 2048           | 22.2B/144.6B                  | (1 shared + 7 routed)/64    | 245B       |
+| DeepSeek-V3          | 61     | 128(MLA)       | 128K           | 37B/671B                      | (1 shared + 8 routed)/257   | 14.8T      |
+| Aria                 | 28     | 20/20          | 64K            | 3.5B/24.9B                    | (2 shared+ 6 routed)/66     | 6.4T(text) |
+| OLMoE                | 16     | 16/16          | 4096           | 1.3B/6.9B                     | 8/64                        | 5T         |
+| LLaMA 4 Maverick     | 48     | 40/8           | 1M             | 17B / 109B                    | (1 shared + 1 routed) / 128 | ~22T       |
+| LLaMA 4 Scout        | 48     | 40/8           | 10M            | 17B / 400B                    | (1 shared + 1 routed) / 16  | ~40T       |
 
 # Reference
 
