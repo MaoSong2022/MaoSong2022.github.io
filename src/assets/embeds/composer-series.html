@@ -1,0 +1,312 @@
+<div class="composer-series"></div>
+<style>
+  .composer-series svg { display: block; }
+  .composer-series .d3-tooltip {
+    z-index: 20;
+    backdrop-filter: saturate(1.12) blur(8px);
+  }
+  .composer-series .d3-tooltip__inner {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 180px;
+  }
+  .composer-series .d3-tooltip__inner > div:first-child {
+    font-weight: 800;
+    letter-spacing: 0.1px;
+  }
+  .composer-series .d3-tooltip__inner > div:nth-child(2) {
+    font-size: 11px;
+    color: var(--muted-color);
+    margin-top: -4px;
+    margin-bottom: 2px;
+  }
+  .composer-series .d3-tooltip__inner > div:nth-child(n+3) {
+    padding-top: 6px;
+    border-top: 1px solid var(--border-color);
+  }
+  .composer-series .sota-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    background: #f59e0b;
+    color: #000;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 1px 6px;
+    border-radius: 4px;
+    letter-spacing: 0.3px;
+  }
+</style>
+<script>
+  (() => {
+    const ensureD3 = (cb) => {
+      if (window.d3 && typeof window.d3.select === 'function') return cb();
+      let s = document.getElementById('d3-cdn-script');
+      if (!s) { s = document.createElement('script'); s.id = 'd3-cdn-script'; s.src = 'https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js'; document.head.appendChild(s); }
+      const onReady = () => { if (window.d3 && typeof window.d3.select === 'function') cb(); };
+      s.addEventListener('load', onReady, { once: true }); if (window.d3) onReady();
+    };
+
+    const bootstrap = () => {
+      const scriptEl = document.currentScript;
+      let container = scriptEl ? scriptEl.previousElementSibling : null;
+      if (!(container && container.classList && container.classList.contains('composer-series'))){
+        const cs = Array.from(document.querySelectorAll('.composer-series')).filter(el => !(el.dataset && el.dataset.mounted==='true'));
+        container = cs[cs.length-1] || null;
+      }
+      if (!container) return;
+      if (container.dataset){ if (container.dataset.mounted==='true') return; container.dataset.mounted='true'; }
+
+      container.style.position = container.style.position || 'relative';
+      let tip = container.querySelector('.d3-tooltip'); let tipInner;
+      if (!tip) {
+        tip = document.createElement('div'); tip.className = 'd3-tooltip';
+        Object.assign(tip.style, { position:'absolute', top:'0px', left:'0px', transform:'translate(-9999px, -9999px)', pointerEvents:'none', padding:'10px 12px', borderRadius:'12px', fontSize:'12px', lineHeight:'1.35', border:'1px solid var(--border-color)', background:'var(--surface-bg)', color:'var(--text-color)', boxShadow:'0 8px 32px rgba(0,0,0,.28), 0 2px 8px rgba(0,0,0,.12)', opacity:'0', transition:'opacity .12s ease', backdropFilter:'saturate(1.12) blur(8px)' });
+        tipInner = document.createElement('div'); tipInner.className = 'd3-tooltip__inner'; tipInner.style.textAlign='left'; tip.appendChild(tipInner); container.appendChild(tip);
+      } else { tipInner = tip.querySelector('.d3-tooltip__inner') || tip; }
+
+      const svg = d3.select(container).append('svg').attr('width','100%').style('display','block');
+      const gRoot = svg.append('g');
+      const gGrid = gRoot.append('g').attr('class','grid');
+      const gAxes = gRoot.append('g').attr('class','axes');
+      const gBaseline = gRoot.append('g').attr('class','baseline');
+      const gLine = gRoot.append('g').attr('class','composer-line');
+      const gDots = gRoot.append('g').attr('class','dots');
+
+      let width = 800, height = 400;
+      const margin = { top: 24, right: 24, bottom: 40, left: 56 };
+      const x = d3.scaleTime();
+      const y = d3.scaleLinear();
+
+      const inlineData = [
+        { model: 'Composer 1', time: '2025-10-29', score: 38.0 },
+        { model: 'Kimi K2.5', time: '2026-02-02', score: 36 },
+        { model: 'Composer 1.5', time: '2026-02-09', score: 44.2 },
+        { model: 'Opus 4.7 (max)', time: '2026-04-16', score: 64.8 },
+        { model: 'Composer 2.0', time: '2026-03-19', score: 61.3 },
+        { model: 'Composer 2.5', time: '2026-05-18', score: 63.2 }
+      ];
+
+      const SOTA_COLOR = '#f59e0b';
+
+      function getPrimaryColor(){
+        try { if (window.ColorPalettes && typeof window.ColorPalettes.getPrimary === 'function') return window.ColorPalettes.getPrimary(); } catch(e) {}
+        return getComputedStyle(document.documentElement).getPropertyValue('--primary-color') || '#6D4AFF';
+      }
+
+      function updateSize(){
+        width = container.clientWidth || 800;
+        height = Math.max(320, Math.round(width / 2.2));
+        svg.attr('width', width).attr('height', height);
+        gRoot.attr('transform', `translate(${margin.left},${margin.top})`);
+        return { innerWidth: width - margin.left - margin.right, innerHeight: height - margin.top - margin.bottom };
+      }
+
+      function showTip(html, mx, my){
+        tip.style.transform = `translate(${mx + 12}px, ${my + 12}px)`;
+        tip.style.opacity = '1';
+        tipInner.innerHTML = html;
+      }
+      function hideTip(){
+        tip.style.opacity = '0';
+        tip.style.transform = 'translate(-9999px, -9999px)';
+      }
+
+      function render(){
+        const { innerWidth, innerHeight } = updateSize();
+        const primary = getPrimaryColor();
+
+        const composerModels = ['Composer 1', 'Composer 1.5', 'Composer 2.0', 'Composer 2.5'];
+        const composerData = inlineData.filter(d => composerModels.includes(d.model)).sort((a, b) => new Date(a.time) - new Date(b.time));
+        const baselineData = inlineData.filter(d => d.model === 'Kimi K2.5')[0];
+        const sotaData = inlineData.filter(d => d.model === 'Opus 4.7 (max)')[0];
+        const allPoints = inlineData.filter(d => true);
+
+        const allDates = allPoints.map(d => new Date(d.time));
+        const allScores = allPoints.map(d => d.score);
+
+        x.domain(d3.extent(allDates)).range([0, innerWidth]).nice();
+        const yMax = Math.max(...allScores) + 8;
+        const yMin = Math.min(...allScores) - 4;
+        y.domain([yMin, yMax]).range([innerHeight, 0]).nice();
+
+        const axisColor = 'var(--axis-color)';
+        const tickColor = 'var(--tick-color)';
+        const gridColor = 'var(--grid-color)';
+
+        const xAxis = d3.axisBottom(x).tickSizeOuter(0).ticks(6).tickFormat(d3.timeFormat('%b %Y'));
+        const yAxis = d3.axisLeft(y).ticks(6).tickSizeOuter(0).tickFormat(d => d + '%');
+
+        gGrid.selectAll('*').remove();
+        gGrid.selectAll('line.h-grid').data(y.ticks(6)).join('line')
+          .attr('class','h-grid')
+          .attr('x1', 0).attr('x2', innerWidth)
+          .attr('y1', d => y(d)).attr('y2', d => y(d))
+          .attr('stroke', gridColor).attr('stroke-width', 1);
+
+        gAxes.selectAll('*').remove();
+        gAxes.append('g').attr('transform', `translate(0,${innerHeight})`).call(xAxis)
+          .call(g => { g.selectAll('path, line').attr('stroke', axisColor); g.selectAll('text').attr('fill', tickColor).style('font-size','12px'); });
+        gAxes.append('g').call(yAxis)
+          .call(g => { g.selectAll('path, line').attr('stroke', axisColor); g.selectAll('text').attr('fill', tickColor).style('font-size','12px'); });
+
+        gAxes.append('text')
+          .attr('transform', 'rotate(-90)')
+          .attr('x', -innerHeight / 2)
+          .attr('y', -margin.left + 20)
+          .attr('text-anchor', 'middle')
+          .attr('fill', 'var(--text-color)')
+          .attr('font-size', 12)
+          .attr('font-weight', 700)
+          .text('CursorBench Score');
+
+        // Kimi K2.5 baseline (dashed line)
+        gBaseline.selectAll('*').remove();
+        const baselineScore = baselineData.score;
+        gBaseline.append('line')
+          .attr('x1', 0).attr('x2', innerWidth)
+          .attr('y1', y(baselineScore)).attr('y2', y(baselineScore))
+          .attr('stroke', 'var(--muted-color)')
+          .attr('stroke-width', 1.5)
+          .attr('stroke-dasharray', '6,4')
+          .attr('opacity', 0.8);
+        gBaseline.append('text')
+          .attr('x', innerWidth - 4)
+          .attr('y', y(baselineScore) - 6)
+          .attr('text-anchor', 'end')
+          .attr('fill', 'var(--muted-color)')
+          .attr('font-size', 11)
+          .attr('font-weight', 700)
+          .text('Kimi K2.5 baseline: ' + baselineScore);
+
+        // Composer line connecting 1 → 1.5 → 2.0 → 2.5
+        gLine.selectAll('*').remove();
+        const lineGen = d3.line()
+          .x(d => x(new Date(d.time)))
+          .y(d => y(d.score))
+          .curve(d3.curveMonotoneX);
+        gLine.append('path')
+          .attr('d', lineGen(composerData))
+          .attr('fill', 'none')
+          .attr('stroke', primary)
+          .attr('stroke-width', 2.5)
+          .attr('opacity', 0.9);
+
+        // SOTA glow (larger semi-transparent circle behind Opus)
+        if (sotaData) {
+          gDots.append('circle')
+            .attr('class', 'sota-glow')
+            .attr('cx', x(new Date(sotaData.time)))
+            .attr('cy', y(sotaData.score))
+            .attr('r', 14)
+            .attr('fill', SOTA_COLOR)
+            .attr('opacity', 0.2)
+            .attr('pointer-events', 'none');
+        }
+
+        // All dots
+        const dots = gDots.selectAll('circle.dot').data(allPoints, d => d.model);
+        dots.enter().append('circle').attr('class','dot')
+          .attr('r', 0)
+          .attr('fill', d => d.model === 'Kimi K2.5' ? 'transparent' : d.model === 'Opus 4.7 (max)' ? SOTA_COLOR : primary)
+          .attr('stroke', d => d.model === 'Kimi K2.5' ? 'var(--muted-color)' : d.model === 'Opus 4.7 (max)' ? SOTA_COLOR : primary)
+          .attr('stroke-width', d => d.model === 'Opus 4.7 (max)' ? 3 : 2)
+          .attr('cx', d => x(new Date(d.time)))
+          .attr('cy', d => y(d.score))
+          .on('mouseenter', function(ev, d){
+            const isSota = d.model === 'Opus 4.7 (max)';
+            const isBaseline = d.model === 'Kimi K2.5';
+            const color = isSota ? SOTA_COLOR : isBaseline ? 'var(--muted-color)' : primary;
+            d3.select(this).attr('r', isSota ? 10 : 7).attr('fill', isBaseline ? 'transparent' : color).attr('fill-opacity', 1);
+            const swatch = `<span style="background:${color};display:inline-block;width:10px;height:10px;border-radius:3px;vertical-align:middle;margin-right:4px;"></span>`;
+            const sotaBadge = isSota ? ' <span class="sota-badge">★ SOTA</span>' : '';
+            showTip(
+              `<div><strong>${d.model}</strong>${sotaBadge}</div>` +
+              `<div>${new Date(d.time).toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric' })}</div>` +
+              `<div style="display:flex;align-items:center;gap:6px;">${swatch}<strong>CursorBench</strong><span style="margin-left:auto;font-weight:700;">${d.score}</span></div>`,
+              ev.offsetX, ev.offsetY
+            );
+          })
+          .on('mousemove', function(ev){
+            const [mx, my] = d3.pointer(ev, container);
+            tip.style.transform = `translate(${mx + 12}px, ${my + 12}px)`;
+          })
+          .on('mouseleave', function(ev, d){
+            hideTip();
+            const isBaseline = d.model === 'Kimi K2.5';
+            d3.select(this).attr('r', d.model === 'Opus 4.7 (max)' ? 7 : isBaseline ? 5 : 6)
+              .attr('fill', isBaseline ? 'transparent' : d.model === 'Opus 4.7 (max)' ? SOTA_COLOR : primary);
+          })
+          .merge(dots)
+          .attr('cx', d => x(new Date(d.time)))
+          .attr('cy', d => y(d.score))
+          .attr('fill', d => d.model === 'Kimi K2.5' ? 'transparent' : d.model === 'Opus 4.7 (max)' ? SOTA_COLOR : primary)
+          .attr('stroke', d => d.model === 'Kimi K2.5' ? 'var(--muted-color)' : d.model === 'Opus 4.7 (max)' ? SOTA_COLOR : primary)
+          .attr('stroke-width', d => d.model === 'Opus 4.7 (max)' ? 3 : 2)
+          .attr('r', d => d.model === 'Opus 4.7 (max)' ? 7 : d.model === 'Kimi K2.5' ? 5 : 6);
+        dots.exit().remove();
+
+        // SOTA label
+        if (sotaData) {
+          const sotaLabel = gDots.selectAll('g.sota-label').data([sotaData]);
+          const sotaEnter = sotaLabel.enter().append('g').attr('class', 'sota-label');
+          sotaEnter.append('rect')
+            .attr('rx', 4).attr('ry', 4)
+            .attr('fill', SOTA_COLOR)
+            .attr('opacity', 1);
+          sotaEnter.append('text')
+            .attr('fill', '#000')
+            .attr('font-size', 10)
+            .attr('font-weight', 800)
+            .attr('text-anchor', 'middle')
+            .attr('dominant-baseline', 'central')
+            .text('★ SOTA');
+          const merged = sotaEnter.merge(sotaLabel);
+          merged.attr('transform', d => {
+            const tx = x(new Date(d.time));
+            const ty = y(d.score) - 22;
+            return `translate(${tx}, ${ty})`;
+          });
+          merged.select('rect')
+            .attr('x', d => {
+              const tw = 46;
+              return -tw / 2;
+            })
+            .attr('y', -9)
+            .attr('width', 46)
+            .attr('height', 18);
+          merged.select('text')
+            .attr('x', 0).attr('y', 0);
+          sotaLabel.exit().remove();
+        }
+
+        // Model labels for composer models
+        gDots.selectAll('text.label').data(composerData, d => d.model).join(
+          enter => enter.append('text').attr('class','label')
+            .attr('x', d => x(new Date(d.time)))
+            .attr('y', d => y(d.score) - 14)
+            .attr('text-anchor', 'middle')
+            .attr('fill', 'var(--text-color)')
+            .attr('font-size', 11)
+            .attr('font-weight', 600)
+            .attr('opacity', 0)
+            .text(d => d.model)
+            .transition().duration(400)
+            .attr('opacity', 0.85),
+          update => update
+            .attr('x', d => x(new Date(d.time)))
+            .attr('y', d => y(d.score) - 14),
+          exit => exit.remove()
+        );
+      }
+
+      render();
+
+      const rerender = () => render();
+      if (window.ResizeObserver) { const ro = new ResizeObserver(() => rerender()); ro.observe(container); } else { window.addEventListener('resize', rerender); }
+    };
+
+    if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', () => ensureD3(bootstrap), { once: true }); } else { ensureD3(bootstrap); }
+  })();
+</script>
