@@ -1,0 +1,9 @@
+## Traning Inference Mismatch
+
+MoE RL 训练不稳定性解决：
+
+## Router Replay
+
+即在训练阶段，使用推理阶段的 MoE router, 避免sample时对policy gradient 引入噪声。
+
+相关工作有 DeepSeek-V3 [@DeepSeek-V3], Wenhan et.al [@ma2025stabilizingmoereinforcementlearning], GSPO [@GSPO] 等。
