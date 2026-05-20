@@ -1,20 +1,19 @@
-
-import Image from '../../../components/Image.astro';
-import olmoe_moe_architecture from '../../../assets/image/olmoe-MoE_architecture.png';
-import olmoe_config from '../../../assets/image/olmoe-config.png';
-import olmoe_composition_pretraining_data from '../../../assets/image/olmoe-composition-pretraining-data.png';
-import olmoe_composition_post_training_data from '../../../assets/image/olmoe-composition-post-training-data.png';
-import olmoe_moe_vs_dense_training_efficiency from '../../../assets/image/olmoe-MoE-vs-Dense-training-efficiency.png';
-import olmoe_expert_granularity from '../../../assets/image/olmoe-expert-granularity.png';
-import olmoe_shared_experts from '../../../assets/image/olmoe-shared-experts.png';
-import olmoe_routing_strategy from '../../../assets/image/olmoe-routing-strategy.png';
-import olmoe_sparse_upcycling from '../../../assets/image/olmoe-sparse-upcycling.png';
-import olmoe_load_balancing_loss from '../../../assets/image/olmoe-load-balancing-loss.png';
-import ollmoe_load_balancing_expert_assignment from '../../../assets/image/ollmoe-load-balancing-expert-assignment.png';
-import olmoe_routing_z_loss from '../../../assets/image/olmoe-routing-z-loss.png';
-import olmoe_qk_norm_ablation from '../../../assets/image/olmoe-QK-norm-ablation.png';
-import olmoe_adaptation_experiments from '../../../assets/image/olmoe-adaptation-experiments.png';
-import olmoe_router_saturation from '../../../assets/image/olmoe-router-saturation.png';
+import Image from "../../../components/Image.astro";
+import olmoe_moe_architecture from "../../../assets/image/olmoe-MoE_architecture.png";
+import olmoe_config from "../../../assets/image/olmoe-config.png";
+import olmoe_composition_pretraining_data from "../../../assets/image/olmoe-composition-pretraining-data.png";
+import olmoe_composition_post_training_data from "../../../assets/image/olmoe-composition-post-training-data.png";
+import olmoe_moe_vs_dense_training_efficiency from "../../../assets/image/olmoe-MoE-vs-Dense-training-efficiency.png";
+import olmoe_expert_granularity from "../../../assets/image/olmoe-expert-granularity.png";
+import olmoe_shared_experts from "../../../assets/image/olmoe-shared-experts.png";
+import olmoe_routing_strategy from "../../../assets/image/olmoe-routing-strategy.png";
+import olmoe_sparse_upcycling from "../../../assets/image/olmoe-sparse-upcycling.png";
+import olmoe_load_balancing_loss from "../../../assets/image/olmoe-load-balancing-loss.png";
+import ollmoe_load_balancing_expert_assignment from "../../../assets/image/ollmoe-load-balancing-expert-assignment.png";
+import olmoe_routing_z_loss from "../../../assets/image/olmoe-routing-z-loss.png";
+import olmoe_qk_norm_ablation from "../../../assets/image/olmoe-QK-norm-ablation.png";
+import olmoe_adaptation_experiments from "../../../assets/image/olmoe-adaptation-experiments.png";
+import olmoe_router_saturation from "../../../assets/image/olmoe-router-saturation.png";
 
 ## Introduction
 
@@ -42,7 +41,10 @@ $$
 
 预训练数据包括 DCLM 和 Dolma1.7 两个数据集的混合，作者将预训练数据集称为**olmoe-mix**. 数据集的配比如下
 
-<Image src={olmoe_composition_pretraining_data} alt="Composition of the pretraining data" />
+<Image
+  src={olmoe_composition_pretraining_data}
+  alt="Composition of the pretraining data"
+/>
 
 ### Post-training
 
@@ -82,7 +84,10 @@ DeepSeekMoE [@DeepSeek-MoE] 提出使用共享专家来学习 common knowledge, 
 
 作者探究了 routing 的策略，一个是 expert choice (EC), 另一种是 token choice (TC), 分别代表了每个 expert 选取固定的 token 数和每个 token 选取固定的 expert 数这两种情况。实验结果如下图所示
 
-<Image src={olmoe_routing_strategy} alt="Expert choice (EC) vs. token choice (TC)" />
+<Image
+  src={olmoe_routing_strategy}
+  alt="Expert choice (EC) vs. token choice (TC)"
+/>
 
 可以看到，token choice 的表现明显更好。EC 虽然可以实现负载均衡。但是因为自回归模型在生成时是无法提前确定生成的 token 数的，因此 EC 很可能导致算力资源浪费或者是 token dropping. 在本文中，作者采用了 TC 这种策略。
 
@@ -103,13 +108,19 @@ DeepSeekMoE [@DeepSeek-MoE] 提出使用共享专家来学习 common knowledge, 
 
 作者还探究 Load Balancing loss 对模型表现的影响，结果如下图所示
 
-<Image src={olmoe_load_balancing_loss} alt="Impact of applying a load balancing loss" />
+<Image
+  src={olmoe_load_balancing_loss}
+  alt="Impact of applying a load balancing loss"
+/>
 
 可以看到，加入 load balancing loss 之后，模型的表现均超过了不加时的表现。
 
 作者进一步分析了不同专家在加/不加 load balancing loss 时的激活情况，结果如下图所示
 
-<Image src={ollmoe_load_balancing_expert_assignment} alt="Expert assignment during training" />
+<Image
+  src={ollmoe_load_balancing_expert_assignment}
+  alt="Expert assignment during training"
+/>
 
 结果显示，load balancing loss 确实可以让不同专家的激活概率大致相当。
 

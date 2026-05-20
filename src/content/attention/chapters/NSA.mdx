@@ -1,4 +1,3 @@
-
 ## Natively trainable Sparse Attention (NSA)
 
 现有的大模型主要是基于 Transformer 提出的 softmax attention, 其主要问题在于随上下文长度增加，其 latency 也上升更快。
@@ -68,7 +67,7 @@ $$
 \tilde{K}_t^{\mathrm{cmp}} = f_K^{\mathrm{cmp}}(\mathbf{k}_{:,t})=\left\{\phi(\mathbf{k}_{id+1:id+l})\mid 0\leq i\leq \left\lfloor\frac{t-l}{d}\right\rfloor\right\}\in\mathbb{R}^{d_k\times \left\lfloor\frac{t-l}{d}\right\rfloor}
 $$
 
-其中 $l$ 是 block size, $d$ 是 sliding stride, $\phi:\mathbb{R}^{l\times d_k}\to \mathbb{R}^d_k$ 是一个 MLP 用于将 block key 映射为一个单一的 key.  对于 $\tilde{V}_t^{\mathrm{cmp}}$ 作者也使用了类似的做法。
+其中 $l$ 是 block size, $d$ 是 sliding stride, $\phi:\mathbb{R}^{l\times d_k}\to \mathbb{R}^d_k$ 是一个 MLP 用于将 block key 映射为一个单一的 key. 对于 $\tilde{V}_t^{\mathrm{cmp}}$ 作者也使用了类似的做法。
 
 #### Token Selection
 
