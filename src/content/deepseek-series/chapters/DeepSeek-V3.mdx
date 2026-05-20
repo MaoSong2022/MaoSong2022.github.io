@@ -43,12 +43,12 @@ DeepSeek-V3 的架构与 [DeepSeek-V2](#deepSeek-v2) 的架构一致，如下图
 
 <Image src={deepseek_v2_architecture} alt="Architecture of DeepSeek-V2" />
 
-MLA 的介绍见 [MLA](/p/notes-on-mla/), MoE 架构的介绍见 [DeepSeekMoE](/p/notes-on-deepseekmoe/). DeepSeek-V3 在 DeepSeekMoE 的基础上做了两点改变：
+MLA 的介绍见 [MLA](/p/notes-on-mla/), MoE 架构的介绍见 DeepSeekMoE [@DeepSeek-MoE]. DeepSeek-V3 在 DeepSeekMoE 的基础上做了两点改变：
 
 1. 受 [Loss-Free Balancing](/p/notes-on-loss-free-balancing/) 启发，作者使用了 sigmoid fu nction 来计算 affinity score
 2. 对于 selected affinity score 应用了 normalization
 
-在 [DeepSeekMoE](/p/notes-on-deepseekmoe/) 的基础上，作者使用了 [Loss-Free Balancing](/p/notes-on-loss-free-balancing/). 其表达式如下
+在 DeepSeekMoE [@DeepSeek-MoE] 的基础上，作者使用了 [Loss-Free Balancing](/p/notes-on-loss-free-balancing/). 其表达式如下
 
 $$
 g_{i,t} = \begin{cases}
@@ -72,7 +72,7 @@ $$
 
 其中 $\alpha$ 是 balance factor, 为超参数，$T$ 是 sequence length, 加入这个损失后，每个 sequence 上的负载会变得更加均衡
 
-与 [DeepSeekMoE](/p/notes-on-deepseekmoe/) 一样，作者也在 node 层面实现负载均衡，具体做法就是，根据 node 中所包含 expert 的 affinity score 之和来选取最高的 $M$ 个 nodes, 这样就可以进一步提高 computation 和 communication 之间的 overlap.
+与 DeepSeekMoE [@DeepSeek-MoE] 一样，作者也在 node 层面实现负载均衡，具体做法就是，根据 node 中所包含 expert 的 affinity score 之和来选取最高的 $M$ 个 nodes, 这样就可以进一步提高 computation 和 communication 之间的 overlap.
 
 由于 DeepSeek-V3 负载均衡比较好，因此作者使用了 no token-dropping strategy.
 

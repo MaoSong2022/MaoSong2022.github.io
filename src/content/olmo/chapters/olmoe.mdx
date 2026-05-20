@@ -18,7 +18,7 @@ import olmoe_router_saturation from '../../../assets/image/olmoe-router-saturati
 
 ## Introduction
 
-已有的模型如 [DeepSeek-MoE](/p/notes-on-deepseekmoe/), [Mixtral MoE](/p/mixstral-8x7b/), [Qwen1.5](/browse?q=qwen1.5) 等 MoE 模型基本只开源权重。也有一些开源的模型，比如 OpenMoE 等，但是开源信息不全。基于这个目的，作者提出了 olmoe 模型系列，包括 olmoe-7B-A1B 和 olmoe-7B-A1B-instruct 两个版本。
+已有的模型如 DeepSeekMoE [@DeepSeek-MoE], [Mixtral MoE](/p/mixstral-8x7b/), [Qwen1.5](/browse?q=qwen1.5) 等 MoE 模型基本只开源权重。也有一些开源的模型，比如 OpenMoE 等，但是开源信息不全。基于这个目的，作者提出了 olmoe 模型系列，包括 olmoe-7B-A1B 和 olmoe-7B-A1B-instruct 两个版本。
 
 ## Method
 
@@ -64,7 +64,7 @@ $$
 
 #### Expert Granularity
 
-[DeepSeekMoE](/p/notes-on-deepseekmoe/) 提出使用细粒度的专家来提供更多的组合可能性。作者探究了不同的粒度对模型表现的影响，结果如下图所示
+DeepSeekMoE [@DeepSeek-MoE] 提出使用细粒度的专家来提供更多的组合可能性。作者探究了不同的粒度对模型表现的影响，结果如下图所示
 
 <Image src={olmoe_expert_granularity} alt="Expert granularity" />
 
@@ -72,7 +72,7 @@ $$
 
 #### Shared Experts
 
-[DeepSeekMoE](/p/notes-on-deepseekmoe/) 提出使用共享专家来学习 common knowledge, 作者对这种方法进行了实验，结果如下图所示。
+DeepSeekMoE [@DeepSeek-MoE] 提出使用共享专家来学习 common knowledge, 作者对这种方法进行了实验，结果如下图所示。
 
 <Image src={olmoe_shared_experts} alt="Shared experts" />
 
@@ -157,7 +157,7 @@ $$
 
 #### Load Balancing Precision
 
-[Switch Transformer](/p/switch-transformer/) 中提出使用 `float32` 精度来进行 routing 的计算，作者通过实验发现，这一方法并不能提高模型训练的稳定性，因此作者没有采用这一策略。
+Switch Transformer [@SwitchTransformer] 中提出使用 `float32` 精度来进行 routing 的计算，作者通过实验发现，这一方法并不能提高模型训练的稳定性，因此作者没有采用这一策略。
 
 ## MoE Analysis
 
@@ -169,7 +169,7 @@ $$
 
 结果发现，训练 $1\%$ 的数据之后，就有 $40\%$ 的 routing 和训练完毕的 routing 一致，当训练 $40\%$ 的数据之后，这个比例提升到了 $80\%$.
 
-作者还发现，later layers 比 early layers 饱和更快，early layer, 特别是 layer 0, 饱和的非常慢。作者认为，这是 [DeepSeekMoE](/p/notes-on-deepseekmoe/) 放弃在第一层使用 MoE layer 的原因，因为 load balancing loss 收敛更慢。
+作者还发现，later layers 比 early layers 饱和更快，early layer, 特别是 layer 0, 饱和的非常慢。作者认为，这是 DeepSeekMoE [@DeepSeek-MoE] 放弃在第一层使用 MoE layer 的原因，因为 load balancing loss 收敛更慢。
 
 ### Expert Co-activation
 

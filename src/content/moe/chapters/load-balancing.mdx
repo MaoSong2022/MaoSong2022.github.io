@@ -15,9 +15,9 @@ Load balancing loss 一共经历了如下几个阶段，发展路线如下图所
 
 ```mermaid
 flowchart TD;
-    C[Bengio et.at 2015] --> A[Shazeer et al., 2017];
+    C[Bengio et.at 2015] --> A[@Shazeer];
     A --> B[GShard];
-    B --> F[Switch Transformer];
+    B --> F[@SwitchTransformer];
     F --> D[Loss-Free Balancing];
     F --> E[Global-batch load balancing];
 ```
@@ -105,7 +105,7 @@ $$
 
 ### Switch Transformer
 
-[Switch Transformer](/p/switch-transformer/) 进一步对 [GShard](/p/gshard/) 提出 load balancing loss 进行了规范化，也是现在大部分 load balancing loss 使用的形式，其定义如下：
+Switch Transformer [@SwitchTransformer] 进一步对 [GShard](/p/gshard/) 提出 load balancing loss 进行了规范化，也是现在大部分 load balancing loss 使用的形式，其定义如下：
 
 $$
 \mathcal{L}_{\mathrm{load}} = \sum_{i=1}^N f_i P_i
@@ -133,7 +133,7 @@ $$
 
 ## Analysis
 
-目前关于 load balancing loss 可以实现负载均衡的数学分析是比较少的。[Switch Transformer](/p/switch-transformer/) 中进行了如下分析：
+目前关于 load balancing loss 可以实现负载均衡的数学分析是比较少的。Switch Transformer [@SwitchTransformer] 中进行了如下分析：
 
 > [!quote]
 > The auxiliary loss of Equation 4 encourages uniform routing since it is minimized under a uniform distribution.
