@@ -1,54 +1,59 @@
 
 ## Sigmoid
 
-A simple note to understand Sigmoid Loss in SigLip [^1]. Supported by DeepSeek[^2]
+我们简单推导一下 SigLip [@SigLIP] 中的损失函数与 cross entropy loss 之间的关系。
 
-## Binary cross entropy loss
+假设我们想要解决一个二分类问题，即标签 $y\in\{0, 1\}$, 一个常见的做法就是使用 binary cross entropy loss, 即
 
-Suppose we want to solve the binary classification problem, with label $y\in\{0, 1\}$, a common option is to use binary cross entropy loss:
+$$
+\mathcal{L}(x, y) = -[y\log (\sigma(z)) + (1-y)\log (1-\sigma(z))]
+$$
 
-$$\mathcal{L}(x, y) = -[y\log (\sigma(z)) + (1-y)\log (1-\sigma(z))]$$
+这里 $z=f_\theta(x)$ 是模型 $f_\theta$ 预测的 logits, $\sigma(\cdot)$ 是 sigmoid function, 定义为：
 
-where $z=f_\theta(x)$ is the logits predicted by our model $f_\theta$, and $\sigma$ is the sigmoid function:
+$$
+\sigma(z) := \frac{1}{1 + e^{-z}}
+$$
 
-$$\sigma(z) := \frac{1}{1 + e^{-z}}$$
-
-Let $\sigma(\cdot)$ be the sigmoid function, then we have:
+我们可以推导出关于 sigmoid function 的如下性质
 
 $$
 \sigma(-z) = \frac{1}{1 + e^{z}} = \frac{e^{-z}}{1 + e^{-z}} = 1 - \frac{1}{1 + e^{-z}} = 1- \sigma(z)
 $$
 
-Now we substitute $\sigma(-z)=1-\sigma(z)$ into the loss function, we obtain:
+接下来，我们把 $\sigma(-z)=1-\sigma(z)$ 带入到损失函数中，就有
 
-$$\mathcal{L}(x, y) = -[y\log (\sigma(z)) + (1-y)\log (\sigma(-z))]$$
+$$
+\mathcal{L}(x, y) = -[y\log (\sigma(z)) + (1-y)\log (\sigma(-z))]
+$$
 
-Note that $y\in\{0, 1\}$ thus for each instance, there are two cases:
+注意到 $y\in\{0, 1\}$， 我们有
 
-- If $y=0$, then $\mathcal{L}(x, y) =-\log (\sigma(-z))$
-- If $y=1$, then $\mathcal{L}(x, y) =-\log (\sigma(z))$
+$$
+\mathcal{L}(x, y) = \begin{cases}
+-\log (\sigma(-z)), &\text{ if } y=0\\
+-\log (\sigma(z)), &\text{ otherwise}
+\end{cases}
+$$
 
-Now we want to use a unified expression to express these two cases. Note that this requires fitting a curve that passes two points $(0, -1)$ and $(1, 1)$. The simplest curve is a straight line $y=2x-1$. So, we can further simplify the loss expression into:
+注意到损失函数的结果非常相似，因此我们可以尝试使用统一的表达式来表达两种情况，也就是说，我们希望找到一个函数 $g$, 使得
 
-$$\mathcal{L}(x, y) = -\log\left[\sigma((2y-1)z)\right]$$
+$$
+\mathcal{L}(x, y) = -\log(\sigma(g(y)z))
+$$
 
-## Sigmoid Loss in SigLip
+其中 $g$ 满足 $g(0)=-1$, $g(1)=1$， 易知最简单的函数为线性函数，即 $g(y)=2y-1$, 从而我们就得到了一个统一的表达式：
 
-Now we recall the sigmoid loss in SigLip:
+$$
+\mathcal{L}(x, y) = -\log\left[\sigma((2y-1)z)\right]
+$$
 
-$$\mathcal{L}(\{\bm{x}, \bm{y}\}_{i=1}^N)=-\frac{1}{N}\sum_{i=1}^N\sum_{j=1}^N\log \frac{1}{1+\exp\left[z_{ij}(-t\bm{x}_i\cdot \bm{y_j}+b)\right]}$$
+我们再来回顾 SigLip 中的损失函数：
 
-where $t, b$ are learnable parameters, and $z_{ij}=1$ if $i=j$ and $z_{ij}=-1$ otherwise.
+$$
+\mathcal{L}(\{\bm{x}, \bm{y}\}_{i=1}^N)=-\frac{1}{N}\sum_{i=1}^N\sum_{j=1}^N\log \frac{1}{1+\exp\left[z_{ij}(-t\bm{x}_i\cdot \bm{y_j}+b)\right]}
+$$
 
-To understand Sigmoid loss, notice that $z_{ij}=2\mathbb{I}_{i=j}-1$, which exactly matches the form we derived earlier.
+其中 $t, b$ 为可学习参数，$z_{ij}=1$ if $i=j$ and $z_{ij}=-1$ otherwise.
 
-## Why Use Sigmoid Loss?
-
-1. More stable: avoids $\log 0$.
-2. More efficient: Compute Sigmoid once.
-3. More Precise: one line of code without condition checking.
-
-# References
-
-[^1]: [SigLip](https://openaccess.thecvf.com/content/ICCV2023/papers/Zhai_Sigmoid_Loss_for_Language_Image_Pre-Training_ICCV_2023_paper.pdf)
-[^2]: [DeepSeek](https://chat.deepseek.com/)
+注意到 $z_{ij}=2\mathbb{I}_{i=j}-1$, 这就是我们上面推导的统一表达式的形式。
