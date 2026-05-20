@@ -1,0 +1,204 @@
+<div class="composer2-moe-training"></div>
+<style>
+  .composer2-moe-training {
+    position: relative;
+    width: 100%;
+  }
+  .composer2-moe-training svg {
+    display: block;
+  }
+  .composer2-moe-training .node-rect {
+    stroke-width: 1.5px;
+    rx: 12px;
+    ry: 12px;
+  }
+  .composer2-moe-training .node-text {
+    font-size: 13px;
+    font-weight: 600;
+    text-anchor: middle;
+    dominant-baseline: central;
+    pointer-events: none;
+  }
+  .composer2-moe-training .edge-path {
+    fill: none;
+    stroke: #000000;
+    stroke-width: 2px;
+    stroke-linejoin: round;
+  }
+  .composer2-moe-training .divider-line {
+    stroke: #000000;
+    stroke-dasharray: 4 4;
+    stroke-width: 2px;
+  }
+  .composer2-moe-training .section-label {
+    font-size: 22px;
+    font-weight: bold;
+    fill: #000000;
+  }
+</style>
+<script>
+  (() => {
+    const ensureD3 = (cb) => {
+      if (window.d3 && typeof window.d3.select === 'function') return cb();
+      let s = document.getElementById('d3-cdn-script');
+      if (!s) { s = document.createElement('script'); s.id = 'd3-cdn-script'; s.src = 'https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js'; document.head.appendChild(s); }
+      const onReady = () => { if (window.d3 && typeof window.d3.select === 'function') cb(); };
+      s.addEventListener('load', onReady, { once: true }); if (window.d3) onReady();
+    };
+
+    const bootstrap = () => {
+      const scriptEl = document.currentScript;
+      let container = scriptEl ? scriptEl.previousElementSibling : null;
+      if (!(container && container.classList && container.classList.contains('composer2-moe-training'))) {
+        const cs = Array.from(document.querySelectorAll('.composer2-moe-training')).filter(el => !(el.dataset && el.dataset.mounted === 'true'));
+        container = cs[cs.length - 1] || null;
+      }
+      if (!container) return;
+      if (container.dataset) { if (container.dataset.mounted === 'true') return; container.dataset.mounted = 'true'; }
+
+      const svgW = 1100;
+      const svgH = 900;
+
+      const uid = (Math.random().toString(36).slice(2, 8));
+
+      const svg = d3.select(container)
+        .append('svg')
+        .attr('viewBox', `0 0 ${svgW} ${svgH}`)
+        .attr('preserveAspectRatio', 'xMidYMid meet')
+        .style('width', '100%')
+        .style('height', 'auto');
+
+      const colors = {
+        gray:   { fill: '#f0f0f0', stroke: '#a0a0a0', text: '#333333' },
+        blue:   { fill: '#d0e1fd', stroke: '#7aa3e5', text: '#1a365d' },
+        orange: { fill: '#fce3b5', stroke: '#e6a15c', text: '#5c3a00' },
+        green:  { fill: '#cae9c4', stroke: '#7cb374', text: '#1e4620' }
+      };
+
+      const bW = 150;
+      const bH = 65;
+
+      const nodes = [
+        { id: 'f_act',       x: 80,  y: 160, w: bW, h: bH, type: 'gray',   lines: ['BF16', 'Activation'] },
+        { id: 'f_abs_tok',   x: 280, y: 160, w: bW, h: bH, type: 'blue',   lines: ['Absmax per', 'Token'] },
+        { id: 'f_mx_trans',  x: 280, y: 60,  w: bW, h: bH, type: 'orange', lines: ['MXFP8 Fused', 'Transpose-', 'Quantize'] },
+        { id: 'f_nv_tok',    x: 500, y: 160, w: bW, h: bH, type: 'orange', lines: ['Per-token', 'NVFP4 Quantize'] },
+        { id: 'f_wei',       x: 80,  y: 360, w: bW, h: bH, type: 'gray',   lines: ['BF16', 'Weight'] },
+        { id: 'f_abs_exp',   x: 280, y: 360, w: bW, h: bH, type: 'blue',   lines: ['Absmax per', 'Expert'] },
+        { id: 'f_nv_exp',    x: 500, y: 360, w: bW, h: bH, type: 'orange', lines: ['Per-expert', 'NVFP4 Quantize'] },
+        { id: 'f_gemm',      x: 720, y: 260, w: bW, h: bH, type: 'green',  lines: ['NVFP4', 'Grouped GEMM', '(M-varying)'] },
+        { id: 'f_out',       x: 920, y: 260, w: 110,h: bH, type: 'gray',   lines: ['BF16', 'Activation'] },
+        { id: 'b_act_grad',  x: 920, y: 680, w: 110,h: bH, type: 'gray',   lines: ['BF16 Activation', 'Gradient'] },
+        { id: 'b_mx_fqt',    x: 720, y: 680, w: bW, h: bH, type: 'orange', lines: ['MXFP8 Fused', 'Quantize and', 'Transpose-Quantize'] },
+        { id: 'b_gemm_k',    x: 500, y: 560, w: bW, h: bH, type: 'green',  lines: ['MXFP8', 'Grouped GEMM', '(K-varying)'] },
+        { id: 'b_mx_trans',  x: 280, y: 560, w: bW, h: bH, type: 'orange', lines: ['MXFP8 Fused', 'Transpose-', 'Quantize'] },
+        { id: 'b_gemm_m',    x: 280, y: 800, w: bW, h: bH, type: 'green',  lines: ['MXFP8', 'Grouped GEMM', '(M-varying)'] },
+        { id: 'b_w_grad',    x: 80,  y: 560, w: bW, h: bH, type: 'gray',   lines: ['BF16 Weight', 'Gradient'] },
+        { id: 'b_a_grad',    x: 80,  y: 800, w: bW, h: bH, type: 'gray',   lines: ['BF16 Activation', 'Gradient'] }
+      ];
+
+      const paths = [
+        { desc: "Forward Act Input", points: [[20, 192.5], [77, 192.5]] },
+        { desc: "Forward Wei Input", points: [[20, 392.5], [77, 392.5]] },
+        { desc: "f_act -> f_mx_trans", points: [[230, 192.5], [255, 192.5], [255, 92.5], [277, 92.5]] },
+        { desc: "f_act -> f_abs_tok", points: [[230, 192.5], [277, 192.5]] },
+        { desc: "f_act -> f_nv_tok bypassed data", points: [[230, 192.5], [255, 192.5], [255, 240], [465, 240], [465, 205], [497, 205]] },
+        { desc: "f_abs_tok -> f_nv_tok", points: [[430, 192.5], [497, 192.5]] },
+        { desc: "f_wei -> f_abs_exp", points: [[230, 392.5], [277, 392.5]] },
+        { desc: "f_wei -> f_nv_exp bypassed data", points: [[230, 392.5], [255, 392.5], [255, 440], [465, 440], [465, 405], [497, 405]] },
+        { desc: "f_nv_tok -> f_gemm middle-inlet", points: [[650, 192.5], [690, 192.5], [690, 292.5], [717, 292.5]] },
+        { desc: "f_nv_exp -> f_gemm bottom-inlet", points: [[650, 392.5], [690, 392.5], [690, 312.5], [717, 312.5]] },
+        { desc: "f_gemm -> f_out", points: [[870, 292.5], [917, 292.5]] },
+        { desc: "f_out -> Exit", points: [[1030, 292.5], [1077, 292.5]] },
+        { desc: "f_wei down to b_mx_trans", points: [[230, 392.5], [255, 392.5], [255, 520], [355, 520], [355, 557]] },
+        { desc: "f_mx_trans down to b_gemm_k", points: [[430, 92.5], [450, 92.5], [450, 520], [575, 520], [575, 557]] },
+        { desc: "Backward Act Grad Input", points: [[1080, 712.5], [1033, 712.5]] },
+        { desc: "b_act_grad -> b_mx_fqt", points: [[920, 712.5], [873, 712.5]] },
+        { desc: "b_mx_fqt -> b_gemm_k", points: [[720, 712.5], [680, 712.5], [680, 607.5], [653, 607.5]] },
+        { desc: "b_mx_fqt -> b_gemm_m", points: [[720, 712.5], [680, 712.5], [680, 832.5], [433, 832.5]] },
+        { desc: "b_gemm_k bypasses b_mx_trans to b_w_grad", points: [[500, 592.5], [470, 592.5], [470, 650], [260, 650], [260, 592.5], [233, 592.5]] },
+        { desc: "b_mx_trans -> b_gemm_m feed", points: [[355, 625], [355, 797]] },
+        { desc: "b_gemm_m -> b_a_grad", points: [[280, 832.5], [233, 832.5]] },
+        { desc: "b_w_grad Exit", points: [[80, 592.5], [23, 592.5]] },
+        { desc: "b_a_grad Exit", points: [[80, 832.5], [23, 832.5]] }
+      ];
+
+      svg.append("defs").append("marker")
+        .attr("id", `arrow-${uid}`)
+        .attr("viewBox", "0 -5 10 10")
+        .attr("refX", "8")
+        .attr("refY", "0")
+        .attr("markerWidth", "7")
+        .attr("markerHeight", "7")
+        .attr("orient", "auto")
+        .append("path")
+        .attr("d", "M 0 -5 L 10 0 L 0 5 z")
+        .attr("fill", "#000000");
+
+      const lineGenerator = d3.line().curve(d3.curveLinear);
+
+      svg.selectAll(".edge-path")
+        .data(paths)
+        .enter()
+        .append("path")
+        .attr("class", "edge-path")
+        .attr("d", d => lineGenerator(d.points))
+        .attr("marker-end", `url(#arrow-${uid})`);
+
+      svg.append("line")
+        .attr("class", "divider-line")
+        .attr("x1", 20)
+        .attr("y1", 480)
+        .attr("x2", 1080)
+        .attr("y2", 480);
+
+      svg.append("text")
+        .attr("class", "section-label")
+        .attr("x", 1050)
+        .attr("y", 460)
+        .attr("text-anchor", "end")
+        .text("Forward Pass");
+
+      svg.append("text")
+        .attr("class", "section-label")
+        .attr("x", 1050)
+        .attr("y", 515)
+        .attr("text-anchor", "end")
+        .text("Backward Pass");
+
+      const nodeGroup = svg.selectAll(".node")
+        .data(nodes)
+        .enter()
+        .append("g")
+        .attr("transform", d => `translate(${d.x}, ${d.y})`);
+
+      nodeGroup.append("rect")
+        .attr("class", "node-rect")
+        .attr("width", d => d.w)
+        .attr("height", d => d.h)
+        .attr("fill", d => colors[d.type].fill)
+        .attr("stroke", d => colors[d.type].stroke);
+
+      nodeGroup.each(function(d) {
+        const el = d3.select(this);
+        const totalLines = d.lines.length;
+        const spacing = 17;
+        const startY = (d.h / 2) - (((totalLines - 1) * spacing) / 2);
+        d.lines.forEach((lineText, idx) => {
+          el.append("text")
+            .attr("class", "node-text")
+            .attr("x", d.w / 2)
+            .attr("y", startY + (idx * spacing))
+            .attr("fill", colors[d.type].text)
+            .text(lineText);
+        });
+      });
+    };
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => ensureD3(bootstrap), { once: true });
+    } else {
+      ensureD3(bootstrap);
+    }
+  })();
+</script>

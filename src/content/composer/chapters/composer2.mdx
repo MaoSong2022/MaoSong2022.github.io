@@ -1,4 +1,102 @@
+import Sidenote from "../../../components/Sidenote.astro";
+import HtmlEmbed from "../../../components/HtmlEmbed.astro";
+
 ## Composer2
 
 Composer2 [@Composer2] 是 Cursor 发布的第一个带有技术报告的模型。
-作者详细介绍了训练策略与 infra 的优化。
+作者主要探究了 scaling model trainig 对模型解决 real-world coding problems 能力提升的影响。
+为了实现这个目标，作者主要从RL algorithms, infra 等方面进行了优化。
+
+### Continue Pre-training
+
+作者从codebase perplexity, coding knowledge 以及 state tracking 三个方面对 base model (包括 DeepSeek V3.2 [@DeepSeek-V3.2], GLM 5 [@GLM5], Kimi K2.5 [@Kimi_K_2_5]) 进行了评估，评估结果如下
+
+| Model         | FreshBench $\uparrow$ | State Tracking $\downarrow$ | Negative Log-Likelihood $\downarrow$ |
+| :------------ | :-------------------- | :-------------------------- | :----------------------------------- |
+| DeepSeek V3.2 | 68.9%                 | **66**                      | **11.75M**                           |
+| **Kimi K2.5** | **83.2%**             | 86                          | 13.81M                               |
+| GLM-5         | 79.2%                 | 92                          | 14.11M                               |
+
+综合模型表现以及infra optimization, 作者选择了 Kimi K2.5 [@Kimi_K_2_5] 作为 base model 来进行 continual pre-training.
+
+Continual Pre-training 的目的是让模型特化为coding model. 作者将训练分为三个阶段： 32K context length, 256K context length, SFT.
+
+作者通过实验验证了 cross entropy loss 可以用于预测下游 RL 训练的表现。
+
+与 DeepSeek V3 [@DeepSeek-V3] 一样，Composer2 也使用了 Multi-Token Prediction (MTP) module [@MTP] 来实现 speculative decoding.
+作者使用了 self-distillation 来训练 MTP module, 让模型学习 main LM head 的 logit distribution, MTP 在后两个阶段中参与训练。
+
+### RL training
+
+作者在以下 coding task 上进行了训练
+
+训练时，作者介绍了以下几点：
+
+1. 与 Dr.GRPO [TODO] 一样，避免引入 bias, 因此不再引入 lenth standardization term (会引入 lenth bias). 不对 group advantage 进行 normalization.
+2. 使用 self-summarization 来避免 rollouts 过长
+3. 与 DeepSeek V3.2 [@DeepSeek-V3.2], PipelineRL [] 一样，使用 replay MoE routing 来避免训练-推理不一致性。
+4. 使用 $k_1=-\log r$ 来估计 KL divergence
+
+<Sidenote>
+  See [KL divergence from machine learning to reinforcement
+  learning](https://maosong.website/blog/kl-divergence) for more details on KL
+  divergence.
+</Sidenote>
+
+作者设计了 multi-reward 来提高模型在使用时的用户体验，这些 reward 包括 coding style, communication 等，在训练过程中作者会依据模型行为来提供不同的 reward.
+
+作者还构建了一个 length penalty 来让模型实现动态思考，penalty 表达式如下
+
+$$
+C_{k,q}(x) = \frac{(1+kx)^{1-q}-1}{k(1-q)}
+$$
+
+其中 $k,q$ 为超参数，$x$ 是 thinking tokens, tool calling tokens, tool output tokens, final message tokens, number of tool calls, and number of turns of a rollout 的加权求和。
+
+### Infra
+
+作者主要介绍了 Parallelism, Kernels 以及 low precision training.
+
+#### Parallelism
+
+第一点是针对 Context Parallelism (CP) 的优化。
+对于长文本训练，TP 会把矩阵 hidden dimension 切的比较小，导致 GPU 在进行矩阵计算时面对的是瘦长的局部矩阵，从而计算效率下降，并且TP还会产生额外的All-reduce通信。
+而CP在sequence dimension进行切分，每个GPU拿到的都是完整的特征维度，GPU计算起来更加高效，并且通信量也更少。
+
+对于 MLA [TODO], 作者也进行了计算与通信重叠：TODO
+
+为了维持负载均衡，作者将序列拆分为: TODO
+
+第二点是针对 Expert Parallelism (EP) 的优化，作者将 EP 与 Tensor Parallelism (TP) 进行了解耦。作者使用了如下配置
+
+|         Stage          | EP  | CP  | Note                               |
+| :--------------------: | --- | --- | ---------------------------------- |
+| Continual Pre-training | 8   | 2   | context length 固定，CP=2足够      |
+|           RL           | 8   | 8   | CoT 非常长，使用 CP=8 提高计算效率 |
+
+作者使用了 DeepEP [TODO] 来提高 dispatch/combine 效率。 与 DeepSeek-V3 [@DeepSeek-V3] 一样，作者在dispatch之前，也进行了 quantization, 将token 转化为 MXFP8精度来提高通信效率。
+在 combine时，作者使用了 BF16 精度来避免精度损失。
+
+第三点是 DP, 在Continual Pre-training时，由于sequence length 固定，负载均衡比较容易达到，在RL阶段，作者使用了一个global sequence packign来保持负载均衡。
+
+#### kernels
+
+针对 MoE layer, 在 forward pass, 作者将数值从 BF16 使用 FP8E4M3 per-block scales (block size =16) 和 FP32 per-token scales 量化到 FP4E2M1格式。
+作者发现使用 FP32 per-tensor scales 有两个问题：
+
+1. per-tensor scaling 与 training batch 相关，会导致 RL 训练失败
+2. 训练会导致未来的token泄漏，导致梯度有偏
+
+在 backward pass, 作者使用了标准的 MXFP8 格式，此时，由于训练效率很高，我们可以使用更高精度来进行计算。
+
+总的来说，核心思想就是forward pass 效率更重要， backward pass 训练稳定性更重要。MoE 整体的训练流程如下
+
+<HtmlEmbed
+  src="embeds/composer2_MoE_training.html"
+  title="GEMM training flow for MoE layers"
+  desc="Sourced from Composer2 Tech Report."
+/>
+
+#### Precisions
+
+在精度方面，作者强调了使用 IEEE-compliant floating-point arithmetic 的必要性。
