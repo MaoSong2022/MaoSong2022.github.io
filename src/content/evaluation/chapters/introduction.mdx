@@ -1,0 +1,8 @@
+## Introduction
+
+Composer 2 [@Composer2] 认为现有的 coding benchmark 难以体现真实场景下的需求：
+
+1. Domain mismatch: SWE-Bench 主要集中于评估模型的 bug-fixing 能力， Terminal-Bench 大多数任务是 abstract puzzles, 而不是 software enginnering tasks.
+2. Prompt Over-specification: 现有 benchmark 的输入都非常具体，而真实场景下用户的需求往往是比较模糊的
+3. Data Contamination and Overfitting: 模型可能针对这些任务进行了特定优化，但是其编程能力并没有提升
+4. Narrow Evaluation Scope: 现有的 benchmark 主要关注结果的正确性，而对于可读性，效率等指标没有考虑。
