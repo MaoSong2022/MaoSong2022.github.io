@@ -37,17 +37,14 @@ Continual pre-training 的目的是让模型特化为 coding model. 作者将训
 对于算法设计，作者介绍了以下几点：
 
 1. 与 Dr.GRPO [@DrGRPO] 一样，避免引入 bias, 因此不再引入 length standardization term (会引入 length bias). 不对 group advantage 进行 normalization.
-
 2. 与 [Composer1.5](#composer15) 一样使用 self-summarization 来避免 rollouts 过长
-
 3. 与 DeepSeek V3.2 [@DeepSeek-V3.2], PipelineRL [@PipelineRL] 一样，使用 replay MoE routing 来避免训练 - 推理不一致性。
-
 4. 使用 $k_1=-\log r$ 来估计 KL divergence
 
 <Sidenote>
-
-See [KL divergence from machine learning to reinforcementlearning](https://maosong.website/blog/kl-divergence) for more details on KL divergence.
-
+  See [KL divergence from machine learning to
+  reinforcementlearning](https://maosong.website/blog/kl-divergence) for more
+  details on KL divergence.
 </Sidenote>
 
 作者设计了 multi-reward 来提高模型在使用时的用户体验，这些 reward 包括 coding style, communication 等，在训练过程中作者会依据模型行为来提供不同的 reward.
