@@ -20,6 +20,7 @@ export interface HeroProps {
   showPdf?: boolean;
   links?: Array<{ label: string; url: string; icon?: string }>;
   banner?: string | false;
+  bannerAspectRatio?: string;
 }
 
 export function normalizeAuthors(
