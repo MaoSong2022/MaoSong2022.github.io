@@ -1,10 +1,16 @@
+import Sidenote from "../../../components/Sidenote.astro";
+
 ## Composer
 
 Composer [@Composer1] 是一个针对 software engineering 的 agent model.
 
 在架构上，Composer 是一个基于 MoE 架构的大语言模型。
 
-在 RL 训练时，作者通过奖励设立来提高模型选择工具的效率以及并行调用工具的能力。
+<Sidenote>
+  See [MoE tutorial](https://maosong.website/blog/moe/) for more details.
+</Sidenote>
+
+在 RL 训练时，作者通过 reward design 来提高模型选择工具的效率以及并行调用工具的能力。
 
 在 Infra 上，作者构建了基于 Pytorch 和 Ray 的 training framework, 来支持 asynchronous RL 训练。
 作者还是用了 MXFP8 MoE kernel, EP, Hybrid Sharded Data Parallelism (HSDP) 来提高训练效率。
