@@ -21,6 +21,7 @@ const {
   doi,
   pdfProOnly = false,
   showPdf = true,
+  banner,
 } = Astro.props as HeroProps;
 
 const normalizedAuthors: Author[] = normalizeAuthors(authors as any);
@@ -45,9 +46,11 @@ const visibleDate = formatDisplayDate(modified ?? published);
 
 <section class="hero">
   <h1 class="hero-title" set:html={title} />
-  <div class="hero-banner">
-    <HtmlEmbed src="banner.html" frameless />
-  </div>
+  {banner !== false && (
+    <div class="hero-banner">
+      <HtmlEmbed src={banner || "banner.html"} frameless />
+    </div>
+  )}
   {description && <p class="hero-desc">{description}</p>}
 </section>
 
