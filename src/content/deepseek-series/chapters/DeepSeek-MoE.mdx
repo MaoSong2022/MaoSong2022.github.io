@@ -1,58 +1,44 @@
-
-import Image from '../../../components/Image.astro';
-import deepseekmoe_architecture from '../../../assets/image/DeepSeekMoE-architecture.png';
-import deepseekmoe_ablation_experts from '../../../assets/image/DeepSeekMoE-ablation-experts.png';
-import deepseekmoe_ablation_expert_specialization from '../../../assets/image/DeepSeekMoE-ablation-expert-specialization.png';
-import deepseekmoe_ablation_number_activated_experts from '../../../assets/image/DeepSeekMoE-ablation-number-activated-experts.png';
+import Image from "../../../components/Image.astro";
+import deepseekmoe_architecture from "../../../assets/image/DeepSeekMoE-architecture.png";
+import deepseekmoe_ablation_experts from "../../../assets/image/DeepSeekMoE-ablation-experts.png";
+import deepseekmoe_ablation_expert_specialization from "../../../assets/image/DeepSeekMoE-ablation-expert-specialization.png";
+import deepseekmoe_ablation_number_activated_experts from "../../../assets/image/DeepSeekMoE-ablation-number-activated-experts.png";
 
 DeepSeek 在 2024 年 1 月发布了 DeepSeekMoE, 一个解决 MoE 模型 specialization 不足以及 redundancy 问题的大模型系列。
 
 ## DeepSeek-MoE
 
+DeepSeek-MoE [@DeepSeek-MoE] 与 [DeepSeek-LLM](#deeepSeek-llm) 几乎同时发布，前者主要探究了 MoE 模型的上限。
+
 作者首先回顾了已有 MoE 模型的不足，主要有两点：
 
 1. knowledge hybridity: 已有 MoE 模型的专家个数比较少，这就导致每个专家需要掌握更多样化的知识，提高了训练难度
-2. knowledge redundancy: 不同专家掌握的知识可能有重叠，从而导致了模型参数的 redundancy
+2. knowledge redundancy: 不同专家掌握的知识可能有重叠，从而导致了模型参数存在 redundancy
 
 为了解决这两个问题，作者提出了 DeepSeek-MoE [@DeepSeek-MoE], DeepSeek-MoE 主要做出了两点改变：
 
 1. Fine-Grained Expert Segmentation: 作者使用了更多的专家，来提高每个专家的 specialization, 降低训练成本
-2. Shared Expert Isolation: 作者在 Routing expert 的基础上，加入了 shared expert 来学习 common knowledge.
+2. Shared Expert Isolation: 作者在 routing expert 的基础上，加入了 shared expert 来学习 common knowledge.
 
-作者在 2B-A0.6B 的模型进行了实验，结果显示模型表现超过了 [GShard](/p/gshard/), 说明了 DeepSeekMoE 模型架构的有效性。
-
+作者使用了 2B-A0.6B 的模型进行了实验，结果显示模型表现超过了 GShard [@GShard], 说明了 DeepSeekMoE 模型架构的有效性。
 作者还进一步将模型 scale 到了 16B-A2.8B 和 145B-A22B, 实验结果均验证了模型的 scaling 效果。
 
+### Architecutre
 
-### Preliminary
-
-作者首先回顾了 transformer 架构，transformer 的第 $\ell$ 层 decode layer 可以表示为
-
-$$
-\begin{aligned}
-u_{1:T}^{\ell} &= \mathrm{self\_attention}(h_{1:T}^{\ell-1}) + h_{1:T}^{\ell}\\
-h_t^\ell &= \mathrm{FFN}(u_t^{\ell}) + u_t^{\ell}
-\end{aligned}
-$$
-
-其中 $T$ 是 sequence length, $h_{1:T}^{\ell-1}$ 是第 $\ell-1$ 层 decoder layer 输出的 hidden states.
-
-接下来，我们可以将 dense 架构转换为 MoE 架构，MoE 架构与 dense 架构不同的地方在与 $\mathrm{FFN}$ 不再是 MLP, 而是一个 MoE 模块，其表达式如下
+MoE 模块替换；额 Transformer [@vaswani2017attention] 中 FFN 模块，其表达式如下
 
 $$
 \begin{aligned}
-h_t^\ell &= \sum_{i=1}^N\left(g_{i,t}\mathrm{FFN}_i(u_t^{\ell})\right) + u_t^{\ell}\\
+h_t^\ell &= \sum_{i=1}^N\left(g_{i,t}\mathrm{FFN}_i(u_t^{\ell})\right)\\
 g_{i,t} &= \begin{cases}
 s_{i,t,}, &s_{i,t}\in\mathrm{Topk}(\{s_{j,t}\mid 1\leq j \leq N\},K)\\
 0, &\text{otherwise}
 \end{cases}\\
-s_{i,t,} &= \mathrm{softmax}_i({u_t^{\ell}}^Te_i^{\ell})
+s_{i,t} &= \mathrm{softmax}_i({u_t^{\ell}}^Te_i^{\ell})
 \end{aligned}
 $$
 
-这里 $N$ 是专家的总个数， $K$ 是激活专家个数， $e_{i}^{\ell}$ 是 routing layer 的权重矩阵，$\mathrm{FFN}_i$ 是每个专家对应的 FFN.
-
-### DeepSeekMoE Architecutre
+这里 $N$ 是专家的总个数， $K$ 是激活专家个数， $e_{i}^{\ell}$ 是 routing layer 的权重矩阵，$\mathrm{FFN}_i$ 是每个专家对应的 FFN, $h_t^\ell$ 是 MoE layer 的输出。
 
 DeepSeekMoE 架构如下图所示
 
@@ -145,7 +131,6 @@ $$
 | shared experts    | 1    | 2     | 4      |
 | training tokens   | 100B | 2T    | 245B   |
 
-
 ### Alignment
 
 作者针对 DeepseekMoE 16B 进行了微调，微调使用了 **1.4M** 的训练样本，覆盖了 math, code, QA, reasoning 等任务。
@@ -164,7 +149,10 @@ $$
 
 作者还探究了模型的泛化性，作者 mask 掉一部分概率最高的 routing expert, 然后从剩下的专家里进行 topK 的挑选，然后作者比较模型和 GShard 的表现，结果如下图所示
 
-<Image src={deepseekmoe_ablation_expert_specialization} alt="Ablation study on expert specialization" />
+<Image
+  src={deepseekmoe_ablation_expert_specialization}
+  alt="Ablation study on expert specialization"
+/>
 
 实验结果显示，**DeepSeekMoE 对于 mask 操作更敏感，这说明 DeepSeekMoE 模型中专家的 specialization 更强。**
 
@@ -172,7 +160,9 @@ $$
 
 作者进一步分析了共享专家与路由专家组合的有效性。作者探究 DeepSeekMoE 是否可以使用更少的路由专家来获取知识。作者通过使用不同的 activated routed experts 来进行实验，实验结果如下图所示
 
-<Image src={deepseekmoe_ablation_number_activated_experts} alt="Ablation study on activated routed experts" />
+<Image
+  src={deepseekmoe_ablation_number_activated_experts}
+  alt="Ablation study on activated routed experts"
+/>
 
 实验结果显示，DeepSeekMoE 仅需激活 4 个路由专家，就可以达到与 GShard 相同的表现。**这说明了 DeepSeekMoE 模型中每个专家可以学习到更准确的知识。**
-
