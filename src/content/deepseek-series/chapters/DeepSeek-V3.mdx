@@ -26,29 +26,26 @@ import deepseek_v3_instruct_performance from "../../../assets/image/DeepSeek-V3-
 3. auxiliary-loss-free strategy: 采用了 [Loss-Free Balancing](/p/notes-on-loss-free-balancing/) 提出的 loss balancing 策略
 4. multi-token prediction: 采用了 MTP 的训练目标来提升模型的表现
 
-在训练上，作者做了如下改进：
+在训练框架上上，作者做了如下改进：
 
 1. 使用了 FP8 混合精度进行训练并验证了其在大规模模型上的有效性
 2. 作者构建了 DualPipe 算法用于高效的 pipeline parallelism
 3. 构建了 cross-node all-to-all communication kernel 来高效使用 InfiniBand 以及 NVLink bandwidth
 4. 优化了 memory footprint, 来避免使用 tensor parallelism
 
-预训练阶段，DeepSeek-V3 使用了**14.8T** token. 在 mid-training 阶段，作者将模型的上下文长度由 8K 扩展到 32K, 再扩展到 128K.
+在训练方式上：
 
-后训练阶段，作者使用了 SFT 和 RL 两个阶段来提高模型的表现，作者还对 [DeepSeek-R1](/p/notes-on-deepseek-r1/) 进行蒸馏来提高模型的 reasoning 能力
+- 预训练阶段，DeepSeek-V3 使用了**14.8T token**.
+- 在 mid-training 阶段，作者将模型的上下文长度由 8K 扩展到 32K, 再扩展到 128K.
+- 后训练阶段，作者使用了 SFT 和 RL 两个阶段来提高模型的表现，作者还对 [DeepSeek-R1](/p/notes-on-deepseek-r1/) 进行蒸馏来提高模型的 reasoning 能力
 
 ### Architecture
 
-DeepSeek-V3 的架构与 [DeepSeek-V2](#deepSeek-v2) 的架构一致，如下图所示
+DeepSeek-V3 的架构与 [DeepSeek-V2](#deepSeek-v2) 的架构一致，见 [DeepSeek-V2](#deepseek-v2).
 
-<Image src={deepseek_v2_architecture} alt="Architecture of DeepSeek-V2" />
+DeepSeek-V3 在 DeepSeekMoE 的基础上，使用 sigmoid function 来单独计算每个专家的贡献，然后再进行 normalization.
 
-MLA 的介绍见 [MLA](/p/notes-on-mla/), MoE 架构的介绍见 DeepSeekMoE [@DeepSeek-MoE]. DeepSeek-V3 在 DeepSeekMoE 的基础上做了两点改变：
-
-1. 受 [Loss-Free Balancing](/p/notes-on-loss-free-balancing/) 启发，作者使用了 sigmoid fu nction 来计算 affinity score
-2. 对于 selected affinity score 应用了 normalization
-
-在 DeepSeekMoE [@DeepSeek-MoE] 的基础上，作者使用了 [Loss-Free Balancing](/p/notes-on-loss-free-balancing/). 其表达式如下
+DeepSeek-V3 还使用了 [Loss-Free Balancing](/p/notes-on-loss-free-balancing/), 其表达式如下
 
 $$
 g_{i,t} = \begin{cases}
@@ -57,9 +54,10 @@ s_{i,t}, & s_{i,t}+b_i\in\mathrm{Topk}(\{s_{i,j}+b_j\mid 1\leq j\leq N\}, K)\\
 \end{cases}
 $$
 
-其中 $b_i$ 仅影响 routing, 训练时，如果对应的 expert 负载不均衡，则对 $b_i$ 进行更新，更新方式为增加/减少 $\gamma$, 这里 $\gamma$ 是一个超参数
+其中 $b_i$ 是一个随机扰动，仅影响 routing 结果。
+训练时，如果对应的 expert 负载不均衡，则对 $b_i$ 进行更新，更新方式为 $b_i\pm\gamma$, 这里 $\gamma$ 是一个超参数。
 
-为了提高 routing 在 sequence 层面的负载均衡，作者还是用了一个 complementary sequence-wise balance loss:
+为了提高 routing 在 sequence 层面的负载均衡，作者还使用了一个 complementary sequence-wise balance loss:
 
 $$
 \begin{aligned}
@@ -72,30 +70,33 @@ $$
 
 其中 $\alpha$ 是 balance factor, 为超参数，$T$ 是 sequence length, 加入这个损失后，每个 sequence 上的负载会变得更加均衡
 
-与 DeepSeekMoE [@DeepSeek-MoE] 一样，作者也在 node 层面实现负载均衡，具体做法就是，根据 node 中所包含 expert 的 affinity score 之和来选取最高的 $M$ 个 nodes, 这样就可以进一步提高 computation 和 communication 之间的 overlap.
-
-由于 DeepSeek-V3 负载均衡比较好，因此作者使用了 no token-dropping strategy.
-
 #### MTP
 
-受 MTP 启发，DeepSeek-V3 也构建了 MTP 模块，作者认为 MTP 模块有两个优势：
+受 MTP [@MTP] 启发，DeepSeek-V3 也构建了 MTP 模块用于预测未来的多个 token, 作者认为 MTP 模块有两个优势：
 
 1. MTP objective 提供了更多的学习信号，进而提高了数据使用效率
-2. MTP 可以让模型更好预测未来的 token
+2. MTP 可以让模型更好预测未来的 token, 提高模型的规划能力
 
-与 MTP 不同，DeepSeek-V3 【todo】, DeepSeek-V3 所使用的 MTP 模块架构图如下所示
+DeepSeek-V3 所使用的 MTP 模块架构图如下所示
 
 <Image src={deepseek_v3_mtp} alt="Illustration of MTP" />
 
-MTP 模块使用了 $D$ sequential modules 来预测未来的 $D$ 个 token. 其中，第 $k$ 个 MTP 模块包含一个共享的 embedding layer $\mathrm{Emb}(\cdot)$ , 一个共享的 output head $\mathrm{OutHead}(\cdot)$, 一个 transformer block $\mathrm{TRM}_k(\cdot)$ 和一个 projection matrix $M_k\in\mathbb{R}^{d\times 2d}$.
+MTP 模块使用了 $D$ 个 sequential modules 来预测未来的 $D$ 个 token.
+其中，第 $k$ 个 MTP 模块包含：
 
-对于第 $i$ 个 token 以及第 $k$ 个 MTP 模块，作者首先将第 $k-1$ 个 MTP 模块的第 $i$ 个 token 的 hidden states $h_i^{k-1}\in\mathbb{R}^d$ 和第 $i+k$ 个 token 的 embedding $\mathrm{Emb}(t_{i+1})\in\mathbb{R}^d$ 联合在一起
+- 一个共享的 embedding layer $\mathrm{Emb}(\cdot)$
+- 一个共享的 output head $\mathrm{OutHead}(\cdot)$
+- 一个 transformer block $\mathrm{TRM}_k(\cdot)$
+- 一个 projection matrix $M_k\in\mathbb{R}^{d\times 2d}$.
+
+对于第 $i$ 个 token 以及第 $k$ 个 MTP 模块，作者首先将第 $k-1$ 个 MTP 模块的第 $i$ 个 token 的 hidden states $h_i^{k-1}\in\mathbb{R}^d$ 和第 $i+k$ 个 token 的 embedding $\mathrm{Emb}(t_{i+1})\in\mathbb{R}^d$ concate 在一起
 
 $$
-h_i'^{k}=M_k[\mathrm{RMSNorm(h_{i}^{k-1});\mathrm{RMSNorm(\mathrm{Emb}(t_{i+k}))}}]
+h_i'^{k}=M_k[\mathrm{RMSNorm}(h_{i}^{k-1});\mathrm{RMSNorm}(\mathrm{Emb}(t_{i+k}))]
 $$
 
-其中 $[\cdot;\cdot]$ 代表 concatenation 操作。当 $k=1$ 时，$h_{i}^{k-1}$ 就代表了 main model 的输出。每个 MTP 模块的 embedding layer 和 main model 的 embedding layer 是共享的，接下来， $h_i'^k$ 作为第 $k$ 个 MTP 模块 transformer block 的输入，得到
+$h_{i}^{0}=h_i$ 是 main model 的输出。
+每个 MTP 模块的 embedding layer 和 main model 的 embedding layer 是共享的，接下来， $h_i'^k$ 作为第 $k$ 个 MTP 模块 transformer block 的输入，得到
 
 $$
 h_{i}^k = \mathrm{TRM}_k(h_{i}'^l)
