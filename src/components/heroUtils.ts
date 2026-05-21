@@ -19,6 +19,7 @@ export interface HeroProps {
   pdfProOnly?: boolean;
   showPdf?: boolean;
   links?: Array<{ label: string; url: string; icon?: string }>;
+  banner?: string | false;
 }
 
 export function normalizeAuthors(

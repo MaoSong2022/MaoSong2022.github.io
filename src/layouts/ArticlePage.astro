@@ -391,12 +391,13 @@ const links: Array<{ label: string; url: string; icon?: string }> =
         pdfProOnly={articleFM?.pdfProOnly}
         showPdf={articleFM?.showPdf}
         links={links}
+        banner={articleFM?.banner}
       />
     )}
 
-    {template === "paper" && (
+    {template === "paper" && articleFM?.banner !== false && (
       <div class="paper-hero-banner">
-        <HtmlEmbed src="banner.html" frameless />
+        <HtmlEmbed src={articleFM?.banner || "banner.html"} frameless />
       </div>
     )}
 
