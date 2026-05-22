@@ -94,6 +94,7 @@
     background: var(--page-bg);
     padding: 10px;
     position: relative;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.07);
   }
 
   .d3-deepseek-parameter-calculator .chart-tooltip {
@@ -223,23 +224,46 @@
 
       const renderChart = (parts) => {
         const width = container.clientWidth || 920;
-        const margin = { top: 20, right: 16, bottom: 32, left: 170 };
+        const margin = { top: 36, right: 24, bottom: 36, left: 180 };
         const barHeight = 34;
         const gap = 10;
         const innerHeight = parts.length * (barHeight + gap);
         const height = margin.top + margin.bottom + innerHeight;
         const innerWidth = width - margin.left - margin.right;
 
-        svg.attr("width", width).attr("height", height);
+        svg.attr("width", width).attr("height", height).style("max-width", "100%");
         svg.selectAll("*").remove();
+
+        // Drop shadow for bars
+        const defs = svg.append("defs");
+        const filter = defs.append("filter")
+          .attr("id", "bar-shadow")
+          .attr("x", "-10%").attr("y", "-10%")
+          .attr("width", "120%").attr("height", "120%");
+        filter.append("feDropShadow")
+          .attr("dx", 0).attr("dy", 1)
+          .attr("stdDeviation", 1.5)
+          .attr("flood-opacity", 0.12);
+
+        // Chart title
+        svg.append("text")
+          .attr("x", width / 2)
+          .attr("y", 18)
+          .attr("text-anchor", "middle")
+          .attr("fill", "var(--text-color)")
+          .style("font-size", "14px")
+          .style("font-weight", "600")
+          .style("font-family", "inherit")
+          .text("Parameter Distribution by Component");
 
         const root = svg
           .append("g")
           .attr("transform", `translate(${margin.left},${margin.top})`);
 
+        const xMax = d3.max(parts, (d) => d.params_billion) * 1.15;
         const x = d3
           .scaleLinear()
-          .domain([0, d3.max(parts, (d) => d.params_billion) * 1.1])
+          .domain([0, xMax])
           .range([0, innerWidth]);
 
         const y = d3
@@ -250,18 +274,38 @@
 
         color.domain(parts.map((d) => d.name));
 
+        // Grid lines
+        root
+          .append("g")
+          .call(d3.axisBottom(x).ticks(5).tickSize(-innerHeight).tickFormat(""))
+          .selectAll("line")
+          .attr("stroke", "var(--border-color)")
+          .attr("stroke-dasharray", "3,3")
+          .attr("opacity", 0.5);
+
+        // X axis
         root
           .append("g")
           .attr("transform", `translate(0,${innerHeight})`)
-          .call(d3.axisBottom(x).ticks(5).tickFormat((d) => `${d}B`));
+          .call(d3.axisBottom(x).ticks(5).tickFormat((d) => `${d}B`))
+          .attr("color", "var(--muted-color)")
+          .style("font-size", "11px")
+          .style("font-family", "inherit");
 
+        // Y axis
         root
           .append("g")
           .call(d3.axisLeft(y))
           .selectAll("text")
           .attr("fill", "var(--text-color)")
-          .style("font-size", "12px");
+          .style("font-size", "12px")
+          .style("font-weight", "500")
+          .style("font-family", "inherit");
 
+        // Axis lines
+        root.selectAll(".domain").attr("stroke", "var(--border-color)");
+
+        // Bars
         root
           .append("g")
           .selectAll("rect")
@@ -271,38 +315,68 @@
           .attr("y", (d) => y(d.name))
           .attr("height", y.bandwidth())
           .attr("rx", 6)
+          .attr("ry", 6)
           .attr("fill", (d) => color(d.name))
+          .attr("filter", "url(#bar-shadow)")
           .attr("width", 0)
           .on("mouseenter", (event, d) => {
+            const total = d3.sum(parts, (p) => p.params_billion);
             tooltipEl.innerHTML = `
-              <div><strong>${d.name}</strong></div>
-              <div>Parameters: <strong>${formatB(d.params_billion)}</strong></div>
-              <div>${d.description || ""}</div>
+              <div style="font-weight:600;font-size:13px;margin-bottom:4px;">${d.name}</div>
+              <div style="display:flex;justify-content:space-between;gap:12px;">
+                <span>Parameters</span>
+                <strong>${formatB(d.params_billion)}</strong>
+              </div>
+              <div style="display:flex;justify-content:space-between;gap:12px;">
+                <span>Share</span>
+                <strong>${(d.params_billion / total * 100).toFixed(1)}%</strong>
+              </div>
+              ${d.description ? `<div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border-color);color:var(--muted-color);font-size:11px;">${d.description}</div>` : ""}
             `;
             tooltipEl.style.opacity = "1";
           })
           .on("mousemove", (event) => {
             const [mx, my] = d3.pointer(event, container);
-            tooltipEl.style.transform = `translate(${Math.round(mx + 12)}px, ${Math.round(my + 12)}px)`;
+            const tw = tooltipEl.offsetWidth || 200;
+            const th = tooltipEl.offsetHeight || 80;
+            let ox = mx + 14;
+            let oy = my + 14;
+            if (ox + tw > container.clientWidth) ox = mx - tw - 14;
+            if (oy + th > container.clientHeight) oy = my - th - 14;
+            tooltipEl.style.transform = `translate(${Math.round(ox)}px,${Math.round(oy)}px)`;
           })
           .on("mouseleave", () => {
             tooltipEl.style.opacity = "0";
-            tooltipEl.style.transform = "translate(-9999px, -9999px)";
+            tooltipEl.style.transform = "translate(-9999px,-9999px)";
           })
           .transition()
-          .duration(450)
+          .duration(500)
+          .delay((_, i) => i * 70)
           .attr("width", (d) => x(d.params_billion));
 
+        // Bar value labels
         root
           .append("g")
           .selectAll("text")
           .data(parts, (d) => d.name)
           .join("text")
-          .attr("x", (d) => x(d.params_billion) + 8)
+          .attr("x", (d) => {
+            const bw = x(d.params_billion);
+            return bw > 50 ? bw - 10 : bw + 8;
+          })
           .attr("y", (d) => y(d.name) + y.bandwidth() / 2 + 4)
-          .attr("fill", "var(--text-color)")
+          .attr("fill", (d) => x(d.params_billion) > 50 ? "#fff" : "var(--text-color)")
+          .attr("text-anchor", (d) => x(d.params_billion) > 50 ? "end" : "start")
           .style("font-size", "12px")
-          .text((d) => formatB(d.params_billion));
+          .style("font-weight", "600")
+          .style("font-family", "inherit")
+          .style("pointer-events", "none")
+          .text((d) => formatB(d.params_billion))
+          .attr("opacity", 0)
+          .transition()
+          .duration(350)
+          .delay((_, i) => 520 + i * 70)
+          .attr("opacity", 1);
       };
 
       const renderModel = (modelName) => {
