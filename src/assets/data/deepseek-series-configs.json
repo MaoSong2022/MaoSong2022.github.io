@@ -86,14 +86,14 @@
     "year": 2024,
     "family": "MoE",
     "attention": "Softmax",
-    "total_params_billion": 16.0,
+    "total_params_billion": 16.3,
     "active_params_billion": 67.0,
     "config": {
       "vocab_size": 102400,
       "hidden_size": 2048,
       "num_layers": 28,
       "num_attention_heads": 16,
-      "num_kv_heads": 8,
+      "num_kv_heads": 16,
       "intermediate_size": 10944,
       "context_length": 4096,
       "moe_intermediate_size": 1408,
@@ -104,22 +104,22 @@
     "parts": [
       {
         "name": "Embeddings",
-        "params_billion": 1.68,
+        "params_billion": 0.42,
         "description": "Token embedding and output projection"
       },
       {
         "name": "Attention",
-        "params_billion": 14.34,
+        "params_billion": 0.46,
         "description": "Q/K/V/O projections across all layers"
       },
       {
         "name": "FFN",
-        "params_billion": 51.4,
+        "params_billion": 15.48,
         "description": "Dense feed-forward blocks"
       },
       {
-        "name": "Norms + Other",
-        "params_billion": 0.06,
+        "name": "Norms",
+        "params_billion": 0.00,
         "description": "Layer norms and auxiliary parameters"
       }
     ]
@@ -128,89 +128,140 @@
     "model": "DeepSeek-V2",
     "year": 2024,
     "family": "MoE",
-    "total_params_billion": 236.0,
-    "active_params_billion": 21.0,
+    "total_params_billion": 235.7,
+    "active_params_billion": 21.4,
     "config": {
-      "vocab_size": 128000,
+      "vocab_size": 102400,
       "hidden_size": 5120,
       "num_layers": 60,
-      "num_attention_heads": 40,
-      "num_kv_heads": 8,
-      "intermediate_size": 18432,
-      "context_length": 128000,
-      "moe_experts": 160,
-      "activated_experts": 6
+      "num_attention_heads": 128,
+      "num_kv_heads": null,
+      "intermediate_size": 12288,
+      "context_length": 4096,
+      "moe_intermediate_size": 1536,
+      "activated_experts": 6,
+      "n_routed_experts": 160,
+      "n_shared_experts": 2
     },
     "parts": [
       {
         "name": "Embeddings",
-        "params_billion": 1.31,
+        "params_billion": 1.05,
         "description": "Token embedding and output projection"
       },
       {
-        "name": "Attention + MLA",
-        "params_billion": 18.7,
+        "name": "Attention",
+        "params_billion": 8.95,
         "description": "Attention core with latent attention modules"
       },
       {
-        "name": "Shared FFN",
-        "params_billion": 7.2,
-        "description": "Shared dense feed-forward parameters"
-      },
-      {
-        "name": "MoE Experts",
-        "params_billion": 206.5,
+        "name": "MoE ",
+        "params_billion": 225.74,
         "description": "Routed experts across transformer layers"
       },
       {
-        "name": "Norms + Router",
-        "params_billion": 2.29,
+        "name": "activated",
+        "params_billion": 11.37,
+        "description": "Parameters active during inference"
+      },
+      {
+        "name": "Norms",
+        "params_billion": 0.00,
+        "description": "Layer norms, gating, and routing parameters"
+      }
+    ]
+  },
+  {
+    "model": "DeepSeek-V2 Lite",
+    "year": 2024,
+    "family": "MoE",
+    "total_params_billion": 15.7,
+    "active_params_billion": 2.66,
+    "config": {
+      "vocab_size": 102400,
+      "hidden_size": 2048,
+      "num_layers": 27,
+      "num_attention_heads": 16,
+      "num_kv_heads": null,
+      "intermediate_size": 10944,
+      "context_length": 4096,
+      "moe_intermediate_size": 1408,
+      "activated_experts": 6,
+      "n_routed_experts": 64,
+      "n_shared_experts": 2
+    },
+    "parts": [
+      {
+        "name": "Embeddings",
+        "params_billion": 0.42,
+        "description": "Token embedding and output projection"
+      },
+      {
+        "name": "Attention",
+        "params_billion": 0.37,
+        "description": "Attention core with latent attention modules"
+      },
+      {
+        "name": "MoE ",
+        "params_billion": 15.7,
+        "description": "Routed experts across transformer layers"
+      },
+      {
+        "name": "activated",
+        "params_billion": 1.87,
+        "description": "Parameters active during inference"
+      },
+      {
+        "name": "Norms",
+        "params_billion": 0.00,
         "description": "Layer norms, gating, and routing parameters"
       }
     ]
   },
   {
     "model": "DeepSeek-V3",
-    "year": 2025,
+    "year": 2024,
     "family": "MoE",
     "total_params_billion": 671.0,
-    "active_params_billion": 37.0,
+    "active_params_billion": 37.55,
     "config": {
-      "vocab_size": 128000,
-      "hidden_size": 7168,
-      "num_layers": 80,
-      "num_attention_heads": 56,
-      "num_kv_heads": 8,
-      "intermediate_size": 24576,
-      "context_length": 128000,
-      "moe_experts": 256,
-      "activated_experts": 8
+      "vocab_size": 102400,
+      "hidden_size": 2048,
+      "num_layers": 27,
+      "num_attention_heads": 16,
+      "num_kv_heads": null,
+      "intermediate_size": 18432,
+      "context_length": 163840,
+      "moe_intermediate_size": 2048,
+      "activated_experts": 8,
+      "n_routed_experts": 256,
+      "n_shared_experts": 1
     },
     "parts": [
       {
         "name": "Embeddings",
-        "params_billion": 1.84,
+        "params_billion": 1.85,
         "description": "Token embedding and output projection"
       },
       {
-        "name": "Attention + MLA",
-        "params_billion": 44.2,
-        "description": "Attention stack with latent representations"
+        "name": "Attention",
+        "params_billion": 11.41,
+        "description": "Attention core with latent attention modules"
       },
       {
-        "name": "Shared FFN",
-        "params_billion": 17.1,
-        "description": "Dense feed-forward trunk"
+        "name": "MoE ",
+        "params_billion": 657.76,
+        "description": "Routed experts across transformer layers"
       },
       {
-        "name": "MoE Experts",
-        "params_billion": 600.8,
-        "description": "Large expert pool for routed computation"
+        "name": "activated",
+        "params_billion": 24.28,
+        "description": "Parameters active during inference"
       },
       {
-        "name": "Norms + Router",
-        "params_billion": 7.06,
-        "description": "Norm parameters, gates, and routers"
+        "name": "Norms",
+        "params_billion": 0.00,
+        "description": "Layer norms, gating, and routing parameters"
       }
     ]
   }
