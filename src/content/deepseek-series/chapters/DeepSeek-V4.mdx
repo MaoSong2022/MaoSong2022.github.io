@@ -1,1 +1,32 @@
 ## DeepSeek-V4
+
+DeepSeek-V4 在 DeepSeek-V3 的基础上进一步提高了在长上下文场景下的推理效率。
+
+### Architecture
+
+#### MoE
+
+对于 MoE 模块，DeepSeek-V4 相比于 DeepSeek-V3 有以下变化：
+
+1. 将激活函数从 `sigmoid()` 改进为 `Sqrt(Softplus())`
+2. 增加了一个 sequence-wise balance loss 来实现 sequence 层面的负载均衡
+3. 移除了node 层面的负载均衡损失，通过并行策略优化来替代这个限制
+4. 移除了 DeepSeek-V3 中最开始的 3 层 FFN layers, 改用基于 hash routing 的 MoE layer.
+
+#### Attention
+
+### Pre-training
+
+#### Infra
+
+#### Data
+
+#### Training
+
+#### Post-training
+
+#### OPD
+
+#### Infra
+
+### Discussions
