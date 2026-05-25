@@ -5,11 +5,11 @@ import nope_softmax_hyperparameter from '../../../assets/image/NoPE-softmax-hype
 
 ## Introduction
 
-【参考文献 1】中系统性对比了 [AliBi](/p/notes-on-alibi/), [RoPE](/p/notes-on-position-encoding/) , [T5](/p/notes-on-t5/) 提出的 T5 bias 以及 Transformer 提出的绝对位置编码 (APE).
+[@kazemnejad2023the] 系统性对比了 [AliBi](/p/notes-on-alibi/), [RoPE](/p/notes-on-position-encoding/) , [T5](/p/notes-on-t5/) 提出的 T5 bias 以及 Transformer 提出的绝对位置编码 (APE).
 
 作者发现，常用的方法在 length generalization 上表现并不是最好的，而 NoPE 不需要额外的计算开销反而效果最好。
 
-【参考文献 2】 进一步探究了 NoPE 长度外推的泛化性。作者有三点发现：
+[@wang-etal-2024-length] 进一步探究了 NoPE 长度外推的泛化性。作者有三点发现：
 
 1. NoPE 相比于 RoPE, 其长度外推泛化能力更强
 2. 对于 NoPE 来说，模型会在还没有到达预训练上下文长度之前，表现就出现下降的情况
@@ -48,10 +48,6 @@ $$
 <Image src={nope_softmax_hyperparameter} alt="impact of softmax hyper-parameter on NoPE" />
 
 结果说明，通过调整 $\lambda$ 我们可以有效提高 NoPE 的上下文扩展泛化能力
-
-## Conclusion
-
-NoPE 说明在 transformer 中我们可以不需要加入位置编码模块，这两篇论文均验证了 NoPE 的有效性。
 
 ## References
 

@@ -4,21 +4,17 @@ import alibi_comparison_different_position_embedding from '../../../assets/image
 import alibi_illustration from '../../../assets/image/ALiBi-illustration.png';
 import alibi_performance from '../../../assets/image/ALiBi-performance.png';
 
-meta 等提出了 ALiBi, 一个通过 linear biases 来实现位置编码的方法来提高 LLM 在推理阶段的外推能力。
-
-## Introduction
+## ALiBi
 
 当下，有若干种位置编码的方式：
 
 1. Sinusoidal position embeddings: Transformer 提出的正弦位置编码
-2. RoPE: [RoPE](/p/notes-on-position-encoding/) 提出的旋转位置编码
-3. T5 bias: [T5](/p/notes-on-t5/) 提出的相对位置编码
+2. RoPE: [RoPE](#RoPE) 提出的旋转位置编码
+3. T5 bias: T5 [@T5] 提出的相对位置编码
 
 作者通过实验对比了不同的位置编码方法，发现这些方法在推理阶段的外推能力都比较差。
 
-为了解决这个问题，作者提出了 ALiBi (attention with linear biases), 一个几乎不增加计算和内存开销的位置编码方法，来提高 LLM 在推理阶段的外推能力。
-
-## Method
+为了解决这个问题，作者提出了 ALiBi (attention with linear biases) [@ALiBi], 一个几乎不增加计算和内存开销的位置编码方法，来提高 LLM 在推理阶段的外推能力。
 
 作者将外推能力定义为
 
@@ -55,16 +51,6 @@ $$
 
 ALiBi 通过 bias 惩罚了较远的 query-key pairs, 并且不同的 heads 的惩罚项也不同，从而每个 head 对距离的信息敏感度也不尽相同。
 
-## Experiments
-
 ALiBi 在 WikiText-103 上的实验结果如下图所示
 
 <Image src={alibi_performance} alt="Performance of ALiBi" />
-
-## Conclusion
-
-作者分析了已有的 position embedding 方法，发现已有的方法在推理阶段均不能有效扩展模型的上下文长度。因此，作者提出了 AliBi, 一个通过 linear bias 来增加位置信息的方法，作者通过实验验证了 ALiBi 的有效性。
-
-## References
-
-- [Train Short, Test Long: Attention with Linear Biases Enables Input Length Extrapolation](https://openreview.net/forum?id=R8sQPpGCv0)
