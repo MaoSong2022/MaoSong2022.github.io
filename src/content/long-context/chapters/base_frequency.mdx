@@ -6,6 +6,8 @@ import base_frequency_comparison_interpolation from '../../../assets/image/base-
 
 ## Introduction
 
+RoPE ABF [@RoPEABF] 提出了通过提高 base frequency 来解决 attention decay 问题
+
 [RoPE](/p/notes-on-position-encoding/) 已经成为了大多数 LLM 使用的 position encoding 范式，但是，RoPE 与 LLM long context 之间的关系还没有被探索清楚。在本文中，作者就探究了 base frequency 与 LLM context capability 之间的关系，并给出了一个达到指定上下文长度所需要的 base frequency 的 lower bound.
 
 ## Method
