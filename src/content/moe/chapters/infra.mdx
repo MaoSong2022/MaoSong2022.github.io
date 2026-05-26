@@ -1,0 +1,15 @@
+import Image from "../../../components/Image.astro";
+
+import moe_ep_pipeline from "../../../assets/image/MoE-EP-pipeline.png";
+
+## Infra
+
+针对 MoE 模型的 infra 主要涉及 expert parallelism (EP), EP 将 MoE layer 的计算分为了三个阶段：
+
+1. all-to-all dispatch: 基于 gating layer 的结果，将 token 通信传输到对应专家所在的 GPU 上
+2. computation: 执行计算，即 $E_i(x)$.
+3. all-to-all combine: 收集专家计算的结果，即 $y = \sum_{i=1}^K\mathrm{Normalize}(G_{e_i}(x)) E_{e_i}(x)$.
+
+其框架图如下所示
+
+<Image src={moe_ep_pipeline} alt="Pipeline of Expert Parallelism (EP)" />

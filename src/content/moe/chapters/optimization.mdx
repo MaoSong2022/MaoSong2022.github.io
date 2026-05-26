@@ -1,0 +1,11 @@
+
+## Optimization
+
+MoE 模型的优势在于表现好，但是模型参数往往非常大，为了方便使用，我们需要对训练好的 MoE 模型进行优化，目前主要有蒸馏，专家剪枝/合并以及量化等优化方法
+
+蒸馏是一个将大模型能力传递给小模型的做法，目前已有的包括：
+
+1. Switch Transformer [@SwitchTransformer] 通过蒸馏，在仅使用 $1/20$ 参数的情况下，保留了稀疏教师模型 $30\%$ 的表现
+2. [Gemini2.5](/p/notes-on-gemini2.5/) 通过蒸馏 Gemini2.5 Pro 得到 Gemini2.5 Flash
+3. [DeepSeek-R1](/p/notes-on-deepseek-r1/) 通过蒸馏来提升小语言模型的 reasoning 能力
+4. [Qwen3](/p/notes-on-qwen3/) 对于小语言模型的训练使用了 off-policy distillation 和 on-policy distillation 来训练小语言模型
