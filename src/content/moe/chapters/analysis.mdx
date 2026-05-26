@@ -1,0 +1,25 @@
+import Image from "../../../components/Image.astro";
+import olmoe_router_saturation from "../../../assets/image/olmoe-router-saturation.png";
+
+## Analysis on MoE
+
+### Specialization of Experts
+
+OpenMoE 分析了 MoE 模型的特化程度，其结论如下
+
+1. 作者发现，大部分专家对于不同的 domain 没有出现 specialization 情况，对于 math domain, specialization 现象比较明显，作者认为这是因为 math domain 包含更多的 special tokens
+2. 对于不同的语言，有部分专家出现 specialization 现象
+3. 部分专家对于 position ID 有 specialization 现象，并且连续的 token 更偏好相同的专家
+4. 作者还发现，部分专家对于 Token ID 有 specialization 现象，作者将这种现象称为 **Context-independent Specialization**.
+5. 专家还会对语义相似的 token 进行聚类，并且这种聚类在训练早期就已经发生，作者认为其原因在于重新分配 token 会增加最终的 loss
+6. 对于 token dropping, 作者发现越靠后的 token, 其被 drop 的概率比例也越高。并且对于指令跟随数据，更多的 token 都会被丢掉，因此作者认为指令跟随数据是 MoE 模型的一种 OOD 数据
+
+### Saturation of Experts
+
+OLMoE [@OLMoE] 探究了训练过程中激活的专家和训练结束后激活的专家的匹配程度，结果如下图所示
+
+<Image src={olmoe_router_saturation} alt="Olmoe router saturation" />
+
+实验结果说明，训练 $1\%$ 的数据之后，就有 $40\%$ 的 routing 和训练完毕的 routing 一致，当训练 $40\%$ 的数据之后，这个比例提升到了 $80\%$. 作者认为，这是专家特化的结果，初始的 routing 如果改变的话会带来表现下降，因此模型倾向于使用固定的专家处理特定的 token
+
+作者还发现，later layers 比 early layers 饱和更快，early layer, 特别是 layer 0, 饱和的非常慢。作者认为，这是 DeepSeekMoE [@DeepSeek-MoE] 放弃在第一层使用 MoE layer 的原因，因为 load balancing loss 收敛更慢。后续 DeepSeek-V2 [@DeepSeek-V2] 和 DeepSeek-V3 [@DeepSeek-V3] 均在 early layer 上使用 dense layer 替换掉了 MoE layer
