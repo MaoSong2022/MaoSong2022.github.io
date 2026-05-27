@@ -40,31 +40,6 @@ const browseArticles: BrowseRow[] = articles.map((a: SiteArticleEntry) => ({
   tags: a.tags,
 }));
 
-const yearWeight = (year: string): number => {
-  const parsed = Number.parseInt(year, 10);
-  return Number.isNaN(parsed) ? -1 : parsed;
-};
-
-const getArticleYear = (rawDate: string): string => {
-  const match = /^(\d{4})/.exec(rawDate.trim());
-  return match?.[1] ?? "Unknown";
-};
-
-const archiveMap = new Map<string, SiteArticleEntry[]>();
-for (const article of articles) {
-  const year = getArticleYear(article.modified ?? article.published ?? "");
-  const grouped = archiveMap.get(year);
-  if (grouped) {
-    grouped.push(article);
-  } else {
-    archiveMap.set(year, [article]);
-  }
-}
-
-const archiveYears = [...archiveMap.keys()].sort(
-  (a, b) => yearWeight(b) - yearWeight(a),
-);
-
 const pageTitle = "Browse";
 const description =
   "Search posts, filter by category, or narrow down with tags.";
@@ -162,69 +137,41 @@ const description =
       </div>
     </div>
 
-    <h2 class="browse-results-heading">Archive</h2>
-    <div id="browse-list">
-      {
-        archiveYears.map((year, index) => (
-          <section class="browse-archive-year" data-archive-year-group>
-            <h3>
-              <button
-                type="button"
-                class="button button--ghost browse-archive-toggle"
-                data-archive-toggle
-                aria-expanded="false"
-                aria-controls={`archive-year-${index}`}
-              >
-                <span class="browse-archive-left">
-                  <span class="browse-archive-caret" aria-hidden="true">▸</span>
-                  <span class="browse-archive-year-label">{year}</span>
-                </span>
-                <span class="browse-archive-count">
-                  {archiveMap.get(year)?.length ?? 0}
-                </span>
-              </button>
-            </h3>
-            <ul
-              class="article-index"
-              id={`archive-year-${index}`}
-              data-archive-list
-              hidden
+    <p class="browse-empty" id="browse-empty" hidden>
+      No posts match your search. Try different keywords or filters.
+    </p>
+    <ul class="article-index" id="browse-list">
+      {articles.map((a) => (
+        <li class="article-index__item" data-browse-slug={a.slug}>
+          {a.categories ? (
+            <a
+              class="article-index__category"
+              href={browseCategoryHref(a.categories)}
             >
-              {(archiveMap.get(year) ?? []).map((a) => (
-                <li class="article-index__item" data-browse-slug={a.slug}>
-                  {a.categories ? (
-                    <a
-                      class="article-index__category"
-                      href={browseCategoryHref(a.categories)}
-                    >
-                      {a.categories}
-                    </a>
-                  ) : null}
-                  <a class="article-index__link" href={a.url}>
-                    {a.title}
-                  </a>
-                  {a.displayDate ? (
-                    <span class="article-index__meta">{a.displayDate}</span>
-                  ) : null}
-                  {a.description ? (
-                    <p class="article-index__desc">{a.description}</p>
-                  ) : null}
-                  {a.tags.length > 0 ? (
-                    <div class="article-index__tags">
-                      {a.tags.map((t) => (
-                        <a class="article-index__tag" href={browseTagHref(t)}>
-                          {t}
-                        </a>
-                      ))}
-                    </div>
-                  ) : null}
-                </li>
+              {a.categories}
+            </a>
+          ) : null}
+          <a class="article-index__link" href={a.url}>
+            {a.title}
+          </a>
+          {a.displayDate ? (
+            <span class="article-index__meta">{a.displayDate}</span>
+          ) : null}
+          {a.description ? (
+            <p class="article-index__desc">{a.description}</p>
+          ) : null}
+          {a.tags.length > 0 ? (
+            <div class="article-index__tags">
+              {a.tags.map((t) => (
+                <a class="article-index__tag" href={browseTagHref(t)}>
+                  {t}
+                </a>
               ))}
-            </ul>
-          </section>
-        ))
-      }
-    </div>
+            </div>
+          ) : null}
+        </li>
+      ))}
+    </ul>
 
   <script define:vars={{ browseArticles }}>
     function haystack(row) {
@@ -284,13 +231,6 @@ const description =
         if (ok) visible++;
       }
 
-      for (const yearGroup of list.querySelectorAll("[data-archive-year-group]")) {
-        const hasVisiblePosts = !!yearGroup.querySelector(
-          "[data-browse-slug]:not(.browse-hidden)",
-        );
-        yearGroup.classList.toggle("browse-hidden", !hasVisiblePosts);
-      }
-
       const countEl = document.getElementById("browse-count");
       if (countEl) {
         const total = browseArticles.length;
@@ -299,7 +239,28 @@ const description =
             ? `Showing all ${total} posts`
             : `Showing ${visible} of ${total} posts`;
       }
-    }
+
+      const emptyEl = document.getElementById("browse-empty");
+      if (emptyEl) {
+        emptyEl.hidden = visible > 0;
+      }
+      if (list) {
+        list.hidden = visible === 0;
+      }
+
+      const params = new URLSearchParams();
+      if (query) params.set("q", qEl instanceof HTMLInputElement ? qEl.value : query);
+      if (category) params.set("category", category);
+      for (const tag of activeNorms) params.append("tag", tag);
+      const qs = params.toString();
+      try {
+        window.history.replaceState(
+          {},
+          "",
+          qs ? `${window.location.pathname}?${qs}` : window.location.pathname,
+        );
+      } catch {}
+      }
 
     function clearFilters() {
       const qEl = document.getElementById("browse-q");
@@ -310,9 +271,6 @@ const description =
       document.querySelectorAll(".browse-tag[aria-pressed='true']").forEach(
         (btn) => btn.setAttribute("aria-pressed", "false"),
       );
-      try {
-        window.history.replaceState({}, "", window.location.pathname);
-      } catch {}
       applyFilters();
     }
 
@@ -369,53 +327,10 @@ const description =
       applyFilters();
     });
 
-    document.getElementById("browse-list")?.addEventListener("click", (e) => {
-      const btn = e.target?.closest?.("[data-archive-toggle]");
-      if (!btn || !(btn instanceof HTMLButtonElement)) return;
-      const section = btn.closest("[data-archive-year-group]");
-      if (!(section instanceof HTMLElement)) return;
-      const list = section.querySelector("[data-archive-list]");
-      if (!(list instanceof HTMLElement)) return;
-      const expanded = btn.getAttribute("aria-expanded") === "true";
-      btn.setAttribute("aria-expanded", expanded ? "false" : "true");
-      list.hidden = expanded;
-    });
-
     document.getElementById("browse-clear")?.addEventListener("click", clearFilters);
 
     applyFiltersFromUrl();
     applyFilters();
   </script>
 
-  <style>
-    .browse-archive-toggle {
-      display: flex;
-      align-items: center;
-      width: 100%;
-      justify-content: space-between;
-      text-align: left;
-      gap: 0.75rem;
-    }
-
-    .browse-archive-count {
-      font-variant-numeric: tabular-nums;
-      opacity: 0.75;
-      margin-left: auto;
-    }
-
-    .browse-archive-left {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .browse-archive-caret {
-      transition: transform 120ms ease;
-      opacity: 0.75;
-    }
-
-    .browse-archive-toggle[aria-expanded="true"] .browse-archive-caret {
-      transform: rotate(90deg);
-    }
-  </style>
 </BaseLayout>
