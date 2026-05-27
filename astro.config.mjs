@@ -20,7 +20,6 @@ import remarkOutputContainer from './plugins/remark/output-container.mjs';
 import rehypeRestoreAtInCode from './plugins/rehype/restore-at-in-code.mjs';
 import rehypeWrapTables from './plugins/rehype/wrap-tables.mjs';
 import rehypeWrapOutput from './plugins/rehype/wrap-outputs.mjs';
-import sitemap from '@astrojs/sitemap';
 
 // Built-in Shiki (dual themes) — no rehype-pretty-code
 
@@ -36,7 +35,6 @@ export default defineConfig({
     svelte(),
     generateLlmsTxt(),
     // Precompress output with Gzip only (Brotli disabled due to server module mismatch)
-    sitemap(),
     compressor({ brotli: false, gzip: true, fileExtensions: ['.css', '.js', '.html', '.cjs', '.mjs', '.svg', '.txt'] }),
   ],
   devToolbar: {
