@@ -120,6 +120,53 @@
     width: 100%;
     height: auto;
   }
+
+  .d3-deepseek-parameter-calculator .chart-legend {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    margin-top: 10px;
+  }
+
+  .d3-deepseek-parameter-calculator .chart-legend .legend-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-color);
+  }
+
+  .d3-deepseek-parameter-calculator .chart-legend .legend-items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+    justify-content: center;
+  }
+
+  .d3-deepseek-parameter-calculator .chart-legend .legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text-color);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .d3-deepseek-parameter-calculator .chart-legend .legend-swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    border: 1px solid var(--border-color);
+    flex-shrink: 0;
+  }
+
+  .d3-deepseek-parameter-calculator.hovering .bar.ghost {
+    opacity: 0.2;
+  }
+
+  .d3-deepseek-parameter-calculator .chart-legend .legend-item.ghost {
+    opacity: 0.35;
+  }
 </style>
 
 <script>
@@ -173,11 +220,16 @@
           <div class="summary-card"><div class="summary-title">Year</div><div class="summary-value" id="ds-year">-</div></div>
           <div class="summary-card"><div class="summary-title">Total Params</div><div class="summary-value" id="ds-total">-</div></div>
           <div class="summary-card"><div class="summary-title">Active Params</div><div class="summary-value" id="ds-active">-</div></div>
+          <div class="summary-card"><div class="summary-title">Attention</div><div class="summary-value" id="ds-attention">-</div></div>
         </div>
         <div class="config-grid" id="ds-config-grid"></div>
         <div class="chart-wrap">
           <div class="chart-tooltip" id="ds-tooltip"></div>
           <svg id="ds-parts-chart"></svg>
+          <div class="chart-legend" id="ds-legend">
+            <div class="legend-title">Legend</div>
+            <div class="legend-items" id="ds-legend-items"></div>
+          </div>
         </div>
       `;
 
@@ -189,8 +241,10 @@
       const yearEl = container.querySelector("#ds-year");
       const totalEl = container.querySelector("#ds-total");
       const activeEl = container.querySelector("#ds-active");
+      const attentionEl = container.querySelector("#ds-attention");
       const configGridEl = container.querySelector("#ds-config-grid");
       const tooltipEl = container.querySelector("#ds-tooltip");
+      const legendItemsEl = container.querySelector("#ds-legend-items");
       const svg = d3.select(container.querySelector("#ds-parts-chart"));
 
       const color = d3.scaleOrdinal(d3.schemeTableau10);
@@ -219,6 +273,47 @@
             <div class="config-value">${formatInt(v)}</div>
           `;
           configGridEl.appendChild(item);
+        });
+      };
+
+      const renderLegend = (parts) => {
+        legendItemsEl.innerHTML = "";
+        const total = d3.sum(parts, (p) => p.params_billion);
+        parts.forEach((d) => {
+          const item = document.createElement("span");
+          item.className = "legend-item";
+          item.dataset.name = d.name;
+          const sw = document.createElement("span");
+          sw.className = "legend-swatch";
+          sw.style.background = color(d.name);
+          const txt = document.createElement("span");
+          txt.textContent = `${d.name} (${(d.params_billion / total * 100).toFixed(1)}%)`;
+          item.appendChild(sw);
+          item.appendChild(txt);
+
+          item.addEventListener("mouseenter", () => {
+            setHover(d.name);
+          });
+          item.addEventListener("mouseleave", () => {
+            clearHover();
+          });
+          legendItemsEl.appendChild(item);
+        });
+      };
+
+      const setHover = (name) => {
+        container.classList.add("hovering");
+        svg.selectAll(".bar").classed("ghost", (d) => d.name !== name);
+        legendItemsEl.querySelectorAll(".legend-item").forEach((it) => {
+          it.classList.toggle("ghost", it.dataset.name !== name);
+        });
+      };
+
+      const clearHover = () => {
+        container.classList.remove("hovering");
+        svg.selectAll(".bar").classed("ghost", false);
+        legendItemsEl.querySelectorAll(".legend-item").forEach((it) => {
+          it.classList.remove("ghost");
         });
       };
 
@@ -306,11 +401,12 @@
         root.selectAll(".domain").attr("stroke", "var(--border-color)");
 
         // Bars
-        root
-          .append("g")
+        const barGroup = root.append("g");
+        barGroup
           .selectAll("rect")
           .data(parts, (d) => d.name)
           .join("rect")
+          .attr("class", "bar")
           .attr("x", 0)
           .attr("y", (d) => y(d.name))
           .attr("height", y.bandwidth())
@@ -318,8 +414,10 @@
           .attr("ry", 6)
           .attr("fill", (d) => color(d.name))
           .attr("filter", "url(#bar-shadow)")
+          .attr("data-name", (d) => d.name)
           .attr("width", 0)
           .on("mouseenter", (event, d) => {
+            setHover(d.name);
             const total = d3.sum(parts, (p) => p.params_billion);
             tooltipEl.innerHTML = `
               <div style="font-weight:600;font-size:13px;margin-bottom:4px;">${d.name}</div>
@@ -346,6 +444,7 @@
             tooltipEl.style.transform = `translate(${Math.round(ox)}px,${Math.round(oy)}px)`;
           })
           .on("mouseleave", () => {
+            clearHover();
             tooltipEl.style.opacity = "0";
             tooltipEl.style.transform = "translate(-9999px,-9999px)";
           })
@@ -377,6 +476,8 @@
           .duration(350)
           .delay((_, i) => 520 + i * 70)
           .attr("opacity", 1);
+
+        renderLegend(parts);
       };
 
       const renderModel = (modelName) => {
@@ -387,6 +488,7 @@
         yearEl.textContent = String(currentModel.year || "-");
         totalEl.textContent = formatB(currentModel.total_params_billion || 0);
         activeEl.textContent = formatB(currentModel.active_params_billion || 0);
+        attentionEl.textContent = currentModel.attention || "-";
         buildConfigGrid(currentModel.config || {});
         renderChart(currentModel.parts || []);
       };
@@ -408,14 +510,50 @@
         if (currentModel) renderChart(currentModel.parts || []);
       };
 
-      fetch("/data/deepseek-series-configs.json", { cache: "no-cache" })
-        .then((res) => res.json())
+      // Resolve data source: data-datafiles attribute, then fallback
+      let mountEl = container;
+      while (mountEl && !mountEl.getAttribute?.('data-datafiles')) {
+        mountEl = mountEl.parentElement;
+      }
+      const dataAttr = mountEl?.getAttribute?.('data-datafiles') || '';
+      let dataSources = [];
+      try {
+        const parsed = JSON.parse(dataAttr);
+        dataSources = Array.isArray(parsed) ? parsed : [String(parsed)];
+      } catch {
+        dataSources = dataAttr ? [dataAttr] : [];
+      }
+
+      const ensureDataPrefix = (p) =>
+        typeof p === 'string' && p ? (p.includes('/') ? p : `/data/${p}`) : p;
+
+      const fetchFirstAvailable = async (paths) => {
+        for (const p of paths) {
+          try {
+            const r = await fetch(p, { cache: 'no-cache' });
+            if (r.ok) return await r.json();
+          } catch (_) {}
+        }
+        throw new Error('No data file could be loaded');
+      };
+
+      const defaultPaths = [
+        "/data/deepseek-series-configs.json",
+        "./assets/data/deepseek-series-configs.json",
+        "../assets/data/deepseek-series-configs.json",
+      ];
+
+      const paths = dataSources.length > 0
+        ? dataSources.map(ensureDataPrefix)
+        : defaultPaths;
+
+      fetchFirstAvailable(paths)
         .then((data) => {
           models = Array.isArray(data) ? data : [];
           populateSelect();
         })
         .catch(() => {
-          container.innerHTML = "<p>Failed to load DeepSeek configuration data.</p>";
+          container.innerHTML = "<p>Failed to load configuration data.</p>";
         });
 
       if (window.ResizeObserver) {
