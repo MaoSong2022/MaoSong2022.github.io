@@ -255,22 +255,42 @@
         vocab_size: "Vocab Size",
         hidden_size: "Hidden Size",
         num_layers: "Layers",
+        num_hidden_layers: "Layers",
         num_attention_heads: "Attention Heads",
         num_kv_heads: "KV Heads",
+        num_key_value_heads: "KV Heads",
+        head_dim: "Head Dim",
         intermediate_size: "Intermediate Size",
         context_length: "Context Length",
+        max_position_embeddings: "Context Length",
         moe_experts: "MoE Experts",
+        num_experts: "MoE Experts",
         activated_experts: "Activated Experts",
+        num_experts_per_tok: "Experts/Tok",
+        moe_intermediate_size: "MoE Intermediate",
+        n_routed_experts: "Routed Experts",
+        n_shared_experts: "Shared Experts",
+        tie_word_embeddings: "Tie Embeddings",
+      };
+
+      const importantConfigKeys = new Set(Object.keys(configLabelMap));
+
+      const formatConfigValue = (v) => {
+        if (v === null || v === undefined) return "-";
+        if (typeof v === "boolean") return v ? "Yes" : "No";
+        if (typeof v === "number") return formatInt(v);
+        return String(v);
       };
 
       const buildConfigGrid = (cfg) => {
         configGridEl.innerHTML = "";
         Object.entries(cfg || {}).forEach(([k, v]) => {
+          if (!importantConfigKeys.has(k)) return;
           const item = document.createElement("div");
           item.className = "config-item";
           item.innerHTML = `
-            <div class="config-key">${configLabelMap[k] || k}</div>
-            <div class="config-value">${formatInt(v)}</div>
+            <div class="config-key">${configLabelMap[k]}</div>
+            <div class="config-value">${formatConfigValue(v)}</div>
           `;
           configGridEl.appendChild(item);
         });
@@ -319,7 +339,7 @@
 
       const renderChart = (parts) => {
         const width = container.clientWidth || 920;
-        const margin = { top: 36, right: 24, bottom: 36, left: 180 };
+        const margin = { top: 36, right: 24, bottom: 36, left: 140 };
         const barHeight = 34;
         const gap = 10;
         const innerHeight = parts.length * (barHeight + gap);
@@ -434,7 +454,7 @@
             tooltipEl.style.opacity = "1";
           })
           .on("mousemove", (event) => {
-            const [mx, my] = d3.pointer(event, container);
+            const [mx, my] = d3.pointer(event, tooltipEl.parentElement);
             const tw = tooltipEl.offsetWidth || 200;
             const th = tooltipEl.offsetHeight || 80;
             let ox = mx + 14;
