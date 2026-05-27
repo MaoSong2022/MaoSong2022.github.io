@@ -144,6 +144,7 @@ const modified =
   published;
 const template: string = (articleFM as any)?.template ?? "article";
 const tags = articleFM?.tags ?? [];
+const categories = articleFM?.categories ?? undefined;
 // Prefer seoThumbImage from frontmatter if provided
 const fmOg = articleFM?.seoThumbImage as string | undefined;
 const imageAbs: string =
@@ -388,11 +389,10 @@ const links: Array<{ label: string; url: string; icon?: string }> =
         published={published}
         modified={modified}
         doi={doi}
-        pdfProOnly={articleFM?.pdfProOnly}
-        showPdf={articleFM?.showPdf}
         links={links}
         banner={articleFM?.banner}
         bannerAspectRatio={articleFM?.bannerAspectRatio}
+        categories={categories as any}
       />
     )}
 
