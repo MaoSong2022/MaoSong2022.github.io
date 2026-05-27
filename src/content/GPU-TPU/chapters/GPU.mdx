@@ -1,1 +1,123 @@
+import HtmlEmbed from "../../../components/HtmlEmbed.astro";
+
 ## GPU
+
+### Introduction
+
+GPU 全称为 graphic processing unit, 其主要用于高效并行计算，现在已经被广泛应用于游戏，科学记算，深度学习等领域。
+我们在本文中主要关注针对机器学习领域的 GPU,  如 A100, H100, B200 等
+
+overview of GPU
+
+GPU 的架构如下所示
+
+### Memory
+
+我们首先来了解一下 GPU 中的内存架构，GPU 的内存架构与 CPU 大体上相似，其内存架构图如下所示
+
+分为了多个层级：
+
+1. Global memory: Global memory 用于存储模型权重，梯度和 activation 等，我们通常说的 GPU 显存指的就是 global memory，比如 A100 40GB, A100 80GB, 它代表了单张显卡所能容纳的最大数据大小。
+2. L2 cache: 对所有 SM 可见，所有的 thread 都可以访问这个内存，由于访问速度相对较慢，因此我们需要控制 memory access pattern.
+3. L1 data cache (SMEM unit): 对当前 CUDA block 的所有 threads 可见， 同一个 SM 的所有 CUDA blocks 可以共享一块物理内存，SMEM 一般用于保存 activation 或者 Tensor Core 的输入
+4. register file: 只对当前分区中的 CUDA cores (thread) 可见，对 H100 来说，每个 register file 可以存储 16384 个 32-bit 的 words, 因而每个 SM 中的 register file size 为 $4*16384*4=256$ kb.
+
+不同架构 GPU 的内存相关信息如下表所示
+
+| GPU  | Generation | register file size per SM | SMEM per SM | L2 cache | HBM   |
+| ---- | ---------- | ------------------------- | ----------- | -------- | ----- |
+| V100 | Volta      | 256kb                     | 96kb        | 6MB      | 32GB  |
+| A100 | Amper      | 256kb                     | 164kb       | 40MB     | 80GB  |
+| H100 | Hopper     | 256kb                     | 228kb       | 50MB     | 80GB  |
+| H200 | Hopper     | 256kb                     | 228kb       | 50MB     | 141GB |
+| B200 | Blackwell  | ?                         | ?           | 126MB    | 192GB |
+
+### Compute
+
+GPU 由若干个 streaming multiprocessor (SM) 组成，每个 SM 是一个独立的模块,这提高了 GPU 并行处理计算任务的能力。
+
+每个 SM 又进一步细化为若干个分区，称为 SM subpartition, 比如 H100 中每个 SM 就包含 4 个 subpartition, 如下图所示
+
+TODO: add subpartition figure
+
+接下来，每个 subpartition 由以下几部分组成：
+
+1. 1 个 Tensor Core, Tensor Core 用于进行矩阵和张量运算，相比于 CUDA core 拥有更高的算力
+2. 1 个 register file
+3. 1 个 warp scheduler
+4. 1 个 L1 data cache, 也称为 SMEM unit
+
+每个 CUDA core 可以在一个 cycle 里执行一个算数操作，比如 `f32.add`, 每个分区包含 32 个 CUDA cores, 它们可以在一个 cycle 里执行相同的指令。CUDA core 主要用于 ReLU, point-wise vector operations 和 reduction 等操作。其数量的计算方式为 SMs 数 *分区数* CUDA cores 数，比如对于 H100 的 FP32 CUDA core, 其数量为
+
+$$
+\# \text{FP32 CUDA cores} = 132 \times 4 \times 32=16896
+$$
+
+其中 $132$ 代表 SM 个数， $4$ 代表分区个数，$32$ 代表每个分区的 FP32 CUDA core 个数。
+
+接下来我们可以基于 CUDA cores 来计算出对应架构的 peak FLOPs/s. 其计算方式为 CUDA cores 个数 * 频率，比如对于 H100 的 FP32 精度, 我们有
+
+$$
+\text{Peak FLOPs} = 16896*1.98\text{ GHz} = 33.5 \text{ TFLOPs/s}
+$$
+
+这个值刚好是 [H100 datasheet](https://resources.nvidia.com/en-us-hopper-architecture/nvidia-tensor-core-gpu-datasheet) 报告的 peak FLOPs 的一半，这是因为我们可以使用 FMA (fused-multiply-add) 来在一个时钟周期里完成两次操作。不同 GPU 的计算效率如下表所示 (除 SMs 之外其他数值单位为 TFLOPs/s)
+
+| GPU  | Generation | SMs | CUDA core (FP64) | CUDA core (FP32) | Tensor Core (FP64) | Tensor Core (TF32) | Tensor Core (BF16) | Tensor Core (FP8) | Tensor Core (INT*) |
+| ---- | ---------- | --- | ---------------- | ---------------- | ------------------ | ------------------ | ------------------ | ----------------- | ------------------ |
+| V100 | Volta      | 80  | 7.8              | 15.7             | -                  | -                  | 125                | -                 | -                  |
+| A100 | Amper      | 108 | 9.7              | 19.5             | 19.5               | 156                | 312                | 624               | 624                |
+| H100 | Hopper     | 132 | 34               | 67               | 67                 | 495                | 990                | 1979              | 1979               |
+| H200 | Hopper     | 132 | 34               | 67               | 67                 | 495                | 990                | 1979              | 1979               |
+| B200 | Blackwell  | 148 | 40               | 80               | 40                 | 1125               | 2250               | 4500              | 9000               |
+
+### Comparison with CPU
+
+架构上 CPU 与 GPU 的对比如下表所示
+
+TODO: add figure
+
+| Components           | CPU                                                           | GPU                                                    |
+| -------------------- | ------------------------------------------------------------- | ------------------------------------------------------ |
+| ALU                  | a few powerful ALUs <br>(reduce operation latency)            | many smaller ALUs<br>(low latency, high throughput)    |
+| Caches               | large caches <br>(reduce memory access latency)               | small caches<br>(more area dedicated to computation)   |
+| Control              | Sophisticated control<br>(branch prediction, data forwarding) | simple control<br>(more area dedicated to computation) |
+| clock frequency      | high                                                          | moderate                                               |
+| latency              | low                                                           | hgih                                                   |
+| latency optimization | modest multi-threading (2)                                    | massive number of threads                              |
+
+可以看到，CPU 有少量 ALU, 有较大的 cache 和 control module, 而 GPU 则拥有较多的 ALU, 较小的 cache 以及 control module.
+
+GPU 与 CPU 的核心不同在于两者的优化目标不一致：
+
+- CPU: low-latency oriented, 在尽可短的时间内完成尽可能多的任务，也就是降低单个任务完成的 latency，适用于少量，复杂任务
+- GPU: high-throughput oriented, 在一段时间内尽可能完成多的任务，即使单个任务的完成时间会变慢，适用于大量，简单任务
+
+我们可以用出行方式来举个例子，当我们从一点到另一点时，CPU 相当于是跑车，能够快速完成任务。而 GPU 相当于公交车，在人数很多时，我们可以在一次运行中将多个乘客送到目的地。
+
+与 CPU 不同，GPU 大部分 transistors 都被用于数据处理，而 CPU 则保存了一些 transistor 用于缓存和控制单元。
+
+TODO: add figure
+
+CPU 需要最小化每个 thread 的 latency, 在一段时间内，CPU 需要尽可能完成多的任务，因此 CPU 需要 low latency, 这就需要较大的 cache 和复杂的逻辑。
+
+### Multi-GPU
+
+#### Intra Node
+
+#### Inter Node
+
+跨 node 层面的设计目前还没有统一，NVIDIA 提出了 DGX 架构，使用 InfiniBand 来在 node 之间进行通信，在 node 之上，还有两个抽象等级，分别是 Scalable Units (SUs) 和 SuperPod.
+
+- Scalable Units: 一个 SU 由 32 个 nodes 和 8 个 leaf InfiniBand switches 组成，因此一个 SU 包括 256 个 GPU, 128 个 NVSwitch, 8 个 InfiniBand leaf switch
+- SuperPod: 一个 SuperPod 连接了 4 个 SU, 通信方式包括 16 个 top level "spine" IB Switch, 因此一个 SuperPod 包括 1024 张 GPU, 512 个 NVSwitch,32 个 InfiniBand leaf switch 和 16 个 spine IB switches
+
+InfiniBand 端口的带宽为 50GB/s (duplex), InfiniBand 有 64 个端口，因此一个 SU 的 IB 总带宽为 $50*64*8=3.2$ TB/s, 下表是不同 level 的通信效率对比
+
+| Level | GPUs | Switches per Unit | Switch Type | Bandwidth per Unit (TB/s, full-duplex) | GPU-to-GPU Bandwidth (GB/s, full-duplex) | Fat Tree Bandwidth (GB/s, full-duplex) |
+| ----- | ---- | ----------------- | ----------- | -------------------------------------- | ---------------------------------------- | -------------------------------------- |
+| Node  | 8    | 4                 | NVL         | 3.6                                    | 450                                      | 450                                    |
+| Leaf  | 256  | 8                 | IB          | 12.8                                   | 50                                       | 400                                    |
+| Spine | 1024 | 16                | IB          | 51.2                                   | 50                                       | 400                                    |
+
+### Optimization
