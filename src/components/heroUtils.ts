@@ -21,6 +21,8 @@ export interface HeroProps {
   links?: Array<{ label: string; url: string; icon?: string }>;
   banner?: string | false;
   bannerAspectRatio?: string;
+  categories?: string;
+  tags?: string[];
 }
 
 export function normalizeAuthors(

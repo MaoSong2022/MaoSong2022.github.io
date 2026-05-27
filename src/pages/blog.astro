@@ -43,9 +43,9 @@ const description =
               tags,
             }) => (
               <li class="article-index__item">
-                {category ? (
-                  <a class="article-index__category" href={browseCategoryHref(category)}>
-                    {category}
+                {categories ? (
+                  <a class="article-index__category" href={browseCategoryHref(categories)}>
+                    {categories}
                   </a>
                 ) : null}
                 <a class="article-index__link" href={url}>
