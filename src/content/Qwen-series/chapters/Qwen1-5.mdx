@@ -1,7 +1,7 @@
 
-Qwen 在 24 年 1 月份发布了 Qwen1.5，包含 0.5B, 1.8B, 4B, 7B, 14B, 32B, 72B, 以及 110B 6 个 size，还有一个 MoE 模型。
+## Qwen1.5
 
-## 介绍
+Qwen 在 24 年 1 月份发布了 Qwen1.5，包含 0.5B, 1.8B, 4B, 7B, 14B, 32B, 72B, 以及 110B 6 个 size，还有一个 MoE 模型。
 
 Qwen1.5 的主要特点：
 
@@ -11,7 +11,7 @@ Qwen1.5 的主要特点：
 
 训练过程使用了 [DPO](/p/notes-on-dpo/) 以及 PPO 来进行对齐
 
-## Qwen1.5-MoE
+### Qwen1.5-MoE
 
 Qwen1.5-MoE 的激活参数为 2.7B，一共包含 64 个专家，其中激活 4 个专家，共享 4 个专家
 
@@ -23,7 +23,7 @@ Qwen1.5-MoE 采用了改进的 MoE 架构，主要优化包括：
 - **初始化策略（Upcycling）** ：基于 Qwen-1.8B 初始化模型，并引入随机性以加速收敛。
 - **路由机制（Routing Mechanism）** ：在每个 MoE 层中使用 64 个专家，其中 4 个共享专家始终激活，60 个路由专家中有 4 个被激活，提高了灵活性和效率。
 
-## 效率对比
+### 效率对比
 
 作者对比了 throughput (requests processed per second) 以及 tokens per second (TPS):
 
@@ -31,8 +31,3 @@ Qwen1.5-MoE 采用了改进的 MoE 架构，主要优化包括：
 | ---------------------- | ---------- | ------- |
 | Qwen1.5-7B-Chat        | 1.15       | 2298.89 |
 | Qwen1.5-MoE-A2.7B-Chat | 2.01       | 4010.27 |
-
-## References
-
-- [Qwen1.5 MoE](https://qwenlm.github.io/blog/qwen-moe/)
-- [Qwen 1.5](https://qwenlm.github.io/blog/qwen1.5/)

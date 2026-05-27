@@ -1,5 +1,4 @@
 
-
 import Image from '../../../components/Image.astro';
 import qwen2_5_1m_dca from '../../../assets/image/Qwen2_5_1M_DCA.png';
 import qwen2_5_1m_sparsity_config_performance from '../../../assets/image/Qwen2_5_1M_sparsity_config_performance.png';
@@ -7,22 +6,28 @@ import qwen2_5_1m_pp from '../../../assets/image/Qwen2_5_1M_PP.png';
 import qwen2_5_1m_scheduling from '../../../assets/image/Qwen2_5_1M_scheduling.png';
 import qwen2_5_1m_ruler_performance from '../../../assets/image/Qwen2_5_1M_RULER_performance.png';
 
-Qwen 在 2025 年 1 月提出了 Qwen2.5-1M，一个拥有 1M 上下文长度的大语言模型系列。包含 7B，14B 两个开源模型以及 API 模型 Qwen2.5-Turbo.  主要改进方法包括长上下文数据合成，渐进式预训练以及多阶段 post-training 等。作者还对 inference 进行了优化，提高了 inference 的效率。
+## Qwen2.5
 
-## Method
+Qwen 在 2025 年 1 月提出了 Qwen2.5-1M [@Qwen2.5_1M]，一个拥有 1M 上下文长度的大语言模型系列。包含 7B，14B 两个开源模型以及 API 模型 Qwen2.5-Turbo.  主要改进方法包括长上下文数据合成，渐进式预训练以及多阶段 post-training 等。作者还对 inference 进行了优化，提高了 inference 的效率。
+
+### Method
+
+### Architecture
 
 架构上，Qwen2.5-1M 与 [Qwen2.5](/p/notes-on-qwen2.5/) 的架构一致，Qwen2.5-1M 包括 7B，14B 两个 size，还包括一个基于 MoE 的 API 模型 Qwen2.5-Turbo，不同的点在于，Qwen2.5-1M 的上下文长度为 1M，最大生成长度为 8K
 
 ### Pretraining
 
-**Data**
+#### Data
+
 作者首先从 CC, arxiv, book, code repositories 等 domain 收集了原始数据。但是，作者发现，原始数据的局部相关性强，但是全局相关性弱。因此，作者基于原始数据进行了增广，来提高数据的长上下文依赖关系。具体有三个任务：
 
 1. **Fill in the middle**: FIM 是 openAI 提出来的一个做法，核心思想就是将填空类问题转化为 next-token-prediction 的问题。通过这种方式，作者希望提升模型理解长上下文依赖的能力
 2. **Keyword-based and Position-based retrieval**: 基于 keywords 或者 position 来找到对应的 paragraph，这个任务的目的是提高模型识别并连接相关信息的能力
 3. **Paragraph Reordering**: 对输入的 paragraphs 进行随机打乱，然后要求模型重新组织段落的关系
 
-**Training**
+#### Training
+
 作者将训练拆分为了 5 个 stage：
 
 1. stage 1 和 stage 2 与 Qwen2.5 的训练过程一致，stage 1 的上下文长度为 4096，stage 2 的上下文长度为 32768, 训练时，作者使用了 ABF 技巧来将 RoPE 的 base frequency 从 10,000 调整到了 1,000,000.
@@ -56,11 +61,11 @@ RL 训练时，与 Qwen2.5 不一样的是，作者进使用了 offline RL，也
 | Qwen2.5-14B-Instruct-1M | 8.56     | 8.76 (+0.20) |
 | Qwen2.5-Turbo        | 7.60      | 8.34 (+0.74) |
 
-## Inference
+### Inference
 
 前面是训练部分的优化，主要是提升模型的上下文能力。接下来，作者详细介绍了如何在 Inference 阶段提升整体的推理效率和减少内存占用。
 
-### Length Extrapolation
+#### Length Extrapolation
 
 与 Qwen2.5 一样，Qwen2.5-1M 也是用了 [Dual Chunk Attention](/p/dual-chunk-attention/) 和 [YARN](/p/notes-on-yarn/) 来在推理阶段扩展模型的上下文长度，作者做了如下实验，来对比 Qwen2.5, Qwen2.5-1M 加上 DCA 之后的影响
 
@@ -68,7 +73,7 @@ RL 训练时，与 Qwen2.5 不一样的是，作者进使用了 offline RL，也
 
 结果显示，Qwen2.5-1M 的表现比 Qwen2.5 更好，并且加上 DCA 之后，两者的表现都有进一步的提升。
 
-### Sparse Attention
+#### Sparse Attention
 
 为了进一步提高计算效率，作者基于 MInference 来加速 perfilling phase. 并结合了 前面的技巧来防止模型性能下降。
 
@@ -124,7 +129,7 @@ BladeLLm 使用了 Dynamic Chunked pipeline parallelism 来解决这个问题，
 
 <Image src={qwen2_5_1m_scheduling} alt="Qwen2.5-1M scheduling" />
 
-## Evaluation
+### Evaluation
 
 作者主要在三个 benchmark 上进行了评测：
 
@@ -137,10 +142,6 @@ Qwen2.5-1M 与 Qwen2.5 的对比表现如下
 <Image src={qwen2_5_1m_ruler_performance} alt="Qwen2.5-1M performance on RULER" />
 
 可以看到，相比于 Qwen2.5，Qwen2.5 模型的表现有了大幅度的提升。
-
-## Conclusion
-
-在本文中，作者提出了 Qwen2.5-1M 系列大语言模型，包括 7B，14B 两个 size，以及一个 MoE 架构的 API 模型 Qwen2.5-Turbo。作者在训练和推理两方面进行了改进，最终将模型的上下文长度扩展到了 1M。从现在的角度来看，不管是 Reasoning model 还是 agent 的训练都依赖 long Context 作为基础能力。
 
 ## References
 
