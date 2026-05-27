@@ -4,17 +4,15 @@ import qwen3_next_architecture from '../../../assets/image/Qwen3-Next-architectu
 import qwen3_next_pre_training_efficiency from '../../../assets/image/Qwen3-Next-pre-training-efficiency.png';
 import qwen3_next_base_performance from '../../../assets/image/Qwen3-Next-base-performance.png';
 
-## Introduction
+## Qwen3-Next
 
-当前大语言模型在性能与效率上面临双重挑战：纯 Softmax 注意力计算成本高，而纯线性注意力则性能不足。Qwen3-Next 尝试通过**混合注意力机制**解决这一矛盾，同时结合 MoE 架构与多项训练优化策略，实现在保持高性能的同时大幅提升训练与推理效率。
+当前大语言模型在性能与效率上面临双重挑战：纯 Softmax 注意力计算成本高，而纯线性注意力则性能不足。Qwen3-Next [@Qwen3-Next] 尝试通过**混合注意力机制**解决这一矛盾，同时结合 MoE 架构与多项训练优化策略，实现在保持高性能的同时大幅提升训练与推理效率。
 
 Qwen3-Next 包含三个模型：
 
 1. Qwen3-Next-80B-A3B-Base
 2. Qwen3-Next-80B-A3B-Instruct
 3. Qwen3-Next-80B-A3B-Thinking
-
-## Method
 
 ### Architecture
 
@@ -53,9 +51,9 @@ Qwen3-Next 包含三个模型：
 - 为了提高数据使用效率，作者还使用了 MTP 策略来提高训练效率，模型表现以及 Speculative decoding 的接受率。
 - 预训练时，Qwen3-Next 使用了**15T** token 进行训练，训练时间相比于 Qwen3-30B-A3B 有了大幅度的提升
 
-## Experiments
+### Experiments
 
-### Efficiency
+#### Efficiency
 
 下图是 Qwen3-Next 与 Qwen3-32B 模型的训练效率对比
 
@@ -70,7 +68,7 @@ Qwen3-Next 包含三个模型：
 | Prefilling | $7\times$ | $10\times$ |
 | Decoding   | $4\times$ | $10\times$ |
 
-### Performance
+#### Performance
 
 下面是 Qwen3-Next-Base 的表现
 
@@ -110,10 +108,6 @@ Qwen3-Next-Thinking 的表现如下表所示
 
 可以看到，Qwen3-Next-Thinking 的表现在除了 Livebench 之外的三个 Benchmark 均达到了 SOTA
 
-## Conclusion
+### Conclusion
 
 Qwen3-Next 通过**混合注意力架构**与**精细化 MoE 设计**，在训练与推理效率上实现突破性提升。其仅以较小计算代价达到接近超大模型性能的表现，为下一代高效大语言模型的设计提供了重要参考。
-
-## References
-
-- [Qwen3-Next: Towards Ultimate Training & Inference Efficiency](https://qwen.ai/blog?id=4074cca80393150c248e508aa62983f9cb7d27cd&from=research.latest-advancements-list)

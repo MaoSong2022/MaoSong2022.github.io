@@ -1,5 +1,4 @@
 
-
 import Image from '../../../components/Image.astro';
 import qwen3_post_training from '../../../assets/image/Qwen3_post-training.png';
 import qwen3_chat_template from '../../../assets/image/Qwen3_chat_template.png';
@@ -7,7 +6,9 @@ import qwen3_thinking_budget_performance from '../../../assets/image/Qwen3_think
 import qwen3_distillation_ablation from '../../../assets/image/Qwen3_distillation_ablation.png';
 import qwen3_stage_ablation from '../../../assets/image/Qwen3_stage_ablation.png';
 
-Qwen 在 2025 年 5 月发布了 Qwen3 系列大语言模型，Qwen3 包括 6 个 dense 模型和 2 个 MoE 模型，主要亮点为多语种能力，自适应快慢思考能力以及支持用户设置 thinking budget.
+## Qwen3
+
+Qwen 在 2025 年 5 月发布了 Qwen3 [@Qwen3] 系列大语言模型，Qwen3 包括 6 个 dense 模型和 2 个 MoE 模型，主要亮点为多语种能力，自适应快慢思考能力以及支持用户设置 thinking budget.
 
 Qwen3 包括 6 个 dense 模型和 2 个 MoE 模型，其旗舰模型是一个 235B 的 MoE 模型，激活参数为 22B. Qwen3 系列的主要亮点如下:
 
@@ -16,9 +17,7 @@ Qwen3 包括 6 个 dense 模型和 2 个 MoE 模型，其旗舰模型是一个 2
 3. Distillation, 使用蒸馏的方法训练小模型，大幅度提高模型的表现
 4. 多语种支持，相比于 Qwen2.5，Qwen3 支持 119 中语言和方言
 
-## Method
-
-### Model
+### Architecture
 
 Qwen3 的 dense 模型的架构与 [Qwen2.5](/p/notes-on-qwen2.5/) 基本一致，包括使用 [GQA](/p/notes-on-gqa/) , SwiGLU, RoPE, RMSNorm 和 pre-normalization. Qwen3 进一步移除了 QKV bias, 然 后加入了 [QK-Norm](/p/notes-on-qk-norm/) 来提高训练的稳定性。
 
@@ -121,7 +120,7 @@ reasoning 数据来源于 stage1 的 rejection sampling 和 stage 2 的模型. n
 1. Off-policy Distillation: 这个阶段的目的是让模型拥有基本的 reasoning 能力并且可以在不同的模式中进行切换。作者使用了教师模型的 reasoning 输出和 non-reasoning 输出来蒸馏学生模型
 2. On-policy Distillation: 在这个阶段，学生模型生成回答，然后基于教师模型的输出，使用 KL-divergence 来更新学生模型的参数
 
-## Evaluation
+### Evaluation
 
 **Thinking budget**. 作者发现当我们提高 Thinking budget 之后，模型的表现是可以持续提升的。结果如下图
 
@@ -148,7 +147,7 @@ reasoning 数据来源于 stage1 的 rejection sampling 和 stage 2 的模型. n
 2. Stage4 进一步提高模型在两种模式下的通用，instruction following 和 agent 能力
 3. Stage3 和 stage4 并没有显著提高模型在 knowledge, STEM, math 和 coding 相关任务上的表现。甚至在一些竞赛如 AIME24 上模型的表现还有所下降，作者认为这是由于我们提升了模型的通用能力而导致其特化能力下降导致的，作者认为作为一个通用模型，这是可以接受的。
 
-## Conclusion
+### Conclusion
 
 在本文中，作者提出了 Qwen3 系列大语言模型，包括 6 个 Dense 模型和 2 个 MoE 模型。Qwen3 模型标志了一个新的 SOTA，其特点主要是快慢思考结合，thinking budget，以及多语种。
 
@@ -157,8 +156,3 @@ reasoning 数据来源于 stage1 的 rejection sampling 和 stage 2 的模型. n
 1. 使用更高质量的数据来进行预训练
 2. 优化模型架构和训练方式，提升模型的上下文
 3. 提高针对 RL 的计算资源，来进一步提高模型的 agent 能力
-
-## References
-
-- [Arxiv](https://arxiv.org/abs/2505.09388)
-- [Github](https://github.com/QwenLM/Qwen3)

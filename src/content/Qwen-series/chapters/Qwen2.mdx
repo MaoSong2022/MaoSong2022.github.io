@@ -1,11 +1,9 @@
 
-## Introduction
+## Qwen2
 
-2024 年 9 月 Qwen 发布了 Qwen2 系列技术报告，Qwen2 系列包括 4 个 dense 模型（0.5B, 1.5B, 7B, 72B）和一个 MoE 模型（总参数 57B，激活参数 14B），作者主要在架构，数据和长上下文上进行了改进。
+2024 年 9 月 Qwen 发布了 Qwen2 [Qwen2] 系列技术报告，Qwen2 系列包括 4 个 dense 模型（0.5B, 1.5B, 7B, 72B）和一个 MoE 模型（总参数 57B，激活参数 14B），作者主要在架构，数据和长上下文上进行了改进。
 
-## Method
-
-### Model
+### Architecture
 
 对于 dense 模型，Qwen2 在 [Qwen-LLM](/p/notes-on-qwen-llm/) 的基础上做了如下改动：
 
@@ -83,11 +81,3 @@ post-training 包括 SFT 和 RLHF 两个阶段
 RLHF 的训练包括 offline stage 和 online stage，offline stage 就是用收集到的偏好数据。在 online stage，作者使用 reward model 来给输出的回答进行打分，然后再使用 DPO 进行训练。
 
 与 Qwen 不同，Qwen2 中作者使用了 Online Merging Optimizer 来解决因为 alignment 导致的性能降低
-
-## Conclusion
-
-本文提出了 Qwen2 系列，在 Qwen2 中，首次使用了 GQA 代替 MHA，Qwen2 在上下文上做出了初步探索
-
-## References
-
-- [Qwen2 tech report](https://arxiv.org/abs/2407.10671)
