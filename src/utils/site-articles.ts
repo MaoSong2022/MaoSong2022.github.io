@@ -10,8 +10,8 @@ export type SiteArticleEntry = {
   description?: string;
   /** Trimmed strings from frontmatter `tags`. */
   tags: string[];
-  /** From frontmatter `category` or first entry of `categories`. */
-  category?: string;
+  /** From frontmatter `categories`. */
+  categories?: string;
 };
 
 const stripHtml = (text: string) =>
@@ -42,7 +42,7 @@ function normalizeTags(raw: unknown): string[] {
   return [];
 }
 
-function normalizeCategory(raw: unknown): string | undefined {
+function normalizeFirstCategory(raw: unknown): string | undefined {
   if (typeof raw === "string" && raw.trim()) return raw.trim();
   if (Array.isArray(raw)) {
     const first = raw[0];
@@ -76,7 +76,7 @@ export async function parseArticleGlob(
       const description =
         typeof fm.description === "string" ? fm.description : undefined;
       const tags = normalizeTags(fm.tags);
-      const category = normalizeCategory(fm.category ?? fm.categories);
+      const categories = normalizeFirstCategory(fm.categories);
       return {
         slug,
         url: `/blog/${slug}/`,
@@ -86,7 +86,7 @@ export async function parseArticleGlob(
         displayDate: formatDisplayDate(modified ?? published) ?? modified ?? published,
         description,
         tags,
-        category,
+        categories,
       };
     },
   );

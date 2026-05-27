@@ -132,16 +132,16 @@ function newsDateIso(raw: string): string | undefined {
               title,
               displayDate,
               description: desc,
-              category,
+              categories,
               tags,
             }) => (
               <li class="article-index__item">
-                {category ? (
+                {categories ? (
                   <a
                     class="article-index__category"
-                    href={browseCategoryHref(category)}
+                    href={browseCategoryHref(categories)}
                   >
-                    {category}
+                    {categories}
                   </a>
                 ) : null}
                 <a class="article-index__link" href={url}>

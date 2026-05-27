@@ -13,7 +13,7 @@ const modifiedBySlug = await getAllArticleBundleLastModifiedIso();
 const articles = await parseArticleGlob(articleGlob, modifiedBySlug);
 
 const categories = [
-  ...new Set(articles.map((a) => a.category).filter(Boolean) as string[]),
+  ...new Set(articles.map((a) => a.categories).filter(Boolean) as string[]),
 ].sort((a, b) => a.localeCompare(b));
 
 const allTags = [
@@ -26,7 +26,7 @@ type BrowseRow = {
   title: string;
   displayDate: string;
   description: string;
-  category: string;
+  categories: string;
   tags: string[];
 };
 
@@ -36,7 +36,7 @@ const browseArticles: BrowseRow[] = articles.map((a: SiteArticleEntry) => ({
   title: a.title,
   displayDate: a.displayDate ?? "",
   description: a.description ?? "",
-  category: a.category ?? "",
+  categories: a.categories ?? "",
   tags: a.tags,
 }));
 
@@ -192,12 +192,12 @@ const description =
             >
               {(archiveMap.get(year) ?? []).map((a) => (
                 <li class="article-index__item" data-browse-slug={a.slug}>
-                  {a.category ? (
+                  {a.categories ? (
                     <a
                       class="article-index__category"
-                      href={browseCategoryHref(a.category)}
+                      href={browseCategoryHref(a.categories)}
                     >
-                      {a.category}
+                      {a.categories}
                     </a>
                   ) : null}
                   <a class="article-index__link" href={a.url}>
@@ -232,7 +232,7 @@ const description =
         row.title,
         row.description,
         row.slug,
-        row.category,
+        row.categories,
         ...row.tags,
       ]
         .join(" ")
@@ -272,7 +272,7 @@ const description =
 
         let ok = true;
         if (query && !haystack(row).includes(query)) ok = false;
-        if (category && row.category !== category) ok = false;
+        if (category && row.categories !== category) ok = false;
         if (activeNorms.length) {
           const lowered = row.tags.map((t) => t.toLowerCase());
           for (const need of activeNorms) {
