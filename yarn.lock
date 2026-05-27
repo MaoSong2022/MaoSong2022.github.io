@@ -79,15 +79,6 @@
   dependencies:
     prismjs "^1.29.0"
 
-"@astrojs/sitemap@^3.7.0":
-  version "3.7.2"
-  resolved "https://registry.npmmirror.com/@astrojs/sitemap/-/sitemap-3.7.2.tgz"
-  integrity sha512-PqkzkcZTb5ICiyIR8VoKbIAP/laNRXi5tw616N1Ckk+40oNB8Can1AzVV56lrbC5GKSZFCyJYUVYqVivMisvpA==
-  dependencies:
-    sitemap "^9.0.0"
-    stream-replace-string "^2.0.0"
-    zod "^4.3.6"
-
 "@astrojs/svelte@^5.5.0":
   version "5.7.3"
   resolved "https://registry.npmmirror.com/@astrojs/svelte/-/svelte-5.7.3.tgz"
