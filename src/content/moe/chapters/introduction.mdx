@@ -12,14 +12,14 @@ import moe_timeline_experts from "../../../assets/image/moe_timeline_experts.png
 
 ### Motivation
 
-现有大部分大语言模型均是基于 Transformer [@vaswani2017attention] 架构，Kaplan scaling law [@Kaplan] 通过实验说明，大语言模型的表现与算力，数据，模型参数量息息相关。但是，对于 dense 模型来说，我们提高模型参数量时，必须同时提高所使用的算力。这就限制了大模型的 scaling law.
+现有大部分大语言模型均是基于 Transformer [@vaswani2017attention] 架构，scaling law [@Kaplan;@Chinchilla] 通过实验说明，大语言模型的表现与算力，数据，模型参数量息息相关。
+但是，对于 dense 模型来说，我们提高模型参数量时，必须同时提高所使用的算力。这就限制了大模型的 scaling law.
 
 而 MoE 模型的解决方法为在计算时只激活部分参数，这样，我们就可以在同等激活参数量/算力下训练更大参数量的模型，从而达到更好地表现。
-
 因此，MoE 模型的核心思想在于
 
 <Note title="Core Idea" emoji="💡" variant="info">
-  使用相同的激活参数量/算力，提高模型总参数量，从而达到更好的表现。
+  在使用相同的激活参数量/算力的情况下，提高模型总参数量，从而达到更好的表现。
 </Note>
 
 ### Definition
@@ -39,7 +39,7 @@ $$
 G(x) =[G_1(x),\dots,G_N(x)] = \mathrm{softmax}(W_gx + b)\in\mathbb{R}^N
 $$
 
-其中 $W_g\in\mathbb{R}^{N\times d}$, $b\in\mathbb{R}^N$ 是可学习的参数。$G_{i}(x)$ 代表了当前 token $x$ 选择第 $i$ 个 Expert 的概率。
+其中 $W_g\in\mathbb{R}^{N\times d}$, $b\in\mathbb{R}^N$ 是可学习的参数，$G_{i}(x)$ 代表了当前 token $x$ 选择第 $i$ 个 Expert 的概率。
 
 一般来说，Expert 会使用和 dense 模型一样的 MLP, 我们记为
 
@@ -53,6 +53,7 @@ $$
 e_i \in \{i\mid G_i(x)\in \mathrm{TopK}(G_i(x), K)\},\ i=1,\dots,K
 $$
 
+这里 $\mathrm{TopK}$ 指的是概率值最高的 $K$ 个值。
 最终 MoE layer 的输出为
 
 $$
@@ -137,7 +138,8 @@ MoE 训练更加高效，如下图所示
   alt="Comparison between MoE and dense models (Switch Transformer)"
 />
 
-Switch Transformer [@SwitchTransformer] 的 实验结果说明，MoE model 的训练效率比 dense model 快 7 倍左右。其他模型也有类似结论。总的来说，MoE 模型相比于 dense 模型，训练效率更高。
+Switch Transformer [@SwitchTransformer] 的 实验结果说明，MoE model 的训练效率比 dense model 快 7 倍左右。
+其他模型也有类似结论。总的来说，MoE 模型相比于 dense 模型，训练效率更高。
 
 #### Scaling Law
 
