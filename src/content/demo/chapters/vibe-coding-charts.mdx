@@ -25,8 +25,8 @@ The csv has the following columns: `x`, `y`, `z`.
 I want you to code a d3 chart that visualizes the data.
 ```
 
-4. Once the chart created, iterate with littles adjustments to make it better.
-5. And that's it! 🎉
+1. Once the chart created, iterate with littles adjustments to make it better.
+2. And that's it! 🎉
 
 ### Base examples
 
@@ -41,7 +41,6 @@ These are fundamental chart types that serve as building blocks for more complex
   desc={`Interactive visualization of a model's post-training journey, showing the different stages and decisions.`}
 />
 
-
 ### Advanced examples
 
 These are more complex, interactive visualizations that demonstrate advanced D3 capabilities and real-world applications.
@@ -49,7 +48,7 @@ These are more complex, interactive visualizations that demonstrate advanced D3 
 <HtmlEmbed
   frameless
   id="fig-hf-citations"
-  data="hf_citations.csv"
+  data="llm-benchmark-fallback.csv"
   src="d3-benchmark.html"
   title="Benchmark Visualization Demo"
   desc={`Interactive benchmark-style chart demo showcasing an existing embed setup.`}
@@ -74,35 +73,33 @@ These are more complex, interactive visualizations that demonstrate advanced D3 
   desc={`Interactive parameter calculator to visualize the parameter distribution of a dense transformer model. Useful for making architectural decisions or configuring ablations.`}
 />
 
-
 ---
 
-<HtmlEmbed 
+<HtmlEmbed
   id="fig6"
-  src="arxiv/arxiv.html" 
-  title="arXiv: Research Paper Clustering" 
-  desc={`Interactive visualization of ~8k recent arXiv submissions via UMAP dimensionality reduction. Each point represents a research paper positioned by semantic similarity. Colors indicate academic categories (cs.AI, cs.LG, cs.CV, etc.).`} 
+  src="arxiv/arxiv.html"
+  title="arXiv: Research Paper Clustering"
+  desc={`Interactive visualization of ~8k recent arXiv submissions via UMAP dimensionality reduction. Each point represents a research paper positioned by semantic similarity. Colors indicate academic categories (cs.AI, cs.LG, cs.CV, etc.).`}
   data="data.json"
-  frameless 
-  align="center" 
+  frameless
+  align="center"
 />
 
-<Sidenote> 
+<Sidenote>
   Recent arXiv publications (~8k papers from last month) via TF-IDF embeddings projected to 2D via UMAP.
 </Sidenote>
 ---
 
-<HtmlEmbed 
+<HtmlEmbed
   id="fig7"
-  src="d3-umap-typography.html" 
-  title="Visual Similarity of Typefaces" 
-  desc={`Interactive 2D visualization of 382 <strong>Google Fonts</strong> clustered by visual similarity via <strong>UMAP</strong>. Each point represents a typeface positioned based on pixel-level differences computed from font matrices.`} 
-  frameless 
-  align="center" 
+  src="d3-umap-typography.html"
+  title="Visual Similarity of Typefaces"
+  desc={`Interactive 2D visualization of 382 <strong>Google Fonts</strong> clustered by visual similarity via <strong>UMAP</strong>. Each point represents a typeface positioned based on pixel-level differences computed from font matrices.`}
+  frameless
+  align="center"
 />
 
 ---
-
 
 <HtmlEmbed
   id="fig5"
@@ -163,7 +160,6 @@ These are more complex, interactive visualizations that demonstrate advanced D3 
   desc={`Interactive decision tree to determine whether you should train your own model. Guides the thought process through key questions: Can existing models handle your use case? Should you fine-tune or train from scratch? For research, production, or strategic open-source?`}
 />
 
-
 ---
 
 <HtmlEmbed
@@ -205,10 +201,10 @@ These are more complex, interactive visualizations that demonstrate advanced D3 
 
 ---
 
-<HtmlEmbed 
+<HtmlEmbed
   id="fig8"
-  src="d3-equation-editor.html" 
+  src="d3-equation-editor.html"
   frameless
-  title="Interactive Mathematical Function Plotter" 
-  desc={`Interactive <strong>equation editor</strong> with real-time function plotting. Edit mathematical expressions and see their graphs update instantly. Supports common functions (sin, cos, exp, etc.) with customizable domain range.`} 
+  title="Interactive Mathematical Function Plotter"
+  desc={`Interactive <strong>equation editor</strong> with real-time function plotting. Edit mathematical expressions and see their graphs update instantly. Supports common functions (sin, cos, exp, etc.) with customizable domain range.`}
 />
