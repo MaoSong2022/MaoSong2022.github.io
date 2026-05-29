@@ -1,0 +1,320 @@
+<div class="minicpm5-training"></div>
+<style>
+  .minicpm5-training {
+    position: relative;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  .minicpm5-training .stage-header {
+    font-size: 14px;
+    font-weight: 700;
+    fill: #002060;
+    text-anchor: middle;
+  }
+
+  .minicpm5-training .flow-line {
+    fill: none;
+    stroke: #0033cc;
+    stroke-width: 1.25px;
+  }
+
+  .minicpm5-training .bracket-line {
+    fill: none;
+    stroke: #0033cc;
+    stroke-width: 1.5px;
+  }
+
+  .minicpm5-training .node-rect {
+    fill: #e6f2ff;
+    stroke: #66b2ff;
+    stroke-width: 1px;
+    rx: 6px;
+    ry: 6px;
+  }
+
+  .minicpm5-training .node-special {
+    fill: url(#pink-blue-grad);
+    stroke: #66b2ff;
+    stroke-width: 1px;
+    rx: 6px;
+    ry: 6px;
+  }
+
+  .minicpm5-training .dashed-group {
+    fill: none;
+    stroke: #99bbff;
+    stroke-width: 1.25px;
+    stroke-dasharray: 6, 6;
+    rx: 12px;
+    ry: 12px;
+  }
+
+  .minicpm5-training .node-title {
+    font-size: 10.5px;
+    font-weight: 600;
+    fill: #002060;
+    text-anchor: middle;
+  }
+
+  .minicpm5-training .node-subtitle {
+    font-size: 9.5px;
+    font-style: italic;
+    fill: #0033cc;
+    text-anchor: middle;
+  }
+
+  .minicpm5-training .node-tokens {
+    font-size: 9px;
+    font-style: italic;
+    fill: #555555;
+    text-anchor: middle;
+  }
+
+  .minicpm5-training .role-label {
+    font-size: 10px;
+    font-weight: 500;
+    fill: #000000;
+  }
+</style>
+<script>
+(() => {
+  const ensureD3 = (cb) => {
+    if (window.d3 && typeof window.d3.select === 'function') return cb();
+    let s = document.getElementById('d3-cdn-script');
+    if (!s) {
+      s = document.createElement('script');
+      s.id = 'd3-cdn-script';
+      s.src = 'https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js';
+      document.head.appendChild(s);
+    }
+    const onReady = () => { if (window.d3 && typeof window.d3.select === 'function') cb(); };
+    s.addEventListener('load', onReady, { once: true });
+    if (window.d3) onReady();
+  };
+
+  const bootstrap = () => {
+    const scriptEl = document.currentScript;
+    let container = scriptEl ? scriptEl.previousElementSibling : null;
+    if (!(container && container.classList && container.classList.contains('minicpm5-training'))) {
+      const cs = Array.from(document.querySelectorAll('.minicpm5-training')).filter(el => !(el.dataset && el.dataset.mounted==='true'));
+      container = cs[cs.length-1] || null;
+    }
+    if (!container) return;
+    if (container.dataset) { if (container.dataset.mounted==='true') return; container.dataset.mounted='true'; }
+
+    const width = 1024;
+    const height = 420;
+
+    const svg = d3.select(container)
+      .append("svg")
+      .attr("width", width)
+      .attr("height", height)
+      .style("display", "block");
+
+    const defs = svg.append("defs");
+
+    defs
+      .append("marker")
+      .attr("id", "arrow")
+      .attr("viewBox", "0 0 10 10")
+      .attr("refX", 6)
+      .attr("refY", 5)
+      .attr("markerWidth", 5)
+      .attr("markerHeight", 5)
+      .attr("orient", "auto-start-reverse")
+      .append("path")
+      .attr("d", "M 0 1 L 10 5 L 0 9 z")
+      .attr("fill", "#0033cc");
+
+    const grad = defs
+      .append("linearGradient")
+      .attr("id", "pink-blue-grad")
+      .attr("x1", "0%")
+      .attr("y1", "0%")
+      .attr("x2", "100%")
+      .attr("y2", "100%");
+    grad.append("stop").attr("offset", "0%").attr("stop-color", "#ffe6ea");
+    grad.append("stop").attr("offset", "40%").attr("stop-color", "#e6f2ff");
+    grad.append("stop").attr("offset", "100%").attr("stop-color", "#e6f2ff");
+
+    const renderTopBrackets = () => {
+      const topY = 35;
+      const bH = 6;
+
+      svg
+        .append("path")
+        .attr("class", "bracket-line")
+        .attr("d", `M 5,${topY} L 5,${topY - bH} L 140,${topY - bH} L 140,${topY} M 140,${topY - bH} L 285,${topY - bH} L 285,${topY}`);
+      svg
+        .append("text")
+        .attr("class", "stage-header")
+        .attr("x", 140)
+        .attr("y", topY - 14)
+        .text("Pre-Training");
+
+      svg
+        .append("path")
+        .attr("class", "bracket-line")
+        .attr("d", `M 290,${topY} L 290,${topY - bH} L 362,${topY - bH} L 362,${topY} M 362,${topY - bH} L 435,${topY - bH} L 435,${topY}`);
+      svg
+        .append("text")
+        .attr("class", "stage-header")
+        .attr("x", 362)
+        .attr("y", topY - 14)
+        .text("SFT");
+
+      svg
+        .append("path")
+        .attr("class", "bracket-line")
+        .attr("d", `M 440,${topY} L 440,${topY - bH} L 655,${topY - bH} L 655,${topY} M 655,${topY - bH} L 870,${topY - bH} L 870,${topY}`);
+      svg
+        .append("text")
+        .attr("class", "stage-header")
+        .attr("x", 655)
+        .attr("y", topY - 14)
+        .text("RL+OPD");
+    };
+    renderTopBrackets();
+
+    svg
+      .append("rect")
+      .attr("class", "dashed-group")
+      .attr("x", 7)
+      .attr("y", 125)
+      .attr("width", 124)
+      .attr("height", 260);
+    svg
+      .append("rect")
+      .attr("class", "dashed-group")
+      .attr("x", 280)
+      .attr("y", 100)
+      .attr("width", 128)
+      .attr("height", 112);
+
+    const nodes = [
+      { id: "stable", x: 14, y: 135, w: 110, h: 42, type: "normal", t1: "Stable Training", t2: "", t3: "" },
+      { id: "short_dec", x: 14, y: 202, w: 110, h: 42, type: "normal", t1: "Short Decay (4K)", t2: "", t3: "200B Tokens" },
+      { id: "long_32", x: 14, y: 270, w: 110, h: 42, type: "normal", t1: "Long Decay (32K)", t2: "", t3: "75B Tokens" },
+      { id: "long_128", x: 14, y: 338, w: 110, h: 42, type: "normal", t1: "Long Decay (128K)", t2: "", t3: "25B Tokens" },
+      { id: "base_1b", x: 150, y: 135, w: 112, h: 42, type: "special", t1: "MiniCPM5-1B-Base", t2: "", t3: "" },
+      { id: "mid_train", x: 150, y: 210, w: 112, h: 42, type: "normal", t1: "Mid-Training", t2: "", t3: "200B Tokens" },
+      { id: "deep_sft", x: 288, y: 110, w: 112, h: 42, type: "normal", t1: "Deep Thinking SFT", t2: "", t3: "200B Tokens" },
+      { id: "hybr_sft", x: 288, y: 162, w: 112, h: 42, type: "normal", t1: "Hybrid Thinking SFT", t2: "", t3: "200B Tokens" },
+      { id: "sft_final", x: 288, y: 250, w: 112, h: 42, type: "special", t1: "MiniCPM5-1B-SFT", t2: "", t3: "" },
+      { id: "reas_rl1", x: 465, y: 85, w: 115, h: 42, type: "normal", t1: "Reasoning RL 1", t2: "Repetition Penalty", t3: "" },
+      { id: "reas_rl2", x: 615, y: 50, w: 115, h: 42, type: "normal", t1: "Reasoning RL 2", t2: "Reasoning Accuracy", t3: "" },
+      { id: "rlhf", x: 615, y: 120, w: 115, h: 42, type: "normal", t1: "RLHF", t2: "Human Preference", t3: "" },
+      { id: "if_rl", x: 465, y: 148, w: 115, h: 42, type: "normal", t1: "IF RL", t2: "Instruction Following", t3: "" },
+      { id: "gen_rl", x: 465, y: 212, w: 115, h: 42, type: "normal", t1: "General RL", t2: "Broad Capability", t3: "" },
+      { id: "long_rl", x: 465, y: 275, w: 115, h: 42, type: "normal", t1: "Long Context RL", t2: "Long-sequence Comprehension", t3: "" },
+      { id: "opd", x: 765, y: 182, w: 115, h: 68, type: "normal", t1: "Online Policy", t2: "Distillation (OPD)", t3: "" },
+      { id: "final_1b", x: 912, y: 195, w: 100, h: 42, type: "special", t1: "MiniCPM5-1B", t2: "", t3: "" },
+    ];
+
+    nodes.forEach((n) => {
+      const group = svg.append("g").attr("transform", `translate(${n.x},${n.y})`);
+
+      group
+        .append("rect")
+        .attr("width", n.w)
+        .attr("height", n.h)
+        .attr("class", n.type === "special" ? "node-special" : "node-rect");
+
+      if (n.t2 !== "" || n.t3 !== "") {
+        const textY = n.h / 2 - 2;
+        group
+          .append("text")
+          .attr("class", "node-title")
+          .attr("x", n.w / 2)
+          .attr("y", textY)
+          .text(n.t1);
+        if (n.t2 !== "") {
+          group
+            .append("text")
+            .attr("class", "node-subtitle")
+            .attr("x", n.w / 2)
+            .attr("y", textY + 13)
+            .text(n.t2);
+        }
+        if (n.t3 !== "") {
+          group
+            .append("text")
+            .attr("class", "node-tokens")
+            .attr("x", n.w / 2)
+            .attr("y", textY + 13)
+            .text(n.t3);
+        }
+      } else {
+        const isOPD = n.id === "opd";
+        group
+          .append("text")
+          .attr("class", "node-title")
+          .attr("x", n.w / 2)
+          .attr("y", isOPD ? 32 : n.h / 2 + 4)
+          .text(n.t1);
+        if (isOPD) {
+          group
+            .append("text")
+            .attr("class", "node-title")
+            .attr("x", n.w / 2)
+            .attr("y", 46)
+            .text(n.t2);
+        }
+      }
+    });
+
+    const lines = [
+      { m: false, d: "M 69,177 L 69,202" },
+      { m: false, d: "M 69,244 L 69,270" },
+      { m: false, d: "M 69,312 L 69,338" },
+      { m: true, d: "M 124,156 L 150,156" },
+      { m: false, d: "M 206,177 L 206,210" },
+      { m: false, d: "M 206,252 L 206,271 L 270,271 L 270,150" },
+      { m: true, d: "M 270,150 L 278,150" },
+      { m: true, d: "M 344,152 L 344,162" },
+      { m: true, d: "M 344,212 L 344,250" },
+      { m: true, d: "M 400,271 L 428,271 L 428,106 L 465,106" },
+      { m: true, d: "M 428,169 L 465,169" },
+      { m: true, d: "M 428,233 L 465,233" },
+      { m: true, d: "M 428,271 L 428,271 L 428,291 L 465,291" },
+      { m: false, d: "M 580,106 L 600,106" },
+      { m: true, d: "M 600,106 L 600,71 L 615,71" },
+      { m: true, d: "M 600,106 L 600,141 L 615,141" },
+      { m: true, d: "M 730,71 L 758,71 L 758,216 L 765,216" },
+      { m: false, d: "M 730,141 L 758,141 L 758,205" },
+      { m: false, d: "M 580,169 L 758,169" },
+      { m: false, d: "M 580,233 L 758,233 L 758,205" },
+      { m: false, d: "M 580,296 L 758,296 L 758,216 L 765,216" },
+      { m: true, d: "M 880,216 L 912,216" },
+      { m: true, d: "M 344,292 L 344,395 L 822,395 L 822,250" },
+    ];
+
+    lines.forEach((l) => {
+      let path = svg.append("path").attr("class", "flow-line").attr("d", l.d);
+      if (l.m) {
+        path.attr("marker-end", "url(#arrow)");
+      }
+    });
+
+    svg
+      .append("text")
+      .attr("class", "role-label")
+      .attr("x", 695)
+      .attr("y", 218)
+      .text("Teachers");
+    svg
+      .append("text")
+      .attr("class", "role-label")
+      .attr("x", 352)
+      .attr("y", 388)
+      .text("Student");
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => ensureD3(bootstrap), { once: true });
+  } else {
+    ensureD3(bootstrap);
+  }
+})();
+</script>

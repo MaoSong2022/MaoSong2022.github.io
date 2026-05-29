@@ -1,0 +1,50 @@
+import HtmlEmbed from "../../../components/HtmlEmbed.astro";
+import Wide from '../../../components/Wide.astro';
+
+## MiniCPM-5
+
+1.08B parameters, 128K context length
+
+<Wide>
+<HtmlEmbed
+  id="minicpm5-training"
+  src="minicpm5-training.html"
+  title="MiniCPM5-1B Training Pipeline"
+  desc="MiniCPM5-1B Training Pipeline. Sourced from https://huggingface.co/openbmb/MiniCPM5-1B"
+/>
+</Wide>
+
+### data
+
+pretraining data: Ultra Fineweb, Ultra-fineweb-l3, ultradata-math
+
+post-training: multi-teacher OPD
+
+SFT: 200B deep-thinking SFT, 200B hybrid thinking SFT (UltraData-SFT-2605)
+
+RL:
+
+- DAPO-math-17k (JustRL)
+- Trivial QA
+- NQ-Open
+- LongWriter-Zero-RLData
+
+performance
+
+<Wide>
+<HtmlEmbed
+  id="minicpm5-opd-performance"
+  src="minicpm5-opd-performance.html"
+  title="MiniCPM5-1B Score Gain from RL+OPD"
+  desc="MiniCPM5-1B Score Gain from RL+OPD. Sourced from https://huggingface.co/openbmb/MiniCPM5-1B"
+/>
+</Wide>
+
+<Wide>
+<HtmlEmbed
+  id="minicpm5-opd-response-length-reduction"
+  src="minicpm5-opd-response-length-reduction.html"
+  title="MiniCPM5-1B overlong response ratio drop from RL+OPD"
+  desc="MiniCPM5-1B overlong response ratio drop from RL+OPD. Sourced from https://huggingface.co/openbmb/MiniCPM5-1B"
+/>
+</Wide>

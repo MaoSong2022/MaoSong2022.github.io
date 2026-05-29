@@ -1,0 +1,424 @@
+<div class="minicpm5-opd-performance"></div>
+<style>
+  .minicpm5-opd-performance {
+    position: relative;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  .minicpm5-opd-performance .title {
+    font-size: 22px;
+    font-weight: 700;
+    fill: #000000;
+    text-anchor: middle;
+  }
+
+  .minicpm5-opd-performance .category-label {
+    font-size: 13px;
+    font-style: italic;
+    fill: #b3b3b3;
+    text-anchor: middle;
+  }
+
+  .minicpm5-opd-performance .axis-label {
+    font-size: 14px;
+    fill: #000000;
+  }
+
+  .minicpm5-opd-performance .tick text {
+    font-size: 12px;
+    fill: #333333;
+  }
+
+  .minicpm5-opd-performance .x-axis-tick {
+    font-size: 12px;
+    font-weight: 600;
+    fill: #333333;
+  }
+
+  .minicpm5-opd-performance .grid-line {
+    stroke: #f0f0f0;
+    stroke-dasharray: 3, 3;
+  }
+
+  .minicpm5-opd-performance .divider-line {
+    stroke: #b3b3b3;
+    stroke-dasharray: 3, 3;
+    stroke-width: 1.5px;
+  }
+
+  .minicpm5-opd-performance .label-sft {
+    font-size: 11px;
+    fill: #ffffff;
+    text-anchor: middle;
+    pointer-events: none;
+  }
+
+  .minicpm5-opd-performance .label-gain {
+    font-size: 12px;
+    font-weight: 700;
+    fill: #ffffff;
+    text-anchor: middle;
+    pointer-events: none;
+  }
+
+  .minicpm5-opd-performance .label-total {
+    font-size: 13px;
+    font-weight: 700;
+    fill: #ff5500;
+    text-anchor: middle;
+    pointer-events: none;
+  }
+
+  .minicpm5-opd-performance .ghost {
+    opacity: 0.2;
+  }
+
+  .minicpm5-opd-performance .d3-tooltip {
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform: translate(-9999px, -9999px);
+    pointer-events: none;
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 13px;
+    line-height: 1.5;
+    border: 1px solid #e0e0e0;
+    background: #ffffff;
+    color: #000000;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    text-align: left;
+    z-index: 100;
+  }
+
+  .minicpm5-opd-performance .d3-tooltip strong {
+    font-weight: 700;
+  }
+
+  .minicpm5-opd-performance .d3-tooltip .tip-sft {
+    color: #007acc;
+  }
+
+  .minicpm5-opd-performance .d3-tooltip .tip-gain {
+    color: #8811aa;
+  }
+
+  .minicpm5-opd-performance .d3-tooltip .tip-total {
+    color: #ff5500;
+  }
+
+  .minicpm5-opd-performance .legend-item {
+    cursor: pointer;
+    transition: opacity 0.15s ease;
+  }
+</style>
+<script>
+(() => {
+  const ensureD3 = (cb) => {
+    if (window.d3 && typeof window.d3.select === 'function') return cb();
+    let s = document.getElementById('d3-cdn-script');
+    if (!s) {
+      s = document.createElement('script');
+      s.id = 'd3-cdn-script';
+      s.src = 'https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js';
+      document.head.appendChild(s);
+    }
+    const onReady = () => { if (window.d3 && typeof window.d3.select === 'function') cb(); };
+    s.addEventListener('load', onReady, { once: true });
+    if (window.d3) onReady();
+  };
+
+  const bootstrap = () => {
+    const scriptEl = document.currentScript;
+    let container = scriptEl ? scriptEl.previousElementSibling : null;
+    if (!(container && container.classList && container.classList.contains('minicpm5-opd-performance'))) {
+      const cs = Array.from(document.querySelectorAll('.minicpm5-opd-performance')).filter(el => !(el.dataset && el.dataset.mounted==='true'));
+      container = cs[cs.length-1] || null;
+    }
+    if (!container) return;
+    if (container.dataset) { if (container.dataset.mounted==='true') return; container.dataset.mounted='true'; }
+
+    const data = [
+      { benchmark: "AIME-2025", category: "Math", sft: 17.3, gain: 23.1, total: 40.4 },
+      { benchmark: "AIME-2026", category: "Math", sft: 15.6, gain: 24.8, total: 40.4 },
+      { benchmark: "HMMT Feb 2026", category: "Math", sft: 11.9, gain: 13.8, total: 25.8 },
+      { benchmark: "LCB-v6", category: "Code", sft: 20.6, gain: 13.0, total: 33.5 },
+      { benchmark: "LCB-Pro Easy", category: "Code", sft: 10.3, gain: 12.4, total: 22.7 },
+      { benchmark: "IFEval", category: "Instruction Following", sft: 68.2, gain: 12.2, total: 80.4 },
+      { benchmark: "IFBench", category: "Instruction Following", sft: 33.7, gain: 13.0, total: 46.7 },
+      { benchmark: "Multi-IF", category: "Instruction Following", sft: 28.5, gain: 15.1, total: 43.5 },
+    ];
+
+    const width = 950;
+    const height = 520;
+    const margin = { top: 60, right: 30, bottom: 90, left: 60 };
+    const colorSFT = "#007acc";
+    const colorGain = "#8811aa";
+
+    let tip = container.querySelector('.d3-tooltip');
+    let tipInner;
+    if (!tip) {
+      tip = document.createElement('div'); tip.className = 'd3-tooltip';
+      tipInner = document.createElement('div'); tipInner.className = 'd3-tooltip__inner'; tip.appendChild(tipInner);
+      container.appendChild(tip);
+    } else {
+      tipInner = tip.querySelector('.d3-tooltip__inner') || tip;
+    }
+
+    function showTip(html, x, y) {
+      tip.style.transform = `translate(${x + 12}px, ${y + 12}px)`;
+      tip.style.opacity = "1";
+      tipInner.innerHTML = html;
+    }
+
+    function hideTip() {
+      tip.style.opacity = "0";
+      tip.style.transform = "translate(-9999px, -9999px)";
+    }
+
+    const svg = d3.select(container)
+      .append("svg")
+      .attr("width", width)
+      .attr("height", height)
+      .style("display", "block");
+
+    const xScale = d3
+      .scaleBand()
+      .domain(data.map(d => d.benchmark))
+      .range([margin.left, width - margin.right])
+      .padding(0.45);
+
+    const yScale = d3
+      .scaleLinear()
+      .domain([0, 100])
+      .range([height - margin.bottom, margin.top + 20]);
+
+    const yTicks = [20, 40, 60, 80, 100];
+    svg
+      .selectAll(".grid-line")
+      .data(yTicks)
+      .enter()
+      .append("line")
+      .attr("class", "grid-line")
+      .attr("x1", margin.left)
+      .attr("x2", width - margin.right)
+      .attr("y1", d => yScale(d))
+      .attr("y2", d => yScale(d));
+
+    const barGroups = svg
+      .selectAll(".bar-group")
+      .data(data)
+      .enter()
+      .append("g")
+      .attr("class", "bar-group");
+
+    function highlight(activeBenchmark) {
+      barGroups.classed("ghost", d => d.benchmark !== activeBenchmark);
+    }
+
+    function clearHighlight() {
+      barGroups.classed("ghost", false);
+    }
+
+    const tipHTML = (d) =>
+      `<strong>${d.benchmark}</strong><br/>
+       <span class="tip-sft">SFT: <strong>${d.sft.toFixed(1)}</strong></span><br/>
+       <span class="tip-gain">Gain: <strong>+${d.gain.toFixed(1)}</strong></span><br/>
+       <span class="tip-total">Total: <strong>${d.total.toFixed(1)}</strong></span>`;
+
+    barGroups
+      .append("rect")
+      .attr("class", "bar-sft")
+      .attr("x", d => xScale(d.benchmark))
+      .attr("y", height - margin.bottom)
+      .attr("width", xScale.bandwidth())
+      .attr("height", 0)
+      .attr("fill", colorSFT)
+      .on("mouseenter", (event, d) => { highlight(d.benchmark); const [mx, my] = d3.pointer(event, container); showTip(tipHTML(d), mx, my); })
+      .on("mousemove", (event, d) => { const [mx, my] = d3.pointer(event, container); showTip(tipHTML(d), mx, my); })
+      .on("mouseleave", () => { clearHighlight(); hideTip(); })
+      .transition()
+      .duration(400)
+      .delay((d, i) => i * 80)
+      .attr("y", d => yScale(d.sft))
+      .attr("height", d => yScale(0) - yScale(d.sft));
+
+    barGroups
+      .append("rect")
+      .attr("class", "bar-gain")
+      .attr("x", d => xScale(d.benchmark))
+      .attr("y", height - margin.bottom)
+      .attr("width", xScale.bandwidth())
+      .attr("height", 0)
+      .attr("fill", colorGain)
+      .on("mouseenter", (event, d) => { highlight(d.benchmark); const [mx, my] = d3.pointer(event, container); showTip(tipHTML(d), mx, my); })
+      .on("mousemove", (event, d) => { const [mx, my] = d3.pointer(event, container); showTip(tipHTML(d), mx, my); })
+      .on("mouseleave", () => { clearHighlight(); hideTip(); })
+      .transition()
+      .duration(400)
+      .delay((d, i) => i * 80 + 200)
+      .attr("y", d => yScale(d.sft + d.gain))
+      .attr("height", d => yScale(d.sft) - yScale(d.sft + d.gain));
+
+    barGroups
+      .append("text")
+      .attr("class", "label-sft")
+      .attr("x", d => xScale(d.benchmark) + xScale.bandwidth() / 2)
+      .attr("y", d => yScale(d.sft / 2) + 4)
+      .text(d => d.sft.toFixed(1));
+
+    barGroups
+      .append("text")
+      .attr("class", "label-gain")
+      .attr("x", d => xScale(d.benchmark) + xScale.bandwidth() / 2)
+      .attr("y", d => yScale(d.sft + d.gain / 2) + 5)
+      .text(d => `+${d.gain.toFixed(1)}`);
+
+    barGroups
+      .append("text")
+      .attr("class", "label-total")
+      .attr("x", d => xScale(d.benchmark) + xScale.bandwidth() / 2)
+      .attr("y", d => yScale(d.total) - 8)
+      .text(d => d.total.toFixed(1));
+
+    svg
+      .append("line")
+      .attr("x1", margin.left)
+      .attr("x2", width - margin.right)
+      .attr("y1", height - margin.bottom)
+      .attr("y2", height - margin.bottom)
+      .attr("stroke", "#333")
+      .attr("stroke-width", 1.2);
+
+    const yAxis = d3.axisLeft(yScale).tickValues([0, 20, 40, 60, 80, 100]).tickSize(5);
+    svg
+      .append("g")
+      .attr("transform", `translate(${margin.left},0)`)
+      .call(yAxis)
+      .call(g => g.select(".domain").remove())
+      .call(g => g.selectAll(".tick line").attr("stroke", "#333"));
+
+    svg
+      .append("text")
+      .attr("class", "axis-label")
+      .attr("transform", "rotate(-90)")
+      .attr("x", -(height - margin.bottom + margin.top) / 2)
+      .attr("y", 20)
+      .attr("text-anchor", "middle")
+      .text("Score");
+
+    svg
+      .append("g")
+      .selectAll(".x-axis-tick")
+      .data(data)
+      .enter()
+      .append("text")
+      .attr("class", "x-axis-tick")
+      .attr("transform", d => {
+        const x = xScale(d.benchmark) + xScale.bandwidth() / 2;
+        const y = height - margin.bottom + 20;
+        return `translate(${x}, ${y}) rotate(-20)`;
+      })
+      .attr("text-anchor", "end")
+      .text(d => d.benchmark);
+
+    const xMathEnd = (xScale(data[2].benchmark) + xScale.bandwidth() + xScale(data[3].benchmark)) / 2;
+    const xCodeEnd = (xScale(data[4].benchmark) + xScale.bandwidth() + xScale(data[5].benchmark)) / 2;
+
+    svg
+      .append("line")
+      .attr("class", "divider-line")
+      .attr("x1", xMathEnd)
+      .attr("x2", xMathEnd)
+      .attr("y1", margin.top + 10)
+      .attr("y2", height - margin.bottom);
+
+    svg
+      .append("line")
+      .attr("class", "divider-line")
+      .attr("x1", xCodeEnd)
+      .attr("x2", xCodeEnd)
+      .attr("y1", margin.top + 10)
+      .attr("y2", height - margin.bottom);
+
+    svg
+      .append("text")
+      .attr("class", "category-label")
+      .attr("x", (margin.left + xMathEnd) / 2)
+      .attr("y", margin.top + 25)
+      .text("Math");
+
+    svg
+      .append("text")
+      .attr("class", "category-label")
+      .attr("x", (xMathEnd + xCodeEnd) / 2)
+      .attr("y", margin.top + 25)
+      .text("Code");
+
+    svg
+      .append("text")
+      .attr("class", "category-label")
+      .attr("x", (xCodeEnd + width - margin.right) / 2)
+      .attr("y", margin.top + 25)
+      .text("Instruction Following");
+
+    svg
+      .append("text")
+      .attr("class", "title")
+      .attr("x", width / 2)
+      .attr("y", margin.top - 20)
+      .text("Score Gains from RL + OPD");
+
+    const legendG = svg.append("g").attr("class", "legend");
+
+    const legendItems = [
+      { label: "SFT", color: colorSFT, key: "sft" },
+      { label: "Gain from RL + OPD", color: colorGain, key: "gain" },
+    ];
+
+    const legendXStart = width / 2 - 140;
+    const legendY = height - 24;
+
+    legendItems.forEach((item, i) => {
+      const xOff = i * 190;
+      const g = legendG
+        .append("g")
+        .attr("class", "legend-item")
+        .attr("transform", `translate(${legendXStart + xOff}, ${legendY})`);
+
+      g.append("rect")
+        .attr("width", 24)
+        .attr("height", 14)
+        .attr("fill", item.color)
+        .attr("rx", 2);
+
+      g.append("text")
+        .attr("x", 32)
+        .attr("y", 12)
+        .attr("class", "legend-text")
+        .style("font-size", "13px")
+        .style("fill", "#000000")
+        .text(item.label);
+
+      g.on("mouseenter", () => {
+        const targetKey = item.key;
+        svg.selectAll(".bar-sft").classed("ghost", targetKey !== "sft");
+        svg.selectAll(".bar-gain").classed("ghost", targetKey !== "gain");
+      });
+      g.on("mouseleave", () => {
+        svg.selectAll(".bar-sft").classed("ghost", false);
+        svg.selectAll(".bar-gain").classed("ghost", false);
+      });
+    });
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => ensureD3(bootstrap), { once: true });
+  } else {
+    ensureD3(bootstrap);
+  }
+})();
+</script>
