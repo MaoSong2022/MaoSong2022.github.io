@@ -1,4 +1,6 @@
-import FullWidth from '../../../components/FullWidth.astro';
+import Wide from '../../../components/Wide.astro';
+import Theorem from '../../../components/Theorem.astro'
+import Definition from '../../../components/Definition.astro'
 
 ## Introduction
 
@@ -9,7 +11,6 @@ import FullWidth from '../../../components/FullWidth.astro';
 ## Background
 
 作者首先回顾了 RLHF, RLHF 的 pipeline 如下
-
 
 其包含了三个步骤：
 
@@ -110,7 +111,7 @@ $$
 
 接下来，作者分析了一下 DPO 目标函数的梯度，
 
-<FullWidth>
+<Wide>
 $$
 \begin{aligned}
 \nabla_\theta \mathcal{L}_{\mathrm{DPO}}(\pi_{\theta};\pi_{\mathrm{ref}})&=-\nabla_\theta \mathbb{E}_{(x,y_w,y_l)\in\mathcal{D}}\left[\log\sigma(u)\right]\\
@@ -121,8 +122,7 @@ $$
 &= -\mathbb{E}_{(x,y_w,y_l)\in\mathcal{D}}\left[\beta\sigma\left[\beta\log\frac{\pi_\theta(y_l\mid x)}{\pi_{\mathrm{ref}}(y_l\mid x)}-\beta\log\frac{\pi_\theta(y_w\mid x)}{\pi_{\mathrm{ref}}(y_w\mid x)}\right]\left[\nabla_\theta\log\pi(y_w\mid x) - \nabla_\theta \log\pi(y_l\mid x)\right]\right]\\
 \end{aligned}
 $$
-</FullWidth>
-
+</Wide>
 
 从梯度来看，当我们的 reward 估计错误时，即 $\sigma(-u)>0$ 时， DPO 会提高 $y_w$ 的生成可能性以及降低 $y_l$ 的生成可能性，从而提高模型对于偏好输出的可能性。
 
@@ -156,8 +156,11 @@ $$
 
 Lemma 2 说明我们只要从最优的等价类里任意找到一个 reward function, 则最终的效果是一样的。
 
-> Theorem 1
-> 假设我们有一个 reference model $\pi_{\mathrm{ref}}(\cdot\mid x)>0$ for all prompt-answer pairs $(x,y)$, 则对于某个模型 $\pi(y\mid x)$, 则与 $\pi_{\mathrm{ref}}$ 对应的等价类里的 reward function 都可以表示为如下形式 $r(x,y) = \beta\frac{\pi(y\mid x)}{\pi_{\mathrm{ref}}(y\mid x)},\ \beta>0$.
+<Theorem>
+
+假设我们有一个 reference model $\pi_{\mathrm{ref}}(\cdot\mid x)>0$ for all prompt-answer pairs $(x,y)$, 则对于某个模型 $\pi(y\mid x)$, 则与 $\pi_{\mathrm{ref}}$ 对应的等价类里的 reward function 都可以表示为如下形式 $r(x,y) = \beta\frac{\pi(y\mid x)}{\pi_{\mathrm{ref}}(y\mid x)},\ \beta>0$.
+
+</Theorem>
 
 我们也可以通过 Theorem 1 来显示推导出 DPO 选择的 reward function:
 
@@ -178,7 +181,6 @@ $$
 ## Experiments
 
 作者首先对比了不同偏好优化算法的表现，如下图所示
-
 
 从实验结果可以看到，DPO 对于不同的 KL Values 和不同的采样温度其表现都非常好，并且更加 robust
 

@@ -2,11 +2,11 @@
 import Image from '../../../components/Image.astro';
 import adam_optimizer_algorithm from '../../../assets/image/Adam-optimizer-algorithm.png';
 
-作者提出了 Adam, 一个一阶的优化方法，Adam 更加高效，且具有 scaling invariant 的性质。
+## Adam
 
-## Introduction
-
-作者首先回顾了一下已有优化器的进展，其中主要是 SGD. 在本文中，作者提出了 Adam, 一个针对高维参数空间的一阶优化器，Adam 基于 gradient 的一阶和二阶信息为不同的参数安排不同的学习率。Adam 的来源是 *adaptive moment estimation*. Adam 主要是结合了 AdaGrad 和 RMSProp 两个算法的优点。
+Adam 是一个针对高维参数空间的一阶优化器，Adam 基于 gradient 的一阶和二阶信息为不同的参数安排不同的学习率。
+Adam 的来源是 *adaptive moment estimation*.
+Adam 主要是结合了 AdaGrad 和 RMSProp 两个算法的优点。
 
 Adam 与 RMSProp 的区别在于：
 

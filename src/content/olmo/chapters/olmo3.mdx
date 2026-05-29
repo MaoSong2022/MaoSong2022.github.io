@@ -1,0 +1,19 @@
+## olmo3
+
+AllenAI 在 25 年 12 月提出了 olmo3 [@OLmo3] 系列大语言模型。
+
+### Pre-training
+
+Olmo3 Base 的训练包含 3 个 stage:
+
+1. pre-training: 这个阶段使用了**5.9T** token
+2. mid-training: 这个阶段使用了**100B** token
+3. long-context extension: 这个阶段使用了 **50B** (olmo3 7B) 到**100B** (olmo3 32B) token
+
+作者还构建了 OlmoBaseEval, 用于在小规模模型上进行验证。
+
+对于不同训练阶段，作者构建了不同的数据集：
+
+1. pre-training: 作者构建了 Dolma 3 Mix, 一个包含**6T** token 的预训练数据集
+2. mid-training: 作者构建了 Dolma 3 Dolmino Mix, 一个包含**100B** token 的数据集
+3. long-context extension: 作者构建了 Dolma 3 Longmino Mix, 一个由 olmOCR 和 olmOCR 2 提取的数据集，数据集包含 4.5M documents 以及 **380B** token
