@@ -102,9 +102,95 @@ Compressed Sparse Attention (CSA) 包含了三个模块：
 
 ### Post-training
 
-#### OPD
+Post training 阶段 DeepSeek-V4 将 [DeepSeek-V3.2](#deepseek-v3.2) 的 offline distillation 替换为了 online policy distillation (OPD), 其训练流程如下所示
+
+<HtmlEmbed
+  id="deepseek-v4-post-training-pipeline"
+  src="deepseek-v4-post-training-pipeline.html"
+  title="Post-training of DeepSeek-V4"
+/>
+
+每个 specialist 都经过 SFT 和 RL (GRPO) 算法进行训练，训练时，作者为每个 specialist 设计了三种思考模式：
+
+1. Non-think, 直接输出答案
+2. Think High, 正常进行思考
+3. Think Max, 最强思考模式
+
+对于 RLHF 这类需要 reward model 的任务，作者构建了 rubric-guided RL data 并将模型同时作为 reward model 和 policy model 来进行训练，进而提高模型的表现。
+
+OPD 的损失函数如下所示
+
+$$
+\mathcal{L}_{\mathrm{OPD}}(\theta) = \sum_{i=1}^N w_i\mathrm{KL}(\pi_\theta\mid\mid \pi_{E_i})
+$$
+
+这里 $E_1,\dots,E_N$ 是对应的 specialist, $\pi_\theta$ 是 policy model, $w_i$ 是对应的权重。
+
+由于现代大模型词表一般较大，因此现有做法一般是使用 single token 来近似 KL divergence, 即
+
+$$
+\mathrm{KL}(\pi_\theta\mid\mid \pi_{E_i})\approx \mathrm{sg}\left[\log\frac{\pi_{E_i}(y_t\mid x,y_{<t})}{\pi_{\theta}(y_t\mid x,y_{<t})}\right]
+$$
+
+这个估计虽然是无偏的，但是方差很大。
+为了解决这个问题，作者使用了原始 KL divergence 定义，对于带来的计算量问题，作者在 infra 层面进行了优化。
+
+#### Tool Calling
+
+对于工具调用，DeepSeek-V4 提出了一个基于 XML 格式的 schema, 形式如下所示
+
+<Accordion title="DeepSeek-V4 tool-call schema">
+
+```
+<|DSML|tool_calls> 
+<|DSML|invoke name="$TOOL_NAME"> 
+<|DSML|parameter name="$PARAMETER_NAME" string="true|false">$PARAMETER_VALUE  
+</|DSML|parameter> ... 
+</|DSML|invoke> 
+<|DSML|invoke name="$TOOL_NAME2"> ... 
+</|DSML|invoke> </|DSML|tool_calls>
+```
+
+</Accordion>
+
+作者认为这种格式可以减少 excaping failures 以及 reduce tool-call errors.
+
+<Note title="Recall on Kimi-K2.5" variant="info">
+  Kimi-K2 [@Kimi-K2] 使用了 TypeScript 来减少工具调用所使用的上下文。
+</Note>
+
+对于上下文管理，DeepSeek-V4 没有采用 DeepSeek-V3.2 的做法，而是保留了全部的工具调用内容，让模型能够更好的利用上下文来进行思考。
+DeepSeek-V4 针对不同的场景使用了不同的策略：
+
+1. 对于工具调用场景，模型会保留完整的 reasoning history
+2. 对于通用对话场景，模型会丢弃之前的思考过程，仅保留上一轮的答案
+
+针对工具调用，作者还介绍了 Quick Instruction, 也就是使用模型本身来进行意图识别。
+之前的做法是用一个小模型来进行判断，但是这样无法利用模型的 kv cache, 作者通过在 prompt 之后加入一个特殊的 token 来完成这个任务。
+此时模型就可以复用 kv cache 进而降低 latency.
 
 #### Infra
+
+作者在 post-training 阶段使用了 Quantization-Aware Training (QAT, [@QAT]) 来提高模型在 quantization 之后的表现。
+作者在两个模块上使用了 FP4  quantization:
+
+1. MoE expert weights
+2. QK path
+
+对于 index score, 作者在 QAT 过程中使用了 BF16 精度。
+
+TODO: add precision image
+
+经过训练之后，在推理阶段，作者直接使用 FP4 quantized weights 来进行推理。
+
+对于 OPD, 作者进行了如下优化：
+
+1. 所有 teacher model 的权重都进行 offload
+2. 保留 teacher model 最后一层的 hidden states, 避免计算 `lm_head`
+3. 按照 teacher model index 来加载数据，使得在一个 mini-batch 里只需要加载一个 teacher model 的 hidden states
+4. 使用 TileLang kernel 来优化  `lm_head` 以及 KL divergence的计算
+
+对于长上下文推理，作者使用了 token level WAL, 每生成一个 token 就保留对应的 KV cache, 这样下次重新生成时就可以直接利用已有的 kv cache 继续生成。
 
 ### Performance
 
@@ -118,3 +204,11 @@ Compressed Sparse Attention (CSA) 包含了三个模块：
 />
 
 ### Discussions
+
+1. 保留了一些验证过的模块和 tricks
+2. Anticipatory Routing 和 SwiGLU Clamping 的内部机制仍然不清晰
+3. 探究新的 sparsity 维度
+4. 探究 low-latency architectures
+5. long-horizon, multi-round agentic tasks
+6. multimodality
+7. data curation and synthesis strategies.
