@@ -1,0 +1,6 @@
+Benchmark,GPT-4o,Llama 3 70B,Mixtral 8x7B,Gemma 2 27B
+MMLU,88,80,73,76
+GSM8K,94,83,79,81
+HellaSwag,95,89,86,87
+TruthfulQA,64,56,51,53
+ARC-C,79,72,68,70
