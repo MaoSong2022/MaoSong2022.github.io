@@ -1,5 +1,7 @@
 import HtmlEmbed from '../../../components/HtmlEmbed.astro';
 import Sidenote from '../../../components/Sidenote.astro';
+import Note from '../../../components/Note.astro';
+import Accordion from '../../../components/Accordion.astro';
 
 ## DeepSeek-V4
 
@@ -21,6 +23,12 @@ DeepSeek-V4 的架构如下所示
   src="deepseek-v4-architecture.html"
   title="DeepSeek V4 architecture"
 />
+
+DeepSeek-V4 架构上主要有以下创新：
+
+1. 针对 DeepSeek-MoE 架构做了一些小的改动
+2. 将 residual connection 改进为 manifold hyper connection (mHC, [@mHC])
+3. 使用了 HCA, CSA 注意力机制来进一步压缩 KV cache 以及提高 attention计算效率
 
 #### MoE
 
@@ -53,28 +61,145 @@ $$
 x_{\ell + 1} = B_{\ell} x_{\ell} + C_{\ell} f_{\ell}(A_{\ell}X_{\ell})
 $$
 
-DeepSeek-V4 在 HC 的基础上进一步使用了 mHC, 其关键思想是将 residual mapping 限制到 Birkhoff polytope 上，其表达式如下：
+DeepSeek-V4 在 HC 的基础上进一步使用了 mHC [@mHC], 其关键思想是将 residual mapping 限制到 Birkhoff polytope 上，其表达式如下：
 
 $$
 \begin{aligned}
 x_{\ell + 1} &= B_{\ell} x_{\ell} + C_{\ell} f_{\ell}(A_{\ell}X_{\ell})\\
-\mathrm{s.t.} & B_{\ell}\in\mathcal{M} := \left\{ M\in\mathbb{R}^{m\times m} \mid M\mathbf{1}_m=\mathbf{1}_m, \mathbf{1}_m^TM=\mathbf{1}_m^T, M\geq0 \right\}
+\mathrm{s.t.}\ & B_{\ell}\in\mathcal{M} := \left\{ M\in\mathbb{R}^{m\times m} \mid M\mathbf{1}_m=\mathbf{1}_m, \mathbf{1}_m^TM=\mathbf{1}_m^T, M\geq0 \right\}
 \end{aligned}
 $$
 
 #### Attention
 
-DeepSeek-V4 进一步使用了 Compressed Sparse Attention (CSA) 和 Heavily Compressed Attention (HSA) 来提噶模型处理长上下文任务的效率。
+DeepSeek-V4 进一步使用了 Compressed Sparse Attention (CSA) 和 Heavily Compressed Attention (HSA) 来提高模型处理长上下文任务的效率。
+
+我们首先介绍 CSA, HCA 相对于 CSA 在两个方面进行了改变
 
 ##### Compressed Sparse Attention
 
-Compressed Sparse Attention (CSA) 包含了三个模块：
+Compressed Sparse Attention (CSA) 是 NSA [@NSA] 的一个改进版本。
+在 NSA 中，我们构建了三个模块，分别是 token compression, token selection, sliding window 用于挑选上下文的一个子集参与 attention 计算。
+CSA 则是先进行 token compression, 然后针对 compressed token 进行 token selection, 再将 selected token 和 sliding window token concate 到一起参与 attention 计算。
+并且，为了进一步压缩 KV cache, CSA 使用了 MQA [@MQA].
+接下来我们采取 top-down 的形式详细介绍 CSA.
 
-1. KV cache compression: 用于压缩 KV cache
-2. Token selection: 对压缩后的 token sequence 进行 selection 来进一步压缩 token length
-3. Multi query attention: 使用 MQA 来进行计算
+首先，我们使用了 MQA 来计算 attention:
 
-为了
+$$
+o_{t,i} = \mathrm{MQA}(q_{t,i}, [C_{t}^{slc}; C_{t}^{win}], [C_{t}^{slc}; C_{t}^{win}])
+$$
+
+这里 $o_{t,i} $ 是 第 $i$ 个 head 对第 $t$ 个 token 的 attention output.
+$K_{t}^{slc},V_{t}^{slc}$ 和 $K_{t}^{win},V_{t}^{win}$ 分别是 token selection, sliding window 对应的 key 和 value.
+
+接下来，我们来介绍 CSA 中的 token selection.
+token selection 的目的是挑选出一部分 token 来参与 attention 计算。
+之前一般采用 block selection 方法，即将 context 分割为若干个 block, 然后计算每个 block的重要性程度，最后进行挑选。
+CSA 在之前的方法上进行了扩展，既然我需要在 block 层面进行计算，为何我不直接存储每个 block 的信息？
+也就是说，我现在直接存储 block 对应的 KV cache, 然后再进行挑选与计算。
+此时，我们需要两个模块：
+
+1. compressor: 负责将 $m$ 个 token 压缩为 $1$ 个
+2. selection: 从压缩后的 token sequence 中进行挑选。
+
+**Compressor**
+Compressor 的目的是将一个包含 $m$ 个 token 的 block 压缩为 $1$ 个 entry
+
+其计算逻辑图如下
+
+<HtmlEmbed
+  id="deepseek-v4-compressor"
+  src="deepseek-v4-compressor.html"
+  title="Compute graph of DeepSeek-V4 compressor"
+/>
+
+可以看到，在压缩时，压缩后的每个 entry 依赖于其前后两个 block.
+
+计算时，对于第 $i$ 个输出 $C_{i}^{Comp}$ ，其依赖原始输入 hidden states  中的两个相邻的 block.
+我们记输入的的 hidden state 为 $H\in\mathbb{R}^{n\times d}$, 这两个相邻的 block 为 $H_{mi:m(i+1)-1}\in\mathbb{R}^{m\times d}$ 和 $H_{m(i-1):mi-1}\in\mathbb{R}^{m\times d}$, 对应的压缩步骤为
+
+$$
+C^a = H_{mi:m(i+1)-1}W^{aKV}, C^b = H_{m(i-1):mi-1}W^{bKV}
+$$
+
+其中 $W^{aKV}, W^{bKV}\in\mathbb{R}^{d\times c}$, $c<d$ 是 head dimension.
+同时，我们还需要像 SwiGLU 的 gate 来计算重要性
+
+$$
+Z^a = H_{mi:m(i+1)-1} W^{aZ}, Z^b = H_{m(i-1):mi-1}W^{bZ}, [S^a, S^b] = \mathrm{Softmax}([Z^a, Z^b])
+$$
+
+这里 $W^{aZ},W^{bZ}\in\mathbb{R}^{d\times c}$.
+最后我们基于 weights 和 entry 来得到最终的结果
+
+$$
+C_i^{Comp} = \sum_{i=1}^m (S_i^a\odot C_i^a + S_i^b\odot C_i^b)\in\mathbb{R}^c
+$$
+
+通过这个方式，我们就将原始的 hidden state $H\in\mathbb{R}^{n\times d}$ 压缩为了 $C^{Comp}\in\mathbb{R}^{n/m\times c}$.
+
+**Selection**
+接下来，CSA 进一步通过 selection 的方法提高了 attention 的计算效率。
+Selection 主要是通过 Indexer 来实现的。
+Indexer 也包括一个 Compressor 用于计算 compressed keys $K^{IComp}\in\mathbb{R}^{n/m\times c^I}$.
+接下来就是 index score 的计算
+
+$$
+\begin{aligned}
+c_t^q &= h_t W^{DQ}\\
+q_t &=  [q_{t,1},\dots,q_{t,n_h}] = c_t^QW^{UQ}\\
+w_t^I &= [w_{t,1}^I;w_{t,2}^I;\dots,;w_{t,n_h^I}^I] = h_tW^w\\
+I_{t,i} &= \sum_{h=1}^{n_h^I} w_{t,h}^I\mathrm{ReLU}(q_{t,h}^IK_{i}^{IComp})
+\end{aligned}
+$$
+
+最终 CSA 得到的用于参与 MQA 计算的 KV entry 为
+
+$$
+C_t^{slc} = \{C_i^{Comp} \mid I_{t,i}\in\mathrm{TopK}(I_{t,:})\}
+$$
+
+##### Heavily Compressed Attention
+
+与 CSA 不同, HCA 只做 compression 不做 selection, 因此其不包含 Indexer 模块。此时 attention 计算为
+
+$$
+o_{t,i} = \mathrm{MQA}(q_{t,i}, C_{t}^{comp}, C_{t}^{comp})
+$$
+
+query 与上面计算一致，
+
+$$
+c_t^q = h_t W^{DQ}, [q_{t,1},\dots,q_{t,n_h}] = q_t = c_t^QW^{UQ}
+$$
+
+compressed entry $C_i^{comp}$ 计算相比 CSA 也更简单，其只需要一个 block $H_{m'i:m'(i+1)-1}\in\mathbb{R}^{m'\times d}$, 计算方式如下
+
+$$
+\begin{aligned}
+C &= H_{m'i:m'(i+1)-1}W^{KV}\\
+Z &= H_{m'i:m'(i+1)-1}W^{Z}\\
+S &= \mathrm{Softmax}(Z + B) \\
+C_i^{Comp} &= \sum_{i=1}^m (S_i^a\odot C_i^a + S_i^b\odot C_i^b)\in\mathbb{R}^c
+\end{aligned}
+$$
+这里 $W^{KV}, W^Z\in\mathbb{R}^{d\times c}$, $B\in\mathbb{R}^{m'\times c}$.
+
+##### Analysis
+
+compresssion ratio:
+
+##### Other details
+
+1. grouped output projection
+2. normalization
+3. RoPE
+4. attention sink
+
+##### KV cache analysis
+
+TODO
 
 ### Muon Optimizer
 
