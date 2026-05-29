@@ -150,54 +150,13 @@
       const svg = d3.select(card).append('svg').attr('width','100%').style('display','block');
       const gRoot = svg.append('g');
 
-      // No controls (fixed scale mode)
-
-      // Public-first data loading with inline fallback
-      const fetchFirstAvailable = async (paths) => {
-        for (const p of paths) {
-          try {
-            const res = await fetch(p, { cache:'no-cache' });
-            if (!res.ok) throw new Error('HTTP '+res.status);
-            const text = await res.text();
-            // Try JSON first; if CSV, parse with d3.csvParse
-            try { return JSON.parse(text); } catch(e) {}
-            if (window.d3 && d3.csvParse) { return d3.csvParse(text); }
-          } catch (e) { /* keep trying */ }
-        }
-        return null;
-      };
-
-      // Inline fallback dataset (scores in % where applicable)
-      const inlineData = [
-        { benchmark:'MMLU',       model:'GPT-4o',      score: 88 },
-        { benchmark:'MMLU',       model:'Llama 3 70B', score: 80 },
-        { benchmark:'MMLU',       model:'Mixtral 8x7B',score: 73 },
-        { benchmark:'MMLU',       model:'Gemma 2 27B', score: 76 },
-        { benchmark:'GSM8K',      model:'GPT-4o',      score: 94 },
-        { benchmark:'GSM8K',      model:'Llama 3 70B', score: 83 },
-        { benchmark:'GSM8K',      model:'Mixtral 8x7B',score: 79 },
-        { benchmark:'GSM8K',      model:'Gemma 2 27B', score: 81 },
-        { benchmark:'HellaSwag',  model:'GPT-4o',      score: 95 },
-        { benchmark:'HellaSwag',  model:'Llama 3 70B', score: 89 },
-        { benchmark:'HellaSwag',  model:'Mixtral 8x7B',score: 86 },
-        { benchmark:'HellaSwag',  model:'Gemma 2 27B', score: 87 },
-        { benchmark:'TruthfulQA', model:'GPT-4o',      score: 64 },
-        { benchmark:'TruthfulQA', model:'Llama 3 70B', score: 56 },
-        { benchmark:'TruthfulQA', model:'Mixtral 8x7B',score: 51 },
-        { benchmark:'TruthfulQA', model:'Gemma 2 27B', score: 53 },
-        { benchmark:'ARC-C',      model:'GPT-4o',      score: 79 },
-        { benchmark:'ARC-C',      model:'Llama 3 70B', score: 72 },
-        { benchmark:'ARC-C',      model:'Mixtral 8x7B',score: 68 },
-        { benchmark:'ARC-C',      model:'Gemma 2 27B', score: 70 }
-      ];
-
       const state = {
-        data: inlineData,
+        data: [],
         colorsByModel: null,
         highlightModel: null,
       };
 
-      const margin = { top: 12, right: 28, bottom: 24, left: 56 };
+      const margin = { top: 12, right: 28, bottom: 34, left: 56 };
       let width = 800, height = 360;
       const x0 = d3.scaleBand().paddingInner(0.2).paddingOuter(0.05); // group: benchmark
       const x1 = d3.scaleBand().padding(0.12); // series: model per benchmark
@@ -282,7 +241,7 @@
         x0.domain(getBenchmarks(state.data)).range([0, innerWidth]);
         x1.domain(models).range([0, x0.bandwidth()]);
 
-        const yMaxRaw = 100;
+        const yMaxRaw = d3.max(state.data, d => d.score) || 100;
         const yMax = yMaxRaw + yTopPadding;
         y.domain([0, yMax]).range([innerHeight, 0]).nice();
 
@@ -297,6 +256,16 @@
           .call(g => {
             g.selectAll('path, line').attr('stroke', 'var(--axis-color)');
             g.selectAll('text').attr('fill', 'var(--tick-color)').style('font-size','12px');
+            g.selectAll('.tick text').each(function() {
+              const t = d3.select(this);
+              const content = t.text();
+              const idx = content.indexOf('(');
+              if (idx !== -1) {
+                t.text('');
+                t.append('tspan').attr('x', 0).attr('dy', '0.8em').text(content.slice(0, idx).trim());
+                t.append('tspan').attr('x', 0).attr('dy', '1.2em').text(content.slice(idx));
+              }
+            });
           });
         gRoot
           .selectAll('.axis-y')
@@ -399,31 +368,46 @@
           .text('score');
       }
 
-      // Initial render + resize handling
-      render();
-      const rerender = () => render();
-      if (window.ResizeObserver) { const ro = new ResizeObserver(() => rerender()); ro.observe(container); }
+      // Resolve data source: data-datafiles attribute from mount ancestor
+      let mountEl = container;
+      while (mountEl && !mountEl.getAttribute?.('data-datafiles')) {
+        mountEl = mountEl.parentElement;
+      }
+      const dataAttr = mountEl?.getAttribute?.('data-datafiles') || '';
+      let paths = [];
+      if (dataAttr) {
+        try { const p = JSON.parse(dataAttr); paths = Array.isArray(p) ? p : [String(p)]; }
+        catch { paths = [dataAttr]; }
+        paths = paths.map(p => p.includes('/') ? p : '/data/' + p);
+      }
+      if (paths.length === 0) return;
+
+      const rerender = () => { if (state.data.length) render(); };
+      if (window.ResizeObserver) { new ResizeObserver(rerender).observe(container); }
       else { window.addEventListener('resize', rerender); }
 
-      // Attempt to load external data (public-first). Expect either JSON array with {benchmark, model, score}
       (async () => {
-        const maybe = await fetchFirstAvailable([
-          '/data/llm_benchmarks.json',
-          './assets/data/llm_benchmarks.json',
-          '../assets/data/llm_benchmarks.json'
-        ]);
-        if (Array.isArray(maybe) && maybe.length && maybe[0].benchmark && maybe[0].model && (typeof maybe[0].score === 'number')) {
-          state.data = maybe;
-          state.colorsByModel = null; // recompute in case of different model set
-          render();
-        } else if (maybe && maybe.columns) {
-          // CSV parsed via d3.csvParse -> convert fields
-          const parsed = maybe.map(r => ({ benchmark: r.benchmark, model: r.model, score: +r.score }));
-          if (parsed.length) { state.data = parsed; state.colorsByModel = null; render(); }
+        for (const p of paths) {
+          try {
+            const r = await fetch(p, { cache: 'no-cache' });
+            if (!r.ok) continue;
+            const text = await r.text();
+            if (!d3.csvParse) continue;
+            const csv = d3.csvParse(text);
+            if (!csv || !csv.columns || !csv.length) continue;
+            const cols = csv.columns;
+            const modelCols = cols.filter(c => c.toLowerCase() !== 'benchmark');
+            if (modelCols.length === 0) continue;
+            const key = csv[0].hasOwnProperty('Benchmark') ? 'Benchmark' : csv[0].hasOwnProperty('benchmark') ? 'benchmark' : null;
+            if (!key) continue;
+            state.data = csv.flatMap(r => {
+              const bench = r[key] || '';
+              return modelCols.filter(m => r[m] !== '' && r[m] != null).map(m => ({ benchmark: bench, model: m, score: +r[m] }));
+            });
+            if (state.data.length) { state.colorsByModel = null; render(); return; }
+          } catch (_) {}
         }
-      })().catch(() => {
-        // Graceful failure: inline fallback already rendered
-      });
+      })();
     };
 
     if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', () => ensureD3(bootstrap), { once: true }); }
