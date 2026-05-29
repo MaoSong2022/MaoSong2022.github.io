@@ -1,8 +1,16 @@
-import HtmlEmbed from "../../../components/HtmlEmbed.astro";
+import HtmlEmbed from '../../../components/HtmlEmbed.astro';
+import Sidenote from '../../../components/Sidenote.astro';
 
 ## DeepSeek-V4
 
 DeepSeek-V4 在 DeepSeek-V3 的基础上进一步提高了在长上下文场景下的推理效率。
+
+DeepSeek-V4 包含两个模型，模型配置如下表所示
+
+| Model | DeepSeek-V4 Pro | DeepSeek-V4 Flash |
+| --- | --- |---|
+| total parameters | 1.6T | 284B |
+| activated parameters | 49B | 13B |
 
 ### Architecture
 
@@ -16,14 +24,73 @@ DeepSeek-V4 的架构如下所示
 
 #### MoE
 
-对于 MoE 模块，DeepSeek-V4 相比于 DeepSeek-V3 有以下变化：
+对于 MoE 模块，DeepSeek-V4 相比于 [DeepSeek-V3](#deepseek-v3) 有以下变化：
+
+<Sidenote>
+ see [MoE](https://maosong.website/blog/moe/) for more details.
+</Sidenote>
 
 1. 将激活函数从 `sigmoid()` 改进为 `Sqrt(Softplus())`
 2. 增加了一个 sequence-wise balance loss 来实现 sequence 层面的负载均衡
 3. 移除了node 层面的负载均衡损失，通过并行策略优化来替代这个限制
 4. 移除了 DeepSeek-V3 中最开始的 3 层 FFN layers, 改用基于 hash routing 的 MoE layer.
 
+#### mHC
+
+在之前的 LLM 架构中，我们主要使用的是 residual connection, 即
+
+$$
+X_{\ell+1} = X_{\ell} + f_{\ell}(X_{\ell})
+$$
+
+这里 $ x_{\ell}, x_{\ell+1}\in\mathbb{R}^{n\times d}$ 分别是第 $\ell$ 层的输入和输出， $f$ 是 attention layer 或者 FFN layer.
+
+DeepSeek-V4 在这个基础上进行了改进。
+
+之前 Hyper-Connection [@zhu2025hyperconnections] 已经进行了优化，优化后的 residual connection 表达式如下
+
+$$
+x_{\ell + 1} = B_{\ell} x_{\ell} + C_{\ell} f_{\ell}(A_{\ell}X_{\ell})
+$$
+
+DeepSeek-V4 在 HC 的基础上进一步使用了 mHC, 其关键思想是将 residual mapping 限制到 Birkhoff polytope 上，其表达式如下：
+
+$$
+\begin{aligned}
+x_{\ell + 1} &= B_{\ell} x_{\ell} + C_{\ell} f_{\ell}(A_{\ell}X_{\ell})\\
+\mathrm{s.t.} & B_{\ell}\in\mathcal{M} := \left\{ M\in\mathbb{R}^{m\times m} \mid M\mathbf{1}_m=\mathbf{1}_m, \mathbf{1}_m^TM=\mathbf{1}_m^T, M\geq0 \right\}
+\end{aligned}
+$$
+
 #### Attention
+
+DeepSeek-V4 进一步使用了 Compressed Sparse Attention (CSA) 和 Heavily Compressed Attention (HSA) 来提噶模型处理长上下文任务的效率。
+
+##### Compressed Sparse Attention
+
+Compressed Sparse Attention (CSA) 包含了三个模块：
+
+1. KV cache compression: 用于压缩 KV cache
+2. Token selection: 对压缩后的 token sequence 进行 selection 来进一步压缩 token length
+3. Multi query attention: 使用 MQA 来进行计算
+
+为了
+
+### Muon Optimizer
+
+针对非矩阵参数，作者使用了 AdamW [@AdamW] 优化器，针对其他模块参数，作者使用了 Muon [@Muon] 优化器。
+
+对于 Newton-Schulz Iterations, 作者迭代了10次，前8次使用的系数为 $(3.4445,-4.7750, 2.0315)$, 后2次使用的系数为 $(2,-1.5, 0.5)$.
+
+作者并没有使用 MuonLight 里提取的 QK-clip 技巧。
+
+### Infra
+
+第一点优化是通过 communication-computation overlap 来提高 Expert Parallelism (EP) 的计算效率。
+
+具体做法就是将 MoE 的计算与通信分为三个阶段：TODO
+
+##### Heavily Compressed Attention
 
 ### Pre-training
 
@@ -33,10 +100,21 @@ DeepSeek-V4 的架构如下所示
 
 #### Training
 
-#### Post-training
+### Post-training
 
 #### OPD
 
 #### Infra
+
+### Performance
+
+<HtmlEmbed
+  frameless
+  id="deepsek-v4-performance"
+  data="deepsek-v4-performance.csv"
+  src="d3-benchmark.html"
+  title="Performance of DeepSeek-V4"
+  desc={`DeepSeek-V4's performance across benchmarks`}
+/>
 
 ### Discussions
