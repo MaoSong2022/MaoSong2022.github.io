@@ -1,0 +1,7 @@
+Benchmark,DeepSeek-V4-Pro-Max,Claude-Opus-4.6-Max,GPT-5.4-xHigh,Gemini-3.1-Pro-High
+SimpleQA Verified (Pass@1),57.9,46.2,45.3,75.6
+HLE (Pass@1),37.7,40.0,39.8,44.4
+Apex Shortlist (Pass@1),90.2,85.9,78.1,89.1
+SWE Verified (Resolved),80.6,80.8,,80.6
+Terminal Bench 2.0 (Acc),67.9,65.4,75.1,68.5
+Toolathlon (Pass@1),51.8,47.2,54.6,48.8
