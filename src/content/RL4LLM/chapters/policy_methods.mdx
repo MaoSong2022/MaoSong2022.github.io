@@ -1,4 +1,5 @@
 import Algorithm from '../../../components/Algorithm.astro';
+import Theorem from '../../../components/Theorem.astro'
 
 
 ## Policy Based Methods
@@ -291,7 +292,7 @@ $$
 
 我们在前面介绍了不同的降低 variance 的方法，但是我们还没有在理论上回答为什么可以降低 variance, 本节我们将基于 Rao-Blackwell theorem 来回答这个问题
 
-**Theorem**
+<Theorem title="Rao-Blackwell Theorem">
 
 令 $X$ 和 $Y$ 为随机变量， 令 $\hat{I}_1(X,Y)$ 为 $I$ 的一个无偏估计，即
 
@@ -307,7 +308,10 @@ $$
 
 $\hat{I}_2$ 被称为 $\hat{I}_1(X,Y)$ 的**Rao-Blackwellized estimator**.
 
-证明
+</Theorem>
+
+<Theorem variant='proof'>
+
 
 由 [Expectation](Expectation.md) 中的 law of total expectation, 我们有
 
@@ -328,6 +332,8 @@ $$
 $$
 
 这里不等式使用了 Jensen's inequality. 证毕。$\blacksquare$
+
+</Theorem>
 
 Rao–Blackwell Theorem 说明了我们可以通过构造一个新的无偏估计，这个新的无偏估计相对于原始的无偏估计，有更小的方差。
 
