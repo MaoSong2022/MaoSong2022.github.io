@@ -18,13 +18,15 @@ import all_gather_reduce from '../../../assets/image/all_gather_reduce.png';
 3. many-to-one: 多个device与一个device之间进行通信
 4. many-to-many: 多个device之间互相进行通信
 
-## One-to-one
+### One-to-one
 
 One-to-one的情况很简单，一个process与另一个process进行通信，通信通过 `send` 和 `recv` 完成。还有对应的 immediate版本，即 `isend` 和 `irecv`，示意图如下所示
 
 <Image src={send_recv} alt="point to point communication" />
 
 测试代码如下：
+
+<Accordion title="An example of send and recv">
 
 ```python
 # send_recv.py
@@ -56,16 +58,19 @@ example_send()
 # torchrun --nproc_per_node=2 send_recv.py
 ```
 
-结果输出
-
-```
+:::output
 Before send on rank 1: tensor([0., 0., 0., 0., 0.], device='cuda:1')
 After send on rank 1: tensor([1., 2., 3., 4., 5.], device='cuda:1')
-```
+:::
+</Accordion>
+
+结果输出
 
 > 注：为了方便，后续代码仅定义函数和运行方式，`init_process()`和import部分省略
 
 `send/recv`的特点是在完成通信之前，两个process是锁住的。与之相反，`isend/irecv` 则不会加锁，代码会继续执行然后返回`Work`对象，为了让通信顺利进行，我们可以在返回之前加入`wait()`
+
+<Accordion title="An example of isend and irecv">
 
 ```python
 # isend_irecv.py
@@ -91,14 +96,14 @@ example_isend()
 # torchrun --nproc_per_node=2 isend_irecv.py
 ```
 
-结果输出
-
-```
+:::output
 Before irecv on rank 1: tensor([0., 0., 0., 0., 0.], device='cuda:1')
 Rank 0 is sending
 Rank 1 is receiving
 After isend on rank 1: tensor([1., 2., 3., 4., 5.], device='cuda:1')
-```
+:::
+
+</Accordion>
 
 由于`isend/irecv`这种不锁的特性，我们不应该
 
@@ -107,7 +112,7 @@ After isend on rank 1: tensor([1., 2., 3., 4., 5.], device='cuda:1')
 
 `req.wait()` 可以保证这次通信顺利完成，因此我们可以在`req.wait()`之后再进行修改和读取。
 
-## One-to-many
+### One-to-many
 
 One-to-many 情形下，可以分为两种：scatter 和 broadcast
 
@@ -116,6 +121,8 @@ scatter的作用是将一个process的数据均分并散布到其他process。br
 <Image src={scatter_broadcast} alt="scatter and broadcast" />
 
 scatter 测试代码：
+
+<Accordion title="An example of scatter">
 
 ```python
 # scatter.py
@@ -141,27 +148,28 @@ example_broadcast()
 # torchrun --nproc_per_node=4 broadcast.py
 ```
 
-结果输出以下内容（输出内容有优化，后续不再说明）：
-
-```
+:::output
 Rank 0 scatter list: [
-    tensor([1., 1., 1., 1., 1.], device='cuda:0'), 
-    tensor([2., 2., 2., 2., 2.], device='cuda:0'), 
-    tensor([3., 3., 3., 3., 3.], device='cuda:0'), 
+    tensor([1., 1., 1., 1., 1.], device='cuda:0'),
+    tensor([2., 2., 2., 2., 2.], device='cuda:0'),
+    tensor([3., 3., 3., 3., 3.], device='cuda:0'),
     tensor([4., 4., 4., 4., 4.], device='cuda:0')
 ]
 Before scatter on rank 2: tensor([0., 0., 0., 0., 0.], device='cuda:2')
 Before scatter on rank 1: tensor([0., 0., 0., 0., 0.], device='cuda:1')
 Before scatter on rank 3: tensor([0., 0., 0., 0., 0.], device='cuda:3')
 Before scatter on rank 0: tensor([0., 0., 0., 0., 0.], device='cuda:0')
-
 After scatter on rank 0: tensor([1., 1., 1., 1., 1.], device='cuda:0')
 After scatter on rank 2: tensor([3., 3., 3., 3., 3.], device='cuda:2')
 After scatter on rank 3: tensor([4., 4., 4., 4., 4.], device='cuda:3')
 After scatter on rank 1: tensor([2., 2., 2., 2., 2.], device='cuda:1')
-```
+:::
+
+</Accordion>
 
 broadcast 测试代码:
+
+<Accordion title="An example of broadcast">
 
 ```python
 # broadcast.py
@@ -184,23 +192,26 @@ example_broadcast()
 
 结果输出：
 
-```
+:::output
 Before broadcast on rank 1: tensor([0., 0., 0., 0., 0.], device='cuda:1')
 Before broadcast on rank 2: tensor([0., 0., 0., 0., 0.], device='cuda:2')
 Before broadcast on rank 0: tensor([1., 2., 3., 4., 5.], device='cuda:0')
-
 After broadcast on rank 0: tensor([1., 2., 3., 4., 5.], device='cuda:0')
 After broadcast on rank 1: tensor([1., 2., 3., 4., 5.], device='cuda:1')
 After broadcast on rank 2: tensor([1., 2., 3., 4., 5.], device='cuda:2')
-```
+:::
 
-## Many-to-one
+</Accordion>
+
+### Many-to-one
 
 Many-to-one 情形下，也可以分为两种：gather 和 reduce, Gather对应one-to-many的scatter操作，负责将多个process的内容汇聚到一起，形成一个完整的向量。而reduce的操作则是通过一个函数 $f(\cdot)$ 来把数据进行汇总，常见的函数有求和以及求平均，示意图如下所示
 
 <Image src={gather_reduce} alt="gather and reduce" />
 
 gather 测试代码：
+
+<Accordion title="An example of gather">
 
 ```python
 # gather.py
@@ -227,23 +238,24 @@ example_gather()
 # torchrun --nproc_per_node=4 gather.py
 ```
 
-结果输出：
-
-```
+:::output
 Before gather on rank 3: tensor([4., 4., 4., 4., 4.], device='cuda:3')
 Before gather on rank 2: tensor([3., 3., 3., 3., 3.], device='cuda:2')
 Before gather on rank 0: tensor([1., 1., 1., 1., 1.], device='cuda:0')
 Before gather on rank 1: tensor([2., 2., 2., 2., 2.], device='cuda:1')
-
 After gather on rank 0: [
-    tensor([1., 1., 1., 1., 1.], device='cuda:0'), 
-    tensor([2., 2., 2., 2., 2.], device='cuda:0'), 
-    tensor([3., 3., 3., 3., 3.], device='cuda:0'), 
+    tensor([1., 1., 1., 1., 1.], device='cuda:0'),
+    tensor([2., 2., 2., 2., 2.], device='cuda:0'),
+    tensor([3., 3., 3., 3., 3.], device='cuda:0'),
     tensor([4., 4., 4., 4., 4.], device='cuda:0')
 ]
-```
+:::
+
+</Accordion>
 
 reduce 测试代码:
+
+<Accordion title="An example of reduce">
 
 ```python
 # example_reduce.py
@@ -263,24 +275,25 @@ example_reduce()
 # torchrun --nproc_per_node=3 example_reduce.py
 ```
 
-这里我们使用求和`dist.ReduceOp.SUM`作为我们的汇总操作，Pytorch还支持其他的[reduce operations](https://docs.pytorch.org/docs/stable/distributed.html#torch.distributed.ReduceOp). 结果输出以下内容：
-
-```
+:::output
 Before reduce on rank 2: tensor([3., 3., 3., 3., 3.], device='cuda:2')
 Before reduce on rank 3: tensor([4., 4., 4., 4., 4.], device='cuda:3')
 Before reduce on rank 0: tensor([1., 1., 1., 1., 1.], device='cuda:0')
 Before reduce on rank 1: tensor([2., 2., 2., 2., 2.], device='cuda:1')
-
 After reduce on rank 0: tensor([10., 10., 10., 10., 10.], device='cuda:0')
-```
+:::
 
-## Many-to-many
+</Accordion>
+
+### Many-to-many
 
 Many-to-many 情形下的两种通信方式为：All-Reduce 和 All-Gather，分别是reduce和gather的升级版，all-reduce对所有process都执行一次reduce操作，而all-gather则对所有process执行一次gather操作，其示意图如下所示
 
 <Image src={all_gather_reduce} alt="all-gather and all-reduce" />
 
 all-gather 测试代码：
+
+<Accordion title="An example of all-gather">
 
 ```python
 # example_all_gather.py
@@ -302,41 +315,50 @@ example_all_gather()
 # torchrun --nproc_per_node=3 example_all_gather.py
 ```
 
-测试输出结果：
-
-```
+:::output
 Before all gather on rank 2: tensor([3., 3., 3., 3., 3.], device='cuda:2')
 Before all gather on rank 3: tensor([4., 4., 4., 4., 4.], device='cuda:3')
 Before all gather on rank 0: tensor([1., 1., 1., 1., 1.], device='cuda:0')
 Before all gather on rank 1: tensor([2., 2., 2., 2., 2.], device='cuda:1')
-
 After all gather on rank 0: [
-    tensor([1., 1., 1., 1., 1.], device='cuda:0'), 
-    tensor([2., 2., 2., 2., 2.], device='cuda:0'), 
-    tensor([3., 3., 3., 3., 3.], device='cuda:0'), 
+    tensor([1., 1., 1., 1., 1.], device='cuda:0'),
+    tensor([2., 2., 2., 2., 2.], device='cuda:0'),
+    tensor([3., 3., 3., 3., 3.], device='cuda:0'),
     tensor([4., 4., 4., 4., 4.], device='cuda:0')]
 After all gather on rank 2: [
-    tensor([1., 1., 1., 1., 1.], device='cuda:2'), 
-    tensor([2., 2., 2., 2., 2.], device='cuda:2'), 
-    tensor([3., 3., 3., 3., 3.], device='cuda:2'), 
+    tensor([1., 1., 1., 1., 1.], device='cuda:2'),
+    tensor([2., 2., 2., 2., 2.], device='cuda:2'),
+    tensor([3., 3., 3., 3., 3.], device='cuda:2'),
     tensor([4., 4., 4., 4., 4.], device='cuda:2')
 ]
 After all gather on rank 3: [
-    tensor([1., 1., 1., 1., 1.], device='cuda:3'), 
-    tensor([2., 2., 2., 2., 2.], device='cuda:3'), 
-    tensor([3., 3., 3., 3., 3.], device='cuda:3'), 
+    tensor([1., 1., 1., 1., 1.], device='cuda:3'),
+    tensor([2., 2., 2., 2., 2.], device='cuda:3'),
+    tensor([3., 3., 3., 3., 3.], device='cuda:3'),
     tensor([4., 4., 4., 4., 4.], device='cuda:3')
 ]
 After all gather on rank 1: [
-    tensor([1., 1., 1., 1., 1.], device='cuda:1'), 
-    tensor([2., 2., 2., 2., 2.], device='cuda:1'), 
-    tensor([3., 3., 3., 3., 3.], device='cuda:1'), 
+    tensor([1., 1., 1., 1., 1.], device='cuda:1'),
+    tensor([2., 2., 2., 2., 2.], device='cuda:1'),
+    tensor([3., 3., 3., 3., 3.], device='cuda:1'),
     tensor([4., 4., 4., 4., 4.], device='cuda:1')
 ]
+:::
 
-```
+</Accordion>
+
+例子如下
+
+$$
+\htmlId{all-reduce}{\begin{equation}
+\mathrm{All-Reduce}([x_1,\dots,x_N]) \to \left[\frac{1}{N}\sum_{i=1}^Nx_i,\dots, \frac{1}{N}\sum_{i=1}^Nx_i\right]
+\end{equation}
+}
+$$
 
 all-reduce 测试代码：
+
+<Accordion title="An example of all-reduce">
 
 ```python
 # example_all_reduce.py
@@ -353,9 +375,7 @@ example_all_reduce()
 # torchrun --nproc_per_node=3 example_all_reduce.py
 ```
 
-测试输出结果
-
-```
+:::output
 Before all reduce on rank 1: tensor([2., 2., 2., 2., 2.], device='cuda:1')
 Before all reduce on rank 0: tensor([1., 1., 1., 1., 1.], device='cuda:0')
 Before all reduce on rank 2: tensor([3., 3., 3., 3., 3.], device='cuda:2')
@@ -364,13 +384,17 @@ After all reduce on rank 0: tensor([10., 10., 10., 10., 10.], device='cuda:0')
 After all reduce on rank 2: tensor([10., 10., 10., 10., 10.], device='cuda:2')
 After all reduce on rank 3: tensor([10., 10., 10., 10., 10.], device='cuda:3')
 After all reduce on rank 1: tensor([10., 10., 10., 10., 10.], device='cuda:1')
-```
+:::
 
-## Barrier
+</Accordion>
+
+### Barrier
 
 除了之前这些传输数据的方式之外，我们还有Barrier，用于在所有process之间进行同步。Barrier会确保所有的process在同一时间点完成某些操作。其流程为，先让每个process完成各自的任务，然后当process到达barrier时，process会通知系统自己已到达。最后当所有process都到达barrier之后，阻塞会解除，所有process继续执行下一步操作。
 
 barrier 测试代码
+
+<Accordion title="An example of barrier">
 
 ```python
 # example_barrier.py
@@ -390,30 +414,25 @@ example_barrier()
 # torchrun --nproc_per_node=3 example_barrier.py
 ```
 
-结果输出
-
-```
+:::output
 Rank 2 sleeps 2 seconds
 Rank 0 sleeps 0 seconds
 Rank 1 sleeps 1 seconds
 Rank 3 sleeps 3 seconds
-
 Rank 3 is done at 3.3046 seconds
 Rank 1 is done at 3.3229 seconds
 Rank 2 is done at 3.8437 seconds
 Rank 0 is done at 3.6613 seconds
-```
+:::
+
+</Accordion>
 
 可以看到，四个process的到达时间都在3s左右，这是因为rank 3需要3s才能完成当前任务
 
-## Advanced
+### Advanced
 
 除了前面的通信方式之外，还有 Reduce-Scatter和Ring All-Reduce，这两个通信方式等我们学习ZeRO的时候再一并讲解。
 
-# Reference
+#### Reduce-Scatter
 
-1. [Colossal-AI](https://colossalai.org/docs/concepts/distributed_training)
-2. [LLaMA 4 blog](https://ai.meta.com/blog/llama-4-multimodal-intelligence/)
-3. [Qwen3 blog](https://qwenlm.github.io/blog/qwen3/)
-4. [Pytorch tutorial](https://docs.pytorch.org/tutorials/intermediate/dist_tuto.html)
-5. [nanotron/ultrascale-playbook](https://huggingface.co/spaces/nanotron/ultrascale-playbook)
+#### Ring All-Reduce
