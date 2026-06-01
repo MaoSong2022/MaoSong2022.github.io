@@ -1,4 +1,128 @@
-## data parallelism
+import Note from '../../../components/Note.astro'
+import Accordion from '../../../components/Accordion.astro'
+
+## Data Parallelism
+
+data parallesim (DP) 的核心思想是
+
+<Note title="Core Idea" emoji="💡" variant="info">
+  将模型复制到多个 GPU 上，每个 GPU 同时运行不同的 micro batches.
+</Note>
+
+### Naive DP
+
+假如我们现在要训练一个模型 $f(x,y;\theta)$, 其中 $x,y,\theta$ 分别是输入，输出和训练参数。
+给定训练集合 $\mathcal{D}=\{(x_i,y_i)\}_{i=1}^N$, 我们的训练目标如下
+
+$$
+\mathcal{L}(x, y;\theta, \mathcal{D}) = \frac{1}{N}\sum_{i=1}^N f(x_i, y_i;\theta)
+$$
+
+使用 DP 之后，假如我们现在有 $G$ 个 GPU, 我们将模型 $f(x,y;\theta)$ 复制到这 $G$ 个 GPU 上，得到 $f_1=\dots=f_G=f$, 然后每个 GPU 就可以处理大小为 $N_G:= N/G$ 的 micro batch:
+
+$$
+\mathcal{L}(x, y;\theta, \mathcal{D}) = \frac{1}{G}\sum_{i=1}^G\mathcal{L}(x, y;\theta, \mathcal{D}_i)=\frac{1}{G}\sum_{i=1}^G\frac{1}{N_G}\sum_{j=1}^{N_G} f_i(x_j,y_j;\theta)
+$$
+
+但是这也意味着不同的 GPU 实例上有不同的 loss 和梯度，第 $i$ 个 GPU 上的梯度为
+
+$$
+\nabla_\theta\mathcal{L}(x, y;\theta, \mathcal{D}_i) = \sum_{i=1}^G\frac{1}{N_G}\sum_{j=1}^{N_G} \nabla_\theta f_i(x_j,y_j;\theta)
+$$
+
+为了解决模型同步的问题，我们会使用 [All-Reduce](#all-reduce) 来统一反向传播
+
+$$
+\mathrm{AllReduce}([\nabla_\theta\mathcal{L}(x, y;\theta, \mathcal{D}_1),\dots,\nabla_\theta\mathcal{L}(x, y;\theta, \mathcal{D}_G)]) \to \left[\nabla_\theta\mathcal{L}(x, y;\theta, \mathcal{D}),\dots, \nabla_\theta\mathcal{L}(x, y;\theta, \mathcal{D})\right]
+$$
+
+这样每个 DP rank 上的模型更新就是
+
+$$
+f_i(x,y;\theta_{k+1}) = f_i(x,y;\theta_{k}) - \alpha\nabla_\theta\mathcal{L}(x, y;\theta, \mathcal{D}),i=1,\dots,G
+$$
+
+从而我们保证了模型每一次更新之后，在不同的 DP rank 上都是一致的。
+
+TODO: 增加pipeline
+
+### Optimization
+
+Naive DP 的逻辑非常简单，不同的 DP rank 完成 forward pass, backward pass, AllReduce, 权重更新。
+但是在 AllReduce 的过程中，我们发现 GPU 出现了 bubble, 也就是 idle, 我们需要对其进行优化。
+
+注意到，我们在进行反向传播的时候， 其实并不需要等待反向传播完成再进行 AllReduce, 而是可以在某一个参数完成反播之后立马就进行AllReduce,
+也就是说，我们将粗粒度的model level AllReduce 细化到了 parameter level AllReduce.
+
+下面是对应的实现
+
+<Accordion title="Optimization on Naive DP">
+
+```python
+class DataParallelNaive(nn.Module):
+    def __init__(self, module):
+        super().__init__()
+        self.module = module
+        self.require_backward_grad_sync = True
+        self.register_backward_hook(self._all_reduce_grads)
+    
+    def forward(self, *inputs, **kwargs):
+        return self.module(*inputs, **kwargs)
+
+    def register_backward_hook(self, hooks):
+        for p in self.module.parameters():
+            if p.requires_grad is True:
+                p.register_hook(hook)
+
+    def _all_reduce_grads(self, grad):
+        if self.require_backward_grad_sync:
+            dist.all_reduce(grad, op=dist.ReduceOp.SUM, group=pgm.process_group_manager.cp_dp_group)
+            grad /= pgm.process_group_manager.cp_dp_word_size
+        
+        return grad
+    
+    @contextlib.contextmanager
+    def no_sync(self):
+        self.require_backward_grad_sync = False
+        yield
+        self.require_backward_grad_sync = True
+```
+
+</Accordion>
+
+Parameter level AllReduce 确实优化了 GPU idle time, 但是 GPU 的计算与通信更偏好 large tensor.
+因此我们做的第二个优化就是 bucketing, 核心思想就是把一些小的 tensor进行打包，然后在进行 AllReduce, 即 Bucket level AllRecuce.
+
+TODO: code
+
+第三个优化是针对 gradient accumulation 的。 TODO
+
+最后，我们回顾一下 batch size 定义
+
+$$
+bs=gbs = mbs\times grad_acc\times DP
+$$
+
+优化时，有以下几点：
+
+1. 优先考虑 DP 而不是 gradient accumulation
+2. GPU 非常多时，使用较小的 $mbs$, 因为这样可以加速训练
+
+### ZeRO
+
+在上一节我们介绍了如何使用多个 GPU 来实现 DP.
+但是，我们这样做又一个内在假设：模型权重可以被放到单个 GPU 里。
+现在大部分模型都不能放到一个 GPU 里，因此，我们需要对现有的 DP 算法进行优化。
+
+第一个算法就是微软提出的 ZeRO [@ZeRO]. ZeRO 的核心思想为
+
+<Note title="Core Idea" emoji="💡" variant="info">
+  将训练时的模型参数，梯度，优化器状态复制到多个 GPU 上，来减少 DP 的内存占用。
+</Note>
+
+对于 Naive DP, 我们的每一个 DP rank 里都保留一份完整的参数，梯度，优化器状态用于前向，反向传播。
+可以看到，不同的 DP rank 实际上存储的东西是彼此的副本，这显然带来了很大的冗余。
+因此， ZeRO 就想办法来避免这些冗余。
 
 ### FSDP
 
