@@ -27,7 +27,7 @@ DeepSeek-V4 的架构如下所示
 DeepSeek-V4 架构上主要有以下创新：
 
 1. 针对 DeepSeek-MoE 架构做了一些小的改动
-2. 将 residual connection 改进为 manifold hyper connection (mHC, [@mHC])
+2. 将 residual connection 改进为 manifold hyper connection (mHC [@mHC])
 3. 使用了 HCA, CSA 注意力机制来进一步压缩 KV cache 以及提高 attention计算效率
 
 #### MoE
@@ -45,7 +45,7 @@ DeepSeek-V4 架构上主要有以下创新：
 
 #### mHC
 
-在之前的 LLM 架构中，我们主要使用的是 residual connection, 即
+在之前的 LLM 架构中，我们主要使用的是 residual connection [@he2016resnet], 即
 
 $$
 X_{\ell+1} = X_{\ell} + f_{\ell}(X_{\ell})
@@ -53,7 +53,7 @@ $$
 
 这里 $ x_{\ell}, x_{\ell+1}\in\mathbb{R}^{n\times d}$ 分别是第 $\ell$ 层的输入和输出， $f$ 是 attention layer 或者 FFN layer.
 
-DeepSeek-V4 在这个基础上进行了改进。
+DeepSeek-V4 在这个基础上进行了改进。增强了 residual connection 的表达能力。
 
 之前 Hyper-Connection [@zhu2025hyperconnections] 已经进行了优化，优化后的 residual connection 表达式如下
 
@@ -61,7 +61,8 @@ $$
 x_{\ell + 1} = B_{\ell} x_{\ell} + C_{\ell} f_{\ell}(A_{\ell}X_{\ell})
 $$
 
-DeepSeek-V4 在 HC 的基础上进一步使用了 mHC [@mHC], 其关键思想是将 residual mapping 限制到 Birkhoff polytope 上，其表达式如下：
+虽然 HC 通过扩展 channel 提高了模型的表征能力，但是，由于矩阵 $B_{\ell}$ 是一个无约束的矩阵，因此很容易带来梯度消失或者爆炸，导致训练不稳定。
+为了解决这个问题，DeepSeek-V4 在 HC 的基础上进一步使用了 mHC [@mHC], 其关键思想是 **将 residual mapping 限制到 Birkhoff polytope 上**，其表达式如下：
 
 $$
 \begin{aligned}
@@ -69,6 +70,8 @@ x_{\ell + 1} &= B_{\ell} x_{\ell} + C_{\ell} f_{\ell}(A_{\ell}X_{\ell})\\
 \mathrm{s.t.}\ & B_{\ell}\in\mathcal{M} := \left\{ M\in\mathbb{R}^{m\times m} \mid M\mathbf{1}_m=\mathbf{1}_m, \mathbf{1}_m^TM=\mathbf{1}_m^T, M\geq0 \right\}
 \end{aligned}
 $$
+
+通过增加 doubly stochastic matrix 这个限制，我们可以保证其谱范数始终小于等与1, 从而保证了残差链接的能力。
 
 #### Attention
 
@@ -127,10 +130,10 @@ $$
 同时，我们还需要像 SwiGLU 的 gate 来计算重要性
 
 $$
-Z^a = H_{mi:m(i+1)-1} W^{aZ}, Z^b = H_{m(i-1):mi-1}W^{bZ}, [S^a, S^b] = \mathrm{Softmax}([Z^a, Z^b])
+Z^a = H_{mi:m(i+1)-1} W^{aZ}, Z^b = H_{m(i-1):mi-1}W^{bZ}, [S^a, S^b] = \mathrm{Softmax}([Z^a + B^a, Z^b + B^b])
 $$
 
-这里 $W^{aZ},W^{bZ}\in\mathbb{R}^{d\times c}$.
+这里 $W^{aZ},W^{bZ}\in\mathbb{R}^{d\times c}$, $B^a,B^b\in\mathbb{R}^{m\times c}$.
 最后我们基于 weights 和 entry 来得到最终的结果
 
 $$
@@ -160,9 +163,13 @@ $$
 C_t^{slc} = \{C_i^{Comp} \mid I_{t,i}\in\mathrm{TopK}(I_{t,:})\}
 $$
 
+对于 CSA, 我们需要存储的 KV cache 大小为 $mc+Kc$, 其中 $mc$ 是 sliding window 的 kv cache, $Kc$ 是 选择出来的 top-K entry.
+
 ##### Heavily Compressed Attention
 
-与 CSA 不同, HCA 只做 compression 不做 selection, 因此其不包含 Indexer 模块。此时 attention 计算为
+与 CSA 不同, HCA 只做 compression 不做 selection, 因此其不包含 Indexer 模块。
+并且 HCA 的 compression ratio $m' >> m$ 来保证更高的压缩率。
+此时 attention 计算为
 
 $$
 o_{t,i} = \mathrm{MQA}(q_{t,i}, C_{t}^{comp}, C_{t}^{comp})
@@ -186,28 +193,73 @@ C_i^{Comp} &= \sum_{i=1}^m (S_i^a\odot C_i^a + S_i^b\odot C_i^b)\in\mathbb{R}^c
 $$
 这里 $W^{KV}, W^Z\in\mathbb{R}^{d\times c}$, $B\in\mathbb{R}^{m'\times c}$.
 
+此时，HCA 的 KV cache 大小为 $\frac{n}{m'}c$, 也就是将序列压缩为了原来的 $1/m'$.
+
 ##### Analysis
 
-compresssion ratio:
+我们来对比一下不同的 attention （只考虑 single layer）
+
+| Attention | selection | compression | KV cache | Note|
+| ---       | ---       | ---         | ---      | --- |
+| MHA       | No         | None       | $2n_hd_hL$ |  |
+| GQA       | No       |  No         |  $2n_gd_hL$ |  |
+| SWA       | latest $K$ | No         | $2n_hd_hK$    |   |
+| MLA       |   No        | $d\to c$    |       $(c+d_h^R)L$       | kv sharing  |
+| MoBA      | top $K$ blocks    |  No   |  $K* K *2n_hd_hL$  | block size is also $K$ |
+| NSA       | top $K$ + latest $K$     |  $L\to L/K$      | $4Kn_hd_h+2n_hd_hL/K$ |
+| CSA       | top $K$ + latest $K$   | $d\to c$, $L\to L/ K$ | $(m+K)c$ | kv sharing |
+| HCA       | No          | $d\to c$, $L\to L/ K'$ | $\frac{L}{K'}c$  | $K'>> K$, kv sharing |
+
+这里 $L$ 是 sequence length, $n_g, n_h$ 分别是 number of kv heads, number of attention heads, $d_h$ 是 head dimension. 为了方面，这里我们将 sliding window size, topK, compression block size 都设置为 $K$.
+
+可以看到，CSA 和 HCA集成了 NSA 和 MLA 各自的优势，即先基于 MLA 进行降维降低计算量，然后通过 token compression, token selection 来进一步压缩 kv cache.
+其中 CSA 使用较小的 compression ratio 来进行细粒度 token selection, 而 HCA 则使用较大的 compression raio 来实现 kv cache 压缩.
 
 ##### Other details
 
-1. grouped output projection
-2. normalization
-3. RoPE
-4. attention sink
+1. grouped output projection: 避免 output projection 计算开销太大，计算先降维再升维度。
+2. normalization: 使用 QK norm 来提高训练稳定性
+3. RoPE: 和 MLA 一样的 partial RoPE.
+4. attention sink: 使用和 GPT-oss [@GPT-oss] 一样的技巧来避免 attention sink 的影响
 
-##### KV cache analysis
+##### Configuration
 
-TODO
+以下是 **DeepSeek-V4-Flash** 与 **DeepSeek-V4-Pro** 的配置对比总结表：
+
+| 配置项 | DeepSeek-V4-Flash | DeepSeek-V4-Pro |
+| :--- | :--- | :--- |
+| **Transformer 层数** | 43 | 61 |
+| **隐藏维度 $d$** | 4096 | 7168 |
+| **前两层注意力类型** | 纯滑动窗口注意力 | HCA |
+| **后续层注意力模式** | CSA 与 HCA 交错 | CSA 与 HCA 交错 |
+| **CSA 压缩率 $m$** | 4 | 4 |
+| **CSA 索引查询头数 $n_I^h$** | 64 | 64 |
+| **CSA 索引头维度 $c^I$** | 128 | 128 |
+| **CSA 稀疏注意力 top‑k** | 512 | 1024 |
+| **HCA 压缩率 $m′$** | 128 | 128 |
+| **查询头数 $n_h$** | 64 | 128 |
+| **头维度 $c$** | 512 | 512 |
+| **查询压缩维度 $d^c$** | 1024 | 1536 |
+| **输出投影组数 $g$** | 8 | 16 |
+| **中间注意力输出维度 $d^g$** | 1024 | 1024 |
+| **滑动窗口大小 $n_{win}$** | 128 | 128 |
+| **MoE 层位置** | 所有 Transformer 块 | 所有 Transformer 块 |
+| **前 3 个 MoE 层路由策略** | Hash 路由 | Hash 路由 |
+| **共享专家数** | 1 | 1 |
+| **路由专家数** | 256 | 384 |
+| **每个专家的中间维度** | 2048 | 3072 |
+| **每 token 激活的路由专家数** | 6 | 6 |
+| **多 token 预测深度** | 1 | 1 |
+| **mHC 扩展因子 $n_h^c$** | 4 | 4 |
+| **Sinkhorn‑Knopp 迭代数 t_max** | 20 | 20 |
+| **总参数量** | 284B | 1.6T |
+| **每 token 激活参数量** | 13B | 49B |
 
 ### Muon Optimizer
 
 针对非矩阵参数，作者使用了 AdamW [@AdamW] 优化器，针对其他模块参数，作者使用了 Muon [@Muon] 优化器。
 
 对于 Newton-Schulz Iterations, 作者迭代了10次，前8次使用的系数为 $(3.4445,-4.7750, 2.0315)$, 后2次使用的系数为 $(2,-1.5, 0.5)$.
-
-作者并没有使用 MuonLight 里提取的 QK-clip 技巧。
 
 ### Infra
 
@@ -219,11 +271,18 @@ TODO
 
 ### Pre-training
 
-#### Infra
-
 #### Data
 
+32T token， 使用了 token-splitting, fill-in-the middle 和 packing.
+
 #### Training
+
+训练时，作者首先使用 dense attention 训练 1T token, 然后切换为 sparse attention.
+
+两个导致训练不稳定的问题：
+
+1. Anticipatory Routing: 解耦 routing network 和 backbone network 的更新可以提高训练稳定性。
+2. SwiGLU clamping: 使用了 GPT-oss 的 SwiGLU clamping 策略。
 
 ### Post-training
 
