@@ -1,0 +1,623 @@
+<div class="d3-moe-activation-ratio"></div>
+<style>
+  .d3-moe-activation-ratio .controls {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .d3-moe-activation-ratio .controls .control-group {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .d3-moe-activation-ratio .controls label {
+    font-size: 12px;
+    color: var(--text-color);
+    font-weight: 700;
+  }
+
+  .d3-moe-activation-ratio .controls .toggle-group {
+    display: flex;
+    gap: 8px;
+  }
+
+  .d3-moe-activation-ratio .controls .toggle-group .toggle-btn {
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 16px;
+    border: 1.5px solid var(--border-color);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-color);
+    cursor: pointer;
+    transition: all .15s ease;
+  }
+
+  .d3-moe-activation-ratio .controls .toggle-group .toggle-btn.active-params {
+    background: var(--primary-color);
+    color: #fff;
+    border-color: var(--primary-color);
+  }
+
+  .d3-moe-activation-ratio .controls .toggle-group .toggle-btn.active-experts {
+    background: var(--secondary-color, #e89b5b);
+    color: #fff;
+    border-color: var(--secondary-color, #e89b5b);
+  }
+
+  .d3-moe-activation-ratio .controls .toggle-group .toggle-btn:not(.active-params):not(.active-experts):hover {
+    background: var(--border-color);
+  }
+
+  .d3-moe-activation-ratio .chart-card {
+    background: var(--surface-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 8px;
+  }
+
+  .d3-moe-activation-ratio .chart-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: 24px;
+    margin: 16px 0 0 0;
+    flex-wrap: wrap;
+  }
+
+  .d3-moe-activation-ratio .legend-bottom {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text-color);
+  }
+
+  .d3-moe-activation-ratio .legend-bottom .legend-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-color);
+  }
+
+  .d3-moe-activation-ratio .legend-bottom .items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+    align-items: center;
+  }
+
+  .d3-moe-activation-ratio .legend-bottom .item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+  }
+
+  .d3-moe-activation-ratio .legend-bottom .circle-sample {
+    border-radius: 50%;
+    border: 1px solid var(--border-color);
+    display: inline-block;
+    flex-shrink: 0;
+  }
+
+  .d3-moe-activation-ratio .axis-label {
+    fill: var(--text-color);
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .d3-moe-activation-ratio .axes path,
+  .d3-moe-activation-ratio .axes line {
+    stroke: var(--axis-color);
+  }
+
+  .d3-moe-activation-ratio .axes text {
+    fill: var(--tick-color);
+    font-size: 11px;
+  }
+
+  .d3-moe-activation-ratio .grid line {
+    stroke: var(--grid-color);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+
+  .d3-moe-activation-ratio .d3-tooltip {
+    z-index: var(--z-tooltip);
+    backdrop-filter: saturate(1.12) blur(8px);
+  }
+
+  .d3-moe-activation-ratio .d3-tooltip .tt-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+  }
+
+  .d3-moe-activation-ratio .d3-tooltip .tt-label {
+    font-weight: 600;
+  }
+
+  .d3-moe-activation-ratio .d3-tooltip .tt-divider {
+    border: none;
+    border-top: 1px solid var(--border-color);
+    margin: 6px 0;
+  }
+
+  .d3-moe-activation-ratio .d3-tooltip .tt-swatch {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 1px solid var(--border-color);
+    display: inline-block;
+    flex-shrink: 0;
+  }
+
+  .d3-moe-activation-ratio .note {
+    font-size: 12px;
+    color: var(--muted-color);
+    margin: 8px 0 0 0;
+    line-height: 1.5;
+  }
+</style>
+<script>
+  (() => {
+    const ensureD3 = (cb) => {
+      if (window.d3 && typeof window.d3.select === 'function') return cb();
+      let s = document.getElementById('d3-cdn-script');
+      if (!s) {
+        s = document.createElement('script');
+        s.id = 'd3-cdn-script';
+        s.src = 'https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js';
+        document.head.appendChild(s);
+      }
+      const onReady = () => {
+        if (window.d3 && typeof window.d3.select === 'function') cb();
+      };
+      s.addEventListener('load', onReady, { once: true });
+      if (window.d3) onReady();
+    };
+
+    const bootstrap = () => {
+      const scriptEl = document.currentScript;
+      let container = scriptEl ? scriptEl.previousElementSibling : null;
+      if (!(container && container.classList && container.classList.contains('d3-moe-activation-ratio'))) {
+        const candidates = Array.from(document.querySelectorAll('.d3-moe-activation-ratio'))
+          .filter(el => !(el.dataset && el.dataset.mounted === 'true'));
+        container = candidates[candidates.length - 1] || null;
+      }
+      if (!container) return;
+      if (container.dataset) {
+        if (container.dataset.mounted === 'true') return;
+        container.dataset.mounted = 'true';
+      }
+
+      // Controls
+      const controls = document.createElement('div');
+      controls.className = 'controls';
+
+      const groupToggle = document.createElement('div');
+      groupToggle.className = 'control-group';
+      const labelToggle = document.createElement('label');
+      labelToggle.textContent = 'Show';
+      const toggleGroup = document.createElement('div');
+      toggleGroup.className = 'toggle-group';
+
+      const btnParams = document.createElement('button');
+      btnParams.className = 'toggle-btn active-params';
+      btnParams.textContent = 'Parameters';
+      btnParams.dataset.metric = 'params';
+
+      const btnExperts = document.createElement('button');
+      btnExperts.className = 'toggle-btn active-experts';
+      btnExperts.textContent = 'Experts';
+      btnExperts.dataset.metric = 'experts';
+
+      toggleGroup.appendChild(btnParams);
+      toggleGroup.appendChild(btnExperts);
+      groupToggle.appendChild(labelToggle);
+      groupToggle.appendChild(toggleGroup);
+      controls.appendChild(groupToggle);
+
+      // Header placed after chart
+      const header = document.createElement('div');
+      header.className = 'chart-header';
+
+      const legendBottom = document.createElement('div');
+      legendBottom.className = 'legend-bottom';
+
+      const legendTitle = document.createElement('div');
+      legendTitle.className = 'legend-title';
+      legendTitle.textContent = 'Circle size ∝ Total Parameters';
+      legendBottom.appendChild(legendTitle);
+
+      const legendItems = document.createElement('div');
+      legendItems.className = 'items';
+      legendBottom.appendChild(legendItems);
+
+      const seriesLegend = document.createElement('div');
+      seriesLegend.className = 'items';
+      seriesLegend.style.marginTop = '4px';
+      seriesLegend.innerHTML = `
+        <span class="item"><span class="circle-sample" style="width:12px;height:12px;background:var(--primary-color);opacity:0.75"></span><span>Act. Ratio (Params)</span></span>
+        <span class="item"><span class="circle-sample" style="width:12px;height:12px;border:2px solid var(--tick-color);background:transparent"></span><span>Act. Ratio (Experts)</span></span>
+      `;
+      legendBottom.appendChild(seriesLegend);
+
+      header.appendChild(legendBottom);
+      header.appendChild(controls);
+
+      // SVG card
+      const card = document.createElement('div');
+      card.className = 'chart-card';
+      container.appendChild(card);
+      container.appendChild(header);
+
+      const svg = d3.select(card).append('svg').attr('width', '100%').style('display', 'block');
+      const gRoot = svg.append('g');
+      const gGrid = gRoot.append('g').attr('class', 'grid');
+      const gAxes = gRoot.append('g').attr('class', 'axes');
+      const gCircles = gRoot.append('g').attr('class', 'circles');
+
+      // Tooltip
+      container.style.position = container.style.position || 'relative';
+      let tip = container.querySelector('.d3-tooltip');
+      let tipInner;
+      if (!tip) {
+        tip = document.createElement('div');
+        tip.className = 'd3-tooltip';
+        Object.assign(tip.style, {
+          position: 'absolute',
+          top: '0px',
+          left: '0px',
+          transform: 'translate(-9999px, -9999px)',
+          pointerEvents: 'none',
+          padding: '10px 12px',
+          borderRadius: '10px',
+          fontSize: '12px',
+          lineHeight: '1.4',
+          border: '1px solid var(--border-color)',
+          background: 'var(--surface-bg)',
+          color: 'var(--text-color)',
+          boxShadow: '0 4px 24px rgba(0,0,0,.18)',
+          opacity: '0',
+          transition: 'opacity .12s ease'
+        });
+        tipInner = document.createElement('div');
+        tipInner.className = 'd3-tooltip__inner';
+        tipInner.style.textAlign = 'left';
+        tip.appendChild(tipInner);
+        container.appendChild(tip);
+      } else {
+        tipInner = tip.querySelector('.d3-tooltip__inner') || tip;
+      }
+
+      // State
+      let width = 800, height = 480;
+      const margin = { top: 20, right: 32, bottom: 52, left: 64 };
+      const xScale = d3.scalePoint();
+      const yScale = d3.scaleLinear();
+      const rScale = d3.scaleSqrt();
+      const colorScale = d3.scaleOrdinal();
+      let showParams = true;
+      let showExperts = true;
+      let data = [];
+      let seriesData = []; // [{model, time, timeLabel, value, totalParams, metric: 'params'|'experts', ...}]
+
+      // Helpers
+      function parseParamStr(s) {
+        if (!s) return NaN;
+        let cleaned = String(s).replace(/[*\s]/g, '');
+        const match = cleaned.match(/(\d+(?:\.\d+)?)\s*([BMK])/i);
+        if (match) {
+          const num = parseFloat(match[1]);
+          const unit = match[2].toUpperCase();
+          if (unit === 'B') return num;
+          if (unit === 'M') return num / 1000;
+          if (unit === 'K') return num / 1e6;
+        }
+        const n = parseFloat(cleaned);
+        return isNaN(n) ? NaN : n;
+      }
+
+      function getColor(idx) {
+        try {
+          if (window.ColorPalettes && typeof window.ColorPalettes.getColors === 'function') {
+            const colors = window.ColorPalettes.getColors('categorical', Math.max(data.length, 3));
+            if (colors && colors.length) return colors[idx % colors.length];
+          }
+        } catch (_) {}
+        const tableau = (window.d3 && window.d3.schemeTableau10) || ['#4e79a7','#f28e2b','#e15759','#76b7b2','#59a14f','#edc948','#b07aa1','#ff9da7','#9c755f','#bab0ab'];
+        return tableau[idx % tableau.length];
+      }
+
+      function refreshPalette() {
+        colorScale.range(data.map((_, i) => getColor(i)));
+      }
+
+      function updateLegend() {
+        const paramValues = data.map(d => d.totalParams).filter(v => v > 0);
+        const extent = d3.extent(paramValues);
+        const mid = Math.sqrt(extent[0] * extent[1]);
+        const examples = [extent[0], mid, extent[1]];
+
+        legendItems.innerHTML = examples.map(v => {
+          const r = rScale(v);
+          const size = Math.round(r * 2);
+          const label = v >= 100 ? `${(v / 100).toFixed(0)}B` : `${v.toFixed(0)}B`;
+          return `<span class="item"><span class="circle-sample" style="width:${size}px;height:${size}px;background:var(--primary-color);opacity:0.6"></span><span>${label}</span></span>`;
+        }).join('');
+      }
+
+      function updateScales() {
+        width = container.clientWidth || 800;
+        height = Math.max(300, Math.round(width * 0.42));
+        svg.attr('width', width).attr('height', height);
+        const innerWidth = width - margin.left - margin.right;
+        const innerHeight = height - margin.top - margin.bottom;
+        gRoot.attr('transform', `translate(${margin.left},${margin.top})`);
+
+        const timeLabels = Array.from(new Set(data.map(d => d.timeLabel))).sort((a, b) => {
+          const [ay, aq] = a.split('-Q').map(Number);
+          const [by, bq] = b.split('-Q').map(Number);
+          return ay - by || aq - bq;
+        });
+        xScale.domain(timeLabels).range([0, innerWidth]).padding(0.35);
+
+        const allValues = [];
+        if (showParams) seriesData.filter(d => d.metric === 'params').forEach(d => allValues.push(d.value));
+        if (showExperts) seriesData.filter(d => d.metric === 'experts').forEach(d => allValues.push(d.value));
+        const yExtent = d3.extent(allValues);
+        const yPad = (yExtent[1] - yExtent[0]) * 0.12 || 0.02;
+        yScale.domain([Math.max(0, yExtent[0] - yPad), Math.min(1, yExtent[1] + yPad)]).range([innerHeight, 0]);
+
+        const paramExtent = d3.extent(data, d => d.totalParams);
+        rScale.domain([paramExtent[0] || 1, paramExtent[1] || 1]).range([6, Math.min(36, innerWidth * 0.055)]);
+
+        // Grid
+        gGrid.selectAll('*').remove();
+        gGrid.selectAll('line.grid-y').data(yScale.ticks(6)).join('line')
+          .attr('class', 'grid-y')
+          .attr('x1', 0).attr('x2', innerWidth)
+          .attr('y1', d => yScale(d)).attr('y2', d => yScale(d));
+
+        // Axes
+        gAxes.selectAll('*').remove();
+        gAxes.append('g')
+          .attr('transform', `translate(0,${innerHeight})`)
+          .call(d3.axisBottom(xScale).tickValues(timeLabels).tickFormat(d => d))
+          .call(g => {
+            g.selectAll('path, line').attr('stroke', 'var(--axis-color)');
+            g.selectAll('text').attr('fill', 'var(--tick-color)').style('text-anchor', 'end').attr('transform', 'rotate(-35)').attr('dx', '-0.5em').attr('dy', '0.3em');
+          });
+
+        gAxes.append('g')
+          .call(d3.axisLeft(yScale).ticks(6).tickFormat(d => `${(d * 100).toFixed(0)}%`))
+          .call(g => {
+            g.selectAll('path, line').attr('stroke', 'var(--axis-color)');
+            g.selectAll('text').attr('fill', 'var(--tick-color)');
+          });
+
+        // Axis labels
+        gAxes.append('text')
+          .attr('class', 'axis-label axis-label--x')
+          .attr('x', innerWidth / 2)
+          .attr('y', innerHeight + 44)
+          .attr('text-anchor', 'middle')
+          .text('Time');
+
+        gAxes.append('text')
+          .attr('class', 'axis-label axis-label--y')
+          .attr('text-anchor', 'middle')
+          .attr('transform', `translate(${-48},${innerHeight / 2}) rotate(-90)`)
+          .text('Activation Ratio');
+
+        updateLegend();
+        return { innerWidth, innerHeight };
+      }
+
+      function draw() {
+        if (!data.length) return;
+        const { innerWidth, innerHeight } = updateScales();
+
+        const visible = seriesData.filter(d =>
+          (d.metric === 'params' && showParams) || (d.metric === 'experts' && showExperts)
+        );
+
+        const circles = gCircles.selectAll('circle.model-dot').data(visible, d => `${d.model}-${d.metric}`);
+
+        circles.enter()
+          .append('circle')
+          .attr('class', 'model-dot')
+          .attr('fill-opacity', d => d.metric === 'params' ? 0.75 : 0)
+          .attr('stroke-opacity', 1)
+          .attr('stroke-width', d => d.metric === 'experts' ? 2 : 1)
+          .on('mouseenter', function (ev, d) {
+            d3.select(this).attr('fill-opacity', d.metric === 'params' ? 1 : 0.9)
+              .attr('stroke-width', d.metric === 'experts' ? 3 : 2.5)
+              .attr('stroke', 'var(--text-color)');
+
+            const dataset = data.find(row => row.model === d.model);
+            const fill = dataset ? colorScale(data.indexOf(dataset)) : 'var(--text-color)';
+            const swatch = `<span class="tt-swatch" style="background:${fill}"></span>`;
+
+            tipInner.innerHTML = `
+              <div class="tt-row" style="margin-bottom:4px;">
+                ${swatch}
+                <strong style="font-size:14px;">${d.model}</strong>
+              </div>
+              <div class="tt-row"><span class="tt-label">Time</span><span>${d.timeLabel}</span></div>
+              <hr class="tt-divider">
+              <div class="tt-row"><span class="tt-label">Total Params</span><span>${d.totalParamsLabel}</span></div>
+              <div class="tt-row"><span class="tt-label">Activated Params</span><span>${d.activatedParamsLabel}</span></div>
+              <div class="tt-row"><span class="tt-label">Act. Ratio (Params)</span><span style="font-weight:700;">${(d.ratioParams * 100).toFixed(2)}%</span></div>
+              <hr class="tt-divider">
+              <div class="tt-row"><span class="tt-label">Routed Experts</span><span>${d.routedExperts}</span></div>
+              <div class="tt-row"><span class="tt-label">Activated Experts</span><span>${d.activatedExperts}</span></div>
+              <div class="tt-row"><span class="tt-label">Act. Ratio (Experts)</span><span style="font-weight:700;">${(d.ratioExperts * 100).toFixed(2)}%</span></div>
+              <hr class="tt-divider">
+              <div class="tt-row"><span class="tt-label">Shared Expert</span><span>${d.sharedExpert}</span></div>
+            `;
+            tip.style.opacity = '1';
+          })
+          .on('mousemove', function (ev) {
+            const [mx, my] = d3.pointer(ev, container);
+            const ox = 14, oy = 14;
+            const maxX = (container.clientWidth || 0) - (tip.offsetWidth + 8);
+            const maxY = (container.clientHeight || 0) - (tip.offsetHeight + 8);
+            const tx = Math.max(4, Math.min(mx + ox, maxX));
+            const ty = Math.max(4, Math.min(my + oy, maxY));
+            tip.style.transform = `translate(${Math.round(tx)}px, ${Math.round(ty)}px)`;
+          })
+          .on('mouseleave', function (ev, d) {
+            tip.style.opacity = '0';
+            tip.style.transform = 'translate(-9999px, -9999px)';
+            const dataset = data.find(row => row.model === d.model);
+            const fill = dataset ? colorScale(data.indexOf(dataset)) : 'var(--text-color)';
+            d3.select(this)
+              .attr('fill-opacity', d.metric === 'params' ? 0.75 : 0)
+              .attr('stroke-width', d.metric === 'experts' ? 2 : 1)
+              .attr('stroke', fill);
+          })
+          .merge(circles)
+          .transition().duration(400).ease(d3.easeCubicInOut)
+          .attr('cx', d => xScale(d.timeLabel))
+          .attr('cy', d => yScale(d.value))
+          .attr('r', d => rScale(d.totalParams))
+          .attr('fill', d => {
+            const dataset = data.find(row => row.model === d.model);
+            const c = dataset ? colorScale(data.indexOf(dataset)) : 'var(--text-color)';
+            return d.metric === 'params' ? c : (d.metric === 'experts' ? 'transparent' : c);
+          })
+          .attr('stroke', d => {
+            const dataset = data.find(row => row.model === d.model);
+            return dataset ? colorScale(data.indexOf(dataset)) : 'var(--text-color)';
+          });
+
+        circles.exit().remove();
+      }
+
+      // Data loading
+      async function loadData() {
+        const paths = [
+          '/data/moe_models.csv',
+          './assets/data/moe_models.csv',
+          '../assets/data/moe_models.csv'
+        ];
+        let csvText = null;
+        for (const p of paths) {
+          try {
+            const res = await fetch(p, { cache: 'no-cache' });
+            if (res.ok) { csvText = await res.text(); break; }
+          } catch (_) {}
+        }
+        if (!csvText) {
+          container.insertAdjacentHTML('beforeend', '<p style="color:crimson;font-size:13px;">Failed to load moe_models.csv</p>');
+          return;
+        }
+
+        const rows = d3.csvParse(csvText);
+        data = rows.map((r, i) => {
+          const totalParams = parseParamStr(r['total parameters']);
+          const activatedParams = parseParamStr(r['activated parameters']);
+          const sharedExpert = parseInt(r['shared expert']) || 0;
+          const routedExperts = parseInt(r['Routed experts']) || 0;
+          const activatedExperts = parseInt(r['activated experts']) || 0;
+
+          return {
+            model: r.Model || `Model ${i}`,
+            timeLabel: r.Time,
+            totalParams: totalParams,
+            totalParamsLabel: r['total parameters'],
+            activatedParams: activatedParams,
+            activatedParamsLabel: r['activated parameters'],
+            sharedExpert: sharedExpert,
+            routedExperts: routedExperts,
+            activatedExperts: activatedExperts,
+            ratioParams: totalParams > 0 ? activatedParams / totalParams : 0,
+            ratioExperts: routedExperts > 0 ? activatedExperts / routedExperts : 0
+          };
+        }).filter(d => d.totalParams > 0 && d.routedExperts > 0);
+
+        // Build series data
+        seriesData = [];
+        data.forEach(d => {
+          seriesData.push({
+            model: d.model,
+            timeLabel: d.timeLabel,
+            value: d.ratioParams,
+            metric: 'params',
+            totalParams: d.totalParams,
+            totalParamsLabel: d.totalParamsLabel,
+            activatedParamsLabel: d.activatedParamsLabel,
+            routedExperts: d.routedExperts,
+            activatedExperts: d.activatedExperts,
+            sharedExpert: d.sharedExpert,
+            ratioParams: d.ratioParams,
+            ratioExperts: d.ratioExperts
+          });
+          seriesData.push({
+            model: d.model,
+            timeLabel: d.timeLabel,
+            value: d.ratioExperts,
+            metric: 'experts',
+            totalParams: d.totalParams,
+            totalParamsLabel: d.totalParamsLabel,
+            activatedParamsLabel: d.activatedParamsLabel,
+            routedExperts: d.routedExperts,
+            activatedExperts: d.activatedExperts,
+            sharedExpert: d.sharedExpert,
+            ratioParams: d.ratioParams,
+            ratioExperts: d.ratioExperts
+          });
+        });
+
+        colorScale.domain(d3.range(data.length));
+        refreshPalette();
+
+        document.addEventListener('palettes:updated', () => {
+          refreshPalette();
+          draw();
+        });
+
+        draw();
+      }
+
+      // Event listeners
+      btnParams.addEventListener('click', () => {
+        showParams = !showParams;
+        btnParams.classList.toggle('active-params', showParams);
+        draw();
+      });
+
+      btnExperts.addEventListener('click', () => {
+        showExperts = !showExperts;
+        btnExperts.classList.toggle('active-experts', showExperts);
+        draw();
+      });
+
+      // Initial render
+      loadData();
+
+      // Resize
+      const rerender = () => { if (data.length) draw(); };
+      if (window.ResizeObserver) {
+        const ro = new ResizeObserver(() => rerender());
+        ro.observe(container);
+      } else {
+        window.addEventListener('resize', rerender);
+      }
+    };
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => ensureD3(bootstrap), { once: true });
+    } else {
+      ensureD3(bootstrap);
+    }
+  })();
+</script>
