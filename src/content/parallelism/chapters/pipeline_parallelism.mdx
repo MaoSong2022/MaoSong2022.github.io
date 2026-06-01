@@ -7,11 +7,42 @@ import gpipe_performance_analysis from '../../../assets/image/GPipe-performance-
 
 ## Pipeline Parallelism
 
-大规模神经网络已经在计算机视觉和自然语言处理等任务上取得了突破性进展。但是目前训练大规模神经网络存在的问题时，我们无法在单一 GPU 上训练我们的模型。基于多 GPU 训练模型需要考虑模型的切分以及通信优化。
+Pipeline Parallelism (PP) 是一个将模型切分为多个部分部署在不同 GPU 上进而实现分布式训练的方法。
 
-为了解决这个问题，Google 提出了 GPipe [@GPipe], 一个用于将大规模性模型分割部署到不同设备上的并行计算策略。
+假设我们的模型有 4 layers, 即
 
-### Method
+$$
+y = \mathrm{layer}_4(\mathrm{layer}_3(\mathrm{layer}_2(\mathrm{layer}_1(x))))
+$$
+
+基于 PP 思想，如果我们有 2 个 GPU, 那么我们可以将模型切分为两部分：
+
+- GPU1: 保存前 2 layers
+- GPU2: 保存后 2 layers
+
+计算流程为：
+
+1. GPU1 计算 $\mathrm{intermidiate}=\mathrm{layer}_2(\mathrm{layer}_1(x))$
+2. GPU1 将中间结果 $\mathrm{intermidiate}$ 传输到 GPU2 上
+3. GPU2 计算 $y=\mathrm{layer}_4(\mathrm{layer}_3(\mathrm{intermidiate}))$
+4. 计算损失并在 GPU2 上进行反向传播
+5. GPU2 将反向传播的中间结果 $\nabla\mathrm{intermidiate}$ 传输到 GPU1 上
+6. GPU1 进行反向传播
+
+上面的方法称为 naive PP.  
+
+示意图如下所示：TODO
+
+naive PP 存在如下问题：
+
+1. GPU 使用率低： 一个 GPU 计算时，其他所有 GPU都闲置
+2. 计算和通信不重叠：执行 GPU 通信时，没有 GPU 执行计算任务
+3. 内存需求高： 每个 GPU 都存储了对应 batch 的所有 activation.
+
+### GPipe
+
+GPipe [@GPipe] 是 Google 提出的一个用于将大规模性模型分割部署到不同设备上的并行计算策略。
+其核心思想是将一个大的 batch 拆分为若干个较小的 batch 来提高 GPU 的利用率。
 
 #### Notation
 
@@ -107,3 +138,5 @@ $$
 <Image src={gpipe_performance_analysis} alt="Time step breakdown" />
 
 可以看到，activation checkpointing 是 GPipe 的主要开销来源。
+
+### PipeDream
