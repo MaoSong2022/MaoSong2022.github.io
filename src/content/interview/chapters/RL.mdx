@@ -1,0 +1,75 @@
+Q1. 在 LLM 后训练中，为什么我们常常从 SFT 转向 RL？RL 解决了 SFT 的哪个本质问题？
+
+LLM 解决了 SFT 泛化性不足的问题
+
+Q2. 请解释 RLHF 中“奖励模型”与 LLM 作为“策略”之间的关系。用数学符号写出 PPO 在 LLM 场景下的优化目标。
+
+reward model 用于给 LLM 的每一步 (token) 生成对应的奖励.
+
+$$
+L = \mathbb{E}_{q\sim D, o_{\leq t}\sim pi_{\theta}(\cdot | mid q)}[\min(r_t(\theta)A_t,\clip(r_t(\theta), 1-\epsilon, 1+\epsilon)A_t)] + \lambda KL(pi_{\theta} \mid\mid \pi_{ref})
+$$
+
+Q3. PPO 名字里的“近端”指什么？它与 TRPO 的核心区别是什么？（提示：约束方式）
+
+proximal 代表不要离 reference model 过远， TRPO 通过 KL divergence 来实现约束，而 PPO 通过 clip 来实现，激昂第了复杂度
+
+Q4. 写出 PPO 的 clip 损失函数，并解释 ε=0.2 的含义。如果 Advantage 为正且非常大，clip 会如何影响梯度？
+
+$$
+L = \mathbb{E}_{q\sim D, o_{\leq t}\sim pi_{\theta}(\cdot | mid q)}[\min(r_t(\theta)A_t,\clip(r_t(\theta), 1-\epsilon, 1+\epsilon)A_t)] + \lambda KL(pi_{\theta} \mid\mid \pi_{ref})
+$$
+
+$\epsilon=0.2$ 代表如果当前 policy 和old policy 之间的概率相差 $20%$, 则说明当前 policy 与 old policy 相差太原，需要进行clip,
+Advantage 为正且非常大， 说明当前的动作非常有效，因此梯度会朝着这个方向前进（梯度上升）
+
+Q5. PPO 通常需要价值网络（critic）。在 LLM 场景中，critic 的输入输出是什么？训练 critic 的 label 如何获得？你会将 critic 与 policy 共享底层参数吗？为什么？
+
+critic 负责计算advantage, critic 的输出为当前llm 所能获得的return 的期望，critic 的 label 使用rollout最终的return, 会共享参数，这样value model 训练更方便
+
+Q6. PPO 训练时，如果优势估计（GAE）的 λ 太大或太小，分别会导致什么问题？
+
+lambda 越大，越依赖long term reward information, bias 越小，variance越高，计算复杂度越高，越小月依赖当前的value function estimation, 计算量低，variance低，但是bias 高
+
+Q7. 请说明 GRPO 的核心设计目的——它为什么在数学/代码推理任务中比 PPO 更稳定？GRPO 去掉了 critic，那它用什么来标准化 advantage？
+
+GRPO 通过 group advantage estimation 解决了 PPO 中需要训练 value model的问题，通过 group 内部进行计算，可以更好实现 on policy,
+
+Q8. GRPO 中说“group-based baseline”。假设一个 prompt 生成 8 个回答，reward 分别是 [0.2, 0.5, 0.9, 0.3, 0.4, 0.8, 0.6, 0.1]。请计算每个回答的 advantage（简单归一化方式即可）。
+这样做的方差比 PPO 的 GAE 大还是小？为什么还能工作？
+
+Q8-1：这种方法的方差比 PPO-GAE 大还是小？
+答案：更大。因为 GAE 利用时序平滑减少了方差，而 GRPO 只用 group 内的瞬时归一化，没有利用时序信息。
+
+Q8-2：那为什么还能工作？
+
+答案：因为数学/代码任务中：每个 token 的重要性相对均匀（不像对话中早期 token 影响巨大） Group 内相对比较已经足够区分好坏去掉了 critic 避免了训练不稳定的问题，trade-off 值得
+
+Q9. PPO 的价值网络会不会被 GRPO 完全替代？在你看来，GRPO 在什么任务上可能不如 PPO？
+
+GRPO 弱于 PPO 的场景：
+
+1. 长程 credit assignment 任务（如长故事生成、多轮对话）
+    没有 critic 意味着无法对中间状态进行价值估计，只能靠最终 reward 反推
+
+2. 奖励稀疏（只有一个正确回答，其他全错）
+    Group 内如果只有一个正例，advantage 归一化会放大噪声
+
+3. 任务需要细粒度 token-level 优化（如机器翻译、格式约束）
+    PPO 的 GAE 能逐 token 调整，GRPO 的 group 归一化是 response-level 的
+
+Q10. 你在训练 70B 模型做 RLHF 时，如何并行化 PPO 的四个组件：Policy (actor)、Reference policy、Critic、Reward model？请画出典型的混合并行策略（如 Megatron-LM + vLLM 推理引擎）的通信模式。
+
+Q11. PPO 训练中，为什么常常遇到“logits 漂移”导致生成质量崩溃？你会用什么工程手段检测和缓解？（提示：KL 惩罚、参考模型同步频率）
+
+Q12. 如果使用 ZeRO-3，policy 和 reference policy 分在两个 stage 里，但生成 rollout 时仍显存不足，你会怎么做？请至少给出两种工程方案。
+
+Q13. 强化学习中“奖励破解”在 LLM 场景中如何体现？你遇到过哪些例子？（例如：重复指定 token、格式钻空子）有什么数据或算法层面的对策？
+
+Q14. 如何在 PPO/GRPO 中做 prompt 层面的课程学习？你认为应该先从简单 prompt 开始，还是从高奖励方差 prompt 开始？为什么？
+
+Q15. 极端题：假设在某个数学推理任务中，GRPO 的 mean reward 在 1000 步后不再上升，但 advantage 的绝对值仍然很大。你会从哪些方向诊断问题？（提示：奖励模型饱和度、生成多样性、KL 退化）
+
+Q16. 你被要求设计一个新的 RL 算法，目标是在推理成本受限条件下对齐一个 7B 模型，且不能使用参考模型（No Reference Model），但仍要防止 policy 坍缩到低熵。请给出一个 loss 的设计草图，并说明它与 PPO/GRPO 的关键不同。
+
+Q17. 最后，请诚实评价自己：在以上问题中，你觉得自己最薄弱的是哪个层面？（例如：理论推导 / 工程实现 / 调参直觉 / 算法对比）以及你计划如何补足？
