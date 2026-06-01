@@ -1,0 +1,5 @@
+Model,Time, Affil, Tokens
+DeepSeek-LLM,2024-01,DeepSeek,2T
+DeepSeek-V2,2024,DeepSeek,8.1T
+DeepSeek-V3,2024,DeepSeek,14.8T
+DeepSeek-V4,2026,DeepSeek,32T
