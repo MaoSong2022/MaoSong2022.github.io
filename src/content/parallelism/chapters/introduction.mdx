@@ -1,0 +1,60 @@
+import Image from '../../../components/Image.astro';
+import basic_concepts from '../../../assets/image/basic_concepts.png';
+
+## Introduction
+
+什么是分布式系统
+
+分布式系统允许一个软件的多个组件运行在不同的机器上。与传统集中式系统不一样，分布式系统可以有效提高系统的稳健性。
+一个比较比较经典的分布式就是Git，Git允许我们把代码保存在多个remote上。这样当一个remote宕机时，其他remote也能提供服务。
+
+评估一个分布式系统的重要标准就是规模效益(scalablity)，也就是说，我们希望使用8台设备应该要比4台设备快2倍。但是，由于通信带宽等原因，实际上加速比并不是和设备数量成线性关系。因此，我们需要设计分布式算法，来有效提高分布式系统的效率。
+
+### Why distributed training
+
+我们需要分布式训练的原因主要是以下几点：
+
+1. 模型越来越大。当下（2025）领先模型如Qwen，LLaMA系列的最大模型都超过了100B [2][3]。LLaMA系列最大的模型甚至超过了1000B。Scaling law告诉我们模型表现与参数量，算力，数据量成正相关关系。
+2. 数据集越来越大。现在领先的模型需要的数据量基本都需要100M以上，而大语言模型训练需要的token数量也都超过了10T的量级 [2][3].
+3. 算力越来越强。现有最强的GPU H100其显存为80GB，拥有3.35TB/s 的带宽 (PcIe)，这让训练大规模模型成为可能。
+
+超大的模型使得我们很难在一张GPU上进行训练，甚至我们都很难使用单张GPU进行部署。而10T级的数据也也需要几个月的时间才能训练完毕。因此，如何高效利用多张GPU在大规模数据上训练超大模型就是我们需要解决的问题。
+
+### Notation
+
+我们先来熟悉一下分布式训练中的一些基本概念：
+
+- Host: host (master address)是分布式训练中通信网络的主设备(main device). 一般我们需要对其进行初始化
+- Node: 一个物理或虚拟的计算单元，可以是一台机器，一个容器或者一个虚拟机
+- Port: port (master port)主要是用于通信的master port
+- Rank: rank是通信网络中每个设备唯一的ID
+- world size: world size是通信网络中设备的数量
+- process group: 一个process group是通信网络中所有设备集合的一个子集。通过process group, 我们可以限制device只在group内部进行通信
+
+我们以下图为例：
+<Image src={basic_concepts} alt="basic concepts" />
+上图中一共包含2个node (2台机器)，每台机器包含4个GPU (device)，当我们初始化分布式环境时，我们一共启动了8个进程（每台机器4个进程），每个进程绑定一个GPU。
+
+在初始化分布式环境之间，我们需要指定host和port。假设我们指定host为`node 0`和port为 `29500`，接下来，所有的进程都会基于这个host和port来与其他进程连接。默认的process group（包含所有device）的world size 为8. 其细节展示如下
+
+| process ID | rank | Node index| GPU index |
+| --- | --- | --- |--- |
+| 0 | 0 | 0 | 0|
+| 1 | 1 | 0 | 1|
+| 2 | 2 | 0 | 2|
+| 3 | 3 | 0 | 3|
+| 4 | 4 | 1 | 0|
+| 5 | 5 | 1 | 1|
+| 6 | 6 | 1 | 2|
+| 7 | 7 | 1 | 3|
+
+我们可以创建一个新的process group，使其仅包含ID为偶数的process：
+
+| process ID | rank | Node index| GPU index |
+| --- | --- | --- |--- |
+| 0 | 0 | 0 | 0|
+| 2 | 1 | 0 | 2|
+| 4 | 2 | 1 | 0|
+| 6 | 3 | 1 | 2|
+
+**Remark**: 注意，rank与process group相关，一个process在不同的process group里可能会有不同的rank.
