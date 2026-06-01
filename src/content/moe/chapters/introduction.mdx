@@ -1,12 +1,11 @@
 import Note from '../../../components/Note.astro';
 import Accordion from '../../../components/Accordion.astro';
 import Image from "../../../components/Image.astro";
+import HtmlEmbed from '../../../components/HtmlEmbed.astro';
 import olmoe_moe_architecture from "../../../assets/image/olmoe-MoE_architecture.png";
 import switch_transformer_speed_comparison from "../../../assets/image/Switch-Transformer-speed-comparison.png";
 import el_activation_ratio_impact from "../../../assets/image/EL-activation-ratio-impact.png";
 import olmoe_moe_vs_dense_training_efficiency from "../../../assets/image/olmoe-MoE-vs-Dense-training-efficiency.png";
-import moe_timeline_parameters from "../../../assets/image/moe_timeline_parameters.png";
-import moe_timeline_experts from "../../../assets/image/moe_timeline_experts.png";
 
 ## Introduction
 
@@ -163,17 +162,12 @@ MoE 模型的表现更强，如下图所示，MoE 模型的训练，验证损失
 
 ### Timeline
 
-激活参数比例变化图如下图所示
+下图展示了 MoE 模型的激活比例随时间的变化趋势，可以通过 "Parameters" 和 "Experts" 按钮独立控制显示两种激活比例（可同时显示）。圆圈大小代表模型总参数量。
 
-<Image src={moe_timeline_parameters} alt="Activation ratio of MoE models" />
-
-可以看到，当前大部分模型的激活比例都在 $5\%$ 左右。
-
-另一方面，从专家的激活比例变化图如下图所示
-
-<Image
-  src={moe_timeline_experts}
-  alt="Activation ratio (experts) of MoE models"
+<HtmlEmbed
+  src="embeds/d3-moe-activation-ratio.html"
+  title="MoE Activation Ratio Timeline"
+  desc="圆圈大小代表模型总参数量，悬停查看详情"
 />
 
-可以看到，现在大部分模型总专家数都在 200-400 左右，Kimi-k2 [@Kimi-K2] 认为提高专家个数可以提高模型表现，而 LongCat 则是使用了 phantom expert 机制
+可以看到，当前大部分模型的参数激活比例都在 $5\%$ 左右。从专家激活比例来看，DeepSeek-MoE 和 Hunyuan-A13B 的专家激活比例较高，而 Kimi-K2 和 LongCat 则使用了极低的专家激活比例。Kimi-K2 [@Kimi-K2] 认为提高专家个数可以提高模型表现，而 LongCat 则是使用了 phantom expert 机制。
