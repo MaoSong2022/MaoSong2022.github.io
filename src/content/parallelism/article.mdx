@@ -8,19 +8,19 @@ published: "2025-12-23 16:49:25+0800"
 modified: "2025-12-23 16:49:25+0800"
 tags:
   - "parallelism"
-  - "Google"
 categories:
   - "Infra"
-seoThumbImage: "/posts/gpipe/GPipe-PP-illustration.png"
 tableOfContentsAutoCollapse: true
-pdfProOnly: false
-showPdf: false
 ---
 
-import GPipe from './chapters/GPipe.mdx';
-import MegatronLM from './chapters/Megatron-LM.mdx';
+import Introduction from './chapters/introduction.mdx';
+import DP from './chapters/data_parallelism.mdx';
+import PP from './chapters/pipeline_parallelism.mdx';
+import TP from './chapters/tensor_parallelism.mdx';
 import CommunicationPrimitive from './chapters/communication-primitive.mdx';
 
-<GPipe />
-<MegatronLM />
+<Introduction />
 <CommunicationPrimitive />
+<DP />
+<PP />
+<TP />
