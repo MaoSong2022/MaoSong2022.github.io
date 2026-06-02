@@ -124,6 +124,39 @@ $$
 可以看到，不同的 DP rank 实际上存储的东西是彼此的副本，这显然带来了很大的冗余。
 因此， ZeRO 就想办法来避免这些冗余。
 
+假设模型参数量为 $\Psi$, 在训练过程中，我们需要保存以下信息：
+
+1. 模型参数： BF16 精度, $2\Psi$
+2. 模型梯度： BF16, $2\Psi$
+3. master weights: FP32, $4\Psi$
+4. optimizer states: Adam, FP32, $4\Psi+4\Psi$
+5. (optional) accmulcated gradients, FP32, $4\Psi$
+
+本节中，我们暂时不考虑 accumulated gradients, 因此整体的内存消耗就是 $2\Psi+2\Psi+12\Psi$.
+
+ZeRO 的思想就是将这些不同的信息切分到不同的 DP rank 上进行分块保存，进而降低内存消耗。
+
+TODO: 框架图
+
+假设我们现在有 $N$ 个 GPU, 我们分别来介绍不同的 ZeRO 算法
+
+**ZeRO-1**
+对于 ZeRO-1 来说，我们会把 optimizer states 均匀切分到 $N$ 个 GPU上，这样每个 GPU 保存的就是 $k\Psi/N$ (这里我们用 $k$ 来表示不同 optimizer 对应的系数，对 Adam 来说是
+$12$).
+这样，每个 GPU 上的内存消耗就是 $2\Psi+2\Psi+k\Psi/N$
+
+训练时，我们通过 AllGather 来收集不同 GPU 上的 optimizer states 再进行计算：
+
+1. 前向传播
+2. 反向传播
+3. 进行一次 ReduceScatter
+4. 每个 GPU 进行一次 optimizer step, 得到局部 optimizer states
+5. 进行一次 AllGather 来更新模型参数
+
+训练流程如下所示：TODO
+
+pipeline 如下所示：TODO
+
 ### FSDP
 
 Fully Sharded Data Parallelism (FSDP) [@FSDP; @SimpleFSDP] 由 meta 提出
