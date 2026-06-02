@@ -1,0 +1,22 @@
+
+## Analysis on OPD
+
+### Comparison of different methods
+
+#### SFT
+
+在 SFT 中， 我们使用了采集好的数据集，这个数据集形成了一个数据分布，SFT 要求模型的分布完全能 cover 数据分布。
+这就导致了灾难性遗忘。
+但是另一方面，这种性质可以让模型快速学习到新知识，因此 SFT 适合作为 cold start.
+
+#### RL
+
+RL 的数据来源模型本身，当 verifier 或者 reward model 设计比较好的时候，我们可以很好的提高模型的表现。
+
+#### OPD
+
+对于 OPD 来说， OPD 继承了 RL 的 on-policy 性质，同时像 SFT 一样，模型又能够接收 teacher signal.
+但是与 RL 基于 advantage 对 rollout 进行加权不同， OPD 使用 log ratio 来实现加权。
+
+OPSD 进一步使用模型本身作为 teacher model, 但是最近研究发现 OPSD 会让模型更关注 style token, 而不是 reasoning token.
+这个问题的解决方法是使用 per-token clipping 机制。

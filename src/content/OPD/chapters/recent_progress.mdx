@@ -1,0 +1,21 @@
+
+## Recent progress
+
+### multi teacher OPD
+
+DeepSeek-V4 [@DeepSeek-V4] 训练了十几个 specialist, 然后使用加权的方式来训练模型。
+MiniCPM-5 [@MiniCPM5] 训练了不同的 specialist, 然后再进行 OPD.
+
+KAT-Coder-V2 [@KAT-Coder-V2] 采用了先训练不同 specialist 然后进行 OPD 来训练模型的做法，与 DeepSeek-V4 不同，KAT-Coder-V2 每次只选取对应任务的专家作为 teacher.
+
+MiMo-V2-flash: multi-teacher OPD
+
+优势：
+
+1. OPD 可以保持 teacher model 的表现, 并且有 token level credit assignment, fast covergence, 避免了 exposure bias, distribution mismatch
+2. modular and scalable: 每个专家可以独自进行优化，还可以与 ORM 进行结合
+3. 可以让 teacher 和 student 一起进化
+
+SFT 的时候用梯度为0的参数的数量来衡量训练稳定性，指标升高说明负载不均衡，指标在下降说明过拟合。
+
+OPD 将 reverse KL 写成了 RL objective 的形式，用于统一 ORM
