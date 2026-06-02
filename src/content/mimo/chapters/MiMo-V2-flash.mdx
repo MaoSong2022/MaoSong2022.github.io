@@ -1,0 +1,31 @@
+
+## MiMo-V2-Flash
+
+### 架构
+
+hybrid attention: SWA : softmax attention = 5:1, 第一层使用了 softmax attention 和 FFN, sliding window size 为 128. softmax attention 为 GQA [@GQA]
+
+使用了 attention sink. 发现
+
+1. 使用 sink 之后模型表现有大幅度提升，不使用 sink 模型表现大幅度下降
+2. sliding window size 提高也会对模型表现产生负面影响
+
+MTP: 1 dense layer, softmax attention, light weight
+
+### pre-training
+
+1. pre-training, 22T
+2. mid-training, 4 T, code-centric data, 5% reasoning data
+3. context extention, 1 T, 32K to 256K
+
+### multi-teacher OPD
+
+优势：
+
+1. OPD 可以保持 teacher model 的表现, 并且有 token level credit assignment, fast covergence, 避免了 exposure bias, distribution mismatch
+2. modular and scalable: 每个专家可以独自进行优化，还可以与 ORM 进行结合
+3. 可以让 teacher 和 student 一起进化
+
+SFT 的时候用梯度为0的参数的数量来衡量训练稳定性，指标升高说明负载不均衡，指标在下降说明过拟合。
+
+OPD 将 reverse KL 写成了 RL objective 的形式，用于统一 ORM
