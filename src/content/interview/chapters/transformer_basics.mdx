@@ -1,0 +1,10 @@
+
+1. 为什么 attention 要处以 $\sqrt{d}$
+
+原因：
+
+1. 尺度问题： query 和 key 向量的每个元素均值为0, 方差为1, 它们的点积会变成方差为 $d$ 的随机变量， $d$ 越大，点积范围就越大
+2. softmax: softmax 是一个尺度敏感的函数，输入的值越大，其越趋向于 one-hot, 此时大部分位置的梯度会变得非常小，难以训练
+3. $\sqrt{d}$ 标准化：除以 $\sqrt{d}$ 相当于把方差变回1，稳定了 softmax的输出
+
+layer norm 和 batch norm 为什么用 layer norm, 为什么又换成 RMSnorm

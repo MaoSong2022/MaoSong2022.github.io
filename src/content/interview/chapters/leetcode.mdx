@@ -2,3 +2,200 @@
 ## hot 100
 
 - 括号生成
+
+手撕 MHA
+
+leetcode 100
+
+## 手撕
+
+### online softmax
+
+标准 softmax
+
+$$
+\mathrm{softmax}(x_i) = \frac{\exp(x_i-m)}{\sum_j\exp(x_j-m)}, m = \max(x)
+$$
+
+假设当前遍历到第 $k$ 个元素，已有:
+
+1. 当前最大值 $m_k = \max(x_1,\dots,x_k)$
+2. 部分分母 $d_k = \sum_{j=1}^k\exp(x_j-m_k)$
+
+加入新元素 $x_{k+1}$ 时：
+
+1. 如果 $x_{k+1}<m_k$, 最大值不变，直接累加分母： $d_{k+1}=d_k+\exp(x_{k+1}-m_k)$
+2. 如果 $x_{k+1}>m_k$, 最大值更新，需要缩放旧分母：
+    - $m_{k+1}=x_{k+1}$
+    - 旧分母需要乘以 $\exp(m_k-m_{k+1})$ 来对齐新的最大值
+    - $d_{k+1}=d_k\times\exp(m_k-m_{k+1}) + \exp(m_{k+1}-m_{k+1})$
+
+代码
+
+```python
+import numpy as np
+
+def online_softmax(x):
+    m = -np.inf
+    d = 0.0
+
+    for val in x:
+        if val > m:
+            d = d * np.exp(m - val) + 1.0
+            m = val
+        else:
+            d += np.exp(val - m)
+    
+    # compute
+    result = []
+    for val in x:
+        result.append(np.exp(val-m) / d)
+    
+    return np.array(result)
+```
+
+```python
+x = np.array([1, 2, 3, 4, 5])
+softmax_online = online_softmax(x)
+softmax_std = np.exp(x - np.max(x)) / np.sum(np.exp(x - np.max(x)))
+
+print("Max difference:", np.max(np.abs(softmax_online - softmax_std)))
+```
+
+block level
+
+```python
+import numpy as np
+
+def online_softmax(x, block_size=2):
+    n = len(x)
+    num_blocks = (n + block_size - 1) // block_size
+    global_max = -np.inf
+    global_d = 0.0
+
+    blocks = []
+
+    for i in range(num_blocks):
+        start = i * block_size
+        end = min(start + block_size, n)
+        block = x[start: end]
+        blocks.append(block)
+
+        local_max = np.max(block)
+        local_d = np.sum(np.exp(block-local_max))
+
+        if local_max > global_max:
+            global_d = global_d * np.exp(global_max - local_max) + local_d
+            global_max = local_max
+        else:
+            global_d += local_d * np.exp(local_max - global_max)
+
+    # compute
+    result = np.zeros(n)
+    idx = 0
+    for block in blocks:
+        block_probs = np.exp(block - global_max) / global_d
+        result[idx: idx+len(block)] = block_probs
+        idx += len(block)
+    
+    return result
+```
+
+优势：
+
+1. 数值稳定：局部缩放，再对齐全局
+2. 内存高效：可以流式处理，不必存储全量数据
+3. 并行：不同块可以并行计算，最后合并
+4. 时间复杂度 $O(n)$, 与标准softmax相同
+
+### 采样策略
+
+### KV cache
+
+kv cache 拼接
+
+```python
+def custom_attention(query, key, value, past_key_value=None):
+    # key: [b, s, d]
+    # value: [b, s, d]
+    # past_key_value: [b, s', d]
+    if past_key_value is not None:
+        past_key, past_value = past_key_value
+        key = torch.cat([past_key, key], dim=-2)
+        value = torch.cat([past_value, value], dim=-2)
+
+    attention_weights = query @ key.transpose(-2, -1)
+
+    ...
+
+    return output, (key, value)
+```
+
+dynamic cache
+
+```python
+class DynamicCache(Cache):
+    def __init__(self) -> None:
+        self.key_cache = List[torch.Tensor] = []
+        self.value_cache = List[torch.Tensor] = []
+
+    def update(self, key_states, value_states, layer_idx, cache_kwargs):
+        if layer_idex >= len(self.key_cache):
+            self.key_cache.append(key_states)
+            self.value_cache.append(value_states)
+        else:
+            self.key_cache[layer_idx] = torch.cat([self.key_cache[layer_idx], key_states], dim=-2)
+            self.value_cache[layer_idx] = torch.cat([self.value_cache[layer_idx], value_states], dim=-2)
+
+        
+        return self.key_cache[layer_idx], self.value_cache[layer_idx]
+```
+
+attention 调用
+
+```python
+class Attention(nn.Module):
+    def forward(self, hidden_states, past_key_value=None, use_cache=False, layer_idx=None):
+        query = self.q_proj(hidden_states)
+        key = self.k_proj(hidden_states)
+        value = self.v_proj(hidden_states)
+
+        # ...
+        if past_key_value is not None:
+            key, value = past_key_value.update(key, value, layer_idx, cache_kwargs)
+        
+        attention_output = F.scaled_dot_product_attention(query, key, value)
+
+        if use_cache:
+            return attention_output, past_key_value
+
+        return attention_output
+```
+
+其他 cache:
+
+1. `DynamicCache`: 默认实现，动态增长，灵活性高
+2. `StaticCache`: 预分配固定大小的张量，与 `torch.compile` 结合更好，可以减少动态形状带来的开销
+3. `QuantizedCache`: 量化缓存，对 K/V 进行量化来节省显存
+4. `PagedAttentionCache`: 借鉴 vLLM 的分页注意力思想，管理非连续显存块
+
+```python
+class PagedAttentionCache:
+    def __init__(self, block_size=16):
+        self.physical_blocks = []
+        self.block_tables = {}
+
+    def allocate(self, sequence_id, num_tokens):
+        logical_blocks = []
+        for _ in range((num_tokens + block_size - 1) // block_size):
+            block = self.physical_blocks.pop()
+            logical_blocks.append(block)
+
+        self.block_tables[sequence_id] = logical_blocks
+
+    def get_kv(self, sequence_id, token_idx):
+        block_idx = token_idx // block_size
+        offset = token_idx % block_size
+        physical_block = self.block_tables[sequence_id][block_idx]
+        return self._read_block(physical_block, offset)
+```

@@ -1,7 +1,48 @@
 
-## KV cache
+## 代码手撕
+
+### 采样策略
+
+### KV cache
 
 KV cache 是什么，为什么要有 KV cache, KV cache 为什么会造成显存过大的问题，如何解决？
+
+如何减少 kv cache:
+
+训练上使用更高效的注意力，GQA，MLA, SWA 等
+
+推理上：kv cache quantization
+
+infra上：paged attention，kv cache offloading
+
+### vllm
+
+vllm 是如何分配内存和 kv cache 的
+
+核心机制：pagedattention
+
+1. 非连续存储，将每个请求的kv cache 分成小块 (4kb-8kb), 物理上可以任意存放，消除缓存碎片
+2. 映射表管理：每个请求维护块表，记录逻辑块对一个的物理块，无需整理内存
+3. 内存共享：多个请求可以共享相同的物理块，配合 writing copy 大幅度降低显存占用
+
+启动分配策略
+
+- 预设容量，通过 `gpu_memory_utilization` 默认 0.9 划定可用显存，预留 10% 给CUDA和临时数据，其他一次性分配给 kv cache
+- 静态规划：静态池子，避免显存溢出，通过 `max_model_len` 来实现
+- 多卡并行：每张卡独立管理自己的物理块
+
+运行时
+
+- 按需分配：不够了再动态挂载新物理块，释放直接回收进池子复用
+- 显存交换：显存紧张时，将不活跃的块自动换到 cpu 上
+- continuous batching: 不用等所有序列结束，随时加入新请求
+
+### MTP
+
+好处：
+
+1. 提高 RL rollout 效率
+2. 减少 GPU idle time
 
 ## distillation
 
@@ -36,7 +77,3 @@ layernorm 好处是啥
 mlp 为什么要先升到 4倍在降维
 
 QKV维度可以不同吗
-
-手撕 MHA
-
-leetcode 100
