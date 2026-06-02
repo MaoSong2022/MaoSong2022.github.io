@@ -73,3 +73,45 @@ Q15. 极端题：假设在某个数学推理任务中，GRPO 的 mean reward 在
 Q16. 你被要求设计一个新的 RL 算法，目标是在推理成本受限条件下对齐一个 7B 模型，且不能使用参考模型（No Reference Model），但仍要防止 policy 坍缩到低熵。请给出一个 loss 的设计草图，并说明它与 PPO/GRPO 的关键不同。
 
 Q17. 最后，请诚实评价自己：在以上问题中，你觉得自己最薄弱的是哪个层面？（例如：理论推导 / 工程实现 / 调参直觉 / 算法对比）以及你计划如何补足？
+
+### PPO
+
+### GRPO
+
+GRPO 和 PPO 对比
+
+优势：
+
+1. 无需value model: 降低显存
+2. 无需 GAE 调参
+3. 对reward scaling不敏感
+
+劣势：
+
+1. 无法做 token level credit assignment
+2. KL divergence 要调整 beta, 因为 GRPO 比 PPO更敏感
+
+系统性对比一下 PPO, GRPO, SAPO, GSPO
+
+GRPO 问题：
+
+1. 会偏向高概率解，第概率单正确的证明倍忽略，分布锐化
+
+### SFT, OPD, RL 对比
+
+结论：SFT 改变模型在外在数据集上的分布，RL改学生在会访问到的state distribution, OPD/OPSD 在 on-policy 状态上使用更dense 的信号
+
+on-policy 仅改变有奖励的局部的区域，其他部分几乎不动，因此 RL 不太可能会遗忘，前提是奖励有意义
+
+RL v.s. OPD: RL 用 advantage 加权， OPD 用 log ratio 加权
+
+| Method | data | signal | risk|
+| ---    | ---  | ---    | --- |
+| SFT    | off policy data | token level cross entropy | forgetting |
+| RL     |  on policy states | reward/ verifier | rewrighting existed path, low diversity |
+| OPD    | on policy states | teacher logits/priviledged context | mode collapse, over update on style token |
+
+OPD 问题：
+
+1. reversel KL 在 high entropy 上会伤害多样性
+2. 强 pass@1 不代表强diversity
