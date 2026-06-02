@@ -21,9 +21,9 @@ $$
 通过 probability chain rule, 我们可以将上面的 [目标函数](#opd_objective) 转换为token层面的等价形式
 
 $$
-\htmlId{opd_token_level_objective}{\begin{equation}
+\begin{equation}
 \mathcal{L}_{OPD}(\theta) = \mathbb{E}_{(x,y)\sim\mathcal{D}, \hat{y}_t\sim\pi_\theta(\cdot\mid \hat{c}_t)}\left[\sum_{i=1}^T\mathrm{KL}(\pi_\theta(\cdot\mid \hat{c}_t)\mid\mid \pi_T(\cdot\mid \hat{c}_t))\right]
-\end{equation}}
+\end{equation}
 $$
 
 这里 $\hat{c}_t=(x, \hat{y}_{<t})$, $T$ 为sequence length.
