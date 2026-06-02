@@ -1,0 +1,89 @@
+import Accordion from '../../../components/Accordion.astro'
+
+## Entropy
+
+entropy 定义
+
+$$
+\mathcal{H}(P) = -\sum_{i=1}^V P(x_i)\log P(x_i)
+$$
+
+这里 $[x_1,\dots,x_V]$ 是一个概率分布， $V$ 是词表大小。
+$P(x_i)$ 是第 $i$ 个词的概率，一般来说，transformer 经过 `lm_head` 之后输出一个 $\mathrm{logits}\in\mathbb{R}^{b\times s\times V}$, 然后我们通过 softmax 来计算得到 $P(x_i)$:
+
+$$
+P(x) = \mathrm{softmax}(\mathrm{logits})=\left[\frac{\exp(\mathrm{logits}_1)}{\sum_j^V\exp(\mathrm{logits}_j)},\dots,\frac{\exp(\mathrm{logits}_V)}{\sum_j^V\exp(\mathrm{logits}_j)}\right]
+$$
+
+我们对 $P(x_i)$ 取 log 得到
+
+$$
+\log P(x_i) = \log\frac{\exp(\mathrm{logits}_i)}{\sum_j^V\exp(\mathrm{logits}_j)} = \mathrm{logits}_i - \log \sum_j^V\exp(\mathrm{logits}_j)
+$$
+
+将上面这个表达式带入到 entropy 定义中得到
+
+$$
+\begin{aligned}
+\mathcal{H}(P) &= -\sum_{i=1}^VP(x_i)\left(\mathrm{logits}_i - \log \sum_j^V\exp(\mathrm{logits}_j)\right)\\
+&=-\sum_{i=1}^VP(x_i)\mathrm{logits}_i+\sum_{i=1}^VP(x_i)\log \sum_j^V\exp(\mathrm{logits}_j)\\
+&= \log \sum_j^V\exp(\mathrm{logits}_j)- \sum_{i=1}^VP(x_i)\mathrm{logits}_i\\
+&= \boxed{\mathrm{logsumexp}(\mathrm{logits}) - \sum_{i=1}^V(\mathrm{softmax}(\mathrm{logits})\cdot \mathrm{logits})}
+\end{aligned}
+$$
+
+[verl 中的代码实现](https://github.com/verl-project/verl/blob/accb1a07d22b516a2a4e607a7891b8dea0897b91/verl/utils/torch_functional.py#L224) 为
+
+<Accordion title="Entropy in Verl">
+
+```python
+def entropy_from_logits(logits: torch.Tensor) -> torch.Tensor:
+    """Calculate Shannon entropy from unnormalized logits.
+
+    Computes H(p) = -sum(p * log(p)) using the numerically stable formula:
+    entropy = logsumexp(logits) - sum(softmax(logits) * logits)
+
+    Args:
+        logits: Unnormalized log-probabilities of shape (..., vocab_size).
+
+    Returns:
+        torch.Tensor: Entropy values with shape (...,), one per distribution.
+    """
+    pd = torch.nn.functional.softmax(logits, dim=-1)
+    entropy = torch.logsumexp(logits, dim=-1) - torch.sum(pd * logits, dim=-1)
+    return entropy
+```
+
+</Accordion>
+
+实际运算过程中，由于 batch size 和 vocabulary size 都比较大，因此计算时可能会导致峰值显存占用过高。为了解决这个问题，我们可以使用 chunking 策略来分块计算
+
+<Accordion title="Optimized Entropy calculation in Verl">
+
+```python
+def entropy_from_logits_with_chunking(logits: torch.Tensor, chunk_size: int = 2048) -> torch.Tensor:
+    """Memory-efficient entropy calculation using chunked processing.
+
+    Computes entropy by processing the batch in chunks to reduce peak memory
+    usage. Useful for large batch sizes or when memory is constrained.
+
+    Args:
+        logits: Unnormalized log-probabilities of shape (batch_size, vocab_size).
+        chunk_size: Number of samples to process at once. Defaults to 2048.
+
+    Returns:
+        torch.Tensor: Entropy values with shape (batch_size,).
+
+    Note:
+        Converts chunks to float32 for numerical stability during computation.
+    """
+    entropy = torch.zeros(logits.shape[0], device=logits.device)
+    for i in range(0, logits.shape[0], chunk_size):
+        logits_chunk = logits[i : i + chunk_size].float()
+        pd_chunk = torch.nn.functional.softmax(logits_chunk, dim=-1)
+        entropy_chunk = torch.logsumexp(logits_chunk, dim=-1) - torch.sum(pd_chunk * logits_chunk, dim=-1)
+        entropy[i : i + chunk_size] = entropy_chunk
+    return entropy
+```
+
+</Accordion>
