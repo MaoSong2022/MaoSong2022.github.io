@@ -44,7 +44,7 @@ $$
 因此，我们有
 
 $$
-\mathcal{J}(\theta) = \mathbb{E}_{\tau\sim(p_0,\pi_\theta, p),a_t'\sim\pi_{\theta_{old}}(\cdot\mid s_t)}\left[\sum_{t=0}^{T-1}\gamma^t\frac{\pi_\theta(a_t'\mid s_t)}{\pi_{\theta_{old}}(a_t'\mid s_t)}A^{\pi_{\theta_{old}}}(s_t,a_t')\right]+C
+\mathcal{J}(\theta) = \mathbb{E}_{\tau\sim(p_0,\textcolor{red}{\pi_\theta}, p),a_t'\sim\pi_{\theta_{old}}(\cdot\mid s_t)}\left[\sum_{t=0}^{T-1}\gamma^t\frac{\pi_\theta(a_t'\mid s_t)}{\pi_{\theta_{old}}(a_t'\mid s_t)}A^{\pi_{\theta_{old}}}(s_t,a_t')\right]+C
 $$
 
 但是，现在我们的更姓还是依赖于 $\pi_\theta$, 这很难处理。因此 TRPO 的思想就是，**当 $\pi_\theta$ 与 $\pi_{\theta_{old}}$ 充分接近时，使用 $\pi_{\theta_{old}}$ 来替换 $\pi_\theta$**, 这样，上面目标函数就变成了
@@ -67,7 +67,7 @@ $$
 $$
 \begin{align}
 \max_{\theta}\ &\mathcal{K}(\theta;\theta_{old}) = \mathbb{E}_{\tau\sim(p_0,\pi_{\theta_{old}}, p),a_t'\sim\pi_{\theta_{old}}(\cdot\mid s_t)}\left[\sum_{t=0}^{T-1}\gamma^t\frac{\pi_\theta(a_t'\mid s_t)}{\pi_{\theta_{old}}(a_t'\mid s_t)}A^{\pi_{\theta_{old}}}(s_t,a_t')\right]\\
-\mathrm{s.t.}\ &\max_{s\in\mathcal{S}}\mathrm{KL}(\pi_\theta(\cdot\mid s)\mid\mid \pi_{\theta_{old}}(\cdot\mid s))\leq \delta
+\mathrm{s.t.}\ &\max_{s\in\mathcal{S}}\mathrm{KL}(\pi_{\theta_{old}}(\cdot\mid s)\mid\mid \pi_\theta(\cdot\mid s))\leq \delta
 \end{align}
 $$
 
@@ -103,8 +103,8 @@ $$
     - **Solve the constrained optimization**:
       $$
       \begin{aligned}
-      \max_{\theta_{k+1}} \quad &\frac{1}{N} \sum_{i=1}^{N} \sum_{t=0}^{T^{(i)}-1} \gamma^t \frac{\pi_{\theta_{k+1}}(a_t^{(i)} \mid s_t^{(i)})}{\pi_{\theta_k}(a_t^{(i)} \mid s_t^{(i)})} \hat{A}_t \\
-      \mathrm{s.t.} \quad &\max_{s \in \mathcal{S}} \mathrm{KL}(\pi_{\theta_{k+1}}(\cdot \mid s) \mid\mid \pi_{\theta_k}(\cdot \mid s)) \leq \delta
+      \max_{\theta_{k+1}} \quad &\frac{1}{N} \sum_{i=1}^{N} \sum_{t=0}^{T^{(i)}-1} \frac{\pi_{\theta_{k+1}}(a_t^{(i)} \mid s_t^{(i)})}{\pi_{\theta_k}(a_t^{(i)} \mid s_t^{(i)})} \hat{A}_t \\
+      \mathrm{s.t.} \quad &\max_{s \in \mathcal{S}} \mathrm{KL}(\pi_{\theta_{k}}(\cdot \mid s) \mid\mid \pi_{\theta_{k+1}}(\cdot \mid s)) \leq \delta
       \end{aligned}
       $$
     - Compute $\hat{R}_t^{(i)} = \gamma^{t'-t} r_{t'}^{(i)}$ for $i = 1, \dots, N$, $t = 1, \dots, T^{(i)}-1$.
