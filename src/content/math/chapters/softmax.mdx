@@ -13,9 +13,9 @@ $$
 \end{aligned}
 $$
 
-## Analysis
+### Analysis
 
-### Properties
+#### Properties
 
 softmax 的第一个性质是 shift invariance, 即
 
@@ -29,7 +29,7 @@ $$
 \mathrm{softmax}(\mathbf{z}+c)_i = \frac{e^{z_i+c}}{\sum_{j=1}^Ke^{z_j+c}} = \frac{e^ce^{z_i}}{e^c\sum_{j=1}^Ke^{z_j}} = \frac{e^{z_i}}{\sum_{j=1}^Ke^{z_j}}=\mathrm{softmax}(\mathbf{z})_i,\ i=1,\dots,K
 $$
 
-### Gradient
+#### Gradient
 
 向量输入下 Softmax 函数的 Jacobian 矩阵推导
 
@@ -61,9 +61,9 @@ $$
 \mathbf{J} = \text{diag}(\mathbf{a}) - \mathbf{a} \mathbf{a}^\top
 $$
 
-## Interpretation
+### Interpretation
 
-### Soft Argmax
+#### Soft Argmax
 
 softmax 是 argmax 的 smooth approximation, 所以实际上 softmax 指的是 “soft argmax". 为了证明这一点，我们首先定义如下函数
 
@@ -105,9 +105,9 @@ $$
 
 因此，我们就证明了 softmax 是 argmax 函数的 smooth approximation.
 
-### Statistical Mechanics
+#### Statistical Mechanics
 
-### Temperature
+#### Temperature
 
 我们前面介绍了 $\mathrm{softmax}(\mathbf{z};\tau)$ 函数，这里的 $\tau$ 实际上被称为温度 (temperature), 它控制了输入的 variance, $T$ 越大，输入的 variance 越低，输出就倾向于均匀分布，而 $T$ 越小，则说明输入的 variance 越高，输出就倾向于 one-hot 分布。
 
@@ -164,9 +164,9 @@ plt.show()
 
 在 attention 的计算过程中，我们也有 softmax 函数，为了在 softmax 过程中避免 variance 的影响，现在会在计算 softmax 之前加入 normalization layer 来提前进行归一化。见 [QK-norm](/p/notes-on-qk-norm/).
 
-## Algorithms
+### Algorithms
 
-### Implementation
+#### Implementation
 
 由于 $e^x$ 在实际计算时，非常容易溢出，因此在实现的时候，我们往往会考虑其数值稳定性。实际上，现在的 softmax 函数基本由 logsumexp 实现，logsumexp 函数定义如下
 
@@ -199,11 +199,11 @@ def softmax(x: torch.Tensor, dim: int = -1) -> torch.Tensor:
     return torch.exp(x - log_sum_exp)
 ```
 
-### Gumbel-softmax Reparametrization Trick
+#### Gumbel-softmax Reparametrization Trick
 
 TODO
 
-### Online Softmax
+#### Online Softmax
 
 注意到我们在计算 softmax 时，需要加载 $\mathbf{z}$ 的全部信息，如果 $\mathbf{z}$ 非常大的话，会产生频繁的内存读写进而影响整体效率。因此 flash attention [@FlashAttention] 中提出了 online softmax 算法来减少内存访问开销。
 
@@ -226,11 +226,11 @@ $$
 
 因此，如果我们额外记录 $m(x)$ 以及 $\ell(x)$ 这两个量，那么我们可以每次仅计算 softmax 的一个 block. 计算完毕之后，$m_i(\mathbf{z})$ 和 $\ell_i(\mathbf{z})$ 就分别代表了 global max 和 global denominator.
 
-## Conclusion
+### Conclusion
 
 我们回顾了机器学习中 softmax function 的基本定义与性质
 
-## References
+### References
 
 - [Softmax function](https://en.wikipedia.org/wiki/Softmax_function)
 - [Softmax to the Max](https://blog.ando.ai/posts/softmax-to-the-max/)
