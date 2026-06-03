@@ -7,7 +7,7 @@
 $$
 \begin{align}
 \max_{\theta}\ &\mathcal{K}(\theta;\theta_{old}) = \mathbb{E}_{\tau\sim(p_0,\pi_{\theta_{old}}, p),a_t'\sim\pi_{\theta_{old}}(\cdot\mid s_t)}\left[\sum_{t=0}^{T-1}\frac{\pi_\theta(a_t'\mid s_t)}{\pi_{\theta_{old}}(a_t'\mid s_t)}A^{\pi_{\theta_{old}}}(s_t,a_t')\right]\\
-\mathrm{s.t.}\ &\max_{s\in\mathcal{S}}\mathrm{KL}(\pi_\theta(\cdot\mid s)\mid\mid \pi_{\theta_{old}}(\cdot\mid s))\leq \delta
+\mathrm{s.t.}\ &\max_{s\in\mathcal{S}}\mathrm{KL}(\pi_{\theta_{old}}(\cdot\mid s)\mid\mid \pi_{\theta}(\cdot\mid s))\leq \delta
 \end{align}
 $$
 
@@ -82,3 +82,7 @@ $$
 $$
 \delta_k = R_k + \gamma V(s_{k+1})-V(s_k),\quad 0\leq \gamma,\lambda\leq 1
 $$
+
+### Implementation
+
+TODO
