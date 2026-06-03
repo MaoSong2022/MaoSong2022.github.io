@@ -1,0 +1,21 @@
+
+## Implementation
+
+verl 中的 RL 流程可以分为以下几个步骤：
+
+1. rollout 采样： $\{o_i\}_{i=1}^G\sim \pi_{\theta_{old}}(O\mid q)$, $q\sim\mathcal{D}$
+2. 固定项准备：计算 $\log \pi_{\theta_{old}}$, $\log\pi_{\mathrm{ref}}$, advantage $A_{i,t}=(r_i-\mu)/\sigma$, 在参数更新前算好，在整个 batch 里的多个 mini-batch 更新中复用。
+3. policy loss 计算，基于 GRPO 的目标函数计算 loss.
+
+代码流程
+
+1. sample and put batch to agent loop manager
+2. sample batch from replay buffer
+3. compute reward score
+4. balance batch across DP groups
+5. compute $\log \pi_{\theta_{old}}$
+6. compute $\log\pi_{\mathrm{ref}}$
+7. compute critic values
+8. compute advanteg and return
+9. update critic
+10. update actor
