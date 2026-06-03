@@ -2,4 +2,14 @@
 
 Shazeer [@shazeer2017]
 
+EP 的计算分为以下步骤：
+
+1. router computation, 用于选取 topK 专家
+2. permute, 将每个专家匹配的到的 token 收集到一起方便传输
+3. all-to-all dispatch, 将不同专家的 token 分配给不同专家
+4. expert computation, 不同专家计算对应的输出
+5. all-to-all combine, 将不同专家的输出进行聚合
+
 一般来说，EP rank 和 TP rank 一致，这样可以简化计算，但是也导致EP不再是一个独立的scaling axis.
+
+Composer 2.5 对这个进行了优化。
