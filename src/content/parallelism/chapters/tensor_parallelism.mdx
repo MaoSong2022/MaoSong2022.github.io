@@ -1,11 +1,72 @@
 
 import Image from '../../../components/Image.astro';
+import HtmlEmbed from '../../../components/HtmlEmbed.astro';
 import megatron_lm_transformer_architecture from '../../../assets/image/megatron-lm-transformer-architecture.png';
 import megatron_lm_mlp_tp from '../../../assets/image/megatron-lm-MLP-tp.png';
 import megatron_lm_swiglu_tp from '../../../assets/image/megatron-lm-SwiGLU-TP.png';
 import megatron_lm_mha_tp from '../../../assets/image/megatron-lm-mha-tp.png';
 
 ## Tensor Parallelism
+
+Tensor Parallelism (TP) 是一个将模型切分为多个部分部署在不同 GPU 上进而降低 activation memory的方法。
+
+在 [Data Parallelism](#data-parallelism) 中，我们尝试了对 optimizer states, gradients, parameters 进行切分来降低内存占用。但是，训练时的 activation 仍然可能会超过 GPU memory limit.
+
+### Basic Usage
+
+TP 主要利用了矩阵乘法的数学性质，考虑 $A\times B$, 其中 $A=[A_1,A_2,\dots]$, $B=[B_1,B_2,\dots]$.
+我们可以对 $A$ 或者 $B$ 进行分解：
+
+按列分解：
+$$
+A\times B = A\times \begin{bmatrix} B_1 & B_2&\dots \end{bmatrix}=\begin{bmatrix} AB_1 & AB_2&\dots\end{bmatrix}
+$$
+
+按行分解：
+$$
+A\times B = \begin{bmatrix} A_1 & A_2&\dots \end{bmatrix}\times \begin{bmatrix} B_1 \\ B_2\\ \vdots \end{bmatrix}=\sum_{i} A_iB_i
+$$
+
+可以看到，我们计算矩阵乘法 $A\times B$ 时，可以通过先计算 $AB_i$, 或者 $A_iB$ 之后再进行组装得到相同的结果。
+
+在神经网络中，矩阵乘法的形式通常为 $X\times W$, 其中：
+
+1. $X$ 代表输入的 hidden states
+2. $W$ 代表 linear layer 的权重
+
+正常来说，一个 linear layer 的计算方式为 $Y=XW$ (我们不考虑 bias), 示意图如下所示
+
+<HtmlEmbed
+    src="TP_linear.html"
+    title="vanilla linear layer computation"
+/>
+
+我们下面讨论不同的策略，首先是按列分解，即 column-wise, 此时我们会先将权重 $W$ 按列切分部署在不同的 GPU 上, 然后输入 $X$ 会被复制到不同的 GPU 上参与计算得到 $XW_i$, 最后通过 AllGather 得到最终的输出 $\begin{bmatrix} XW_1 & XW_2&\dots\end{bmatrix}$, 示意图如下所示
+
+<HtmlEmbed
+    src="TP_column_linear.html"
+    title="TP ColumnLinear computation"
+/>
+
+其次，我们可以按行分解，即 row-wise, 此时我们先将权重 $W$ 按行切分部署在不同的 GPU 上, 然后输入 $X$ 会通过scatter 按列切分到不同的 GPU 上参与计算得到 $X_iW_i$, 最后通过 AllReduce 得到最终的输出 $\sum_{i} X_iW_i$, 示意图如下所示
+
+<HtmlEmbed
+    src="TP_row_linear.html"
+    title="TP RowLinear computation"
+/>
+
+### TP in Transformer
+
+接下来，我们看一下 transformer 是如何使用 TP 来进行优化的。
+TP主要应用于 attention, MLP, embedding 三个模块。
+
+#### MLP
+
+#### Attention
+
+#### Embedding
+
+### Analysis
 
 随着模型参数变大，现有的 GPU 已经很难使用单一 GPU 来训练模型。对于多 GPU 训练场景，目前主要采用了 pipeline parallelism, 比如 [GPipe](/p/gpipe/) 等，但是，这些策略需要我们对代码进行比较大的改动，这提高了开发成本。
 
