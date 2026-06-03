@@ -1,9 +1,10 @@
 
-# MLE
+## MLE
 
 最大似然估计，即MLE (maximum likelihood estimation), 是一个估计参数分布的方法，其核心思想是：模型的参数，应该让观察样本出现的概率最大。
 
-假设我们有一个参数分布 $p(x\mid \theta)$, 其中 $\theta$ 是参数，如正态分布中的均值和方差。我们从$p(x\mid \theta)$进行采样得到 $i.i.d.$ 的数据 $X=\{x_1,\dots,x_n\}$.
+假设我们有一个参数分布 $p(x\mid \theta)$, 其中 $\theta$ 是参数，如正态分布中的均值和方差。
+我们从$p(x\mid \theta)$进行采样得到 $i.i.d.$ 的数据 $X=\{x_1,\dots,x_n\}$.
 
 似然函数 (likelihood function) 定义为给定数据 $X$ 的联合分布，即：
 
@@ -34,7 +35,7 @@ $$
 \theta_{MLE}^* = \arg\max_{\theta} \sum_{i=1}^n \log p(x_i\mid \theta)
 $$
 
-# KL divergence
+### KL divergence
 
 KL divergence 用于衡量概率分布 $Q(x)$ 到概率分布 $P(x)$ 的不同程度，我们可以将其理解为：如果我们用 $Q(x)$来替换 $P(x)$, 会有多大的信息损失？
 
@@ -54,7 +55,7 @@ KL divergence有两个关键性质：
 1. 非负性：$D_{KL}(P\mid\mid Q)\geq0$, 且 $D_{KL}(P\mid\mid Q)=0$ 当且仅当 $P(x)=Q(x)$ 对任意 $x$成立
 2. 非对称性： 一般情况下，$D_{KL}(P\mid\mid Q)\neq D_{KL}(Q\mid\mid P)$.
 
-# MLE和KL Divergence的等价性
+### MLE和KL Divergence的等价性
 
 我们假设 $p_{data}(x)$ 是数据$X$的真实分布， 我们现在需要找到合适的参数 $\theta$ 以及其对应的分布 $p(x\mid \theta)$ 来近似 $p_{data}(x)$, 此时我们可以用KL Divergence作为我们的目标函数，即
 
@@ -79,7 +80,7 @@ $$
 基于大数定律，我们有
 
 $$
-\frac{1}{n}\sum_{i=1}^n\log p(\theta_i\mid \theta)=\mathbb{E}_{x\sim p_{data}}[\log p(x\mid \theta)] = \int p_{data}(x)\log p(x\mid \theta)dx, n\to \infty
+\frac{1}{n}\sum_{i=1}^n\log p(x_i\mid \theta)=\mathbb{E}_{x\sim p_{data}}[\log p(x\mid \theta)] = \int p_{data}(x)\log p(x\mid \theta)dx, n\to \infty
 $$
 
 这样，最大似然估计就与最小化KL divergence构建起了联系：
