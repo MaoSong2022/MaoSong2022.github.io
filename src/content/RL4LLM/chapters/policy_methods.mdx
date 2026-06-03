@@ -1,22 +1,28 @@
 import Algorithm from '../../../components/Algorithm.astro';
 import Theorem from '../../../components/Theorem.astro'
+import Note from '../../../components/Note.astro'
+import Wide from '../../../components/Wide.astro'
 
 ## Policy Based Methods
 
-policy-based methods 的 motivation 很好理解，我们想要找到一个 optimal policy, 那我们就采集一些数据，通过一些方法来不停改进当前策略 $\pi$, 直到当前策略达到最优。
+policy-based methods 的 motivation 很好理解，我们想要找到一个 optimal policy, 那我们就直接对当前 policy 进行优化。
 
-根据采样数据所使用 policy 的不同，policy-based methods 一般会被分为两类：
+<Note title="Core idea" emoji="💡" variant="info">
+  我们基于某个策略采集一些数据，通过直接优化的方法来不停改进当前策略 $\pi$, 直到当前策略达到最优
+</Note>
+
+根据采样策略的不同，policy-based methods 一般会被分为两类：
 
 1. on-policy: 采集数据的 policy 和训练更新的 policy 一致
 2. off-policy: 采集数据的 policy 和训练更新的 policy 不一致
 
 这两者的核心区别在于：我们更新模型所使用的数据是否由当前模型产生？如果回答是，则说明算法是 On-policy, 反之则说明是 Off-policy.
 
-on-policy 和 off-policy 对比
+on-policy 和 off-policy 对比如下表所示
 
-|                    | on-policy                          | off-policy              |
-| ------------------ | ---------------------------------- | ----------------------- |
-| examples           | PPO, TRPO                          | DQN, DPO, DDPG          |
+|   Category         | on-policy                          | off-policy              |
+| :------------------: | :----------------------------------: | :-----------------------: |
+| examples           | PPO, TRPO                          | DQN, DDPG          |
 | sampled from       | current policy                     | arbitrary policy        |
 | exploration        | yes                                | no                      |
 | infra efficiency   | low (needs to generate new sample) | high                    |
@@ -26,7 +32,7 @@ on-policy 和 off-policy 对比
 
 ### Policy Gradient Theorem
 
-我们的目标仍然是最大化累计奖励，目标函数为
+我们的目标与前面一致，仍然是最大化累计奖励，目标函数为
 
 $$
 \max_{\pi}\mathcal{J}(\theta)=\mathbb{E}_{s_0\sim p_0}\left[V^{\pi_\theta}(s_0)\right]=\mathbb{E}_{s_0\sim p_0}^{\pi_\theta}\left[\sum_{t=0}^{T-1}\gamma^tr_t\right]
@@ -45,10 +51,11 @@ p_\theta(\tau) = p_0(s_0)\prod_{t=0}^{T-1} p(r_t,s_{t+1}\mid s_t,a_t)\pi_\theta(
 $$
 
 我们使用 cumulative return 的定义，就得到
-
+<Wide>
 $$
 \mathcal{J}(\theta)=\mathbb{E}_{s_0\sim p_0}^\pi\left[\sum_{t=0}^{T-1}\gamma^tr_t\right] = \mathbb{E}_{s_0\sim p_0,a_t\sim\pi_\theta(\cdot\mid s_t), (r_t,s_{t+1})\sim p(\cdot,\cdot\mid s_t,a_t)}^\pi\left[\sum_{t=0}^{T-1}\gamma^tr_t\right] = \mathbb{E}_{\tau\sim(p_0,\pi_\theta, p)}\left[G_0(\tau)\right]
 $$
+</Wide>
 
 此时，目标函数的梯度为
 
@@ -103,7 +110,7 @@ $$
 \hat{g} := \sum_{t=0}^{T-1}\nabla_\theta\log\pi_\theta(a_t\mid s_t)G_0(\tau)
 $$
 
-则 $\hat{g}$ 是 $\nabla_\theta \mathcal{J}(\theta)$ 的一个无偏估计。
+由 $\nabla_\theta \mathcal{J}(\theta)$ 定义，我们知道 $\hat{g}$ 是 $\nabla_\theta \mathcal{J}(\theta)$ 的一个无偏估计。
 
 基于 MC 思想，我们可以得到最简单的 policy gradient algorithm, 也就是 REINFORCE 算法
 
@@ -122,17 +129,32 @@ $$
 
 ### Variance Reduction
 
-$g$ 虽然是 $\nabla_\theta \mathcal{J}(\theta)$ 的一个无偏估计，但是使用 $g$ 作为估计会出现比较大的方差，我们本节主要介绍如何减少 $g$ 作为估计的方差，这里需要用到 policy gradient baseline invariance 的性质
+$g$ 虽然是 $\nabla_\theta \mathcal{J}(\theta)$ 的一个无偏估计，但是使用 $g$ 作为估计会出现比较大的方差，TODO why?
 
-### Baseline Invariance
+我们本节主要介绍如何减少 $g$ 作为估计的方差，这里需要用到 policy gradient baseline invariance 的性质
+
+#### Baseline Invariance
+
+首先我们介绍 policy gradient 的 baseline invariance 性质
+
+<Theorem variant='Property' title="Baseline Invairance of Policy Gradient">
 
 我们有如下等式
 
 $$
-\mathbb{E}_{\tau\sim(p_0,\pi_\theta, p)}\left[ \sum_{t=0}^{T-1}\nabla_\theta\log\pi_\theta(a_t\mid s_t)\sum_{t=0}^{T-1}r(s_t)\right] = \mathbb{E}_{\tau\sim(p_0,\pi_\theta, p)}\left[ \sum_{t=0}^{T-1}\nabla_\theta\log\pi_\theta(a_t\mid s_t)\left(\sum_{t=0}^{T-1}r(s_t)-b(s_t)\right)\right]
+\begin{aligned}
+&\mathbb{E}_{\tau\sim(p_0,\pi_\theta, p)}\left[ \sum_{t=0}^{T-1}\nabla_\theta\log\pi_\theta(a_t\mid s_t)\sum_{t=0}^{T-1}r(s_t)\right] \\
+=& \mathbb{E}_{\tau\sim(p_0,\pi_\theta, p)}\left[ \sum_{t=0}^{T-1}\nabla_\theta\log\pi_\theta(a_t\mid s_t)\left(\sum_{t=0}^{T-1}r(s_t)-b(s_t)\right)\right]
+\end{aligned}
 $$
 
-其中 $b$ 是一个仅与状态有关的函数或者常数。上述等式说明我们可以通过改变 $b$ 来调整 policy gradient 的 variance, 为了证明这个等式，我们证明
+其中 $b$ 是一个仅与状态有关的函数或者常数。
+
+</Theorem>
+
+<Theorem variant='proof'>
+
+我们证明
 
 $$
 \mathbb{E}_{\tau\sim(p_0,\pi_\theta, p)}\left[b(s_t)\nabla_\theta \log p_\theta(a_t\mid s_t)\right]=0
@@ -141,22 +163,30 @@ $$
 注意到
 
 $$
-\begin{align}
+\begin{aligned}
 \mathbb{E}_{\tau\sim(p_0,\pi_\theta, p)}\left[b(s_t)\nabla_\theta \log p_\theta(a_t\mid s_t)\right] &= \mathbb{E}_{s_0\sim p_0}\left[b(s_t)\mathbb{E}_{a_t\sim\pi_\theta(\cdot\mid s_t)}\left[\nabla_\theta \log \pi_\theta(a_t\mid s_t)\right]\right]\\
 &= \mathbb{E}_{s_0\sim p_0}\left[b(s_t)\sum_{a}\nabla_\theta \pi_\theta(a\mid s)\right]\\
 &= \mathbb{E}_{s_0\sim p_0}\left[b(s_t)\nabla_\theta \sum_{a}\pi_\theta(a\mid s)\right]\\
 &= \mathbb{E}_{s_0\sim p_0}\left[b(s_t)\nabla_\theta 1\right]\\
 &=0
-\end{align}
+\end{aligned}
 $$
 
-因此，我们就得到了如上结论。$\blacksquare$
+因此， policy gradient 满足 baseline invairance property.
+</Theorem>
 
+上述等式说明我们可以通过改变 $b$ 来调整 policy gradient 的 variance,
 我们将 $b(s_t)$ 称为 **baseline**.
 
-### Reward to Go
+#### Reward to Go
 
-Reward to go 的基本思想是，对于时刻 $t$, 过去的轨迹 $s_0,r_0,\dots,r_{t-1}$ 不应该被考虑，因为它们都已经固定了,加入它们会产生额外的 variance, 此时，我们对应的 $b(s_t)$ 定义为
+Reward to go 的基本思想为
+
+<Note title="Core idea" emoji="💡" variant="info">
+对于时刻 $t$, 过去的轨迹 $s_0,r_0,\dots,r_{t-1}$ 不应该被考虑，因为它们都已经固定了,加入它们会产生额外的 variance, 此时，我们对应的 $b(s_t)$ 定义为
+</Note>
+
+其定义的 baseline 如下所示
 
 $$
 b(s_t) = \sum_{k=0}^{t}\gamma^k r_k
@@ -183,11 +213,11 @@ $$
 
 </Algorithm>
 
-### Optimal Baseline
+#### Optimal Baseline
 
 我们可以从理论上推导出最优 baseline.
 
-**Lemma**
+<Theorem variant='lemma'>
 
 令 $s$ 和 $a$ 为随机变量，$w(s,a)$, $Q(s,a)$, $b(s)$ 为函数，则
 
@@ -201,29 +231,36 @@ $$
 b^*(s) = \frac{\mathbb{E}_{a\mid s}\left[w^2(s,a)Q(s,a)\mid s\right]}{\mathbb{E}_{a\mid s}\left[w^2(s,a)\mid s\right]}
 $$
 
-证明
+</Theorem>
+
+<Wide>
+<Theorem variant='proof'>
+对目标函数进行展开得到
 
 $$
-\begin{align}
+\begin{aligned}
 \mathbb{E}_{a,s}\left[w^2(s,a)\left(Q(s,a)-b(s)\right)^2\right]&= \mathbb{E}_{a,s}\left[w^2(s,a)\left(Q(s,a)-b^*(s)+b^*(s)-b(s)\right)^2\right]\\
 &= \mathbb{E}_{a,s}\left[w^2(s,a)\left(Q(s,a)-b^*(s)\right)^2\right]+\mathbb{E}_{a,s}\left[w^2(s,a)\left(b^*(s)-b(s)\right)^2\right]\\
 &+2\mathbb{E}_{a,s}\left[w^2(s,a)\left(Q(s,a)-b^*(s)\right)\left(b^*(s)-b(s)\right)\right]\\
 &= \mathbb{E}_{a,s}\left[w^2(s,a)\left(Q(s,a)-b^*(s)\right)^2\right]+\mathbb{E}_{a,s}\left[w^2(s,a)\left(b^*(s)-b(s)\right)^2\right]\\
 &\geq \mathbb{E}_{a,s}\left[w^2(s,a)\left(Q(s,a)-b^*(s)\right)^2\right]
-\end{align}
+\end{aligned}
 $$
 
 其中第三个等式用到了
 
 $$
-\begin{align}
+\begin{aligned}
 \mathbb{E}_{a,s}\left[w^2(s,a)\left(Q(s,a)-b^*(s)\right)\left(b^*(s)-b(s)\right)\right]&= \mathbb{E}_{s}\left[\mathbb{E}_{a\mid s}\left[w^2(s,a)\left(Q(s,a)-b^*(s)\right)\left(b^*(s)-b(s)\right)\right]\mid s\right]\\
 &= \mathbb{E}_{s}\left[\left(\mathbb{E}_{a\mid s}\left[w^2(s,a)Q(s,a)\mid s\right] - \mathbb{E}_{a\mid s}\left[w^2(s,a)\mid s\right]b^*(s)\right)\left(b^*(s)-b(s)\right)\right]\\
 &=0
-\end{align}
+\end{aligned}
 $$
 
 证毕。$\blacksquare$
+
+</Theorem>
+</Wide>
 
 基于上述引理，我们可以得到关于 baseline invariance 中的最优 basline:
 
@@ -248,7 +285,9 @@ $$
 我们定义
 
 $$
+\boxed{
 A^{\pi_\theta}(s_t,a_t) := Q^{\pi_\theta}(s_t,a_t)-V^{\pi_\theta}(s_t)
+}
 $$
 
 为 $a_t$ 在 $s_t$ 处的 **advantage**. 注意到 $V^{\pi_\theta}(s_t)$ 评估了当前状态下沿着策略 $\pi_\theta$ 所能够获得的 discounted return, 因此 advantage 说明了 action $a_t$ 对于 $\pi_\theta$ 的平均好坏程度：
@@ -343,7 +382,7 @@ $$
 \nabla_\theta \mathcal{J}(\theta)=\mathbb{E}_{\tau\sim(p_0,\pi_\theta, p)}\left[\Psi(\tau)\nabla_\theta \log p_\theta(\tau)\right]=\mathbb{E}_{\tau\sim(p_0,\pi_\theta, p)}\left[\sum_{t=0}^T\Psi_t(\tau)\nabla_\theta \log p_\theta(\tau)\right]
 $$
 
-则
+则不同的方法对应的表达式如下
 
 | Method       | Expression                                                |
 | ------------ | --------------------------------------------------------- |
@@ -353,8 +392,4 @@ $$
 
 ### Experiments
 
-在本节中，我们将对比 REINFORCE 算法的不同变体。我们使用
-
-### Conclusion
-
-在本节中，我们推导了 policy gradient 的具体形式，然后针对 REINFORCE 算法 variance 过高的问题，我们介绍了不同的减少 variance 的方法。最后，我们从理论上分析了为什么这些方法可以降低 variance.
+TODO
