@@ -1,0 +1,16 @@
+
+## LoRA
+
+### Advantage
+
+1. mult-tenant serving: 一个 inference engine 可以 serve 多个 adapters
+2. layout size for training: LoRA 只需要保存非常小的优化器状态
+3. ease of loading and transfer: 只需要保存非常小一部分参数
+
+结论
+
+1. 对于中小规模的 instruction 和 reasoning 数据集，LoRA 和 full fine-tuning 的表现差不多
+2. 当数据集规模超过 LoRA 的 capacity 之后，FullFT 的效果比 LoRA 好
+3. LoRA 有时候对 large batch size 更敏感
+4. 对于比较小的数据，LoRA比全量微调更好，特别是 MLP 和 MoE, attention-only LoRA 比 FullFT 效果差
+5. LoRA 在 RL 中 和 FullFT 效果差不多， RL需要非常小的 capacity
