@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>LLM MLP (SwiGLU) 计算流程图</title>
+    <style>
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+        background-color: #f8f9fa;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        margin: 0;
+        padding: 20px;
+      }
+
+      h2 {
+        color: #333;
+        margin-bottom: 5px;
+      }
+
+      .formula {
+        font-size: 1.2rem;
+        color: #555;
+        margin-bottom: 30px;
+        background: #fff;
+        padding: 10px 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      }
+
+      .flowchart {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        background: white;
+        padding: 40px;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+      }
+
+      .row {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        width: 100%;
+        position: relative;
+      }
+
+      /* 矩阵/操作节点样式 */
+      .node {
+        padding: 12px 20px;
+        border-radius: 6px;
+        font-weight: bold;
+        text-align: center;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+        border: 2px solid #ccc;
+        background-color: #fff;
+      }
+
+      .shape {
+        font-size: 0.85rem;
+        color: #666;
+        font-weight: normal;
+        margin-top: 4px;
+      }
+
+      /* 颜色体系 */
+      .node-input {
+        border-color: #4a90e2;
+        background-color: #e6f0fa;
+      }
+      .node-weight {
+        border-color: #f5a623;
+        background-color: #fdf5e6;
+      }
+      .node-op {
+        border-color: #e2849a;
+        background-color: #fbebee;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        padding: 0;
+      }
+      .node-act {
+        border-color: #7ed321;
+        background-color: #f0f9e6;
+      }
+      .node-output {
+        border-color: #9013fe;
+        background-color: #f5e6ff;
+      }
+
+      /* 连线与箭头 */
+      .arrow-v {
+        width: 2px;
+        height: 30px;
+        background-color: #999;
+        position: relative;
+      }
+      .arrow-v::after {
+        content: "";
+        position: absolute;
+        bottom: 0;
+        left: -4px;
+        border-width: 5px 5px 0;
+        border-style: solid;
+        border-color: #999 transparent transparent;
+      }
+
+      /* 分支连线 */
+      .branch-container {
+        display: flex;
+        justify-content: space-between;
+        width: 500px;
+        position: relative;
+      }
+
+      .branch-line-left,
+      .branch-line-right {
+        position: absolute;
+        top: -15px;
+        height: 15px;
+        border-top: 2px solid #999;
+      }
+      .branch-line-left {
+        left: 25%;
+        right: 50%;
+        border-left: 2px solid #999;
+      }
+      .branch-line-right {
+        left: 50%;
+        right: 25%;
+        border-right: 2px solid #999;
+      }
+
+      .merge-container {
+        display: flex;
+        justify-content: space-between;
+        width: 500px;
+        position: relative;
+        height: 30px;
+      }
+      .merge-line-left,
+      .merge-line-right {
+        position: absolute;
+        bottom: 0;
+        height: 30px;
+        border-bottom: 2px solid #999;
+      }
+      .merge-line-left {
+        left: 25%;
+        right: 50%;
+        border-left: 2px solid #999;
+      }
+      .merge-line-right {
+        left: 50%;
+        right: 25%;
+        border-right: 2px solid #999;
+        position: relative;
+      }
+
+      .merge-arrow-v {
+        width: 2px;
+        height: 20px;
+        background-color: #999;
+        margin: 0 auto;
+        position: relative;
+      }
+      .merge-arrow-v::after {
+        content: "";
+        position: absolute;
+        bottom: -5px;
+        left: -4px;
+        border-width: 5px 5px 0;
+        border-style: solid;
+        border-color: #999 transparent transparent;
+      }
+
+      .gate-label {
+        font-size: 0.8rem;
+        color: #888;
+        margin-bottom: 2px;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>MLP 中的 SwiGLU 计算流程</h2>
+    <div class="formula">Y = ((X · A) ⊙ sigmoid(X · B)) · C</div>
+
+    <div class="flowchart">
+      <div class="row">
+        <div class="node node-input">
+          输入 X
+          <div class="shape">[bs, d]</div>
+        </div>
+      </div>
+
+      <div class="branch-container">
+        <div class="branch-line-left"></div>
+        <div class="branch-line-right"></div>
+      </div>
+
+      <div class="row" style="width: 600px; justify-content: space-around">
+        <div style="display: flex; flex-direction: column; align-items: center">
+          <div class="arrow-v"></div>
+          <div class="node node-weight">
+            矩阵乘法 (· A)
+            <div class="shape">A: [d, d_ff]</div>
+          </div>
+          <div class="arrow-v"></div>
+          <div class="node node-act" style="border-style: dashed">
+            XA
+            <div class="shape">[bs, d_ff]</div>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; align-items: center">
+          <div class="arrow-v"></div>
+          <div class="node node-weight">
+            矩阵乘法 (· B)
+            <div class="shape">B: [d, d_ff]</div>
+          </div>
+          <div class="arrow-v"></div>
+          <div class="node node-act">
+            激活函数 Swish / Silu
+            <div class="gate-label">sigmoid(XB) * XB</div>
+            <div class="shape">[bs, d_ff]</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="merge-container">
+        <div class="merge-line-left"></div>
+        <div class="merge-line-right"></div>
+      </div>
+      <div class="merge-arrow-v"></div>
+
+      <div class="row">
+        <div class="node node-op">
+          <span style="font-size: 1.2rem">⊙</span>
+          <span style="font-size: 0.7rem; font-weight: normal"
+            >Element-wise</span
+          >
+        </div>
+      </div>
+
+      <div class="arrow-v"></div>
+
+      <div class="row">
+        <div class="node node-act" style="background-color: #fafafa">
+          中间激活值
+          <div class="shape">[bs, d_ff]</div>
+        </div>
+      </div>
+
+      <div class="arrow-v"></div>
+
+      <div class="row">
+        <div class="node node-weight">
+          矩阵乘法 (· C)
+          <div class="shape">C: [d_ff, d]</div>
+        </div>
+      </div>
+
+      <div class="arrow-v"></div>
+
+      <div class="row">
+        <div class="node node-output">
+          输出 Y
+          <div class="shape">[bs, d]</div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
