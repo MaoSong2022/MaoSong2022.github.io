@@ -300,6 +300,44 @@ class TPMultiHeadAttention(nn.Module):
 
 </Accordion>
 
+#### LayerNorm
+
+LayerNorm (我们本文中考虑 RMSNorm [@RMSNorm]) 的计算与 MLP, attention 模块有所不同，其计算方式为
+
+$$
+\mathrm{RMSNorm}(X) = \gamma\odot \frac{X}{\sqrt{||X||_2^2+\epsilon}}
+$$
+
+由于 RMSNorm 是在 channel dimension 进行的，因此对于 attention 和 MLP 的输出，我们必须再重新收集得到 LayerNorm 的输入 $X\in\mathbb{R}^{b\times s\times d}$.
+这样，尽管 RMSNorm 的计算非常简单，但是其仍然需要保存较大的 activation, sequence parallelism (SP) 则使用了和 TP 类似的思想，来将 RMSNorm 的 activation 切分到不同的 GPU 上。
+
+SP 的具体做法就是沿着 sequence dimension 进行切分，即
+
+$$
+\begin{aligned}
+[X_1,X_2,\dots] &= \mathrm{ReduceScatter}(X), X_i\in\mathbb{R}^{b\times s/\mathrm{SP}\times d}\\
+Y_i &= \mathrm{RMSNorm}(X_i), Y_i\in\mathbb{R}^{b\times s/\mathrm{SP}\times d}\\
+Y &= \mathrm{AllGather}([Y_1,Y_2,\dots]),Y\in\mathbb{R}^{b\times s\times d}
+\end{aligned}
+$$
+
+计算流程图如下所示 （假设 $SP=2$）
+
+<HtmlEmbed
+    src="sp_layernorm.html"
+    title="SP for LayerNorm (RMSNorm)"
+/>
+
+这里 $f$ 和 $g$ 也是是两个对偶通信算子，代表了 SP 产生的额外通信开销，本节后续我们也沿用相同的记号。
+
+| operator | forward      | backward     |
+| :------: | :----------: | :----------: |
+| $f$      |   ReduceScatter   |   AllGather  |
+| $g$      |   AllGather   |  ReduceScatter   |
+
+可以看到，SP 其实也是 TP 的一种特殊形式，只不过 MLP 和 attention 都是针对 channel dimension 进行切分，而 RMSNorm 是针对 sequence dimension 进行切分。
+这样，LayerNorm 对应的 activation 大小为 $bsd/\mathrm{SP}$.
+
 #### Embedding
 
 embedding layer 的 TP 与 linear layer 的 TP 基本一致，我们将 embedding table $E\in\mathbb{R}^{V\times d}$ 按行进行切分，然后每个 TP rank 上存储部分的 embedding table, 计算时也是基于 row-wise的方式进行计算。[DeepSeek-V4 的代码实现](https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro/blob/main/inference/model.py#L83) 如下
@@ -334,9 +372,21 @@ class ParallelEmbedding(nn.Module):
 
 </Accordion>
 
-对于 output embedding, 我们也可以使用类似的做法进行切分，每个 GPU 上计算完结果之后我们还需要一个 `all-gather` 来汇总结果。
+#### Output
 
-作者在这里还额外介绍了针对 output embedding 的优化方法，由于 embedding 的输出大小为 $[bs, V]$, 而 $V$ 通常比较大，因此，为了降低通信开销，作者将 cross-entropy-loss 与 output embedding kernel 进行融合，这样我们传输的数据量就减少到了 $bs$.
+Output layer, 也就是 `lm_head`, 负责将 transformer 输出的 hidden states $X\in\mathbb{R}^{bs\times d}$ 转化为词表上的 logits 用于计算概率分布，公式为
+
+$$
+\mathrm{logits} = XW \in\mathbb{R}^{bs\times V}
+$$
+
+此时，与 [Embedding](##embedding) 相似，我们使用 column-wise 的 TP 策略来进行切分
+
+#### Loss
+
+在计算 loss 时，我们的输入和输出大小都是 $\mathrm{logits}\in\mathbb{R}^{bs\times V}$, 一般来说 $bsV$ 很大，因此这部分也可以通过 TP 来进行优化。
+
+在 Megatron [@Megatron] 中，作者还额外介绍了针对 output embedding 的优化方法，由于 embedding 的输出大小为 $[bs, V]$, 而 $V$ 通常比较大，因此，为了降低通信开销，作者将 cross-entropy-loss 与 output embedding kernel 进行融合，这样我们传输的数据量就减少到了 $bs$.
 
 ### Experiments
 
@@ -372,3 +422,7 @@ TODO 增加 throughput 和 maximum batch size
 TODO 增加唉 70B 的结果
 
 总的来说，将 TP size 设置为 8 是一个比较好的选择，但是后续的 layernorm 依然需要所有的 activation, 因此，在下一节我们将要学习 sequence parallelism.
+
+TP + SP 的问题： 如果我们使用超长的 sequence, activation 还是可能会导致 OOM
+
+为了解决长序列的 activation 导致的 OOM 问题，我们可以通过 context parallelism 来解决这个问题。
