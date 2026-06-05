@@ -44,7 +44,15 @@ $$
 
 从而我们保证了模型每一次更新之后，在不同的 DP rank 上都是一致的。
 
-TODO: 增加pipeline
+将上面的流程进行汇总，我们就得到 DP 的计算过程：
+
+1. TODO
+2. TODO
+3. TODO
+
+对应的 pipeline 如下所示：TODO:
+
+一个 batch 上的 DP 运行过程如下：TODO
 
 ### Optimization
 
@@ -111,8 +119,9 @@ $$
 ### ZeRO
 
 在上一节我们介绍了如何使用多个 GPU 来实现 DP.
-但是，我们这样做又一个内在假设：模型权重可以被放到单个 GPU 里。
-现在大部分模型都不能放到一个 GPU 里，因此，我们需要对现有的 DP 算法进行优化。
+我们这样做有一个内在假设：模型权重可以被放到单个 GPU 里。
+但是，现在大部分模型都不能放到一个 GPU 里，一个 80GB HBM 内存的 GPU 最多只能放下一个 40B (BF16精度) 的模型，而现在大部分模型都到了 $\sim100$ B的级别。
+因此，我们需要对现有的 DP 算法进行优化。
 
 第一个算法就是微软提出的 ZeRO [@ZeRO]. ZeRO 的核心思想为
 
@@ -140,7 +149,8 @@ TODO: 框架图
 
 假设我们现在有 $N$ 个 GPU, 我们分别来介绍不同的 ZeRO 算法
 
-**ZeRO-1**
+#### ZeRO-1
+
 对于 ZeRO-1 来说，我们会把 optimizer states 均匀切分到 $N$ 个 GPU上，这样每个 GPU 保存的就是 $k\Psi/N$ (这里我们用 $k$ 来表示不同 optimizer 对应的系数，对 Adam 来说是
 $12$).
 这样，每个 GPU 上的内存消耗就是 $2\Psi+2\Psi+k\Psi/N$
@@ -157,6 +167,57 @@ $12$).
 
 pipeline 如下所示：TODO
 
-### FSDP
+与 naive DP 一样，我们有两种优化方式：
 
-Fully Sharded Data Parallelism (FSDP) [@FSDP; @SimpleFSDP] 由 meta 提出
+1. during the optimizer step: TODO
+2. during the forward pass: TODO
+
+#### ZeRO-2
+
+ZeRO-2 在 ZeRo-1 的基础上，进一步把 gradient 也进行了 sharding,
+
+计算图：TODO
+
+可以看到，现在每个 GPU 上的内存为
+
+$$
+2\Psi + \frac{2\Psi + k\Psi}{N}
+$$
+
+ZeRO-2 和 ZeRO-1的区别在于，我们会实时进行通信以及释放内存：
+
+通信开销：ZeRO-2 需要对 gradients 做一次 AllGather 和 AllReduce, 因此总开销为 $\Psi+\Psi=2\Psi$.
+
+#### ZeRO-3
+
+ZeRO-3 则进一步将模型参数也进行了 sharding, Pytorch 将 ZeRO-3 的原生实现称之为 Fully Sharded Data Parallelism (FSDP) [@FSDP; @SimpleFSDP].
+
+ZeRO-3 在 forward pass 中，先使用 AllGather 收集所需参数再进行计算，计算完之后，收集的参数会被立即释放。
+Backward pass 时，也是一样的道理
+
+通信开销: forward pass 和 backward pass 都需要对参数进行一次 AllGather, 通信量为 $\Psi+\Psi=2\Psi$, 对于梯度，ZeRO-3 和 ZeRO-2 一样，也是 $\Psi$, 因此总的开销为 $3\Psi$.
+
+内存开销：
+
+$$
+\frac{2\Psi+2\Psi+k\Psi}{N}
+$$
+
+优化： 在 DP 不太大的时候可以使用 prefetching, forward pass 时提前收集下一层的权重进行计算
+
+#### Analysis on ZeRO
+
+三者对比情况如下
+
+|         Strategy         |       naive DP      |             ZeRO-1            |             ZeRO-2            |             ZeRO-3            |
+|:------------------------:|:-------------------:|:-----------------------------:|:-----------------------------:|:-----------------------------:|
+| Optimizer States per GPU |       $k\Psi$       |       $\frac{k\Psi}{N}$       |       $\frac{k\Psi}{N}$       |       $\frac{k\Psi}{N}$       |
+|     Gradients per GPU    |       $2\Psi$       |            $2\Psi$            |       $\frac{2\Psi}{N}$       |       $\frac{2\Psi}{N}$       |
+|    Parameters per GPU    |       $2\Psi$       |            $2\Psi$            |            $2\Psi$            |       $\frac{2\Psi}{N}$       |
+|  Overall Memory per GPU  | $2\Psi+2\Psi+k\Psi$ | $2\Psi+2\Psi+\frac{k\Psi}{N}$ | $2\Psi+\frac{2\Psi+k\Psi}{N}$ | $\frac{2\Psi+2\Psi+k\Psi}{N}$ |
+|       Communication      |          0          |            $2\Psi$            |            $2\Psi$            |            $3\Psi$            |
+|          Models          |          -          |                               |                               |                               |
+|           Notes          |                     |                               |                               |                               |
+
+ZeRO 的问题：只对参数，优化器状态，梯度有效，对于 activation 无效。
+为了解决 activation 过大的问题，我们可以使用下一节提出的 TP 策略。
