@@ -10,6 +10,12 @@ EP 的计算分为以下步骤：
 4. expert computation, 不同专家计算对应的输出
 5. all-to-all combine, 将不同专家的输出进行聚合
 
+计算 pipeline 如下所示: TODO
+
 一般来说，EP rank 和 TP rank 一致，这样可以简化计算，但是也导致EP不再是一个独立的scaling axis.
 
 Composer 2.5 对这个进行了优化。
+
+DeepSeek-V4 进一步实现了细粒度的 EP 优化
+
+### Analysis
