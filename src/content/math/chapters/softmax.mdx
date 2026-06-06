@@ -1,5 +1,7 @@
 
 import Image from '../../../components/Image.astro';
+import Accordion from '../../../components/Accordion.astro';
+import Algorithm from '../../../components/Algorithm.astro';
 import softmax_impact_variance from '../../../assets/image/softmax_impact_variance.png';
 
 ## Softmax
@@ -35,13 +37,13 @@ $$
 
  设输入为向量 $\mathbf{z} = [z_1, z_2, \dots, z_d]^\top \in \mathbb{R}^d$，Softmax 函数的输出为向量 $\mathbf{a} = [a_1, a_2, \dots, a_d]^\top \in \mathbb{R}^d$，其中每个元素定义为：
 
- $$
+$$
 a_j = \text{softmax}(\mathbf{z})_j = \frac{e^{z_j}}{\sum_{k=1}^d e^{z_k}}
 $$
 
- 记分母（归一化因子）为 $S = \sum_{k=1}^d e^{z_k}$，则 $a_j = e^{z_j}/S$.
+记分母（归一化因子）为 $S = \sum_{k=1}^d e^{z_k}$，则 $a_j = e^{z_j}/S$.
 
- 我们分两种情况计算 $\frac{\partial a_j}{\partial z_k}$：
+我们分两种情况计算 $\frac{\partial a_j}{\partial z_k}$：
 
 当 $j = k$ 时， 此时求 $a_j$ 对自身输入 $z_j$ 的偏导数：
 
@@ -119,6 +121,8 @@ $$
 
 下面是可视化的代码以及结果
 
+<Accordion title="Impact of temperature on softmax">
+
 ```python
 import numpy as np
 import matplotlib.pyplot as plt
@@ -157,6 +161,8 @@ plt.tight_layout()
 
 plt.show()
 ```
+
+</Accordion>
 
 <Image src={softmax_impact_variance} alt="impact of variance on softmax" />
 
@@ -203,11 +209,91 @@ def softmax(x: torch.Tensor, dim: int = -1) -> torch.Tensor:
 
 TODO
 
-#### Online Softmax
+### Online Softmax
 
-注意到我们在计算 softmax 时，需要加载 $\mathbf{z}$ 的全部信息，如果 $\mathbf{z}$ 非常大的话，会产生频繁的内存读写进而影响整体效率。因此 flash attention [@FlashAttention] 中提出了 online softmax 算法来减少内存访问开销。
+注意到我们在计算 softmax 时，需要加载 $\mathbf{z}$ 的全部信息，如果 $\mathbf{z}$ 非常大的话，会产生频繁的内存读写进而影响整体效率。
+因此 flash attention [@FlashAttention] 中提出使用了 online softmax 算法来减少 attention 计算时内存访问开销。
 
-其具体做法是假设我们的输入被分为若干个 block, 即 $\mathbf{z}=[\mathbf{z}^1;\dots,\mathbf{z}^n]\in\mathbb{R}^K$, 这里 $\mathbf{z}^i\in\mathbb{R}^{K/n}$ ($K\mod n=0$).
+我们介绍两种 online softmax 思路，一个是 element-wise online-softmax, 另一个是 block-wise online-softmax
+
+#### Element-wise online softmax
+
+假设当前遍历到第 $k$ 个元素，已有:
+
+1. 当前最大值 $m_k = \max(x_1,\dots,x_k)$
+2. 部分分母 $d_k = \sum_{j=1}^k\exp(x_j-m_k)$
+
+加入新元素 $x_{k+1}$ 时：
+
+1. 如果 $x_{k+1}<m_k$, 最大值不变，直接累加分母： $d_{k+1}=d_k+\exp(x_{k+1}-m_k)$
+2. 如果 $x_{k+1}>m_k$, 最大值更新，需要缩放旧分母：
+    - $m_{k+1}=x_{k+1}$
+    - 旧分母需要乘以 $\exp(m_k-m_{k+1})$ 来对齐新的最大值: $d_{k+1}=d_k\exp(m_k-m_{k+1}) + \exp(m_{k+1}-m_{k+1})$
+
+算法形式为：
+
+<Algorithm title="Element-wise online softmax">
+
+**Input**: $[x_1,\dots,x_N]\in\mathbb{R}^N$
+
+**Initialization**: $m=-\infty, d=0$
+
+**For** $k=1,\dots,N$
+
+- **If** $x_{k}<m$
+
+    1. $d = d + \exp(x_{k}-m)$.
+
+- **Else**
+
+    1. $d=d\exp(m-x_k) + 1$
+    2. $m=x_{k}$
+
+**For** $k=1,\dots,N$
+
+- $O_i = \exp(x_k-m)/d$
+
+**Return** $O$
+
+</Algorithm>
+
+代码
+
+<Accordion title="Element-wise online softmax">
+
+```python
+import numpy as np
+
+def online_softmax(x):
+    m = -np.inf
+    d = 0.0
+
+    for val in x:
+        if val > m:
+            d = d * np.exp(m - val) + 1.0
+            m = val
+        else:
+            d += np.exp(val - m)
+    
+    # compute
+    result = []
+    for val in x:
+        result.append(np.exp(val-m) / d)
+    
+    return np.array(result)
+
+x = np.array([1, 2, 3, 4, 5])
+softmax_online = online_softmax(x)
+softmax_std = np.exp(x - np.max(x)) / np.sum(np.exp(x - np.max(x)))
+
+print("Max difference:", np.max(np.abs(softmax_online - softmax_std)))
+```
+
+</Accordion>
+
+#### Block-wise online softmax
+
+假设我们的输入被分为若干个 block, 即 $\mathbf{z}=[\mathbf{z}^1;\dots,\mathbf{z}^n]\in\mathbb{R}^K$, 这里 $\mathbf{z}^i\in\mathbb{R}^{K/n}$ ($K\mod n=0$).
 
 对于 $\mathbf{z}\in\mathbb{R}^K$, flash attention 定义如下结果
 
@@ -226,9 +312,53 @@ $$
 
 因此，如果我们额外记录 $m(x)$ 以及 $\ell(x)$ 这两个量，那么我们可以每次仅计算 softmax 的一个 block. 计算完毕之后，$m_i(\mathbf{z})$ 和 $\ell_i(\mathbf{z})$ 就分别代表了 global max 和 global denominator.
 
-### Conclusion
+<Accordion title="Block-wise online softmax">
 
-我们回顾了机器学习中 softmax function 的基本定义与性质
+```python
+import numpy as np
+
+def online_softmax(x, block_size=2):
+    n = len(x)
+    num_blocks = (n + block_size - 1) // block_size
+    global_max = -np.inf
+    global_d = 0.0
+
+    blocks = []
+
+    for i in range(num_blocks):
+        start = i * block_size
+        end = min(start + block_size, n)
+        block = x[start: end]
+        blocks.append(block)
+
+        local_max = np.max(block)
+        local_d = np.sum(np.exp(block-local_max))
+
+        if local_max > global_max:
+            global_d = global_d * np.exp(global_max - local_max) + local_d
+            global_max = local_max
+        else:
+            global_d += local_d * np.exp(local_max - global_max)
+
+    # compute
+    result = np.zeros(n)
+    idx = 0
+    for block in blocks:
+        block_probs = np.exp(block - global_max) / global_d
+        result[idx: idx+len(block)] = block_probs
+        idx += len(block)
+    
+    return result
+```
+
+</Accordion>
+
+优势：
+
+1. 数值稳定：局部缩放，再对齐全局
+2. 内存高效：可以流式处理，不必存储全量数据
+3. 并行：不同块可以并行计算，最后合并
+4. 时间复杂度 $O(n)$, 与标准softmax相同
 
 ### References
 
