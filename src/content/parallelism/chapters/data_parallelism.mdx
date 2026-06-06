@@ -13,25 +13,25 @@ data parallesim (DP) 的核心思想是
 ### Naive DP
 
 假如我们现在要训练一个模型 $f(x,y;\theta)$, 其中 $x,y,\theta$ 分别是输入，输出和训练参数。
-给定训练集合 $\mathcal{D}=\{(x_i,y_i)\}_{i=1}^N$, 我们的训练目标如下
+给定训练集 $\mathcal{D}=\{(x_i,y_i)\}_{i=1}^M$, 我们的训练目标如下
 
 $$
-\mathcal{L}(x, y;\theta, \mathcal{D}) = \frac{1}{N}\sum_{i=1}^N f(x_i, y_i;\theta)
+\mathcal{L}(x, y;\theta, \mathcal{D}) = \frac{1}{M}\sum_{i=1}^M f(x_i, y_i;\theta)
 $$
 
-使用 DP 之后，假如我们现在有 $G$ 个 GPU, 我们将模型 $f(x,y;\theta)$ 复制到这 $G$ 个 GPU 上，得到 $f_1=\dots=f_G=f$, 然后每个 GPU 就可以处理大小为 $N_G:= N/G$ 的 micro batch:
+使用 DP 之后，假如我们现在有 $N$ 个 GPU, 我们将模型 $f(x,y;\theta)$ 复制到这 $N$ 个 GPU 上，得到 $f_1=\dots=f_N=f$, 然后每个 GPU 就可以处理大小为 $M/N$ 的 micro batch:
 
 $$
-\mathcal{L}(x, y;\theta, \mathcal{D}) = \frac{1}{G}\sum_{i=1}^G\mathcal{L}(x, y;\theta, \mathcal{D}_i)=\frac{1}{G}\sum_{i=1}^G\frac{1}{N_G}\sum_{j=1}^{N_G} f_i(x_j,y_j;\theta)
+\mathcal{L}(x, y;\theta, \mathcal{D}) = \frac{1}{N}\sum_{i=1}^N\mathcal{L}(x, y;\theta, \mathcal{D}_i)=\frac{1}{N}\sum_{i=1}^N\frac{N}{M}\sum_{j=1}^{M/N} f_i(x_j,y_j;\theta)
 $$
 
 但是这也意味着不同的 GPU 实例上有不同的 loss 和梯度，第 $i$ 个 GPU 上的梯度为
 
 $$
-\nabla_\theta\mathcal{L}(x, y;\theta, \mathcal{D}_i) = \sum_{i=1}^G\frac{1}{N_G}\sum_{j=1}^{N_G} \nabla_\theta f_i(x_j,y_j;\theta)
+\nabla_\theta\mathcal{L}(x, y;\theta, \mathcal{D}_i) = \sum_{i=1}^G\frac{1}{N_G}\sum_{j=1}^{N_G} \nabla_\theta f_i(x_j,y_j;\theta),i=1,\dots,N
 $$
 
-为了解决模型同步的问题，我们会使用 [AllReduce](#all-reduce) 来统一反向传播
+为了解决模型同步的问题，我们使用 [AllReduce](#all-reduce) 来统一反向传播的梯度
 
 $$
 \mathrm{AllReduce}([\nabla_\theta\mathcal{L}(x, y;\theta, \mathcal{D}_1),\dots,\nabla_\theta\mathcal{L}(x, y;\theta, \mathcal{D}_G)])
@@ -47,25 +47,41 @@ $$
 
 将上面的流程进行汇总，我们就得到 DP 的计算过程：
 
-1. TODO
-2. TODO
-3. TODO
+1. 每个 GPU 单独进行 forward pass 得到 loss
+2. 每个 GPU 单独进行 backward pass 得到对应的梯度
+3. 通过 AllReduce 来同步不同 GPU 上的梯度
+4. 通过 optimizer states 来获取参数更新
+5. 使用参数更新各个 GPU 上的梯度
 
-对应的 pipeline 如下所示：TODO:
+对应的 pipeline 如下所示：
 
-一个 batch 上的 DP 运行过程如下：TODO
+<HtmlEmbed
+    src="naive_dp_pipeline.html"
+    title="Naive DP pipeline"
+/>
 
-### Optimization
+通信开销只有一部分：在 backward pass 时，对梯度进行一次 ReduceScatter 同步不同 GPU 上的梯度
+
+#### Optimized naive DP
 
 Naive DP 的逻辑非常简单，不同的 DP rank 完成 forward pass, backward pass, AllReduce, 权重更新。
-但是在 AllReduce 的过程中，我们发现 GPU 出现了 bubble, 也就是 idle, 我们需要对其进行优化。
+但是在 AllReduce 的过程中，我们发现 GPU 出现了 bubble, 也就是 idle time, 此时其他 GPU 都在等待 gradients 传输完成才会进行 optimizer step 的相关计算。
 
-注意到，我们在进行反向传播的时候， 其实并不需要等待反向传播完成再进行 AllReduce, 而是可以在某一个参数完成反播之后立马就进行AllReduce,
-也就是说，我们将粗粒度的model level AllReduce 细化到了 parameter level AllReduce.
+注意到，我们在进行反向传播的时候， 其实并不需要等待反向传播完成再进行 AllReduce, 而是可以在某一个参数完成反播之后立马就进行 AllReduce 来同步这个参数的梯度给其他 GPU.
+也就是说，我们将粗粒度的 model level gradient AllReduce 细化到了 parameter level gradient AllReduce.
+
+下面是对应的 pipeline:
+
+<HtmlEmbed
+    src="naive_dp_fine_grained.html"
+    title="Naive DP pipeline with fine-grained AllReduce"
+/>
+
+可以看到，相比于 naive DP, 我们现在通过计算通信重叠降低了整体的训练时间。
 
 下面是对应的实现
 
-<Accordion title="Optimization on Naive DP">
+<Accordion title="Fine-gradined AllReduce Optimization on Naive DP">
 
 ```python
 class DataParallelNaive(nn.Module):
@@ -100,16 +116,128 @@ class DataParallelNaive(nn.Module):
 </Accordion>
 
 Parameter level AllReduce 确实优化了 GPU idle time, 但是 GPU 的计算与通信更偏好 large tensor.
-因此我们做的第二个优化就是 bucketing, 核心思想就是把一些小的 tensor进行打包，然后在进行 AllReduce, 即 Bucket level AllRecuce.
+因此我们做的第二个优化就是 bucketing, 核心思想就是把一些小的 graeitn tensor 进行打包，然后在进行 AllReduce, 即 bucket level AllReduce.
 
-TODO: code
+对应的 pipeline 如下所示：
 
-第三个优化是针对 gradient accumulation 的。 TODO
+<HtmlEmbed
+    src="naive_dp_bucket.html"
+    title="Naive DP pipeline with Bucket AllReduce"
+/>
+
+下面是对应的实现
+
+<Accordion title="Bucket AllReduce Optimization on Naive DP">
+
+```python
+class DataParallelBucket(nn.Module):
+    def __init__(self, module, bucket_cap_mb=25, grad_type=torch.float32):
+        super().__init__()
+        self.module = module
+        self.require_backward_grad_sync = True
+        grad_size = 2 if grad_type == torch.bfloat16 else 4
+        bucket_size = bucket_cap_mb * 1024 * 1024 // grad_size
+        self.bucket_manager = BuckerManager(module.parameters(), pgm.process_group_manager.cp_dp_group, bucker_size, grad_type)
+        self.register_backward_hook()
+        self._post_backward_callback_set = False
+    
+    def forward(self, *inputs, **kwargs):
+        return self.module(*inputs, **kwargs)
+
+    def backward(self, input_tensor, output_tensor, output_tensor_grad):
+        return self.module.backward(input_tensor, output_tensor, output_tensor_grad)
+
+    def register_backward_hook(self, hooks):
+        self.grad_accs = []
+        for p in self.module.parameters():
+            if p.requires_grad is True:
+                param_tmp = param.expand_as(param)
+                grad_acc_fn = param_tmp.grad_fn.next_functions[0][0]
+                grad_acc_fn.register_hook(self._make_param_hook(param, self.bucket_manager))
+                self.grad_accs.append(grad_acc_fn)
+
+    def __make_param_hook(self, params, bucket_manager):
+        def param_hook(*unused):
+            if param.requires_grad:
+                assert param.grad is not None
+                param.main_grad.add_(param.grad.data)
+                param.grad = None
+
+                if self.require_backward_grad_sync:
+                    if not self._post_backward_callback_set:
+                        Variable._execution_engine.queue_callback(self._post_backward)
+                        self._post_backward_callback_set = True
+
+                    
+                    bucket_manager.mark_param_as_ready(param)
+
+        return param_hook
+
+    @contextlib.contextmanager
+    def no_sync(self):
+        self.require_backward_grad_sync = False
+        yield
+        self.require_backward_grad_sync = True
+
+    def _post_backward(self):
+        self.bucket_manager.wait()
+        self._post_backward_callback_set = False
+        for p in self.module.parameters():
+            if p.requires_grad:
+                p.grad = p.main_grad.to(p.dtype)
+
+    def reset(self)
+    self.bucket_manager.reset()
+```
+
+</Accordion>
+
+第三个优化是针对 gradient accumulation 的。
+对于 [gradient accumulation](#gradient_accumulation), 我们仅在 $K$ 步 ($K=$ gradient accumulation size) 之后才会进行一次 optimizer states.
+
+如果我们每次反向传播都通过一次 AllReduce 来同步梯度的话，显然降低了整体的计算效率，因为前面 $K-1$ 步实际上不需要梯度同步。
+
+为了解决这个问题，Pytorch 使用 `no_sync` 来让用户控制是否同步梯度，通过 `no_sync` 我们可以避免前 $K-1$ 步的 `backward()` 进行 AllReduce.
+
+DeepSpeed 则是通过一个状态机来进行 AllReduce 的控制，具体做法就是维护一个计数变量 `micro_step_id`，代表当前的 micro-batch size, 当 `micro_step_id` $<K$ 时，我们不进行 AllReduce.
+伪代码如下所示
+
+<Accordion title="Gradient Accumulation in DeepSpeed (pesudo code)">
+
+```python
+class DeepSpeedEngine:
+    def __init__(self, config):
+        self.grad_acc_steps = config.gradient_accumulation_steps
+        self.micro_step_id = 0
+
+    def is_boundary(self):
+        return (self.micro_step_id + 1) % self.grad_acc_steps == 0
+
+    def backward(self, loss):
+        loss.backward()
+
+        self.micro_step_id += 1
+
+    def register_zero2_hooks(self, model):
+        for layer in model.layers:
+            def layer_backward_hook(grad_output):
+                if not self.is_boundary():
+                    return None # disable sync
+                
+                trigger_asynchronous_reduce_scatter(layer.grad)
+                release_unowned_gradient_memory(layer)
+            
+            layer.register_backward_hook(layer_backward_hook)
+```
+
+</Accordion>
+
+#### Practice
 
 最后，我们回顾一下 batch size 定义
 
 $$
-bs=gbs = mbs\times grad_acc\times DP
+bs=gbs = mbs\times grad_{acc}\times DP
 $$
 
 优化时，有以下几点：
@@ -142,7 +270,11 @@ $$
 4. optimizer states: Adam, FP32, $4\Psi+4\Psi$
 5. (optional) accmulcated gradients, FP32, $4\Psi$
 
-本节中，我们暂时不考虑 accumulated gradients, 因此整体的内存消耗就是 $2\Psi+2\Psi+12\Psi$.
+本节中，我们暂时不考虑 accumulated gradients, 因此整体的内存占用就是
+
+$$
+2\Psi+2\Psi+12\Psi.
+$$
 
 ZeRO 的思想就是将这些不同的信息切分到不同的 DP rank 上进行分块保存，进而降低内存消耗。
 
@@ -170,7 +302,12 @@ $12$).
     title="ZeRO-1 training"
 />
 
-pipeline 如下所示：TODO
+pipeline 如下所示：
+
+<HtmlEmbed
+    src="ZeRO1-pipeline.html"
+    title="ZeRO-1 pipeline"
+/>
 
 通信开销包括两部分：
 
@@ -209,7 +346,12 @@ ZeRO-2 在 ZeRo-1 的基础上，进一步把 gradient 也进行了 sharding.
     title="ZeRO-2 training"
 />
 
-训练 pipeline 对应为 TODO
+训练 pipeline 对应为
+
+<HtmlEmbed
+    src="ZeRO2-pipeline.html"
+    title="ZeRO-2 pipeline"
+/>
 
 通信开销包括两部分：
 
@@ -249,6 +391,11 @@ ZeRO-3 的计算流程为：
 />
 
 计算的 pipeline 为
+
+<HtmlEmbed
+    src="ZeRO3-pipeline.html"
+    title="ZeRO-3 pipeline"
+/>
 
 通信开销包括三部分:
 
