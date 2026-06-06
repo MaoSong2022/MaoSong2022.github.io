@@ -8,7 +8,7 @@ Tensor Parallelism (TP) 是一个将模型切分为多个部分部署在不同 G
 
 在 [Data Parallelism](#data-parallelism) 中，我们尝试了对 optimizer states, gradients, parameters 进行切分来降低内存占用。但是，训练时的 activation 仍然可能会超过 GPU memory limit.
 
-### Basic Usage
+### Basic TP
 
 TP 主要利用了矩阵乘法的数学性质，考虑 $A\times B$, 其中 $A=[A_1,A_2,\dots]$, $B=[B_1,B_2,\dots]$.
 我们可以对 $A$ 或者 $B$ 进行分解：
@@ -388,7 +388,7 @@ $$
 
 在 Megatron [@Megatron] 中，作者还额外介绍了针对 output embedding 的优化方法，由于 embedding 的输出大小为 $[bs, V]$, 而 $V$ 通常比较大，因此，为了降低通信开销，作者将 cross-entropy-loss 与 output embedding kernel 进行融合，这样我们传输的数据量就减少到了 $bs$.
 
-### Experiments
+### Experiments on TP
 
 作者首先对 GPT-2 模型进行了修正，首先将 `vocab_size` 从 50257 提升到 128 的倍数，即 51200. 对于 model+data parallelism, 作者固定 global batch size 为 512. (64-way DP)
 
@@ -407,11 +407,11 @@ $$
 | ----------- | ---- | ---- | ---- | ---- | ---------- | ---------- | ---------- | ---------- |
 |  scaling    | 100% | 95%  | 82%  | 77%  | 96%        | 83%        | 79%        | 74%        |
 
-### Implementation
+### TP Implementation
 
 [Pytorch tutorial](https://docs.pytorch.org/tutorials/intermediate/TP_tutorial.html)
 
-### Analysis
+### Analysis on TP
 
 TP 的第一个问题是无法进行计算通信重叠。我们将 TP 的 pipeline 可视化如下 TODO
 
@@ -430,3 +430,7 @@ TODO 增加唉 70B 的结果
 TP + SP 的问题： 如果我们使用超长的 sequence, activation 还是可能会导致 OOM
 
 为了解决长序列的 activation 导致的 OOM 问题，我们可以通过 context parallelism 来解决这个问题。
+
+### Practices on TP
+
+TODO
