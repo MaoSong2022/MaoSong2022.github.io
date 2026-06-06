@@ -232,19 +232,6 @@ class DeepSpeedEngine:
 
 </Accordion>
 
-#### Practice
-
-最后，我们回顾一下 batch size 定义
-
-$$
-bs=gbs = mbs\times grad_{acc}\times DP
-$$
-
-优化时，有以下几点：
-
-1. 优先考虑 DP 而不是 gradient accumulation
-2. GPU 非常多时，使用较小的 $mbs$, 因为这样可以加速训练
-
 ### ZeRO
 
 在上一节我们介绍了如何使用多个 GPU 来实现 DP.
@@ -413,7 +400,12 @@ $$
 
 优化： 在 DP 不太大的时候可以使用 prefetching, forward pass 时提前收集下一层的权重进行计算
 
-#### Analysis on ZeRO
+#### Zero-offload
+
+ZeRO 的问题：只对参数，优化器状态，梯度有效，对于 activation 无效。
+为了解决 activation 过大的问题，我们可以使用下一节提出的 TP 策略。
+
+### Analysis on DP
 
 按照通信来对比，我们可以得出如下结果
 
@@ -440,7 +432,15 @@ $$
 |          Models          |          -          |                               |                               |                               |
 |           Notes          |                     |                               |                               |                               |
 
-#### Zero-offload
+### Practice on DP
 
-ZeRO 的问题：只对参数，优化器状态，梯度有效，对于 activation 无效。
-为了解决 activation 过大的问题，我们可以使用下一节提出的 TP 策略。
+最后，我们回顾一下 batch size 定义
+
+$$
+bs=gbs = mbs\times grad_{acc}\times DP
+$$
+
+优化时，有以下几点：
+
+1. 优先考虑 DP 而不是 gradient accumulation
+2. GPU 非常多时，使用较小的 $mbs$, 因为这样可以加速训练
