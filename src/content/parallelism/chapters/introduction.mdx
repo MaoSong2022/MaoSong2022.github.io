@@ -3,7 +3,7 @@ import basic_concepts from '../../../assets/image/basic_concepts.png';
 
 ## Introduction
 
-什么是分布式系统
+### What is distributed training
 
 分布式系统允许一个软件的多个组件运行在不同的机器上。与传统集中式系统不一样，分布式系统可以有效提高系统的稳健性。
 一个比较比较经典的分布式就是Git，Git允许我们把代码保存在多个remote上。这样当一个remote宕机时，其他remote也能提供服务。
@@ -20,19 +20,27 @@ import basic_concepts from '../../../assets/image/basic_concepts.png';
 
 超大的模型使得我们很难在一张GPU上进行训练，甚至我们都很难使用单张GPU进行部署。而10T级的数据也也需要几个月的时间才能训练完毕。因此，如何高效利用多张GPU在大规模数据上训练超大模型就是我们需要解决的问题。
 
+### How to perform distributed training
+
+### Overview
+
+这篇 blog 中，我们将循序渐进介绍目前训练大模型所用的并行策略，包括 DP, TP, PP 等。
+
 ### Notation
 
 我们先来熟悉一下分布式训练中的一些基本概念：
 
-- Host: host (master address)是分布式训练中通信网络的主设备(main device). 一般我们需要对其进行初始化
+- Host: host (master address) 是分布式训练中通信网络的主设备 (main device). 一般我们需要对其进行初始化
 - Node: 一个物理或虚拟的计算单元，可以是一台机器，一个容器或者一个虚拟机
-- Port: port (master port)主要是用于通信的master port
-- Rank: rank是通信网络中每个设备唯一的ID
-- world size: world size是通信网络中设备的数量
-- process group: 一个process group是通信网络中所有设备集合的一个子集。通过process group, 我们可以限制device只在group内部进行通信
+- Port: port (master port) 主要是用于通信的 master port
+- Rank: rank 是通信网络中每个设备唯一的 ID
+- world size: world size 是通信网络中设备的数量
+- process group: 一个process group 是通信网络中所有设备集合的一个子集。通过process group, 我们可以限制device只在group内部进行通信
 
 我们以下图为例：
+
 <Image src={basic_concepts} alt="basic concepts" />
+
 上图中一共包含2个node (2台机器)，每台机器包含4个GPU (device)，当我们初始化分布式环境时，我们一共启动了8个进程（每台机器4个进程），每个进程绑定一个GPU。
 
 在初始化分布式环境之间，我们需要指定host和port。假设我们指定host为`node 0`和port为 `29500`，接下来，所有的进程都会基于这个host和port来与其他进程连接。默认的process group（包含所有device）的world size 为8. 其细节展示如下
