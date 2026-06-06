@@ -14,15 +14,19 @@ tableOfContentsAutoCollapse: true
 ---
 
 import Introduction from './chapters/introduction.mdx';
-import DP from './chapters/data_parallelism.mdx';
-import PP from './chapters/pipeline_parallelism.mdx';
-import TP from './chapters/tensor_parallelism.mdx';
-import EP from './chapters/expert_parallelism.mdx'
 import CommunicationPrimitive from './chapters/communication-primitive.mdx';
+import TrainingBasics from './chapters/training_basics.mdx';
+import DP from './chapters/data_parallelism.mdx';
+import TP from './chapters/tensor_parallelism.mdx';
+import CP from './chapters/context_parallelism.mdx';
+import PP from './chapters/pipeline_parallelism.mdx';
+import EP from './chapters/expert_parallelism.mdx'
 
 <Introduction />
+<TrainingBasics/>
 <CommunicationPrimitive />
 <DP />
-<PP />
 <TP />
+<CP />
+<PP />
 <EP />
