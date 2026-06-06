@@ -1,3 +1,120 @@
+import Note from '../../../components/Note.astro'
+import Sidenote from '../../../components/Sidenote.astro'
+import Algorithm from '../../../components/Algorithm.astro';
+
 ## Context Parallelism
 
-Context Parallelism (CP) [@Ulysses; @RingAttention].
+上一节的 [TP](#tensor_parallelism) 通过将权重 shard 到不同的 GPU 上来降低整体 activation 的占用，但是其仍然存在两个问题：
+
+1. 序列长度导致 activation 急剧上升： TP 从 hidden dimension 维度对权重矩阵进行切分，但是每个 GPU 上仍然需要保存完整长度的序列，即使我们进行 full checkpointing, 我们仍然需要保存 boundary 处的 activation, 这个 activation 与 sequence length 成线性关系。
+2. 通信效率下降： TP 的通信 (AllReduce/AllGather) 发生在 transformer 的每一层内部，随着 TP size 增大，通信开销会成为训练瓶颈。
+
+针对这两个问题，Context Parallelism (CP) [@Ulysses; @RingAttention] 的核心思想就是
+
+<Note title="Core Idea" emoji="💡" variant="info">
+  在 sequence dimension 上进行切分，来降低不同 GPU 上的显存占用。
+</Note>
+
+给定输入 $X\in\mathbb{R}^{b\times s\times d}$, CP 通过将输入按 sequence dimension 进行拆分得到
+
+$$
+X=[X_1,\dots,X_{\mathrm{CP}}],X_i\in\mathbb{R}^{b\times s/\mathrm{CP}\times d}
+$$
+
+接下来我们在不同的 GPU 上再进行模型的训练，这样我们就可以降低整体的 activation.
+
+注意到 transformer 中的大部分模块都是 element-wise module, 比如 embedding, MLP, LayerNorm, 实际上需要 sequence 层面参与计算的只有 attention 模块。
+因此，我们主要针对 attention 来探讨 CP 的设计。
+
+### Ring Attention
+
+根据前面的讨论，现在每个 GPU 上都有 sequence 一部分的 hidden states $X_i\in\mathbb{R}^{b\times s/\mathrm{CP}\times d}$ 或者对应的 $Q_i,K_i,V_i\in\mathbb{R}^{b\times s/\mathrm{CP}\times d}$.
+而 Attention 的计算方式为（我们以 MultiHeadAttention 为例）
+
+$$
+\mathrm{MHA}(Q, K, V) = \mathrm{softmax}\left(\frac{QK^T}{\sqrt{d}}\right)V
+$$
+
+现在，由于 $Q_i,K_i, V_i$ 分布在不同 GPU 上，因此我们将计算分成了以下步骤：
+
+<Algorithm title="Ring Attention Algorithm">
+
+**For** $i=1,\dots,\mathrm{CP}$ (query block index)
+
+1. Compute attention score for current block:
+$$
+S_{i, j}=\frac{Q_iK_j^T}{\sqrt{d}} \in\mathbb{R}^{bs/\mathrm{CP}\times bs/\mathrm{CP}}
+$$
+2. Compute local row-wise max element:
+$$
+m_{i,j} = \max_{\mathrm{row-wise}}(S_{i,j})\in\mathbb{R}^{bs/\mathrm{CP}}
+$$
+3. Update global row-wise max element:
+$$
+m_{i}^{(j)} = \max(m_{i}^{(j-1)},m_{i,j})\in\mathbb{R}^{bs/\mathrm{CP}}
+$$
+4. Compute local denominator:
+$$
+d_{i,j}=\sum_{row}\exp\left(S_{i,j}-m_{i}^{(j)}\right)\in\mathbb{R}^{bs/\mathrm{CP}}
+$$
+5. Update global denominator:
+$$
+d_i^{(j)} = d_{i}^{(j-1)}\odot\exp\left(m_{i}^{(j-1)}-m_{i}^{(j)}\right)+d_{i,j}\in\mathbb{R}^{bs/\mathrm{CP}}
+$$
+6. Rescaling output:
+$$
+O_i^{(j)} = O_i^{(j-1)}\odot\exp\left(m_{i}^{(j-1)}-m_{i}^{(j)}\right)+\exp\left(S_{i,j}-m_i^{(j)}\right)V_j\in\mathbb{R}^{bs/\mathrm{CP}\times d}
+$$
+7. Send $K_j,V_j$ to next CP rank, receive new $K_{j+1}, V_{j+1}$ from last CP rank.
+
+Scaling output with global maximum and denominator:
+
+$$
+O_i^{\mathrm{final}} = \frac{O_i^{\mathrm{CP}}}{d_i^{\mathrm{CP}}}\in\mathbb{R}^{bs/\mathrm{CP}\times d},i=1,\dots, \mathrm{CP}
+$$
+</Algorithm>
+
+可以看到，RingAttention 与 FlashAttention 的计算逻辑基本一致，都是使用 online softmax 来完成局部 attention 的计算与更新，计算完之后，不同的 CP rank 再将 $K, V$ 传递到其他的 CP rank 上。
+
+但是 RingAttention 的问题在于，不同 rank 上的负载不一样，如下图所示 TODO
+
+从上图可以看到，由于 causal mask 的存才，CP rank 越小，其 token position 越小，所需要处理的 token 个数也越少，其计算速度越快。
+而最后一个 CP rank 则需要前面所有 rank 的 $K,V$, 这显然会导致负载不均衡。
+
+### Zig-Zag Ring Attention
+
+上一节提到， RingAttention 尽管通过在 sequence dimension 进行并行处理，降低了 activation, 但由于 causal mask, RingAttention 会导致负载不均衡。
+为了解决这个问题，ZigZag Attention 使用了序列重排。
+
+### Communication Overhead
+
+前面我们没有讨论 CP 的通信开销，实际上 CP 的通信有两种方式：
+
+#### AllGather CP
+
+第一种形式与算法一样，我们算一个 $K_j, V_j$, 然后传输一个 $K_j,V_j$, 一般来说，为了计算通信重叠，我们实际上做的是：
+
+1. 每个 GPU 初始有自己的 $Q_i,K_i,V_i$
+2. overlap: 使用两个 buffer, 采用 double buffering 机制：
+   1. 计算： GPU $i$ 使用当前 buffer 的 $K_j,V_j$ 与 $Q_i$ 完成局部 attention 计算
+   2. 通信： 计算的同时，GPU $i$ 启动一个异步的 `torch.distributed.isend`, 把 $K_j,V_j$ 发送给下一个邻居 GPu $i+1$, 并启动一个异步的 `torch.distributed.irecv`, 从上一个邻居 GPU $i-1$ 接收下一轮要用的 $K_{j+1}, V_{k+1}$, 存入另一个 buffer.
+
+通过 $\mathrm{CP}-1$ 发送和接收之后，全量数据就完成了计算，通信结束。
+这个做法是 Megatron 使用的策略，其底层依赖的是 NCCL 的 [one-to-one](#one-to-one) 通信机制。
+
+#### AlltoAll CP
+
+第二种形式则是使用了转置的思路，避免了计算过程中的通信行为，其 pipeline 如下
+
+1. 进入 attention 之前，每个 GPU 上 有 $s/\mathrm{CP}$ 的序列，以及完整的 attention heads.
+2. 我们调用 `dist.all_to_all` 将数据进行反转，此时每个 GPU 上有完整的
+
+
+两种通信方式对比如下 TODO
+
+### Analysis
+
+CP 与 FlashAttention 有相似之处，这两者都依赖于 online softmax, 但是不同的地方在于 FlashAttention 是优化 attention 在单个 GPU 上的计算，而 CP 则是通过将 sequence sharding 到不同的 GPU 上来降低内存占用的。
+<Sidenote>
+  See [online softmax](https://maosong.website/blog/math/#online-softmax) for more details.
+</Sidenote>
