@@ -1,0 +1,133 @@
+## training
+
+#### Parallelism
+
+- DP
+  - ZeRO-1
+  - ZeRO-2
+  - ZeRO-3 (FSDP)
+- TP
+- CP
+- PP
+- EP
+
+### pre-training
+
+#### 训练框架
+
+- megatron
+- FSDP
+- Deepspeed
+- torchtitan
+
+### post-training
+
+#### General
+
+增大 batch size, learning rate 怎么调整
+
+attention mask 怎么做的
+
+SFT， DPO， PPO 训练数据怎么获取的
+
+**1b 的模型， SFT 和 RL 阶段的训练开销**
+
+**模型训练中遇到过哪些问题，如何解决**
+
+不同领域的数据如何配比
+
+模型训练超参数如何选择
+
+LLM 预训练，SFT，RL，OPD 的学习率如何设置？为什么？
+
+ViT, projection layer, LLM 的学习率如何设置？
+
+SFT 训练到什么时候进入 RL 最好，有哪些指标？
+
+- metric: xiaomi mimo v2 flash
+- 有基本的指令跟随能力就可以了，防止模型出现过拟合
+- << getting your llms ready for Rl with lightweight SFT >>
+- << quangmires in SFT-RL post-training: when high SFT score mislead and what to use instead >>
+
+forward kl 和 backward KL 的区别，与交叉熵的关系，用在哪些地方
+
+多卡 GPU 指标检测怎么设计？为什么要看 fp32 pipeline active 和 bf16 pipeline active? 解释一下 tensor core active 和 cuda core active, 根据这些指标如何判断 LLM 推理有没有因为精度或者不匹配而发生退化
+
+#### 训练框架
+
+sft
+
+- llamafactory
+- swift
+- unsloth
+
+rl
+
+- verl
+- slime
+- areal
+- RLinf
+- miles
+- forge
+- roll
+
+#### SFT
+
+数据怎么构建？
+
+SFT 用什么框架？有哪些框架？
+
+显存占用多少？花了多长时间？
+
+SFT 为什么只训一轮，不训 多轮
+
+模型蒸馏所有轨迹都用于 SFT吗？有没有数据筛选或者清洗，如何筛选或者清洗
+答：有，会使用 RFT 筛选数据提高模型表现。TODO清洗策略
+
+在 LLM 后训练中，为什么我们常常从 SFT 转向 RL？RL 解决了 SFT 的哪个本质问题？
+答：LLM 解决了 SFT 泛化性不足的问题
+
+sft 如何防止过你和
+
+是否开 thinking 对训练有什么区别？
+
+#### RL
+
+模型自我纠错的数据怎么构造的？
+
+小模型推理步数比大模型更多，什么原因？
+答：容量限制
+
+RL 训练框架，训练 GPU 的资源配置
+
+**RL 的奖励函数如何设计的**
+
+**有没有遇到 reward hacking 问题，如何解决的**
+
+RL 的奖励是最后统一计算的，还是分摊到每一步（介绍一下 loss 计算过程）
+
+RL rollout 的采样次数如何设置，组内奖励差异大吗
+
+RL 为什么要用 advantage, 而不是直接用原始奖励
+
+组内差别不太大怎么办
+
+熵如何定义，RL 训练比较好的情况下，熵怎么变化
+
+#### agentic RL
+
+RL 数据从哪儿来，合成的还是真实的
+
+单轮任务和多轮任务区别是什么
+
+RL 每次做上下文压缩要清空 kv cache，重新运行，效率会不会很低
+
+#### OPD
+
+OPD 如何训练的，模型选用 base model, instruction model 还是 reasoning model
+
+#### Comparison
+
+哪些场景用 sft 效果好，哪些场景用 RL 效果好，能否从选型角度介绍
+
+RL 用什么框架
