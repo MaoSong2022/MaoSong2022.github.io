@@ -1,7 +1,20 @@
-
-## 代码手撕
+## Inference
 
 ### 采样策略
+
+### general
+
+推理显存优化技术
+
+### speculative decoding
+
+### PD
+
+prefilling 和 decoding 阶段的计算访存比
+
+分析 LLM 推理过程中的瓶颈，roofline model, 推理的 prefill 和 decoding 阶段那个是 GEMM 哪个是 GEVM，flashattention主要用在哪个阶段
+
+chunked prefill 是否可以和 PD 分离一起用， chunked prefill 解决了什么问题，为什么可以加速
 
 ### KV cache
 
@@ -15,7 +28,99 @@ KV cache 是什么，为什么要有 KV cache, KV cache 为什么会造成显存
 
 infra上：paged attention，kv cache offloading
 
+kv cache 拼接
+
+```python
+def custom_attention(query, key, value, past_key_value=None):
+    # key: [b, s, d]
+    # value: [b, s, d]
+    # past_key_value: [b, s', d]
+    if past_key_value is not None:
+        past_key, past_value = past_key_value
+        key = torch.cat([past_key, key], dim=-2)
+        value = torch.cat([past_value, value], dim=-2)
+
+    attention_weights = query @ key.transpose(-2, -1)
+
+    ...
+
+    return output, (key, value)
+```
+
+dynamic cache
+
+```python
+class DynamicCache(Cache):
+    def __init__(self) -> None:
+        self.key_cache = List[torch.Tensor] = []
+        self.value_cache = List[torch.Tensor] = []
+
+    def update(self, key_states, value_states, layer_idx, cache_kwargs):
+        if layer_idex >= len(self.key_cache):
+            self.key_cache.append(key_states)
+            self.value_cache.append(value_states)
+        else:
+            self.key_cache[layer_idx] = torch.cat([self.key_cache[layer_idx], key_states], dim=-2)
+            self.value_cache[layer_idx] = torch.cat([self.value_cache[layer_idx], value_states], dim=-2)
+
+
+        return self.key_cache[layer_idx], self.value_cache[layer_idx]
+```
+
+attention 调用
+
+```python
+class Attention(nn.Module):
+    def forward(self, hidden_states, past_key_value=None, use_cache=False, layer_idx=None):
+        query = self.q_proj(hidden_states)
+        key = self.k_proj(hidden_states)
+        value = self.v_proj(hidden_states)
+
+        # ...
+        if past_key_value is not None:
+            key, value = past_key_value.update(key, value, layer_idx, cache_kwargs)
+
+        attention_output = F.scaled_dot_product_attention(query, key, value)
+
+        if use_cache:
+            return attention_output, past_key_value
+
+        return attention_output
+```
+
+其他 cache:
+
+1. `DynamicCache`: 默认实现，动态增长，灵活性高
+2. `StaticCache`: 预分配固定大小的张量，与 `torch.compile` 结合更好，可以减少动态形状带来的开销
+3. `QuantizedCache`: 量化缓存，对 K/V 进行量化来节省显存
+4. `PagedAttentionCache`: 借鉴 vLLM 的分页注意力思想，管理非连续显存块
+
+```python
+class PagedAttentionCache:
+    def __init__(self, block_size=16):
+        self.physical_blocks = []
+        self.block_tables = {}
+
+    def allocate(self, sequence_id, num_tokens):
+        logical_blocks = []
+        for _ in range((num_tokens + block_size - 1) // block_size):
+            block = self.physical_blocks.pop()
+            logical_blocks.append(block)
+
+        self.block_tables[sequence_id] = logical_blocks
+
+    def get_kv(self, sequence_id, token_idx):
+        block_idx = token_idx // block_size
+        offset = token_idx % block_size
+        physical_block = self.block_tables[sequence_id][block_idx]
+        return self._read_block(physical_block, offset)
+```
+
 ### vllm
+
+介绍一下 vllm 中的 pageattention 和 flashattention
+
+介绍一下 continuous batching
 
 vllm 是如何分配内存和 kv cache 的
 
@@ -37,43 +142,8 @@ vllm 是如何分配内存和 kv cache 的
 - 显存交换：显存紧张时，将不活跃的块自动换到 cpu 上
 - continuous batching: 不用等所有序列结束，随时加入新请求
 
-### MTP
+### SGLang
 
-好处：
+SGLang 加速 latency 原理
 
-1. 提高 RL rollout 效率
-2. 减少 GPU idle time
-
-## distillation
-
-蒸馏方式?
-
-- SFT
-- knowledge distillation
-- OPD
-
-## architecture
-
-deepseek-v3 架构，MLA 如何压缩 kv cache
-
-不同领域的数据如何配比
-
-## RL
-
-PPO advantage 如何计算的，GAE, KL 散度正向还是反向
-
-DAPO 相比与 GRPO 做的改动
-
-SFT 和 RLHF 的区别是什么
-
-旋转编码为什么能注意到相对位置，为什么绝对位置编码没办法实现
-
-bert 的损失如何计算
-
-attention 为什么要做 scaling, softmax 对长尾效应的表现
-
-layernorm 好处是啥
-
-mlp 为什么要先升到 4倍在降维
-
-QKV维度可以不同吗
+vllm 和 SGALang 的对比
