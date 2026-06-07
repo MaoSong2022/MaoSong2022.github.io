@@ -3,6 +3,12 @@ import Note from "../../../components/Note.astro";
 
 ## Value-Based Methods
 
+### TODO
+
+1. Q-learning
+2. SARSA
+3. DQN
+
 Value-based methods 的核心思想是：给当前策略 $\pi$ 一个引导，让 agent 学会执行能达到更有价值的 states 的策略。
 
 在 [Bellman Equation](./bellman_equation.md) 中，我们介绍了 value iteration 的基本思路：通过 Bellman optimality operator 迭代求解 $V^*$ 和 $Q^*$. 本节将 value iteration 的思想与函数逼近、TD learning 等技术结合，得到实用的 value-based 算法.
@@ -56,7 +62,7 @@ DQN 的两个关键技术：
 
 1. **Experience Replay**: 使用 replay buffer 存储过去的 transitions，从中随机采样进行训练。这打破了数据之间的相关性，提高了样本效率.
 2. **Target Network**: 使用一个独立的 target network $Q_{\phi^{-}}$ 来计算 TD target, 其参数 $\phi^{-}$ 定期从 $\phi$ 复制（或通过 Polyak averaging 更新）。这稳定了训练过程.
-</Note>
+   </Note>
 
 带有 target network 和 stop-gradient 的 DQN 目标函数为：
 
