@@ -1,10 +1,17 @@
-import Algorithm from '../../../components/Algorithm.astro';
+import Algorithm from "../../../components/Algorithm.astro";
 
 ## Actor Critic Methods
 
 在上一节中， 我们介绍了经典的 policy gradient 形式，并基于 policy gradient 构建了经典的 REINFORCE 算法，我们还使用了 baseline invariance 性质来降低 policy gradient 的 variance, 并得到了最终的 advantage 形式。
 
 在本节中，我们将要针对 advantage 进行进一步探讨，介绍如何将 value based methods 和 policy based methods 结合起来得到 actor-critic methods.
+
+### TODO
+
+1. actor-critic
+2. A2C/A3C
+3. GAE
+4.
 
 ### Actor-Critic
 
@@ -31,15 +38,15 @@ $$
 
 1. Initialize policy parameters $\theta_0$, value function parameters $\phi_0$.
 2. **for** $t = 0, 1, \dots, T-1$:
-    - $a_t \sim \pi_{\theta}(\cdot \mid s_t)$, $r_t, s_{t+1} \sim p(\cdot, \cdot \mid s_t, a_t)$, $a_{t+1} \sim \pi_{\theta}(\cdot \mid s_{t+1})$.
-    - **(ACTOR) policy update**:
-      $$
-      \theta_{t+1} = \theta_t + \alpha_{\theta} \nabla_{\theta} \log \pi_{\theta}(a_t \mid s_t) \, Q^{\phi_t}(s_t, a_t)
-      $$
-    - **(CRITIC) value update**:
-      $$
-      \phi_{t+1} = \phi_t + \alpha_{\phi} \left[r_t + \gamma Q^{\phi_t}(s_{t+1}, a_{t+1}) - Q^{\phi_t}(s_t, a_t)\right] \nabla_{\phi} Q^{\phi_t}(s_t, a_t)
-      $$
+   - $a_t \sim \pi_{\theta}(\cdot \mid s_t)$, $r_t, s_{t+1} \sim p(\cdot, \cdot \mid s_t, a_t)$, $a_{t+1} \sim \pi_{\theta}(\cdot \mid s_{t+1})$.
+   - **(ACTOR) policy update**:
+     $$
+     \theta_{t+1} = \theta_t + \alpha_{\theta} \nabla_{\theta} \log \pi_{\theta}(a_t \mid s_t) \, Q^{\phi_t}(s_t, a_t)
+     $$
+   - **(CRITIC) value update**:
+     $$
+     \phi_{t+1} = \phi_t + \alpha_{\phi} \left[r_t + \gamma Q^{\phi_t}(s_{t+1}, a_{t+1}) - Q^{\phi_t}(s_t, a_t)\right] \nabla_{\phi} Q^{\phi_t}(s_t, a_t)
+     $$
 
 </Algorithm>
 
@@ -69,19 +76,19 @@ $$
 
 1. Initialize policy parameters $\theta_0$, value function parameters $\phi_0$.
 2. **for** $t = 0, 1, \dots, T-1$:
-    - $a_t \sim \pi_{\theta}(\cdot \mid s_t)$, $r_t, s_{t+1} \sim p(\cdot, \cdot \mid s_t, a_t)$.
-    - **Advantage estimation**:
-      $$
-      \hat{A}_t \approx r_t + \gamma V_{\phi_t}(s_{t+1}) - V_{\phi_t}(s_t)
-      $$
-    - **(ACTOR) policy update**:
-      $$
-      \theta_{t+1} = \theta_t + \alpha_{\theta} \nabla_{\theta} \log \pi_{\theta}(a_t \mid s_t) \, \hat{A}_t
-      $$
-    - **(CRITIC) value update**:
-      $$
-      \phi_{t+1} = \phi_t + \alpha_{\phi} \, \hat{A}_t \, \nabla_{\phi} V^{\phi_t}(s_t)
-      $$
+   - $a_t \sim \pi_{\theta}(\cdot \mid s_t)$, $r_t, s_{t+1} \sim p(\cdot, \cdot \mid s_t, a_t)$.
+   - **Advantage estimation**:
+     $$
+     \hat{A}_t \approx r_t + \gamma V_{\phi_t}(s_{t+1}) - V_{\phi_t}(s_t)
+     $$
+   - **(ACTOR) policy update**:
+     $$
+     \theta_{t+1} = \theta_t + \alpha_{\theta} \nabla_{\theta} \log \pi_{\theta}(a_t \mid s_t) \, \hat{A}_t
+     $$
+   - **(CRITIC) value update**:
+     $$
+     \phi_{t+1} = \phi_t + \alpha_{\phi} \, \hat{A}_t \, \nabla_{\phi} V^{\phi_t}(s_t)
+     $$
 
 </Algorithm>
 
@@ -139,16 +146,16 @@ $$
 1. Given policy parameters $\theta$, value function parameters $\phi$.
 2. Sample a trajectory $\tau \sim (p_0, \pi_{\theta}, p)$.
 3. **for** $t = 0, 1, \dots, T-1$:
-    - Compute TD errors:
-      $$
-      \delta_t = r_t + \gamma V_{\phi}(s_{t+1}) - V_{\phi}(s_t)
-      $$
+   - Compute TD errors:
+     $$
+     \delta_t = r_t + \gamma V_{\phi}(s_{t+1}) - V_{\phi}(s_t)
+     $$
 4. Initialize $\hat{A}_{T}^{\mathrm{GAE}} = 0$.
 5. **for** $t = T-1, \dots, 0$:
-    - Iterate backward:
-      $$
-      \hat{A}_t^{\mathrm{GAE}} = \delta_t + \gamma\lambda \, \hat{A}_{t+1}^{\mathrm{GAE}}
-      $$
+   - Iterate backward:
+     $$
+     \hat{A}_t^{\mathrm{GAE}} = \delta_t + \gamma\lambda \, \hat{A}_{t+1}^{\mathrm{GAE}}
+     $$
 
 </Algorithm>
 
