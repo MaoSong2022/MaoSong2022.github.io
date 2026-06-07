@@ -1,0 +1,120 @@
+## Model
+
+### tokenizer
+
+介绍一下 BPE
+
+### normalization
+
+BatchNorm 和 LayerNorm 区别
+
+为什么用 RMSNorm 替换 LayerNorm
+
+layernorm 好处是啥
+
+介绍一下 mHC
+
+### Attention
+
+attention 的时间复杂度和空间复杂度
+
+介绍一下 flashattention，解决了什么问题
+
+attention 是如何改进的？
+
+attention 为什么要 除以 $\sqrt{d_k}$.
+
+linear attention 了解吗？（kimi-linear, qwen-next）、
+
+QKV维度可以不同吗
+
+attention 为什么要做 scaling, softmax 对长尾效应的表现
+
+### MLP
+
+mlp 为什么要先升到 4倍在降维
+
+### 位置编码
+
+旋转编码为什么能注意到相对位置，为什么绝对位置编码没办法实现
+
+### MoE
+
+MoE 为什么高效
+
+MoE 负载均衡是什么，有哪几种，现在怎么做
+
+- expert level
+- node level
+- dynamic routing
+- loss-free
+- global routing
+
+对比一下 MoE 模型和 Dense 模型，为什么要有 dense 模型
+答：说一下dense model 在小尺度上的优势
+
+### LLM
+
+#### Deepseek-v4
+
+deepseek-v3 架构，MLA 如何压缩 kv cache
+
+deepseek-v4 创新
+
+#### MTP
+
+好处：
+
+1. 提高 RL rollout 效率
+2. 减少 GPU idle time
+
+### MLLM
+
+多模态大模型的演进是怎么样的？
+
+#### Image processor
+
+Qwen3.5 和 Qwen3 对大图的处理逻辑有什么不一样
+
+### MRoPE
+
+MRoPE 变化过程
+
+- 2D RoPE
+- 3D RoPE
+- interleaved MRoPE
+
+### ViT
+
+CNN 计算过程，ViT 计算过程， CNN 和 ViT 区别是什么，分别在那一部分有效
+
+ViT 一般如何训练？
+
+如果让你训练一个 ViT, 你会怎么训练
+
+1. 从零开始
+2. 继续预训练
+
+介绍一下常用的 vision encoder, 分析好坏
+
+vision encoder 的演进是怎么样的？
+
+clip 怎么训的，存在什么问题，如何解决
+
+#### projection layer
+
+介绍一下 projection layer:
+
+1. QFormer
+2. MlP
+3. linear layer
+
+pixel shuffle 和 patch merger
+
+### unified MLLM
+
+### model series
+
+Qwen-VL 系列发展
+
+动态分辨率图片输入如何处理
