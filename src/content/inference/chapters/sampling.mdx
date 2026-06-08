@@ -1,0 +1,130 @@
+## Sampling Strategy
+
+### Strategies
+
+#### Greedy Search
+
+每一步选择概率最高的 token
+
+特点：完全确定，相同输入必定有相同输出。缺点是容易陷入局部最优，或者在长文本生成中陷入死循环
+
+表达式
+
+$$
+x_t = \arg\max_{x} P(x\mid x_{<t})
+$$
+
+代码
+
+```python
+import torch
+
+def greedy_search(logits):
+    # logits: (b * s, V)
+    next_token = torch.argmax(logits, dim=-1)
+    return next_token
+```
+
+#### Random Sampling
+
+将 logits 经过 softmax 转化为概率分布之后，直接按照分布进行随机采样
+
+特点是极具创意性和多样性，但缺点在于具有长尾效应，概率极低但非0的低质量 token 也可能被选中，导致生成文本语无伦次
+
+```python
+import torch
+import torch.nn.functional as F
+
+def random_sampling(logits):
+    # logits: (b * s, V)
+    probs = F.softmax(logits, dim=-1)
+    next_token = torch.multinomial(probs, num_samples=1)
+    return next_token.squeeze(-1)
+
+```
+
+#### Temperature
+
+对 logits 进行缩放
+
+$$
+P(x_i) = \frac{\mathrm{logits}_i / T}{\sum_j \mathrm{logits}_j / T}
+$$
+
+作用机制：
+
+1. $T\to0$: softmax 趋向于 one-hot vector, 效果等同于 greedy search
+2. $T=1$: 保持原有的 softmax 概率分布
+3. $T>1$: 平滑概率分布，使得原本概率低的 token 被选中的概率增加
+
+```python
+import torch
+import torch.nn.functional as F
+
+def sample_with_temperature(logits, temperature=0.7):
+    if temperature == 0:
+        return torch.argmax(logits, dim=-1)
+
+    scaled_logits = logits / temperature
+    probs = F.softmax(scaled_logits, dim=-1)
+    return torch.multinomial(probs, num_samples=1).squeeze(-1)
+```
+
+#### Top-K sampling
+
+top-K 采样可以解决随机次啊样长尾低概率 token 导致的胡言乱语。
+其策略在于在采样前，只保留概率最高的前 K 个 token, 并对这 $K$ 个 token 的概率进行重新归一化，其余 token 彻底丢弃。
+
+top-K 采样的问题在于对于某些分布很陡峭的情况，K 个 token 可能比较多，容易放进来脏数据；对于分布很平缓的情况，K 显的太小，会扼杀多样性。
+
+```python
+import torch
+import torch.nn.functional as F
+
+def top_k_sampling(logits, k=50):
+    top_values, top_indices = torch.topk(logits, k, dim=-1)
+
+    filtered_logits = torch.full_like(logits, float('-inf'))
+    filtered_logits.scatter_(-1, top_indices, top_values)
+    probs = F.softmax(filtered_logits, dim=-1)
+    return torch.multinomial(probs, num_samples=1).squeeze(-1)
+```
+
+#### Top-p sampling
+
+Top-p sampling 通过动态调整候选集的大小来解决 top-K 的动态适应问题。
+其策略是将所有的 token 按照概率从大到小排序并计算累计概率。
+当累计概率超过阈值 $p$ 时截断，只保留这个动态集合的 token
+
+Top-p sampling 的优势在于能够自适应 logits 的分布，如果模型对下一步很确定，候选集可能只有 1-2 个词，如果模型很犹豫，候选集会自动扩大到几十个词
+
+```python
+import torch
+import torch.nn.functional as F
+
+def top_p_sampling(logits, p=0.9):
+    # descending order
+    sorted_logits, sorted_indices = torch.sort(logits, descending=True, dim=-1)
+    sorted_probs = F.softmax(sorted_logits, dim=-1)
+
+    # compute accumulative probs
+    cumulative_probs = torch.cumsum(sorted_probs, dim=-1)
+
+    # find top-p mask
+    sorted_indices_to_remove = cumulative_probs > p
+    sorted_indices_to_remove[..., 1:] = sorted_indices_to_remove[..., :-1].clone()
+    sorted_indices_to_remove[..., 0] = 0
+
+    # recover the logits indices
+    indices_to_remove = sorted_indices_to_remove.scatter(-1, sorted_indices, sorted_indices_to_remove)
+
+    filtered_logits = logits.clone()
+    filtered_logits[indices_to_remove] = float('-inf')
+
+    probs = F.softmax(filtered_logits, dim=-1)
+    return torch.multinomial(probs, num_samples=1).squeeze(-1)
+```
+
+#### Beam Search
+
+### Practices
