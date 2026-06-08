@@ -8,36 +8,8 @@ published: "May. 09, 2026"
 tags:
   - tutorial
 tableOfContentsAutoCollapse: true
-pdfProOnly: false
-showPdf: true
 ---
 
-import DPO from "./chapters/DPO.mdx"
+import DPO from "./chapters/DPO.mdx";
 
 <DPO />
-
-## reward model training
-
-dataset: HelpSteer 2, HelpSteer 3
-
-improvement: 使用 stronger LLM 生成rejected response, 使用weaker LLM 生成 chosen response 来避免preference相差过大。
-
-training, Bradley-Terry model [@Bradley1952RankAO]: 给定 $(x,y^+,y^-)\in\mathcal{D}$, 其中 $y^+$ 为 chosen response, $y^-$ 为rejected response,
-
-$$
-p(y^+>y^-\mid x) = \frac{\exp(r_{\theta}(x,y^+))}{\exp(r_{\theta}(x,y^+))+\exp(r_{\theta}(x,y^-))}
-$$
-
-其中 $r_{\theta}(x,y^+)$ 是我们的reward model.
-
-实际训练时，我们会在一个LLM上外接一个 linear layer, 然后使用MLE来进行训练
-
-$$
-\mathcal{L}(\theta) = \mathbb{E}_{(x,y^+,y^-)\in\mathcal{D}}\left[\log p(y^+>y^-\mid x)\right]
-$$
-
-benchmark: rewardbench
-
-insights
-
-- 更大的模型更好，小模型比较偏好回答的风格而不是整体的质量
