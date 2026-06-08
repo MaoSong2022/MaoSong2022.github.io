@@ -1,7 +1,7 @@
-import Note from '../../../components/Note.astro';
-import Accordion from '../../../components/Accordion.astro';
+import Note from "../../../components/Note.astro";
+import Accordion from "../../../components/Accordion.astro";
 import Image from "../../../components/Image.astro";
-import HtmlEmbed from '../../../components/HtmlEmbed.astro';
+import HtmlEmbed from "../../../components/HtmlEmbed.astro";
 import olmoe_moe_architecture from "../../../assets/image/olmoe-MoE_architecture.png";
 import switch_transformer_speed_comparison from "../../../assets/image/Switch-Transformer-speed-comparison.png";
 import el_activation_ratio_impact from "../../../assets/image/EL-activation-ratio-impact.png";
@@ -139,6 +139,17 @@ MoE 训练更加高效，如下图所示
 
 Switch Transformer [@SwitchTransformer] 的 实验结果说明，MoE model 的训练效率比 dense model 快 7 倍左右。
 其他模型也有类似结论。总的来说，MoE 模型相比于 dense 模型，训练效率更高。
+
+[@zhao_insights_2025] 的计算开销如下所示 (4096 context length)
+
+| Model       | Type  | Size | Training Cost     |
+| ----------- | ----- | ---- | ----------------- |
+| DeepSeek-V2 | MoE   | 236B | 155 GFLOPS/Token  |
+| DeepSeek-V3 | MoE   | 671B | 250 GFLOPS/Token  |
+| Qwen-72B    | Dense | 72B  | 394 GFLOPS/Token  |
+| LLaMa-405B  | Dense | 405B | 2448 GFLOPS/Token |
+
+更适合端侧部署TODO
 
 #### Scaling Law
 
