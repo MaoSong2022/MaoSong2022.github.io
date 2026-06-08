@@ -1,6 +1,5 @@
-
-import Image from '../../../components/Image.astro';
-import deepseek_v2_comparison_attention from '../../../assets/image/DeepSeek-V2-comparison-attention.png';
+import Image from "../../../components/Image.astro";
+import deepseek_v2_comparison_attention from "../../../assets/image/DeepSeek-V2-comparison-attention.png";
 
 ## Multi-head Latent Attention (MLA)
 
@@ -130,7 +129,10 @@ $$
 
 MLA 与 MHA, MQA, GQA 的对比如下图所示
 
-<Image src={deepseek_v2_comparison_attention} alt="Comparison of different attention mechanisms" />
+<Image
+  src={deepseek_v2_comparison_attention}
+  alt="Comparison of different attention mechanisms"
+/>
 
 ### Comparison of KV Cache
 
@@ -209,13 +211,13 @@ class DeepseekV2Attention(nn.Module):
         self.kv_b_proj = nn.Linear(config.kv_lora_rank, self.num_heads * (self.q_head_dim - self.qk_rope_head_dim + self.v_head_dim), bias=False)
         # W^O
         self.o_proj = nn.Linear(self.num_heads * self.v_head_dim, self.hidden_size, bias=config.attention_bias)
-        
+
     def forward(self, hidden_states, ...):
         # [q_t^c; q_t^R]
         q = self.q_b_proj(self.q_a_layernorm(self.q_a_proj(hidden_states)))
         q = q.view(bsz, q_len, self.num_heads, self.q_head_dim).transpose(1, 2)
         q_nope, q_pe = torch.split(q, [self.qk_nope_head_dim, self.qk_rope_head_dim], dim=-1)
-        
+
         # [c_t^{KV}; k_t^R]
         compressed_kv = self.kv_a_proj_with_mqa(hidden_states)
         compressed_kv, k_pe = torch.split(compressed_kv, [self.kv_lora_rank, self.qk_rope_head_dim], dim=-1)
@@ -232,25 +234,25 @@ class DeepseekV2Attention(nn.Module):
         query_states = k_pe.new_empty(bsz, self.num_heads, q_len, self.q_head_dim)
         query_states[:, :, :, : self.qk_nope_head_dim] = q_nope
         query_states[:, :, :, self.qk_nope_head_dim :] = q_pe
-        
+
         # k_{t, i}
         key_states = k_pe.new_empty(bsz, self.num_heads, q_len, self.q_head_dim)
         key_states[:, :, :, : self.qk_nope_head_dim] = k_nope
         key_states[:, :, :, self.qk_nope_head_dim :] = k_pe
-        
+
         # Q^TK
         attn_weights = (torch.matmul(query_states, key_states.transpose(2, 3)) * self.softmax_scale)
         # softmax(...) in FP32
         attn_weights = nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query_states.dtype)
-        
+
         # o_{t, i}
         attn_output = torch.matmul(attn_weights, value_states)
-        
+
         # u_t
         attn_output = self.o_proj(attn_output)
-                
+
         return attn_output, attn_weights, past_key_value
-        
+
 ```
 
 ### 参数量计算
@@ -298,3 +300,11 @@ class DeepseekV2Attention(nn.Module):
 | CMMLU (Acc.)                   | 5-shot  | 52.3     | **53.4** | 60.7   | **62.5** |
 
 可以看到，MLA 的表现比 MHA 的表现更好，并且 KV cache 也更少。
+
+对比不同模型的 KV cache 占用 [@zhao_insights_2025]
+
+| Model       | Parameters | Attention | KV cache per token | Multiplier |
+| ----------- | ---------- | --------- | ------------------ | ---------- |
+| DeepSeek-V3 | 671B       | MLA       | 70.272 KB          | 1x         |
+| Qwen-2.5    | 72B        | GQA       | 327.680 KB         | 4.66x      |
+| LLaMA-3.2   | 405B       | GQA       | 516.096 KB         | 7.28x      |
