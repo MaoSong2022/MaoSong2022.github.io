@@ -1,13 +1,28 @@
+import Image from "../../../components/Image.astro";
+import Note from "../../../components/Note.astro";
+import HtmlEmbed from "../../../components/HtmlEmbed.astro";
+import Sidenote from "../../../components/Sidenote.astro";
 
-import Image from '../../../components/Image.astro';
-import gpipe_pp_illustration from '../../../assets/image/GPipe-PP-illustration.png';
-import gpipe_naive_pp_example from '../../../assets/image/GPipe-naive-PP-example.png';
-import gpipe_micro_batch_example from '../../../assets/image/GPipe-micro-batch-example.png';
-import gpipe_performance_analysis from '../../../assets/image/GPipe-performance-analysis.png';
+import gpipe_pp_illustration from "../../../assets/image/GPipe-PP-illustration.png";
+import gpipe_naive_pp_example from "../../../assets/image/GPipe-naive-PP-example.png";
+import gpipe_micro_batch_example from "../../../assets/image/GPipe-micro-batch-example.png";
+import gpipe_performance_analysis from "../../../assets/image/GPipe-performance-analysis.png";
 
 ## Pipeline Parallelism
 
-Pipeline Parallelism (PP) 是一个将模型切分为多个部分部署在不同 GPU 上进而实现分布式训练的方法。
+在 [Tensor Parallelism](#tp) 中，我们介绍了如何将模型权重 shard 到不同的 GPU 上来降低 activation.
+TP 的问题在于其只能部署在单节点内部，这是因为 TP 一次训练需要 AllReduce 两次，跨节点的 TP 会提高整体训练的通信开销。
+
+下图是不同节点数量的 bandwidth TODO
+
+为了解决 TP 跨节点通信效率低的问题，Pipeline Parallelism (PP) 通过将模型按照 layer 切分到不同的节点上来解决这个问题。
+
+<Note title="Remark" emoji="💡" variant="info">
+  需要注意的是，通过 PP, 我们只是降低了每个 GPU
+  上的参数，梯度，优化器状态的内存占用，而 activation 占用仍然保持一致。
+</Note>
+
+### Naive PP
 
 假设我们的模型有 4 layers, 即
 
@@ -29,11 +44,20 @@ $$
 5. GPU2 将反向传播的中间结果 $\nabla\mathrm{intermidiate}$ 传输到 GPU1 上
 6. GPU1 进行反向传播
 
-上面的方法称为 naive PP.  
+上面的方法称为 naive PP.
 
-示意图如下所示：TODO
+示意图如下所示：
 
-naive PP 存在如下问题：
+<HtmlEmbed src="PP_naive.html" title="naive PP for two layers network" />
+
+通信流程如下图所示
+
+<HtmlEmbed
+  src="PP_naive_pipeline.html"
+  title="Pipeline of naive PP for two layers network"
+/>
+
+从通信流程可以看出 naive PP 存在如下问题：
 
 1. GPU 使用率低： 一个 GPU 计算时，其他所有 GPU都闲置
 2. 计算和通信不重叠：执行 GPU 通信时，没有 GPU 执行计算任务
@@ -41,10 +65,108 @@ naive PP 存在如下问题：
 
 ### GPipe
 
-GPipe [@GPipe] 是 Google 提出的一个用于将大规模性模型分割部署到不同设备上的并行计算策略。
-其核心思想是将一个大的 batch 拆分为若干个较小的 batch 来提高 GPU 的利用率。
+为了解决 naive PP 计算效率低的问题，Google 提出了 GPipe [@GPipe]
+GPipe [@GPipe] 的核心思想为
 
-#### Notation
+<Note title="Core-idea" emoji="💡" variant="info">
+  将一个大的 batch 拆分为若干个较小的 batch 来提高 GPU 的利用率。
+</Note>
+
+这里我们假设 PP rank 为 4，我们采用与 GPipe 一致的标记，现在每个 PP rank 上都有一层或若干层 layer, 因此我们不再对其进行标注。
+
+GPipe 通过将输入分割为多个更小的 micro batch, 来降低不同 GPU 的闲置率。
+我们现在用数字来表示对应的 micro batch.
+那么 GPipe 的 pipeline 如下所示
+
+<HtmlEmbed
+  src="PP_gpipe.html"
+  title="GPipe pipeline"
+  desc="An example of GPipe with PP rank=4 and 4 micro batches."
+/>
+
+### 1F1B
+
+通过使用 micro batches, 我们可以降低整体的 GPU 闲置率。
+但是，我们发现，第 1 个 micro batch 的 activation 存在于整个 batch 中，这是因为其 forward pass 时最早，而 backward pass 时最晚。
+因此，我们可以优化 backward 的顺序，一旦某一个 batch 完成了 forward pass, 我们就立即对其进行 backward pass 并释放对应的 activation.
+这就是 1F1B (1 forward pass 1 backward pass)
+
+对应的流程图如下所示
+
+<HtmlEmbed
+  src="PP_1f1b.html"
+  title="1F1B pipeline"
+  desc="An example of 1F1V with PP rank=4 and 8 micro batches."
+/>
+
+可以看到，每一个 micro batch 一旦完成前向传播，就立即进行反向传播。
+这样这个 micro batch 对应的 activation 也可以及时释放掉。
+因此，相比于 GPipe, 1F1B 的 peak memory 占用更低
+
+### Interleaving PP
+
+尽管 1F1B 通过立即进行反向传播的策略降低了 GPU 闲置率。
+但是，我们想要进一步降低闲置率就只能减少 micro batch size, 而降低 micro batch size 又会导致计算资源浪费。
+
+Interleaving PP 提出了交错部署的策略来实现等效降低 micro batch size 的目标。
+
+在前面的介绍中，我们都是将相邻的 layer 放到一个 PP rank, interleaving PP 则认为，我们应该交错排列 layers, 两种方式如下表所示
+
+| Method | normal PP | Interleaving PP |
+| ------ | --------- | --------------- |
+| Rank1  | (1,2,3,4) | (1,3,5,7)       |
+| Rank2  | (5,6,7,8) | (2,4,6,8)       |
+
+Interleaving PP 对应的 pipeline 为 TODO
+
+### ZeroBubble
+
+我们在前面中没有介绍的一点是，反向传播所需要的时间为前向传播的 2 倍
+
+<Sidenote>See Memory Analysis for more details. TODO</Sidenote>
+
+实际上，反向传播包括两部分：
+
+1. 对权重的梯度，其梯度不影响其他部分
+2. 对输入的梯度，其梯度影响前一层的梯度
+
+ZeroBubble 基于上面这个事实，进一步降低了整体的 GPU 闲置率。
+其核心思想在于
+
+<Note title="Core-idea" emoji="💡" variant="info">
+  反向传播过程中，解耦权重梯度计算与输入梯度计算，将权重梯度计算填充到何时的位置上。
+</Note>
+
+ZeroBubble 给出了两种模式
+
+H2 对应的流程图为
+
+<HtmlEmbed
+  src="PP_zero_bubble_h2.html"
+  title="ZeroBubble H2"
+  desc="An example of ZeroBubble H2 with PP rank=4 and 8 micro batches."
+/>
+
+### DualPipe
+
+DualPipe [] 的核心思想在于
+
+<Note title="Core-idea" emoji="💡" variant="info">
+  一套 PP pipeline 中同时部署正向模型和反向模型。
+</Note>
+
+| Method | normal PP | DualPipe |
+| ------ | --------- | -------- |
+| Rank1  | (1, 2)    | (1,8)    |
+| Rank2  | (3，4)    | (2，7)   |
+| Rank1  | (5，6)    | (3，6)   |
+| Rank2  | (7，8)    | (4，5)   |
+
+Optimization: TODO
+
+### Analysis
+
+### TODO
 
 作者首先定义 notation 如下表所示
 
@@ -59,8 +181,6 @@ GPipe [@GPipe] 是 Google 提出的一个用于将大规模性模型分割部署
 | $N$                           | batch size                  |
 | $M$                           | micro batch size            |
 
-#### GPipe
-
 首先是 naive pipeline parallelism (naive PP), 我们的输入为一个 batch, 然后我们依次计算 $F_1$, 通信传输，计算 $F_2$, 计算完成之后，我们再进行反向传播，更新参数。最后继续下一个 batch 的计算。
 
 总体的过程如下图所示
@@ -69,17 +189,19 @@ GPipe [@GPipe] 是 Google 提出的一个用于将大规模性模型分割部署
 
 下面是一个按照时间轴给出的例子
 
-<Image src={gpipe_naive_pp_example} alt="an example of naive PP with 4 devices" />
+<Image
+  src={gpipe_naive_pp_example}
+  alt="an example of naive PP with 4 devices"
+/>
 
-naive PP 的问题在于，每个时刻只有一个 GPU 在工作，GPU 的利用效率很低。因此，GPipe 的做法在于将一个 batch 切分为 $M$ 个更小的 micro-batch,  下面是一个 $M=4$ 的例子
+naive PP 的问题在于，每个时刻只有一个 GPU 在工作，GPU 的利用效率很低。因此，GPipe 的做法在于将一个 batch 切分为 $M$ 个更小的 micro-batch, 下面是一个 $M=4$ 的例子
 
-<Image src={gpipe_micro_batch_example} alt="An example of pipeline parallelism with 4 devices and 4 micro batches" />
+<Image
+  src={gpipe_micro_batch_example}
+  alt="An example of pipeline parallelism with 4 devices and 4 micro batches"
+/>
 
 通过切分更小的 batch，我们可以提高 GPU 的利用率
-
-#### Analysis
-
-##### Bubble
 
 接下来作者分析了 GPipe 的 bubble 情况，bubble 指的是 PP 过程中的 GPU idle time.
 
@@ -119,8 +241,6 @@ $$
 
 当我们令 $M=8, K=8$ 时，我们有 $Bubble_{naive}=46.7\%$, 可以看到，通过提高 micro batch 数量，我们可以显著降低 bubble rate.
 
-##### Activation Memory
-
 对于 naive PP 来说，我们需要缓存每一层的输入，因此 activation memory 为 $\mathcal{O}(N\times L/K)$, 而使用 activation checkpointing 之后，我们现在的 activation memory 为
 
 $$
@@ -129,8 +249,6 @@ $$
 
 其中第一项代表了 boundary activation, 第二项代表了 Internal activation.
 
-### Experiments
-
 作者在 image classification, machine translation 任务上进行了实验。
 
 作者还进一步分析了影响 GPipe 性能的因素，结果如下图所示
@@ -138,5 +256,3 @@ $$
 <Image src={gpipe_performance_analysis} alt="Time step breakdown" />
 
 可以看到，activation checkpointing 是 GPipe 的主要开销来源。
-
-### PipeDream
