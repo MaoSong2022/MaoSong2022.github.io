@@ -1,0 +1,22 @@
+## Dataset
+
+### Related dataset
+
+Code:
+
+- AM-Thinking-v1-distilled, 85k
+- II-Thought-RL, 20K
+
+Math:
+
+- Skywork-or1-rl-DATA, 24K
+- AM thinking, 32K
+- AceReason-Math, 49K
+- II-Thought-RL, 30K
+
+### data construction
+
+HiPO [@HiPO] 的方式为：让模型在不同的模式下生成 $N$ 条回答，然后作为动态思考数据集，如果 reasoning mode 相比与 non-reasoning mode 提升不大，就使用 non-reasoning mode 数据，并且选择的 mode 里，会保留最短的。
+HiPO 还随机挑选了 1% 数据保证数据多样性。
+
+### data filtering
