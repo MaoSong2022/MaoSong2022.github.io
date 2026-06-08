@@ -1,0 +1,36 @@
+## Dynamic Image Processor
+
+传统的视觉大模型只能处理固定分辨率图片输入，这种做法存在以下问题：
+
+1. 小图被拉伸导致失真
+2. 大图被裁剪或者被压缩导致细节丢失，文字模糊
+
+为了解决这个问题，当前的主流多模态大模型引入了动态分辨率处理机制，核心思想包括：
+
+1. 按需切片
+2. 保持原来的 aspect ratio
+3. Native Resolution
+
+### Dynamic Patch
+
+Dynamic patch 的做法是定义一个标准的尺寸，比如 $448\times448$, 然后对于输入的大图，算法会计算起原始的 aspect ratio, 并将其动态划分为若干个不重叠的 patches, 同时保留一张原始图片的缩略图。
+
+具体步骤为：
+
+1. ratio matching: 根据图片分辨率，动态选择最接近的 grid layout
+2. grid processing: 将不同的 grid 和原始图片缩略图分别送入同一个 ViT 进行特征提取
+3. feature concatenation: 将所有 grid 的 token 按照空间位置拼接到一起，连同原始图片缩略图的 token 一起作为 LLM 的输入
+
+### Native Resolution
+
+Native resolution 的做法取消了固定输入尺寸的限制，图片在输入的时候保持原生的分辨率和 aspect ratio, 直接转化为对应数量的 vision token.
+这类方法的代表工作有 NaViT [@NaViT].
+
+NaViT 还使用了优化策略：
+
+1. dynamic RoPE: 传统 ViT 使用了绝对位置编码，对于动态分辨率图片输入，我们需要使用 Qwen-VL TODO 的 2D-RoPE 等来提供位置信息
+2. packing: 不同分辨率的图片产生的 vision token 数量不同，为了高效训练，我们会吧不同分辨率图片的 token pack 到一个 batch 中，避免显存浪费。
+
+### Hybrid Vision Encoders
+
+DeepSeek-VL [@DeepSeek-VL] 提出了使用不同的 vision encoder 来分别提取高低分辨率的信息。
