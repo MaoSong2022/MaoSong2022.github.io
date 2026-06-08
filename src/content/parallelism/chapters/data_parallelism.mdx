@@ -1,6 +1,6 @@
-import Note from '../../../components/Note.astro'
-import Accordion from '../../../components/Accordion.astro'
-import HtmlEmbed from '../../../components/HtmlEmbed.astro';
+import Note from "../../../components/Note.astro";
+import Accordion from "../../../components/Accordion.astro";
+import HtmlEmbed from "../../../components/HtmlEmbed.astro";
 
 ## Data Parallelism
 
@@ -55,10 +55,7 @@ $$
 
 对应的 pipeline 如下所示：
 
-<HtmlEmbed
-    src="naive_dp_pipeline.html"
-    title="Naive DP pipeline"
-/>
+<HtmlEmbed src="naive_dp_pipeline.html" title="Naive DP pipeline" />
 
 通信开销只有一部分：在 backward pass 时，对梯度进行一次 ReduceScatter 同步不同 GPU 上的梯度
 
@@ -73,8 +70,8 @@ Naive DP 的逻辑非常简单，不同的 DP rank 完成 forward pass, backward
 下面是对应的 pipeline:
 
 <HtmlEmbed
-    src="naive_dp_fine_grained.html"
-    title="Naive DP pipeline with fine-grained AllReduce"
+  src="naive_dp_fine_grained.html"
+  title="Naive DP pipeline with fine-grained AllReduce"
 />
 
 可以看到，相比于 naive DP, 我们现在通过计算通信重叠降低了整体的训练时间。
@@ -90,7 +87,7 @@ class DataParallelNaive(nn.Module):
         self.module = module
         self.require_backward_grad_sync = True
         self.register_backward_hook(self._all_reduce_grads)
-    
+
     def forward(self, *inputs, **kwargs):
         return self.module(*inputs, **kwargs)
 
@@ -103,9 +100,9 @@ class DataParallelNaive(nn.Module):
         if self.require_backward_grad_sync:
             dist.all_reduce(grad, op=dist.ReduceOp.SUM, group=pgm.process_group_manager.cp_dp_group)
             grad /= pgm.process_group_manager.cp_dp_word_size
-        
+
         return grad
-    
+
     @contextlib.contextmanager
     def no_sync(self):
         self.require_backward_grad_sync = False
@@ -121,8 +118,8 @@ Parameter level AllReduce 确实优化了 GPU idle time, 但是 GPU 的计算与
 对应的 pipeline 如下所示：
 
 <HtmlEmbed
-    src="naive_dp_bucket.html"
-    title="Naive DP pipeline with Bucket AllReduce"
+  src="naive_dp_bucket.html"
+  title="Naive DP pipeline with Bucket AllReduce"
 />
 
 下面是对应的实现
@@ -140,7 +137,7 @@ class DataParallelBucket(nn.Module):
         self.bucket_manager = BuckerManager(module.parameters(), pgm.process_group_manager.cp_dp_group, bucker_size, grad_type)
         self.register_backward_hook()
         self._post_backward_callback_set = False
-    
+
     def forward(self, *inputs, **kwargs):
         return self.module(*inputs, **kwargs)
 
@@ -168,7 +165,7 @@ class DataParallelBucket(nn.Module):
                         Variable._execution_engine.queue_callback(self._post_backward)
                         self._post_backward_callback_set = True
 
-                    
+
                     bucket_manager.mark_param_as_ready(param)
 
         return param_hook
@@ -223,10 +220,10 @@ class DeepSpeedEngine:
             def layer_backward_hook(grad_output):
                 if not self.is_boundary():
                     return None # disable sync
-                
+
                 trigger_asynchronous_reduce_scatter(layer.grad)
                 release_unowned_gradient_memory(layer)
-            
+
             layer.register_backward_hook(layer_backward_hook)
 ```
 
@@ -284,17 +281,11 @@ $12$).
 
 训练流程如下所示：
 
-<HtmlEmbed
-    src="ZeRO1.html"
-    title="ZeRO-1 training"
-/>
+<HtmlEmbed src="ZeRO1.html" title="ZeRO-1 training" />
 
 pipeline 如下所示：
 
-<HtmlEmbed
-    src="ZeRO1-pipeline.html"
-    title="ZeRO-1 pipeline"
-/>
+<HtmlEmbed src="ZeRO1-pipeline.html" title="ZeRO-1 pipeline" />
 
 通信开销包括两部分：
 
@@ -328,17 +319,11 @@ ZeRO-2 在 ZeRo-1 的基础上，进一步把 gradient 也进行了 sharding.
 
 训练流程如下所示：
 
-<HtmlEmbed
-    src="ZeRO2.html"
-    title="ZeRO-2 training"
-/>
+<HtmlEmbed src="ZeRO2.html" title="ZeRO-2 training" />
 
 训练 pipeline 对应为
 
-<HtmlEmbed
-    src="ZeRO2-pipeline.html"
-    title="ZeRO-2 pipeline"
-/>
+<HtmlEmbed src="ZeRO2-pipeline.html" title="ZeRO-2 pipeline" />
 
 通信开销包括两部分：
 
@@ -372,17 +357,11 @@ ZeRO-3 的计算流程为：
 
 如下图所示：
 
-<HtmlEmbed
-    src="ZeRO3.html"
-    title="ZeRO-3 training"
-/>
+<HtmlEmbed src="ZeRO3.html" title="ZeRO-3 training" />
 
 计算的 pipeline 为
 
-<HtmlEmbed
-    src="ZeRO3-pipeline.html"
-    title="ZeRO-3 pipeline"
-/>
+<HtmlEmbed src="ZeRO3-pipeline.html" title="ZeRO-3 pipeline" />
 
 通信开销包括三部分:
 
@@ -409,28 +388,28 @@ ZeRO 的问题：只对参数，优化器状态，梯度有效，对于 activati
 
 按照通信来对比，我们可以得出如下结果
 
-|         Strategy         |       naive DP      |             ZeRO-1            |             ZeRO-2            |             ZeRO-3            |
-|:------------------------:|:-------------------:|:-----------------------------:|:-----------------------------:|:-----------------------------:|
-| Forward Pass             | None                  | None              |  None             |  AllGather Parameters $\Psi$         |
-| Backward Pass            | ReduceScatter gradients   $\Psi$     | ReduceScatter gradients   $\Psi$             |  ReduceScatter gradients   $\Psi$             |  AllGather Parameters $\Psi$ +ReduceScatter gradients   $\Psi$         |
-| Optimizer Step           | None                  | None              |  None            |  None         |
-| Parameter Update         | None                  | AllGather Parameters $\Psi$              |  AllGather Parameters $\Psi$              |  None         |
-| Total                    | $\Psi$                 | $2\Psi$              |  $2\Psi$              |  $3\Psi$         |
+|     Strategy     |            naive DP            |             ZeRO-1             |             ZeRO-2             |                           ZeRO-3                            |
+| :--------------: | :----------------------------: | :----------------------------: | :----------------------------: | :---------------------------------------------------------: |
+|   Forward Pass   |              None              |              None              |              None              |                 AllGather Parameters $\Psi$                 |
+|  Backward Pass   | ReduceScatter gradients $\Psi$ | ReduceScatter gradients $\Psi$ | ReduceScatter gradients $\Psi$ | AllGather Parameters $\Psi$ +ReduceScatter gradients $\Psi$ |
+|  Optimizer Step  |              None              |              None              |              None              |                            None                             |
+| Parameter Update |              None              |  AllGather Parameters $\Psi$   |  AllGather Parameters $\Psi$   |                            None                             |
+|      Total       |             $\Psi$             |            $2\Psi$             |            $2\Psi$             |                           $3\Psi$                           |
 
 实际上，如果我们更改 ZeRO-1 和 ZeRO-2 的参数更新时间，将其放在下一次迭代的 forward pass 开始时，我们就会发现，ZeRO-1/2 相比与 ZeRO-3， 实际上的区别仅在于 backward pass 时是否需要 AllGather parameters. ZeRO-1 和 ZeRO-2 保存了一份完整的参数，因此不需要 AllGather, 而 ZeRO-3 为了极致的内存优化，每次利用完参数之后就会直接释放掉，这导致其在反向传播时需要一次额外的 AllGather 来进行计算。
 这体现了时间换空间的思想。
 
 三者的内存和通信对比情况如下
 
-|         Strategy         |       naive DP      |             ZeRO-1            |             ZeRO-2            |             ZeRO-3            |
-|:------------------------:|:-------------------:|:-----------------------------:|:-----------------------------:|:-----------------------------:|
+|         Strategy         |      naive DP       |            ZeRO-1             |            ZeRO-2             |            ZeRO-3             |
+| :----------------------: | :-----------------: | :---------------------------: | :---------------------------: | :---------------------------: |
 | Optimizer States per GPU |       $k\Psi$       |       $\frac{k\Psi}{N}$       |       $\frac{k\Psi}{N}$       |       $\frac{k\Psi}{N}$       |
-|     Gradients per GPU    |       $2\Psi$       |            $2\Psi$            |       $\frac{2\Psi}{N}$       |       $\frac{2\Psi}{N}$       |
+|    Gradients per GPU     |       $2\Psi$       |            $2\Psi$            |       $\frac{2\Psi}{N}$       |       $\frac{2\Psi}{N}$       |
 |    Parameters per GPU    |       $2\Psi$       |            $2\Psi$            |            $2\Psi$            |       $\frac{2\Psi}{N}$       |
 |  Overall Memory per GPU  | $2\Psi+2\Psi+k\Psi$ | $2\Psi+2\Psi+\frac{k\Psi}{N}$ | $2\Psi+\frac{2\Psi+k\Psi}{N}$ | $\frac{2\Psi+2\Psi+k\Psi}{N}$ |
-|       Communication      |          0          |            $2\Psi$            |            $2\Psi$            |            $3\Psi$            |
+|      Communication       |          0          |            $2\Psi$            |            $2\Psi$            |            $3\Psi$            |
 |          Models          |          -          |                               |                               |                               |
-|           Notes          |                     |                               |                               |                               |
+|          Notes           |                     |                               |                               |                               |
 
 ### Practice on DP
 
