@@ -1,0 +1,80 @@
+import Sidenote from "../../../components/Sidenote.astro";
+
+## Traning Inference Mismatch
+
+### What is TIM
+
+现代的 RL 框架比如 verl 会使用不同的框架来完成 inference engine 和 training engine, 比如说使用 megatron [@Megatron] 进行训练，使用 FSDP [@FSDP] 进行训练。
+尽管使用的模型一致，但由于 kernel 等实现不同，inference engine 和 training engine 的输出不完全一致，这就导致了 training inference mismatch 问题。
+
+RL 的目标函数为
+
+$$
+\mathcal{J}(\theta) = \mathbb{E}_{x\sim\mathcal{D},y\sim\pi_{\theta}(\cdot\mid x)}[R(x,y)]
+$$
+
+对应的梯度为
+
+<Sidenote>
+  See [RL4LLM](https://maosong.website/blog/RL4LLM/) for details.
+</Sidenote>
+
+$$
+\nabla_{\theta}\mathcal{J}(\theta) =\mathbb{E}_{x\sim\mathcal{D},y\sim\pi_{\theta}(\cdot\mid x)}[R(x,y)\nabla_{\theta}\log\pi_{\theta}(\theta)]
+$$
+
+由于 training engine 和 inference engine 的不同，我们的的梯度里的两个分布实际上是不一样的，即
+
+$$
+\nabla_{\theta}\mathcal{J}(\theta) =\mathbb{E}_{x\sim\mathcal{D},\textcolor{red}{y\sim\mu_{\theta}(\cdot\mid x)}}[R(x,y)\nabla_{\theta}\log\pi_{\theta}(\theta)]
+$$
+
+这里 $\mu_{\theta}$ 是 inference engine 对 policy $\pi_{\theta}$ 的实现。
+可以看到，只要 training engine 和 inference engine 的输出稍微不对，我们的算法就从 on-policy 变成了 off-policy.
+下面是一个具体的例子：TODO
+
+### Why TIM
+
+thinking machine lab, non-deterministic inference, numerical instability.
+
+1. 训练和推理引擎会使用不同的 kernel 来实现 peak performance
+2. 就算是一个 engine, batch-invariant kernels 也会被禁用来实现 maximum throughput.
+
+### Analysis
+
+我们使用 importance sampling 对目标函数进行改写得到
+
+$$
+\mathcal{J}(\theta) = \mathbb{E}_{x\sim\mathcal{D}, y\sim\mu_{\theta_{\mathrm{old}}}(\cdot\mid x)}\left[\frac{\pi_{\theta}(y\mid x)}{\mu_{\theta_{\mathrm{old}}}(\cdot\mid x) }R(x,y)\right]
+$$
+
+[yao2025offpolicy] 提出了 TODO
+
+MiniRL [@MiniRL] 提出了一个 token-level 和 sequence-level 等价性的分析方法 TODO
+
+### Solutions
+
+#### System solutions
+
+1. 获取真实的采样概率
+2. 解决数值不一致性
+
+但是这些改进仍然无法解决 off-policy 问题。
+
+#### MoE models
+
+MoE RL 训练不稳定性解决：
+
+#### Router Replay
+
+即在训练阶段，使用推理阶段的 MoE router, 避免 sample 时对 policy gradient 引入噪声。
+
+相关工作有
+
+- DeepSeek-V3 [@DeepSeek-V3]
+- Wenhan et.al [@ma2025stabilizingmoereinforcementlearning]
+- GSPO [@GSPO]
+- IcePop TODO
+- KPop [@KPop]
+
+TODO: https://openreview.net/pdf?id=8MHqvb4lK9
