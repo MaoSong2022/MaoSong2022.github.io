@@ -1,6 +1,6 @@
-import Note from '../../../components/Note.astro'
-import Sidenote from '../../../components/Sidenote.astro'
-import Algorithm from '../../../components/Algorithm.astro';
+import Note from "../../../components/Note.astro";
+import Sidenote from "../../../components/Sidenote.astro";
+import Algorithm from "../../../components/Algorithm.astro";
 
 ## Context Parallelism
 
@@ -35,36 +35,38 @@ $$
 \mathrm{MHA}(Q, K, V) = \mathrm{softmax}\left(\frac{QK^T}{\sqrt{d}}\right)V
 $$
 
-现在，由于 $Q_i,K_i, V_i$ 分布在不同 GPU 上，因此我们将计算分成了以下步骤：
+现在，由于 $Q_i,K_i, V_i$ 分布在不同 GPU 上，RingAttention [@RingAttention] 将不同的 CP rank 构建为一个环 (ring), 然后在环之间交换 $K_i, V_i$ 并计算局部的 attention, 最后进行汇总。
+
+RingAttention 算法流程如下
 
 <Algorithm title="Ring Attention Algorithm">
 
 **For** $i=1,\dots,\mathrm{CP}$ (query block index)
 
 1. Compute attention score for current block:
-$$
-S_{i, j}=\frac{Q_iK_j^T}{\sqrt{d}} \in\mathbb{R}^{bs/\mathrm{CP}\times bs/\mathrm{CP}}
-$$
+   $$
+   S_{i, j}=\frac{Q_iK_j^T}{\sqrt{d}} \in\mathbb{R}^{bs/\mathrm{CP}\times bs/\mathrm{CP}}
+   $$
 2. Compute local row-wise max element:
-$$
-m_{i,j} = \max_{\mathrm{row-wise}}(S_{i,j})\in\mathbb{R}^{bs/\mathrm{CP}}
-$$
+   $$
+   m_{i,j} = \max_{\mathrm{row-wise}}(S_{i,j})\in\mathbb{R}^{bs/\mathrm{CP}}
+   $$
 3. Update global row-wise max element:
-$$
-m_{i}^{(j)} = \max(m_{i}^{(j-1)},m_{i,j})\in\mathbb{R}^{bs/\mathrm{CP}}
-$$
+   $$
+   m_{i}^{(j)} = \max(m_{i}^{(j-1)},m_{i,j})\in\mathbb{R}^{bs/\mathrm{CP}}
+   $$
 4. Compute local denominator:
-$$
-d_{i,j}=\sum_{row}\exp\left(S_{i,j}-m_{i}^{(j)}\right)\in\mathbb{R}^{bs/\mathrm{CP}}
-$$
+   $$
+   d_{i,j}=\sum_{row}\exp\left(S_{i,j}-m_{i}^{(j)}\right)\in\mathbb{R}^{bs/\mathrm{CP}}
+   $$
 5. Update global denominator:
-$$
-d_i^{(j)} = d_{i}^{(j-1)}\odot\exp\left(m_{i}^{(j-1)}-m_{i}^{(j)}\right)+d_{i,j}\in\mathbb{R}^{bs/\mathrm{CP}}
-$$
+   $$
+   d_i^{(j)} = d_{i}^{(j-1)}\odot\exp\left(m_{i}^{(j-1)}-m_{i}^{(j)}\right)+d_{i,j}\in\mathbb{R}^{bs/\mathrm{CP}}
+   $$
 6. Rescaling output:
-$$
-O_i^{(j)} = O_i^{(j-1)}\odot\exp\left(m_{i}^{(j-1)}-m_{i}^{(j)}\right)+\exp\left(S_{i,j}-m_i^{(j)}\right)V_j\in\mathbb{R}^{bs/\mathrm{CP}\times d}
-$$
+   $$
+   O_i^{(j)} = O_i^{(j-1)}\odot\exp\left(m_{i}^{(j-1)}-m_{i}^{(j)}\right)+\exp\left(S_{i,j}-m_i^{(j)}\right)V_j\in\mathbb{R}^{bs/\mathrm{CP}\times d}
+   $$
 7. Send $K_j,V_j$ to next CP rank, receive new $K_{j+1}, V_{j+1}$ from last CP rank.
 
 Scaling output with global maximum and denominator:
@@ -72,6 +74,7 @@ Scaling output with global maximum and denominator:
 $$
 O_i^{\mathrm{final}} = \frac{O_i^{\mathrm{CP}}}{d_i^{\mathrm{CP}}}\in\mathbb{R}^{bs/\mathrm{CP}\times d},i=1,\dots, \mathrm{CP}
 $$
+
 </Algorithm>
 
 可以看到，RingAttention 与 FlashAttention 的计算逻辑基本一致，都是使用 online softmax 来完成局部 attention 的计算与更新，计算完之后，不同的 CP rank 再将 $K, V$ 传递到其他的 CP rank 上。
@@ -85,6 +88,8 @@ $$
 
 上一节提到， RingAttention 尽管通过在 sequence dimension 进行并行处理，降低了 activation, 但由于 causal mask, RingAttention 会导致负载不均衡。
 为了解决这个问题，ZigZag Attention 使用了序列重排。
+
+TODO
 
 ### Communication Overhead
 
@@ -109,12 +114,13 @@ $$
 1. 进入 attention 之前，每个 GPU 上 有 $s/\mathrm{CP}$ 的序列，以及完整的 attention heads.
 2. 我们调用 `dist.all_to_all` 将数据进行反转，此时每个 GPU 上有完整的
 
-
 两种通信方式对比如下 TODO
 
 ### Analysis
 
 CP 与 FlashAttention 有相似之处，这两者都依赖于 online softmax, 但是不同的地方在于 FlashAttention 是优化 attention 在单个 GPU 上的计算，而 CP 则是通过将 sequence sharding 到不同的 GPU 上来降低内存占用的。
+
 <Sidenote>
-  See [online softmax](https://maosong.website/blog/math/#online-softmax) for more details.
+  See [online softmax](https://maosong.website/blog/math/#online-softmax) for
+  more details.
 </Sidenote>
