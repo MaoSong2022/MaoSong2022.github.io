@@ -1,5 +1,4 @@
-
-## Introduction
+## Necessity of Position Encoding
 
 我们知道，transformer使用position encoding的一个原因就是，attention layer具有置换不变性，也就是说，我们随机打乱输入token的顺序，并不影响其最终结果 (我们后面会证明，实际上只对key和value具有置换不变性，对query具有置换等变性，也就是改变query的顺序之后，结果的顺序也相应改变)。因此为了让模型学习到正确的上下文知识，我们需要加上position encoding。
 
@@ -12,6 +11,7 @@
 $$
 \mathrm{Attn}(X, Y, Y) = V\mathrm{softmax}\left(\frac{K^TQ}{\sqrt{d}}\right)\in\mathbb{R}^{d\times m}
 $$
+
 其中 $d$是模型的`hidden_size`, $Q=W_QX\in\mathbb{R}^{d\times m}$, $K=W_KY\in\mathbb{R}^{d\times n}$, $V=W_VY\in\mathbb{R}^{d\times n}$, $W_Q, W_K, W_V\in\mathbb{R}^{d\times d}$ 分别是QKV projection layer的参数.
 
 LayerNorm的定义为：
@@ -19,6 +19,7 @@ LayerNorm的定义为：
 $$
 \mathrm{LayerNorm}(x) = \frac{x-\mathbb{E}[x]}{\sqrt{\mathrm{var}[x]+\epsilon}}\odot \gamma + \beta
 $$
+
 其中 $\epsilon>0$是一个超参数， $\gamma, \beta\in\mathbb{R}^d$ 是可学习的参数.
 
 FFN的定义为：
@@ -26,6 +27,7 @@ FFN的定义为：
 $$
 \mathrm{FFN}(x) = W_2\max(0, W_1x+b_1)+b_2
 $$
+
 其中 $W_1\in\mathbb{R}^{d_{ff}\times d}$, $W_2\in\mathbb{R}^{d\times d_{ff}}$, $b_1\in\mathbb{R}^{d_{ff}}$, $b_2\in\mathbb{R}^d$ 是可学习的参数。
 
 最后，一个attention layer的的结构可以表达为：
@@ -50,6 +52,7 @@ $$
 $$
 f(\sigma(\bm{x})) = \sigma(f(\bm{x}))
 $$
+
 则我们说 $f$是置换等变的.
 
 ## attention的置换不变性与置换等变性
@@ -68,11 +71,13 @@ $$
     &=V\Pi\mathrm{softmax}\left(\frac{\Pi^TK^TQ}{\sqrt{d}}\right)\\
 \end{aligned}
 $$
+
 由于softmax是按列计算的，置换只是改变了元素的顺序，因此我们自然有
 
 $$
 \mathrm{Attn}(X, \sigma(Y),\sigma(Y)) = V\Pi\Pi^T\mathrm{softmax}\left(\frac{K^TQ}{\sqrt{d}}\right)=V\mathrm{softmax}\left(\frac{K^TQ}{\sqrt{d}}\right)=\mathrm{Attn}(X, Y, Y)
 $$
+
 这里我们使用了性质 $\Pi\Pi^T=\mathbf{I}$.
 
 接下来我们证明，attention对于query是置换等变的，即
@@ -82,6 +87,7 @@ $$
 $$
 
 **证明**:
+
 $$
 \begin{aligned}
     \mathrm{Attn}(\sigma(X), Y, Y) &= V\mathrm{softmax}\left(\frac{K^TQ\Pi}{\sqrt{d}}\right)\\
@@ -119,6 +125,7 @@ $$
     &= W_VY\mathrm{softmax}\left(K^T\bm{q}\right) + \bm{b}_V\mathbb{1}^T \mathrm{softmax}\left(K^T\bm{q}\right)
 \end{aligned}
 $$
+
 由于 $\mathrm{softmax}\left(K^T\bm{q}\right)\in\mathbb{R}^{n}$的列求和为$1$, 因此，$\mathbb{1}^T\mathrm{softmax}\left(K^T\bm{q}\right)=1$, 我们有
 
 $$
@@ -136,9 +143,11 @@ $$
 $$
 
 这里，我们需要用到softmax函数的平移不变性，即 $\mathrm{softmax}(\bm{x}+\delta\mathbf{1})=\mathrm{softmax}(\bm{x})$, 这里 $\delta\in\mathbb{R}$ 是一个常数，证明起来很简单：
+
 $$
 \mathrm{softmax}(\bm{x}+\delta)_i = \frac{e^{x_i+\delta}}{\sum_{j}e^{x_j+\delta}} = \frac{e^{x_i} * e^{\delta}}{\sum_{j}e^{x_j} * e^{\delta}} = \mathrm{softmax}(\bm{x})_i
 $$
+
 而这里 $\bm{b}_K^T\bm{q}\in\mathbb{R}$，因此我们可以将这一项给去掉，我们得到：
 
 $$
@@ -146,6 +155,7 @@ $$
 $$
 
 接下来，我们展开 $\bm{q}$,
+
 $$
 \boxed{
 \begin{aligned}
