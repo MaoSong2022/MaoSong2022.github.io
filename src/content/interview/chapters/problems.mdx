@@ -1,0 +1,79 @@
+- 为什么要用 Actor-Critic 而不是纯 Critic？
+
+- KL 散度和交叉熵、MLE 的关系？
+
+- 不同 RL 场景应该如何设计 Reward？
+
+- 如何理解 RL 中的 importance sampling / rejection sampling 等 monte carlo 方法？
+
+- PPO / GRPO 的 advantage 是怎么算的，为什么要减去 baseline，这里一定要除以 std 吗？
+
+- RL training 和 test-time scaling 各自是如何 explore 的？
+
+- PPO 是如何 clip 的，为什么要取 min，不 clip 会怎么样，CISPO 是怎么做的
+
+答：PPO 简化了 TRPO 的 trust region, TRPO 中 用 $KL(\cdot\mid\mid\cdot)<\delta$ 来进行 clip, PPO 则是使用 importance sampling ratio 来进行 CLIP, 做法就是 $\mathrm{clip}(r_t, 1-\epsilon,1+\epsilon)$, 这里 $r_t$ 为 IS ratio, 但是这个 clip 对于 $A_t>0, r_t>1+\epsilon$ 和 $A_t<0, r_t<1-\epsilon$ 时会
+
+- GRPO 为什么加上 KL 散度，KL 散度怎么计算，为什么 DAPO、GSPO 又去掉了 KL 散度？
+
+答： GRPO 加上 KL 散度是为了不让 policy model 与 reference model 相差太远。使用的是 reverse KL, 计算的话，GRPO 使用了 k2 estimator, 其表达式为，TODO, 代码中实现方式为 TODO. DAPO 认为要提高模型的 reasoning 能力，我们需要让模型有充分的探索，因此舍弃了这个约束。
+
+- 在 LLM 训练时，如果不小心多 All Reduce 了几次 loss，会发生什么？
+
+答：损失会扩大 DP rank size 倍，容易产生梯度爆炸。但是 pytorch 应该会自动化这个过程，手动 AllReduce 应该会导致抱错
+
+- DPO 的 reward 是什么，会不会 reward hacking，如何解决？
+- 有哪些解决 MoE 训推不一致问题的算法，各自是什么原理？
+- RL 训练时，group size / learning rate / ppo epoch / generation length 如何设置？
+
+答：GRPO 的 group size 一般设置为 8, lr 一般设置为 1e-6 这个级别，PPO epoch 一般就是 1, 防止模型过拟合， generation length 越大越好，现在大部分数据集都是 16384.
+
+- 相比 GRPO，Dr.GRPO / DAPO / GSPO / CISPO / SAPO / DPPO / MaxRL / SimKO 是如何改进的，各自又有什么缺点？
+
+- TRPO / DPPO / AReaL 是如何用 trust region 约束 RL objective 的
+
+答：TRPO 使用约束来实现，forward KL. TODO
+
+- RL 能否拓展 LLM 的能力边界？
+
+- 结合 ProRL 等工作，谈谈如何 scale RL 训练边界？
+
+- OPD 相比于传统 RL / SFT 的改进，有哪些 OPD 的应用？
+
+- LLM 推理能力是在哪一个训练阶段产生的？
+
+- DeepSeek R1 到 V3.2 / V4，RL 部分有哪些改进，MoE RL 有什么不同？
+
+- 不考虑 cpu offload，GRPO 训练时显存里有几个模型，考虑了能省多少显存？
+
+答：GRPO 相比于 PPO, 舍弃了 value model, 因此只有 policy model, reference model, reward model. 但是现在 GRPO 一般使用 verifier 来提供奖励，因此我们这里只考虑policy model, reference model, 其中 policy model 是训练状态, reference model 是推理状态。训练时，一个模型占用的显存包括：参数，梯度，优化器状态，激活值。假设我们使用BF16混合精度训练，前三者的占用分别为 2P, 2P, 12P, 一共 16P, 激活值是一个与 batch size 正相关的量，一般我们不考虑。推理时，一个模型占用的显存就是参数以及 kv cache, 但是这里我们不考虑 kv cache，因为我们只需要 logits, 所以 reference model 的显存占用为 2P. 总哦那个的占用为 18 P. 使用 ZeRO-offload 之后，我们可以将优化器状态 offload 到 CPU 上，这时总的 显存占用为 4P, 降低了 70% 多
+
+- 分布式推理：KV cache 传输优化、多卡通信优化策略
+
+- INT8 与 FP8 优劣对比，训推分别用什么精度
+
+- RL rollout 中的长尾问题是什么，有哪些解决方案？
+
+- continuous batching 在 RL 训练时会有什么问题，vLLM 和 SGLang 的区别？
+
+- vLLM / SGLang 怎么看利用率，KV cache 在训练里的利用率怎么看？
+
+- 多机多卡 RL 训练时如何实现反向传播？
+
+- RL 训练有哪些异步框架，解决了同步训练的什么问题？
+
+- AReaL 或者其他 partially rollout 框架，在 rollout 时，会不会保存之前 policy 的 KV cache？
+
+- MoE 的 EP 对 throughput 的影响
+
+- Long context 场景下的 compute-communication overlap，megatron 和 fsdp 各自的 parallelism
+
+- 确定性模式怎么开，什么是 batch invariance，是什么导致的，有没有 atom add，atom add 能解决吗？
+
+- AReaL 和 slime 对 RL rollout bottleneck 的理解有什么不同？
+
+- full async staleness 怎么看，训练时大概是多少？
+
+- slime 里 data 怎么流，megatron 怎么结合，loss 怎么算？
+
+- VeRL / TRL / Unsloth / AReaL / slime 你会选哪个？
