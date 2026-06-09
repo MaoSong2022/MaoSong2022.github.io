@@ -1,26 +1,60 @@
+import Image from "../../../components/Image.astro";
+import architecture from "../../../assets/image/architecture.png";
+import afm_2025_pt_moe_architecture from "../../../assets/image/AFM-2025-PT-MoE-architecture.png";
+import afm_2025_rl_infra from "../../../assets/image/AFM-2025-RL-infra.png";
+import ovis_architecure from "../../../assets/image/Ovis-architecure.png";
+import ovis_training_dataset_distribution from "../../../assets/image/Ovis-training-dataset-distribution.png";
+import ovis_2_5_architecture from "../../../assets/image/Ovis-2-5-architecture.png";
+import ovis_2_5_training_process from "../../../assets/image/Ovis-2-5-training-process.png";
 
-import Image from '../../../components/Image.astro';
-import afm_2025_pt_moe_architecture from '../../../assets/image/AFM-2025-PT-MoE-architecture.png';
-import afm_2025_rl_infra from '../../../assets/image/AFM-2025-RL-infra.png';
+## Models
+
+### Aya Vision
+
+Aya Vision是一个多模态大语言模型，包含8B, 32B两个size，支持23种语言。Aya Vision基于 Aya Expanse大语言模型。
+
+Aya Vision的模型架构如下图所示
+
+<Image src={architecture} alt="Aya Vision模型架构" />
+
+- Vision Encoder: SigLip2-patch14-384
+- Vision-text connector: 2 layer MLP
+- LLM: Aya Expanse 8B/ 32B
+
+#### 训练
+
+训练包含两个stage：
+
+1. Vision-language alignment: 仅训练vision-text connector，基于image-text pairs进行训练
+2. SFT：训练connector和LLM，基于合成的多语种数据进行训练
+
+#### Model merging
+
+最后为了提高模型在纯文本任务上的表现，作者还使用了model merging的技巧。具体做法就是merge使用的base language model和SFT之后的vision-language model
+
+1. [Aya Vision Blog](https://huggingface.co/blog/aya-vision)
+
+### AFM
 
 Apple 在 7 月份发布了 AFM 技术报告，包括两个多语种多模态大模型，分别为 3B 和 xB, 一个面向 device, 另一个面向 server， 前者主要集中于效率，后者集中于表现。
 
-## Pre-training
+#### Architecture
 
-### Architecture
-
-#### On-Device Model
+##### On-Device Model
 
 对于 on-device model, 作者将模型分为两个 block, Block1 占 $62.5\%$ 的 transformer layers, Block2 占 $37.5\%$ 的 transformer layers. 但是，对于 Block2, 作者移除了 key, value projection, 对应的 KV cache 则直接从 Block1 中获取。通过这种方式，作者将 KV cache memory usage 减少了 $37.5\%$. 并且，由于 Block2 不产生任何 key values, prefill stage 可以跳过这些计算，这样 TTFT 也可以减少 $37.5\%$.
 
-#### Server Model
+##### Server Model
 
 对于 server model, 作者对架构进行了改进，来提高效率。架构如下图所示
 
-<Image src={afm_2025_pt_moe_architecture} alt="Diagram of the PT-MoE architecture" />
+<Image
+  src={afm_2025_pt_moe_architecture}
+  alt="Diagram of the PT-MoE architecture"
+/>
 
 **Parallel Track Transformer**
-作者提出了 Parallel Track (PT) Transformer 架构，PT-Transformer 将 transformer 模型分割多个小的 transformer, 作者将这些小的 transformer 称之为 *track*. 每个 track 包含多个 transformer block. 不同的 track 只会在输入和输出的时候进行交互，这样就能够减少同步的开销。作者讲这种模式称为 **track parallelism**.
+作者提出了 Parallel Track (PT) Transformer 架构，PT-Transformer 将 transformer 模型分割多个小的 transformer, 作者将这些小的 transformer 称之为 _track_. 每个 track 包含多个 transformer block. 不同的 track 只会在输入和输出的时候进行交互，这样就能够减少同步的开销。作者讲这种模式称为 **track parallelism**.
 
 **PT-MoE**
 为了进一步提高 server model 的效率，作者将 MoE 和 PT-transformer 结合在一起。具体的做法就是，每两个 transformer block 为一组，每组里包含一个 dense layer 和一个 MoE layer.
@@ -44,7 +78,7 @@ Vision encoder 包含 ViT 和 adapter 两个模块
 
 对于 adapter 来说，其包含了一个 transformer layer, 一个 linear projection layer, 一个 $3\times 3$ 的 convolutional layer. 其中， linear projection 用于将 visual token 映射到 LLM 的特征空间，pooling layer 用于压缩 visual token 个数。
 
-### Data
+#### Data
 
 主要包括 web data 和 image data 两部分
 
@@ -55,7 +89,7 @@ image data 部分：
 3. Text-Rich Image Data
 4. High-quality Domain-Specific Image-text Data: 包括 caption 数据， grounding 数据，table, chart, plots 数据以及 knowledge-required domains 的数据
 
-### Training Recipe
+#### Training Recipe
 
 text tokenizer 大小为 150K.
 
@@ -66,9 +100,9 @@ Vision encoder 的训练包含两个 stage:
 
 LLM 的训练使用了 **13.4T** token
 
-## Post-training
+### Post-training
 
-### SFT
+#### SFT
 
 SFT 数据包括：
 
@@ -91,7 +125,7 @@ SFT 数据包括：
 
 对于不同的 mode, 如果输入的是低精度图片，则 $50\%$ 概率为 rapid mode; 如果输入的是高精度图片，则 $1\%$ 的概率为 rapid mode. 对于其他数据，作者将 $20\%$ 的数据设置为 balanced mode.
 
-### RLHF
+#### RLHF
 
 作者使用 RLOO 作为 RLHF 的算法。
 
@@ -117,21 +151,21 @@ infra 主要由两个部分组成：
 
 作者还发现，人类的打分和 reward model 的发奋可能会出现 $20\%\sim30\%$ 的偏差。为了解决这个问题，作者训练了一个单独的 reward model, 专门用于 prompt selection.
 
-## Tool Use
+#### Tool Use
 
 工具调用数据由于 Multi-turn 和依赖软件工具，比较难以收集。为了解决这个问题，作者设计了一个交互式标注平台，包括一个 agent 和一个工具执行环境。环境包括了工具和数据库，能执行工具调用并反馈。
 
 标注时，用户发起一个请求，然后 agent 自动执行工具调用，最后平台返回反正的轨迹。
 
-## Multilingual
+#### Multilingual
 
 作者逐步增加模型对于新语言的理解能力。默认情形下，输入和输出的语种一致，但是包含 $0.4\%$ 的跨语种数据。在 SFT 和 RLHF 阶段，英语和多语种数据的比例为 $80\%:20\%$.
 
-## Optimization
+#### Optimization
 
 作者使用了 QAT 来将 on-device model 压缩到 2 bits-per-weight, 使用 Adaptive Scalable Texture Compression (ASTC) 来 post-training 3.56 bits-per-weight 版本的 server model.
 
-### QAT
+#### QAT
 
 QAT 是一个在模型训练过程中模拟量化误差，从而提升模型量化后表现的方法。它解决了传统后量化方法精度损失较大的问题，是平衡模型性能用户效率的关键手段。
 
@@ -151,17 +185,17 @@ $$
 
 作者通过精细设计 $f$ 的初始化来保证模型训练的 robust.
 
-### ASTC
+#### ASTC
 
 对于 server model, 作者使用了 ASTC, 一个针对 GPU 图形纹理压缩的技术，来压缩模型权重。具体做法就是，模型训练好之后，作者对模型权重应用 ASTC, 然后对每个块进行预处理。存储时，每个块用 ASTC-HAR-ch 模式压缩为 128 位。最小值单独存储为 float16.
 
 推理时，GPU 硬件自动解压缩 ASTC 块，然后解压的权重最小值相加参与矩阵计算
 
-### Quality Recovery Adapters
+#### Quality Recovery Adapters
 
 作者还是用 LoRA 来恢复量化模型的精度，并通过选择性压缩策略优化 ASTC 过程，在极小的算力开销下实现了接近全量微调的性能。
 
-## Evaluation
+#### Evaluation
 
 On-device model 表现如下
 
@@ -182,11 +216,114 @@ server model 表现如下
 | Qwen-3-235B   | **87.52** | **82.95** | **92.00** |
 | GPT-4o        | 85.70     | 84.00     | 90.30     |
 
-## Conclusion
-
-作者提出了 AFM-2025 多模态多语种大语言模型系列，包括 on-device 和 server 两个版本，作者介绍了模型的架构，训练数据和训练方式。
-
-## References
-
 - [Publication](https://machinelearning.apple.com/papers/apple_intelligence_foundation_language_models_tech_report_2025.pdf)
 - [blog](https://machinelearning.apple.com/research/apple-foundation-models-tech-report-2025)
+
+### Ovis
+
+作者分析了已有多模态大模型的架构，已有多模态大模型的输入对于文本来说是离散的 (text token), 对于图片来说是连续的 (visual embedding)。
+作者认为这种连续 - 离散的输入可能会影响模型最终的表现。
+
+为了解决这个问题，作者构建了一个 visual embedding table, 将 visual embedding 也转换成离散的 token 表示形式，进而统一 LLM 输出的粒度。
+
+模型的架构如下图所示
+
+<Image src={ovis_architecure} alt="Architecture of Ovis" />
+
+我们首先会构建一个 visual vocabulary $\{e_k\}_{k=1}^K$, 其大小为 $K$, 然后对于 ViT 输出的 $n$ 个 visual feature $\{r_i\}_{i=1}^n$, 我们会加入一个 linear head 以及一个 softmax 来构建一个 vocabulary 上的分布，即
+
+$$
+v_i = \mathrm{softmax}(Wr_i), W\in\mathbb{R}^{K\times d}
+$$
+
+这里 $v_i\in\Delta^K$ 是 visual vocabulary 上的概率分布。最终，视觉模块的输入是 vocabulary 中 visual token 的一个加权求和
+
+$$
+V_i = \sum_{k=1}^K v_{i,k}e_k\in\mathbb{R}^{d'}
+$$
+
+训练分为三个阶段：
+
+- Stage 1: 训练 $W$, visual encoder 最后一个 block 以及 visual vocabulary
+- Stage 2: 训练 $W$, visual vocabulary 以及 visual encoder
+- Stage 3: multimodal SFT, 提高模型的指令跟随能力，模型所有参数都参与训练
+
+训练数据分布如下表所示
+
+<Image
+  src={ovis_training_dataset_distribution}
+  alt="Statistics of Ovis training dataset"
+/>
+
+- [Arxiv](http://arxiv.org/abs/2405.20797)
+
+### Ovis2.5
+
+一个基于 Ovis 改进的多模态大模型系列，包括 2B 和 9B 两个 size，Ovis2.5 主要强调了支持不同分辨率图片输入以及深度思考这两个 feature
+
+作者首先回顾了 [Ovis](/p/ovis-discrete-visual-embedding/), Ovis 主要是解决 text embedding 以及 visual embedding 对齐程度比较低的问题。
+
+接下来，作者介绍了以下 Ovis 的两个问题：
+
+1. 只能支持固定大小的图片输入
+2. 缺乏深度思考能力
+
+为了解决这两个问题，作者提出了 Ovis 2.5, Ovis 主要做出了两点改进：
+
+1. 使用了 NaViT 来处理不同分辨率图片的输入
+2. 作者通过训练提高了模型的深度思考能力
+
+最终 Ovis2.5 主要有以下 feature
+
+1. 支持动态分辨率图片输入
+2. 深度思考能力
+3. SOTA 的表现
+4. 高效的训练方式
+
+#### Architecture
+
+Ovis2.5 的架构如下所示
+
+<Image src={ovis_2_5_architecture} alt="Architecture of Ovis2.5" />
+
+Ovis 包括三个模块：
+
+1. visual tokenizer： ViT 架构，
+2. visual embedding table: 类似 LLM 中的 text embedding table, 见 [Ovis](/p/ovis-discrete-visual-embedding/)
+3. LLM: 基于 [Qwen3](/p/notes-on-qwen3/)
+
+作者在架构上进行了如下改进：
+
+1. 动态分辨率图片输入处理：作者使用了 NaViT 来支持动态分辨率图片输入
+2. LLM: 作者使用了 Qwen3 来进一步提高模型的表现
+
+#### Training
+
+模型训练包括 pre-training 和 post-training 两个大的 stage, 其中 pre-training 又包含 3 个小的 stage, post-training 包含 2 个 stage. 训练过程如下所示
+
+<Image src={ovis_2_5_training_process} alt="Training Process of Ovis2.5" />
+
+pre-training 阶段的数据包括 COYO, Laion, Wukong, DataComp, SAM 等。作者介绍了几个部分的数据：
+
+1. OCR 数据，作者基于 MLLM 来标注数据和合成 QA
+2. Grounding 数据，作者使用了 RefCoCo 等数据集以及先进的 MLLM 来标注数据
+3. Reasoning 数据，作者收集了数据然后使用 MLLM 来合成 Reasoning path
+
+训练时，
+
+1. VET pretraining: 训练 VET, 作者基于 SigLIP 来初始模型的参数，然后仅训练最后一层 ViT layer, visual head 以及 VET, 图片精度为 448-896. 作者采用了动态 position embedding
+2. Multimodal pretraining: 这阶段全量微调所有参数，主要目的是使用对话格式的数据。图片精度为 448-1792
+3. multimodal instruction tuning: 这阶段训练所有参数，主要提高模型跟随多模态指令的能力
+
+post-training 包括 [DPO](/p/notes-on-dpo/) 和 GRPO 两个阶段。
+
+1. DPO: 训练所有参数，使用 pre-training checkpoint 来多次采样
+2. GRPO: 使用 RLVR 数据集进行训练
+
+作者提出了几个未来的方向：
+
+1. 将输入图片精度提升到 4K
+2. 处理长视频输入并进行 temporal reasoning
+3. 在 Reasoning 过程中加入 tool-use.
+
+- [arxiv](http://arxiv.org/abs/2508.11737)
