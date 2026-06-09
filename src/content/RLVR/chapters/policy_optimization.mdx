@@ -1,0 +1,52 @@
+## Policy Optimization
+
+### PPO
+
+### GRPO
+
+#### GRPO variants
+
+- DAPO
+- Dr.GRPO
+
+### REINFORCE
+
+#### REINFORCE variants
+
+- REINFORCE++
+
+### CISPO
+
+CISPO [@MiniMax-M1] 提出了 CISPO (clipped IS-weight policy optimization).
+
+CISPO 针对 [REINFORCE](#reinforce) 算法进行了改进，其目标函数为
+
+$$
+\mathcal{J}_{\mathrm{CISPO}}(\theta) = \mathbb{E}_{(q,a)\sim\mathcal{D},\{o_i\}_{i=1}^G\sim\pi_{\theta_{\mathrm{old}}}(\cdot\mid q)}\left[\frac{1}{\sum_{i=1}^G|o_i|}\sum_{i=1}^G\sum_{t=1}^{|o_i|}\mathrm{sg}(\hat{r}_{i,t}(\theta)\hat{A}_{i,t}\log\pi_{\theta}(o_{i,t}\mid q,o_{i,<t})\right]
+$$
+
+其中 $\hat{r}_{i,t}$ 是 clipped IS weight:
+
+$$
+\hat{r}_{i,t} = \mathrm{clip}(r_{i,t}(\theta), 1-\epsilon_{\mathrm{low}}^{\mathrm{IS}}, 1+\epsilon_{\mathrm{high}}^{\mathrm{IS}})
+$$
+
+当没有 clipping 机制的时候， CISPO 就退化为标准的 REINFORCE 算法。
+
+CISPO 还提出了一个统一的表达形式来构建 token level 的 mask, 表达式如下所示
+
+$$
+\mathcal{J}_{\mathrm{unify}}(\theta) = \mathbb{E}_{(q,a)\sim\mathcal{D},\{o_i\}_{i=1}^G\sim\pi_{\theta_{\mathrm{old}}}(\cdot\mid q)}\left[\frac{1}{\sum_{i=1}^G|o_i|}\sum_{i=1}^G\sum_{t=1}^{|o_i|}M_{i,t}\mathrm{sg}(\hat{r}_{i,t}(\theta)\hat{A}_{i,t}\log\pi_{\theta}(o_{i,t}\mid q,o_{i,<t})\right]
+$$
+
+其中 $M_{i,t}$ 等价于 PPO 定义的 trust region:
+
+$$
+M_{i,t} = \begin{cases}
+    0 & \text{ if } \hat{A}_{i,t} > 0 \text{ and } r_{i,t}(\theta) > 1+\epsilon_{\mathrm{high}}\\
+    0 & \text{ if } \hat{A}_{i,t} < 0 \text{ and } r_{i,t}(\theta) < 1-\epsilon_{\mathrm{high}}\\
+    0 & \text{ otherwise }
+\end{cases}
+$$
+
+### MiniRL
