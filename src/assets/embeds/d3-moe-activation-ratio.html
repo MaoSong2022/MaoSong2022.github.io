@@ -263,6 +263,7 @@
       const gGrid = gRoot.append('g').attr('class', 'grid');
       const gAxes = gRoot.append('g').attr('class', 'axes');
       const gCircles = gRoot.append('g').attr('class', 'circles');
+      const gLabels = gRoot.append('g').attr('class', 'labels');
 
       // Tooltip
       container.style.position = container.style.position || 'relative';
@@ -362,12 +363,15 @@
         const innerHeight = height - margin.top - margin.bottom;
         gRoot.attr('transform', `translate(${margin.left},${margin.top})`);
 
-        const timeLabels = Array.from(new Set(data.map(d => d.timeLabel))).sort((a, b) => {
-          const [ay, aq] = a.split('-Q').map(Number);
-          const [by, bq] = b.split('-Q').map(Number);
-          return ay - by || aq - bq;
+        const xKeys = data.map(d => `${d.timeLabel}::${d.model}`);
+        const uniqueKeys = [...new Set(xKeys)].sort((a, b) => {
+          const [ta, ma] = a.split('::');
+          const [tb, mb] = b.split('::');
+          const [ay, aq] = ta.split('-Q').map(Number);
+          const [by, bq] = tb.split('-Q').map(Number);
+          return (ay - by || aq - bq) || ma.localeCompare(mb);
         });
-        xScale.domain(timeLabels).range([0, innerWidth]).padding(0.35);
+        xScale.domain(uniqueKeys).range([0, innerWidth]).padding(0.35);
 
         const allValues = [];
         if (showParams) seriesData.filter(d => d.metric === 'params').forEach(d => allValues.push(d.value));
@@ -390,7 +394,7 @@
         gAxes.selectAll('*').remove();
         gAxes.append('g')
           .attr('transform', `translate(0,${innerHeight})`)
-          .call(d3.axisBottom(xScale).tickValues(timeLabels).tickFormat(d => d))
+          .call(d3.axisBottom(xScale).tickValues(uniqueKeys).tickFormat(d => d.split('::')[0]))
           .call(g => {
             g.selectAll('path, line').attr('stroke', 'var(--axis-color)');
             g.selectAll('text').attr('fill', 'var(--tick-color)').style('text-anchor', 'end').attr('transform', 'rotate(-35)').attr('dx', '-0.5em').attr('dy', '0.3em');
@@ -486,7 +490,7 @@
           })
           .merge(circles)
           .transition().duration(400).ease(d3.easeCubicInOut)
-          .attr('cx', d => xScale(d.timeLabel))
+          .attr('cx', d => xScale(`${d.timeLabel}::${d.model}`))
           .attr('cy', d => yScale(d.value))
           .attr('r', d => rScale(d.totalParams))
           .attr('fill', d => {
@@ -500,6 +504,41 @@
           });
 
         circles.exit().remove();
+
+        // Model labels - one per (time, model) pair, positioned above circle
+        const labelData = [];
+        const seenLabel = new Set();
+        visible.forEach(d => {
+          const k = `${d.timeLabel}::${d.model}`;
+          if (!seenLabel.has(k)) { seenLabel.add(k); labelData.push(d); }
+        });
+
+        const labels = gLabels.selectAll('text.model-label').data(labelData, d => `${d.model}-${d.metric}`);
+
+        labels.enter()
+          .append('text')
+          .attr('class', 'model-label')
+          .attr('text-anchor', 'middle')
+          .attr('dominant-baseline', 'bottom')
+          .attr('paint-order', 'stroke')
+          .attr('fill', d => {
+            const dataset = data.find(row => row.model === d.model);
+            return dataset ? colorScale(data.indexOf(dataset)) : 'var(--text-color)';
+          })
+          .attr('font-size', '10px')
+          .attr('font-weight', '600')
+          .attr('pointer-events', 'none')
+          .attr('stroke', 'var(--surface-bg)')
+          .attr('stroke-width', '2.5px')
+          .attr('stroke-linecap', 'round')
+          .attr('stroke-linejoin', 'round')
+          .merge(labels)
+          .transition().duration(400).ease(d3.easeCubicInOut)
+          .attr('x', d => xScale(`${d.timeLabel}::${d.model}`))
+          .attr('y', d => yScale(d.value) - rScale(d.totalParams) - 5)
+          .text(d => d.model);
+
+        labels.exit().remove();
       }
 
       // Data loading
