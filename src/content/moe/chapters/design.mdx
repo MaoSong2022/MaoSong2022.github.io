@@ -1,5 +1,5 @@
 import Image from "../../../components/Image.astro";
-import Note from '../../../components/Note.astro'
+import Note from "../../../components/Note.astro";
 
 import switch_transformer_scaling_law from "../../../assets/image/Switch-Transformer-scaling-law.png";
 import deepseekmoe_ablation_experts from "../../../assets/image/DeepSeekMoE-ablation-experts.png";
@@ -48,7 +48,10 @@ OLMoE [@OLMoE] 对 DeepSeekMoE [@DeepSeek-MoE] 的这个观点进行了验证，
 结果显示，当专家粒度从 8E-1A 扩展到 32E-4A 时，模型在 HellaSwag 上的表现提升了 $10\%$, 但是进一步扩展到 64E-8A 时，模型的表现提升不到 $2\%$, 这说明了无限制提升专家粒度对模型的提升越来越有限。
 
 Kimi K2[@Kimi-K2] 探究了针对 MoE 模型 sparsity 的 scaling law, 结果也说明，提升 sparsity 可以提高模型的表现。
-因此，其相对于 DeepSeek-V3 [@DeepSeek-V3] 使用了 $50\%$ 额外的的专家数。Ling-mini-beta [@EL] 进一步验证了这个观点。
+因此，其相对于 DeepSeek-V3 [@DeepSeek-V3] 使用了 $50\%$ 额外的的专家数。
+Ling-mini-beta [@EL] 进一步验证了这个观点。
+
+MiniMax-M2 [@MiniMax-M2] 也验证了细粒度专家可以提高模型表现的结论。
 
 #### Shared Experts
 
@@ -96,11 +99,11 @@ $$
 
 实验结果显示，sigmoid function 对于超参数更加 robust, 且表现也更好一些。 下面是一些使用不同激活函数的模型例子
 
-| Activation function | Models                          |
-| :-----: | :-----: |
-| $\mathrm{softmax}(\cdot)$               | Step 3, Kimi-K2, gpt-oss-120B   |
-| $\mathrm{sigmoid}(\cdot)$           | GLM-4.5, dots.llm1, DeepSeek-V3 |
-| $\mathrm{Sqrt}(\mathrm{Softplus}(\cdot))$ | DeepSeek-V4 |
+|            Activation function            |                   Models                    |
+| :---------------------------------------: | :-----------------------------------------: |
+|         $\mathrm{softmax}(\cdot)$         |        Step 3, Kimi-K2, gpt-oss-120B        |
+|         $\mathrm{sigmoid}(\cdot)$         | GLM-4.5, dots.llm1, DeepSeek-V3, MiniMax-M2 |
+| $\mathrm{Sqrt}(\mathrm{Softplus}(\cdot))$ |                 DeepSeek-V4                 |
 
 ### Routing Z-loss
 
@@ -126,7 +129,7 @@ routing 策略直接决定了 MoE 模型的有效性。在为专家分配 token 
 
 三种选择方式如下图所示，图源 [@fedus2022reviewsparseexpertmodels]
 
-<Image src={moe_routing} alt="MoE routing strategies"/>
+<Image src={moe_routing} alt="MoE routing strategies" />
 
 #### Expert Choice
 
@@ -171,7 +174,8 @@ x, & \text{ otherwise }\\
 $$
 
 <Note>
-  注：LongCat 还使用了 [Loss-Free Balancing](#loss-free-load-balancing-strategy), 我们这里省略掉了。
+  注：LongCat 还使用了 [Loss-Free
+  Balancing](#loss-free-load-balancing-strategy), 我们这里省略掉了。
 </Note>
 
 #### Hash Routing
@@ -189,7 +193,7 @@ TODO, 最近的 DeepSeek-V4 [@DeepSeek-V4] 在前三层 MoE layer 中使用了 H
 <Image
   src={celebras_routing_landscape}
   alt="Routing strategy overview (Cerebras)"
-  caption={'Credit to Celebras'}
+  caption={"Credit to Celebras"}
 />
 
 ### Upcycling
