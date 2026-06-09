@@ -4,6 +4,13 @@ import Algorithm from "../../../components/Algorithm.astro";
 
 ## Context Parallelism
 
+TODO:
+
+1. https://huggingface.co/blog/exploding-gradients/ulysses-ring-attention
+2. https://insujang.github.io/2024-09-20/introducing-context-parallelism/
+3. https://docs.pytorch.org/tutorials/unstable/context_parallel.html
+4. https://huggingface.co/blog/huseinzol05/context-parallelism
+
 上一节的 [TP](#tensor_parallelism) 通过将权重 shard 到不同的 GPU 上来降低整体 activation 的占用，但是其仍然存在两个问题：
 
 1. 序列长度导致 activation 急剧上升： TP 从 hidden dimension 维度对权重矩阵进行切分，但是每个 GPU 上仍然需要保存完整长度的序列，即使我们进行 full checkpointing, 我们仍然需要保存 boundary 处的 activation, 这个 activation 与 sequence length 成线性关系。
