@@ -1,0 +1,40 @@
+## MiniMax-M2
+
+模型： MiniMax-M2
+
+model info
+
+- parameters: 229.9B, A9.8B
+- layers: 62
+- hidden size: 3,072
+- vocab size: 200,064
+- MoE: 256 experts, sigmoid gating, 8 activated
+- attention: GQA, 48/8
+- context window: 192K
+- MTP
+- data: pretraining 29.2T tokens
+
+### attention
+
+作者发现，linear attention 的效果不如 full attention.
+
+1. 评估困难
+2. infra gap: linear and sparse attention 的优化不如 full attention 成熟
+3. SWA: SWA 的效果不如 full attention baseline, 特别是 retrieval, multi-hop reasoning, in-context learning
+
+### MTP
+
+在 continual pre-training 时，从一个 MTP 扩展到了 3 个，因为 copy-initialized modules 收敛更快，并且对模型的表示影响比较小。
+
+Training:
+
+1. constant phase of pre-training: 19.9T tokens
+2. decay phase, 8K->32K->192K, 9.3T tokens
+
+### Post-training
+
+作者分为三个 domain:
+
+1. software engineering:
+2. application development
+3. terminal interaction tasks
