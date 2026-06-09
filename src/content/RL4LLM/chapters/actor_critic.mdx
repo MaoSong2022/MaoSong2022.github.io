@@ -160,3 +160,15 @@ $$
 </Algorithm>
 
 GAE 的主要优点在于其相对于 MC estimate 可以大幅度降低 variance, 从而提高训练的稳定性以及效率
+
+### Why actor critic
+
+comparison with value-based methods:
+
+1. 无法处理高维或者连续动作空间，actor-critic 中 actor 可以输出一个连续值的概率分布，直接从分布中采样就能得到动作，不需要遍历动作空间
+2. 无法学习到随机策略： value-based methods 只能推导出确定性策略，使用 $\epsilon$ greedy 之后，也只是随机探索，而不是有策略的随机探索。Actor 可以参数化策略，学习到任意概率分布的随机策略
+3. 学习到的策略更平滑：value-based methods 动作选择依赖于 greedy strategy, 导致 Q function 微小变化导致策略发生剧烈跳变。而 actor-critic 通过 policy gradient 解决了这个问题
+
+comparison with policy-based methods
+
+1. policy-based methods 依赖完整的 rollout 的 return 来更新，对于 long-term tasks, 最后的 return 方差很大，训练难以收敛。 actor-critic 通过引入 critic 来估计期望收益，计算 advantage, 来降低整体法国差，同时用 TD error 代替回合更新，加速训练。
