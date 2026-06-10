@@ -1,8 +1,8 @@
 ## MiniMax-M2
 
-模型： MiniMax-M2
+### Model Info
 
-model info
+模型信息如下：
 
 - parameters: 229.9B, A9.8B
 - layers: 62
@@ -14,7 +14,7 @@ model info
 - MTP
 - data: pretraining 29.2T tokens
 
-### attention
+#### attention
 
 作者发现，linear attention 的效果不如 full attention.
 
@@ -22,19 +22,51 @@ model info
 2. infra gap: linear and sparse attention 的优化不如 full attention 成熟
 3. SWA: SWA 的效果不如 full attention baseline, 特别是 retrieval, multi-hop reasoning, in-context learning
 
-### MTP
+#### MTP
 
 在 continual pre-training 时，从一个 MTP 扩展到了 3 个，因为 copy-initialized modules 收敛更快，并且对模型的表示影响比较小。
 
-Training:
+### Training
+
+#### Pre-Training
 
 1. constant phase of pre-training: 19.9T tokens
 2. decay phase, 8K->32K->192K, 9.3T tokens
 
-### Post-training
+#### Post-training
 
 作者分为三个 domain:
 
 1. software engineering:
 2. application development
 3. terminal interaction tasks
+
+sft 包含 chat, reasoning, code 和 cowork 四个 domain.
+
+rl: CISPO.
+
+reward:
+
+- process reward
+- task completion time reward
+- reward to go
+
+multi-task RL: code, reasoning, agent, general.
+
+#### Agent
+
+Plan-Act-Reflect loop
+
+self-evolution
+
+### Infra
+
+#### Forge
+
+1. system
+2. FIFO scheduling
+3. prefix tree merging
+4. inference acceleration:
+   1. MTP-based speculative decoding
+   2. Heterogeneous Prefill-Decode Disaggregation
+   3. Global L3 KV Cache Pool.
