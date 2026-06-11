@@ -1,16 +1,15 @@
-import Image from '../../../components/Image.astro';
-import flashattention_gpu_hierarchy from '../../../assets/image/flashattention-GPU-hierarchy.png';
-import flashattention_standard_attention_implementation from '../../../assets/image/flashattention-standard-attention-implementation.png';
-import flashattention_standard_attention_backward_pass from '../../../assets/image/flashattention-standard-attention-backward-pass.png';
-import flashattention_algorithm from '../../../assets/image/flashattention-algorithm.png';
-import flashattention_forward_pass_algorithm from '../../../assets/image/flashattention-forward-pass-algorithm.png';
-import flashattention_backward_pass from '../../../assets/image/flashattention-backward-pass.png';
-import flashattention_block_sparse_algorithm from '../../../assets/image/flashattention-block-sparse-algorithm.png';
-import flashattention_block_sparse_efficiency from '../../../assets/image/flashattention-block-sparse-efficiency.png';
-import flashattention_ablation_block_size from '../../../assets/image/flashattention-ablation-block-size.png';
+import Image from "../../../components/Image.astro";
+import flashattention_gpu_hierarchy from "../../../assets/image/flashattention-GPU-hierarchy.png";
+import flashattention_standard_attention_implementation from "../../../assets/image/flashattention-standard-attention-implementation.png";
+import flashattention_standard_attention_backward_pass from "../../../assets/image/flashattention-standard-attention-backward-pass.png";
+import flashattention_algorithm from "../../../assets/image/flashattention-algorithm.png";
+import flashattention_forward_pass_algorithm from "../../../assets/image/flashattention-forward-pass-algorithm.png";
+import flashattention_backward_pass from "../../../assets/image/flashattention-backward-pass.png";
+import flashattention_block_sparse_algorithm from "../../../assets/image/flashattention-block-sparse-algorithm.png";
+import flashattention_block_sparse_efficiency from "../../../assets/image/flashattention-block-sparse-efficiency.png";
+import flashattention_ablation_block_size from "../../../assets/image/flashattention-ablation-block-size.png";
 
-
-## Introduction
+## FlashAttention
 
 Transformer 的 attention 是一个平方度复杂度的算法，这个平方复杂度既体现在时间复杂度上（矩阵乘法），也体现在空间复杂度上（需要存储中间结果）。因此，要降低 attention 的复杂度，我们有两种思路：
 
@@ -84,14 +83,17 @@ $$
 
 算法的执行过程如下
 
-<Image src={flashattention_standard_attention_implementation} alt="Algorithm 0: Standard Attention Implementation" />
+<Image
+  src={flashattention_standard_attention_implementation}
+  alt="Algorithm 0: Standard Attention Implementation"
+/>
 
 我们有第一个结论
 
 > Proposition 1
 > 标准化 attention 前向传播时访问 HBM 的内存访问开销为 $\mathcal{O}(Nd+N^2)$.
 
-证明：对于 attention, 我们需要从 HBM 中加载 $Q,K,V\in\mathbb{R}^{N\times d}$,  然后输出 $O\in\mathbb{R}^{N\times d}$ 并保存到内存中。
+证明：对于 attention, 我们需要从 HBM 中加载 $Q,K,V\in\mathbb{R}^{N\times d}$, 然后输出 $O\in\mathbb{R}^{N\times d}$ 并保存到内存中。
 
 首先我们需要计算 $S = QK^T$, 这一步需要加载 $Q,K$ 并将 $S$ 保存到 HBM 中，内存访问量为 $\mathcal{O}(Nd+N^2)$.
 
@@ -105,12 +107,15 @@ $$
 
 标准 attention 反向传播过程如下图所示
 
-<Image src={flashattention_standard_attention_backward_pass} alt="Standard attention backward pass" />
+<Image
+  src={flashattention_standard_attention_backward_pass}
+  alt="Standard attention backward pass"
+/>
 
 > Proposition 2
 > 标准化 attention 反向传播时访问 HBM 的内存访问开销为 $\mathcal{O}(Nd+N^2)$.
 
-证明：对于标准化 attention 的反向传播，我们需要从 HBM 中加载 $Q,K,V,dO\in\mathbb{R}^{N\times d}$ ,  然后输出 $dQ,dK,dV$ 并保存到 HBM 中。
+证明：对于标准化 attention 的反向传播，我们需要从 HBM 中加载 $Q,K,V,dO\in\mathbb{R}^{N\times d}$ , 然后输出 $dQ,dK,dV$ 并保存到 HBM 中。
 
 首先我们计算 $dV=P^TdO$, 这一步需要加载 $P,dO$ 并将 $dV$ 保存到 HBM 中，内存访问开销为 $\mathcal{O}(Nd+N^2)$.
 
@@ -142,7 +147,7 @@ $$
 m(x) = \max_i x_i,\ f(x) = [e^{x_1-m(x)},\dots,e^{x_B-m(x)}], \ \ell(x)=\sum_if(x)_i, \ \mathrm{softmax}(x) = \frac{f(x)}{\ell(x)}
 $$
 
-如果我们现在有两个向量 $x^{(1)}, x^{(2)}\in\mathbb{R}^{B}$,  记 $x=[x^{(1)}, x^{(2)}]^T\in\mathbb{R}^{2B}$, 我们可以将 $\mathrm{softmax}(x)$ 的计算分解为
+如果我们现在有两个向量 $x^{(1)}, x^{(2)}\in\mathbb{R}^{B}$, 记 $x=[x^{(1)}, x^{(2)}]^T\in\mathbb{R}^{2B}$, 我们可以将 $\mathrm{softmax}(x)$ 的计算分解为
 
 $$
 \begin{aligned}
@@ -155,7 +160,7 @@ $$
 
 #### Recomputation
 
-在反向传播过程中，一般我们需要存储 $S,P\in\mathbb{R}^{N\times N}$, 需要的空间复杂度为 $\mathcal{O}(N^2)$.  但是，通过存储 $O\in\mathbb{R}^{N\times d}$ 以及 $(m,\ell)$, 我们可以避免重新计算 $S,P$,这可以看做是 gradient checkpointing. 但是与 checkpointing 相比，因为 flashattention 减少了内存访问开销，因此其反向过程并没有变得更慢。
+在反向传播过程中，一般我们需要存储 $S,P\in\mathbb{R}^{N\times N}$, 需要的空间复杂度为 $\mathcal{O}(N^2)$. 但是，通过存储 $O\in\mathbb{R}^{N\times d}$ 以及 $(m,\ell)$, 我们可以避免重新计算 $S,P$,这可以看做是 gradient checkpointing. 但是与 checkpointing 相比，因为 flashattention 减少了内存访问开销，因此其反向过程并没有变得更慢。
 
 #### Algorithm
 
@@ -262,7 +267,10 @@ $$
 
 最终，flashattention 的 forward pass 过程如下图所示
 
-<Image src={flashattention_forward_pass_algorithm} alt="FlashAttention forward pass" />
+<Image
+  src={flashattention_forward_pass_algorithm}
+  alt="FlashAttention forward pass"
+/>
 
 接下来，作者分析了 flashattention 的内存访问开销。结论如下
 
@@ -307,7 +315,7 @@ $$
 \mathcal{O}(NdT_c) = \mathcal{O}\left(\frac{N^2d^2}{M}\right)
 $$
 
-一般来说, $d$ 的大小为 $64-128$, $M$ 的大小为 $100 KB$ 左右, $d^2 \ll  M, 因此 flashattention 的内存访问开销远小于标准化 attention 的内存访问开销。
+一般来说, $d$ 的大小为 $64-128$, $M$ 的大小为 $100 KB$ 左右, $d^2 \ll M, 因此 flashattention 的内存访问开销远小于标准化 attention 的内存访问开销。
 
 作者还证明 flashattention 的内存访问开销是一个下界，即
 
@@ -322,7 +330,7 @@ $$
 
 首先我们记损失函数为 $\phi$, 然后令 $\phi$ 对 $O,Q,K,V$ 的梯度分别为 $dO,dQ,dK, dV\in\mathbb{R}^{N\times d}$, 我们的目标是计算 $dQ, dK, dV$.
 
-$dV$ 的计算是最容易的，我们有 $dV=P^TdO$,  因此
+$dV$ 的计算是最容易的，我们有 $dV=P^TdO$, 因此
 
 $$
 dv_j = \sum_{i=1}^N P_{ij}do_i = \sum_{i=1}^N\frac{\exp(q_i^Tk_j)}{L_i}do_i
@@ -330,7 +338,7 @@ $$
 
 由于我们已经计算了 $L_i$, 因此，$dv_j$ 只需要 $\mathcal{O}(d)$ 的空间复杂度。
 
-接下来，注意到 $dP=dOV^T$,  因此我们有
+接下来，注意到 $dP=dOV^T$, 因此我们有
 
 $$
 dP_{ij} = do_i^Tv_j
@@ -391,9 +399,9 @@ $$
 
 <Image src={flashattention_backward_pass} alt="FlashAttention backward pass" />
 
-经过前面的分析，flashattention 的反向传播的时间复杂度为 $\mathcal{O}(N^2)$,  空间复杂度为 $\mathcal{O}(N)$.
+经过前面的分析，flashattention 的反向传播的时间复杂度为 $\mathcal{O}(N^2)$, 空间复杂度为 $\mathcal{O}(N)$.
 
- > Theorem 5
+> Theorem 5
 > 令 $N$ 为 sequence length, $d$ 为 head dimension, $M$ 是 SRAM 的 size, 且满足 $d\leq M\leq Nd$. 则 flashattention 反向传播的内存访问开销为 $\Theta(N^2d^2M^{-1})$.
 
 定理的证明与 Theorem 2 基本一致，我们此处不再赘述。
@@ -402,7 +410,7 @@ $$
 
 当 attention 具有 block sparsity 的性质时，作者提出了 blck-sparse flashattention 来进一步提高 attention 的计算效率。
 
-给定 $Q,K,V\in\mathbb{R}^{N\times d}$,  以及一个 mask $M\in\{0,1\}^{N\times N}$, 我们需要计算
+给定 $Q,K,V\in\mathbb{R}^{N\times d}$, 以及一个 mask $M\in\{0,1\}^{N\times N}$, 我们需要计算
 
 $$
 S = QK^T\in\mathbb{R}^{N\times N},\quad P = \mathrm{softmax}(S\odot \mathbb{1}_{M})\in\mathbb{R}^{N\times N},\quad O = PV\in\mathbb{R}^{N\times d}
@@ -412,7 +420,10 @@ $$
 
 Block-sparse attention 的算法如下所示
 
-<Image src={flashattention_block_sparse_algorithm} alt="Block-sparse FlashAttention forward pass" />
+<Image
+  src={flashattention_block_sparse_algorithm}
+  alt="Block-sparse FlashAttention forward pass"
+/>
 
 > Proposition 4
 > 令 $N$ 为 sequence length, $d$ 为 head dimension, $M$ 是 SRAM 的 size, 且满足 $d\leq M\leq Nd$. 则 block-sparse attention 的内存访问开销为 $\Theta(Nd+N^2d^2M^{-1}s)$, 其中 $s$ 是 block-sparse mask 中的非零 block 的比例
@@ -423,21 +434,24 @@ $$
 \mathcal{O}\left(Nd+\frac{N^2d^2}{M}s\right)
 $$
 
-可以看到，attention mask 的 sparsity 越高，block-sparse flashattention 的效率也就越高。当 $N$ 非常大时，$s$ 通常为 $1/\sqrt{N}$ 或者 $N^{-1}\log N$,  从而最终的内存访问开销为 $\mathcal{O}(N\sqrt{N})$  或者  $\mathcal{O}(N\log N)$.
+可以看到，attention mask 的 sparsity 越高，block-sparse flashattention 的效率也就越高。当 $N$ 非常大时，$s$ 通常为 $1/\sqrt{N}$ 或者 $N^{-1}\log N$, 从而最终的内存访问开销为 $\mathcal{O}(N\sqrt{N})$ 或者 $\mathcal{O}(N\log N)$.
 
 作者对比了以下 block-sparse flashattention 和 flashattention 的效率对比，结果如下图所示
 
-<Image src={flashattention_block_sparse_efficiency} alt="Efficiency of block-sparse FlashAttention" />
+<Image
+  src={flashattention_block_sparse_efficiency}
+  alt="Efficiency of block-sparse FlashAttention"
+/>
 
 ## Experiment
 
 作者通过实验验证了 flashattention 的有效性，如下表所示
 
-|Attention    | Standard| FlashAttention|
-|---------    |---------|---------------|
-|GFLOPs       | 66.6    |75.2           |
-|HBM R/W (GB) |40.3     |4.4            |
-|Runtime (ms) |41.7     |7.3            |
+| Attention    | Standard | FlashAttention |
+| ------------ | -------- | -------------- |
+| GFLOPs       | 66.6     | 75.2           |
+| HBM R/W (GB) | 40.3     | 4.4            |
+| Runtime (ms) | 41.7     | 7.3            |
 
 可以看到，尽管 flashattention 相比于标准化 attention 需要更多的算力，但是由于其内存访问开销更少，所以最终的运行时间大有了大幅度降低
 
@@ -470,10 +484,3 @@ GPT-2 的实验结果如下表所示
 1. 训练速度：实验显示，flashattention 在 BERT 上，比 MLPerf 1.1 快 $15\%$, 在 GPT-2 上比 HuggingFace 快 3 倍，比 Megatron 快 1.8 倍
 2. 准确率：flashattention 是第一个在 Path-X 上比随机表现更好的 transformer 模型；block-sparse flashattention 是第一个在 Path-256 上比随机表现更好的的 sequence model
 
-## Conclusion
-
-作者提出了 flashattention, 一个通过优化标准 attention 内存访问效率来提高 attention 计算效率的方法，作者详细介绍了算法设计的原理与证明，并通过实验证明了结果的有效性。
-
-## References
-
-- [arxiv](http://arxiv.org/abs/2205.14135)
