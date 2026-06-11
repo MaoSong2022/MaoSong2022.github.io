@@ -1,18 +1,17 @@
+import Image from "../../../components/Image.astro";
+import keye_vl_1_5_video_encoding from "../../../assets/image/Keye-VL-1-5-video-encoding.png";
+import keye_vl_1_5_post_training_pipeline from "../../../assets/image/Keye-VL-1-5-post-training-pipeline.png";
+import keye_vl_1_5_longcot_data_generation_pipeline from "../../../assets/image/Keye-VL-1-5-LongCoT-data-generation-pipeline.png";
+import keye_vl_1_5_performance from "../../../assets/image/Keye-VL-1-5-Performance.png";
+import keye_vl_1_5_ablation_training_stage from "../../../assets/image/Keye-VL-1-5-ablation-training-stage.png";
+import keye_vl_1_5_ablation_model_merging from "../../../assets/image/Keye-VL-1-5-ablation-model-merging.png";
+import keye_vl_1_5_ablation_alignment_rl from "../../../assets/image/Keye-VL-1-5-ablation-alignment-RL.png";
+import keye_vl_1_5_ablation_hint from "../../../assets/image/Keye-VL-1-5-ablation-hint.png";
+import keye_vl_1_5_ablation_rejection_sampling from "../../../assets/image/Keye-VL-1-5-ablation-rejection-sampling.png";
 
-import Image from '../../../components/Image.astro';
-import keye_vl_1_5_video_encoding from '../../../assets/image/Keye-VL-1-5-video-encoding.png';
-import keye_vl_1_5_post_training_pipeline from '../../../assets/image/Keye-VL-1-5-post-training-pipeline.png';
-import keye_vl_1_5_longcot_data_generation_pipeline from '../../../assets/image/Keye-VL-1-5-LongCoT-data-generation-pipeline.png';
-import keye_vl_1_5_performance from '../../../assets/image/Keye-VL-1-5-Performance.png';
-import keye_vl_1_5_ablation_training_stage from '../../../assets/image/Keye-VL-1-5-ablation-training-stage.png';
-import keye_vl_1_5_ablation_model_merging from '../../../assets/image/Keye-VL-1-5-ablation-model-merging.png';
-import keye_vl_1_5_ablation_alignment_rl from '../../../assets/image/Keye-VL-1-5-ablation-alignment-RL.png';
-import keye_vl_1_5_ablation_hint from '../../../assets/image/Keye-VL-1-5-ablation-hint.png';
-import keye_vl_1_5_ablation_rejection_sampling from '../../../assets/image/Keye-VL-1-5-ablation-rejection-sampling.png';
+## Keye-VL 1.5
 
-快手提出了 Keye-VL 1.5, 一个强调 reasoning, video understanding 的 8B 多模态大模型。作者提出了 slow-fast video encoding strategy 来提高模型的视频理解能力，作者通过在预训练和后训练提高了模型的长上下文能力和 reasoning 能力
-
-## Introduction
+快手提出了 Keye-VL 1.5 [@Keye-VL1.5], 一个强调 reasoning, video understanding 的 8B 多模态大模型。作者提出了 slow-fast video encoding strategy 来提高模型的视频理解能力，作者通过在预训练和后训练提高了模型的长上下文能力和 reasoning 能力
 
 作者回顾了多模态大模型的进展，然后提到视频理解能力仍然是一个挑战。为了解决这个问题，作者提出了 Keye-VL-1.5, 一个 8B 的视频理解多模态大模型。
 
@@ -21,8 +20,6 @@ Keye-VL-1.5 主要做了三点改进：
 1. 在架构上，使用了 Slow-Fast Video Encoding
 2. 在预训练阶段，使用多个 stage 来提升模型的长上下文能力
 3. 在 post-training 阶段，提高模型的 reasoning 能力和 alignment 表现
-
-## Method
 
 ### Architecture
 
@@ -48,7 +45,9 @@ Keye-VL 1.5 主要做出的改进点为针对视频的 encoding 方式
 
 <Image src={keye_vl_1_5_video_encoding} alt="SlowFast Video Encoding" />
 
-### Pre-training
+### Data
+
+#### Pre-training
 
 预训练的数据和 Keye-VL 基本一致，我们主要介绍改进的点
 
@@ -69,13 +68,7 @@ OCR 数据在 Keye-VL 的基础上加入了两点：
 
 来将短视频分割成若干个 video clips. 然后作者使用 SOTA MLLM 来过滤数据，最后作者基于 Gemini2.5 来生成对应的 QA.
 
-预训练和 Keye-VL 一样，包含 3 个 stage
-
-前两个 stage，作者将模型的上下文限制为 8K, 使用了 DP 和 Zero-2 来减少内存开销。在 stage 3, 作者将模型的上下文从 8K 扩展到 128K, 对应的 base frequency 从 1M 提升到 8M. 训练数据包括长视频，长文本和大规模图片。作者将优化策略调整为 Zero-1, CP 和 PP 来支持 long-context 的训练。训练时数据分布为 video:images:text=24:50:26.
-
-### Post-training
-
-<Image src={keye_vl_1_5_post_training_pipeline} alt="Post-Training Pipeline" />
+#### Post-training
 
 SFT 阶段使用了 **7.5M** 多模态 QA 样本进行训练。
 
@@ -85,13 +78,28 @@ MPO 阶段的数据相比 Keye-VL 有所减少，包含：
 2. 150K 纯文本数据
 3. 26K 人类标注数据
 
+### Training
+
+#### Pre-training
+
+预训练和 Keye-VL 一样，包含 3 个 stage
+
+前两个 stage，作者将模型的上下文限制为 8K, 使用了 DP 和 Zero-2 来减少内存开销。在 stage 3, 作者将模型的上下文从 8K 扩展到 128K, 对应的 base frequency 从 1M 提升到 8M. 训练数据包括长视频，长文本和大规模图片。作者将优化策略调整为 Zero-1, CP 和 PP 来支持 long-context 的训练。训练时数据分布为 video:images:text=24:50:26.
+
+#### Post-training
+
+<Image src={keye_vl_1_5_post_training_pipeline} alt="Post-Training Pipeline" />
+
 对于 reward model 的训练，作者使用了 SFT 和 RL 两个阶段。SFT 阶段的数据包括 R1-Reward 和 MMPR, 训练之后作者还是用比较短的 good response 来避免产生较长的回答
 
 在 SFT 和 MPO 阶段之后，作者使用 LongCoT code-start 初步激活模型的 reasoning 能力。
 
 作者构建了一个 5 部的自动化数据生成 pipeline, 如下图所示
 
-<Image src={keye_vl_1_5_longcot_data_generation_pipeline} alt="LongCoT data generation pipeline" />
+<Image
+  src={keye_vl_1_5_longcot_data_generation_pipeline}
+  alt="LongCoT data generation pipeline"
+/>
 
 步骤如下：
 
@@ -135,7 +143,7 @@ MPO 阶段的数据相比 Keye-VL 有所减少，包含：
 2. reasoning: 12K 数学和逻辑推理数据
 3. RAG: 提高模型的搜索能力，作者使用 GSPO 算法进行训练
 
-## Experiments
+### Experiments
 
 模型表现如下
 
@@ -145,13 +153,19 @@ MPO 阶段的数据相比 Keye-VL 有所减少，包含：
 
 首先是不同训练阶段对模型表现的影响，如下图所示
 
-<Image src={keye_vl_1_5_ablation_training_stage} alt="Ablation study on training strategy" />
+<Image
+  src={keye_vl_1_5_ablation_training_stage}
+  alt="Ablation study on training strategy"
+/>
 
 实验结果显示，提高 SFT 训练数据可以有效提高模型在数学推理，逻辑推理和 OCR 任务上的表现。MPO 可以进一步提高模型的表现，Long CoT cold start 可以有效提高模型的 reasoning 表现。
 
 作者还探究了 model merging 对模型表现的影响，作者首先基于 base model 和 OCR 数据训练得到 OCR expert, 然后进行 merge, 实验结果如下
 
-<Image src={keye_vl_1_5_ablation_model_merging} alt="Ablation study on model merging" />
+<Image
+  src={keye_vl_1_5_ablation_model_merging}
+  alt="Ablation study on model merging"
+/>
 
 实验结果显示，model merging 可以有效提高模型在 special domain 上的表现，并且还可以维持模型的通用能力
 
@@ -174,14 +188,9 @@ MPO 阶段的数据相比 Keye-VL 有所减少，包含：
 
 最后作者探究了 rejection sampling 对模型表现的影响，实验结果如下图所示
 
-<Image src={keye_vl_1_5_ablation_rejection_sampling} alt="Ablation on rejection sampling" />
+<Image
+  src={keye_vl_1_5_ablation_rejection_sampling}
+  alt="Ablation on rejection sampling"
+/>
 
 结果发现，通过 rejection sampling，模型的表现有了进一步的提升。因此作者采用了 ST-RL-(RFT-SFT)-(RFT-RL) 的训练方式来进行训练
-
-## Conclusion
-
-作者在本文中提出了 Keye-VL1.5, 一个强调 video understanding 和 reasoning 的 MLLM. Keye-VL 1.5 使用了 SlowFast video encoding strategy 来提高模型的效率和视频理解能力。作者详细介绍了模型的数据，训练和评估。
-
-## References
-
-- [arxiv](http://arxiv.org/abs/2509.01563)
