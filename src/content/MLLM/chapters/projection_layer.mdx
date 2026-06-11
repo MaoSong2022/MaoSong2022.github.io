@@ -3,15 +3,22 @@ import deepstack_architecture from "../../../assets/image/DeepStack-architecture
 
 ## Projection Layer
 
-### Q-former
+1. QFormer: Qwen-VL, BLIP
+2. percever resampler: FLAMINGO
+3. MLP + patch merger/pixel shuffle: 大多数
+4. linear layer: smol-vl
 
-### MLP
+### layer types
 
-### Linear Layer
+#### Q-former
 
-### Patch Merger
+#### MLP
 
-### DeepStack
+#### Linear Layer
+
+#### Patch Merger
+
+#### DeepStack
 
 已有的 MLLM 将视觉 token 作为一个 1d sequence, 输入给 LLM. 在本文中，DeepStack [@DeepStack] 将 visual token 注入到 LLM 的不同 layer 中来提高视觉信息的利用率
 

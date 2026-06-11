@@ -1,1 +1,9 @@
 ## Training
+
+MLLM 训练过程
+
+一般分为三个 stage:
+
+- STAGE 0: 对 ViT 进行 continual pre-training, constrastive learning, ~100B token
+- STAGE 1: projector, 1e-4, ~100B token
+- STAGE 2: 这个阶段可以拆分多个阶段，全量微调，20M samples
