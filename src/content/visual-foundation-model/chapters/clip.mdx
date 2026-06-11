@@ -1,0 +1,52 @@
+import Accordion from "../../../components/Accordion.astro";
+
+## CLIP
+
+损失函数
+
+图像到文本损失：
+
+$$
+\mathcal{L}_{\mathrm{i2t}} = 1\frac{1}{N}\sum_{i=1}^N\log\frac{\exp(S_{i,i}/\tau)}{\sum_{j=1}^N\exp(S_{i,j}/\tau)}
+$$
+
+文本到图像损失：
+
+$$
+\mathcal{L}_{\mathrm{t2i}} = 1\frac{1}{N}\sum_{i=1}^N\log\frac{\exp(S_{i,j}/\tau)}{\sum_{j=1}^N\exp(S_{j,i}/\tau)}
+$$
+
+总损失
+
+$$
+\mathcal{L}_{\mathrm{CLIP}} = \frac{1}{2}(\mathcal{L}_{\mathrm{i2t}} +\mathcal{L}_{\mathrm{t2i}} )
+$$
+
+代码
+
+<Accordion title="Pseudocode for implementation of CLIP">
+
+```python
+I_f = image_encoder(I) # [n, d_i]
+T_f = text_encoder(T) # [n, d_t]
+
+I_e = l2_normalize(np.dot(I_f, W_i), axis=1) # [n, d_e]
+I_f = l2_normalize(np.dot(I_t, W_t), axis=1) # [n, d_e]
+
+logits = np.dot(I_e, T_e.T) * np.exp(t)  # [n, n]
+
+labels = np.arange(n)
+loss_i = cross_entropy_loss(logits, labels, axis=0)
+logits_t = cross_entropy_loss(logits, labels, axis=1)
+
+loss = (loss_i + loss_t) / 2
+```
+
+</Accordion>
+
+### Analysis
+
+CLIP 的问题在于需要使用非常大 的 batch size, 比如 32K 才能达到一个比较好的表现，太小的话因为负样本不够难以学习到有用的特征。
+但是 batch size $N$ 太大的话，我们的 logits 矩阵 ($N\times N$) 占用的显存也非常大，这会影响整体的训练开销。
+
+为了解决这个问题，[SigLIP](#siglip) 就提出将这个多分类问题编程一个二分类问题

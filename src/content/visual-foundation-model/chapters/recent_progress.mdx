@@ -1,0 +1,15 @@
+## Recent Progress
+
+### CoMP
+
+### ViT-5
+
+### CogViT
+
+GLM-5V-turbo [@GLM-5V-Turbo] 提出了 CogViT, 一个基于 ViT [@ViT] 架构，403M 的 vision encoder.
+CogViT 在架构上使用了 QK-Norm [@QK-Norm] 来提高 attention 计算的稳定性。在训练上，作者将训练分为两个阶段：
+
+1. 使用基于蒸馏的 masked image modeling 来提高模型的视觉表征能力，这个阶段使用了 SigLIP2 [@SigLiP2] 和 DINOv3 [@DINOv3] 作为教师模型分别提供 sementic feature 和 textual feature. 训练时图片大小为 $224\times 224$, masking ratio 为 $35\%$. 数据配比为：natural images ($80\%$), instruction following ($10\%$), scientific imagery ($10\%$).
+2. 使用对比学习来对齐视觉特征和文本特征。这个阶段使用了 NaFlex 来处理动态分辨率图片输入 以及使用了 SigLIP [@SigLIP] 的 Sigmoid loss (batch size) 来进行训练，数据上，作者加入了 8B 的 bilingual 数据来提高模型的多语种能力。
+
+对于优化器，作者使用了 Muon [@jordan2024muon] 以及 cosine learning rate schedule.
