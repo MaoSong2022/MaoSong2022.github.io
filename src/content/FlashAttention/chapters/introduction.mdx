@@ -1,0 +1,8 @@
+## Introduction
+
+标准 attention 计算量为 $O(N^2d)$, 其中 $N$ 是 sequence length, $d$ 是 hidden size, 我们还需要存储 $N\times N$ 的注意力矩阵，而 GPU 的 sram 比较小，这导致在计算 attention 的过程中需要反复在 HBM 和 SRAM 之间搬运，使得 attention 计算变为了一个 IO-bound operation.
+
+flash attention 通过 tiling 和 online softmax 来解决这个问题，具体是将 QKV 分割程小块，避免将整个注意力矩阵写入到 HBM 中。
+而 softmax 则需要全局信息，因此作者使用了 online-softmax 来记录和更新全局信息，降低整体的显存占用，将 $O(N^2)$ 降低到了 $O(N)$
+
+反向传播时，flash attention 通过记录的全局信息和 recomputation 来减少显存占用，消除了反响传播是的 HBM读写，虽然 recomputation 会带来额外计算量，但是因为现在不用读写大矩阵，整体速度日仍然有提升。
