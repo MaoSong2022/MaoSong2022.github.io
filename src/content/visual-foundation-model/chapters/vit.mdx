@@ -1,0 +1,10 @@
+## ViT
+
+ViT 架构：
+
+- patch embedding: nn.Conv3d
+- position embedding: learnable, interpolation
+- MLP: MLP (not SwiGLU)
+- norm: layernorm, pre-norm
+- attention: self-attention without mask
+- head: lm_head, siglipattentionhead
