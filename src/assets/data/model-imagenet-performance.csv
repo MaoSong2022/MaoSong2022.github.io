@@ -2,3 +2,4 @@ model,published_year,affiliation,params_billion,imagenet_top1
 Seed-ViT,2025,Seed,0.532,83.6
 ViT-5-XL,2026,JHU,0.449,86.0
 CogViT,2026,Zhipu,0.403,83.5
+Keye-VL,2025,Kwai, 0.4,82.65
