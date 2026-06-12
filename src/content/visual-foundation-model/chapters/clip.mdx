@@ -2,6 +2,8 @@ import Accordion from "../../../components/Accordion.astro";
 
 ## CLIP
 
+### Method
+
 损失函数
 
 图像到文本损失：
@@ -43,6 +45,19 @@ loss = (loss_i + loss_t) / 2
 ```
 
 </Accordion>
+
+### details
+
+training batch size: 32768
+
+ViT variant details:
+
+| Model          | Learning rate      | Embedding dimension | Input resolution | Vision Transformer layers | Vision Transformer width | Vision Transformer heads | Text Transformer layers | Text Transformer width | Text Transformer heads |
+| :------------- | :----------------- | :------------------ | :--------------- | :------------------------ | :----------------------- | :----------------------- | :---------------------- | :--------------------- | :--------------------- |
+| ViT-B/32       | $5 \times 10^{-4}$ | 512                 | 224              | 12                        | 768                      | 12                       | 12                      | 512                    | 8                      |
+| ViT-B/16       | $5 \times 10^{-4}$ | 512                 | 224              | 12                        | 768                      | 12                       | 12                      | 512                    | 8                      |
+| ViT-L/14       | $4 \times 10^{-4}$ | 768                 | 224              | 24                        | 1024                     | 16                       | 12                      | 768                    | 12                     |
+| ViT-L/14-336px | $2 \times 10^{-5}$ | 768                 | 336              | 24                        | 1024                     | 16                       | 12                      | 768                    | 12                     |
 
 ### Analysis
 
