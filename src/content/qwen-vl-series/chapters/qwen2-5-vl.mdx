@@ -10,7 +10,7 @@ import qwen2_5_vl_agent from "../../../assets/image/Qwen2-5-VL-agent.png";
 
 ## Qwen2.5 VL
 
-2025年2月20号 Qwen 团队发布了Qwen2.5 VL [Qwen2.5-VL] 技术报告，Qwen2.5 VL包括3B，7B， 72B三个size。Qwen2.5-VL主要在架构，数据上进行了改进。
+2025年2月20号 Qwen 团队发布了Qwen2.5 VL [@Qwen2.5-VL] 技术报告，Qwen2.5 VL包括3B，7B， 72B三个size。Qwen2.5-VL主要在架构，数据上进行了改进。
 通过评测，Qwen2.5-VL在多个benchmark上取得了SOTA。
 
 Qwen2.5 VL认为已有模型的缺点为：
@@ -126,8 +126,6 @@ SFT阶段使用大概2M的样本进行训练，其中纯文本和多模态数据
 3. long-context pretraining: 这一阶段，在第二阶段的基础上，增加了long video, long agent, long document data，旨在提升模型处理长上下文的能力
 
 #### Post-training
-
-### 训练
 
 post-training阶段分为SFT和[DPO](/p/notes-on-dpo/)两个小阶段，这个阶段都会冻结VIT. SFT阶段使用大多数的训练数据，而DPO阶段专注于image-text data和pure text data，以更好地进行对齐。具体做法就是基于Grounding truth，使用checkpoint来评估数据的质量，然后只保留答案正确的数据来训练。
 
