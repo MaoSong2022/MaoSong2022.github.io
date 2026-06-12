@@ -1,17 +1,17 @@
+import Image from "../../../components/Image.astro";
+import qwen2_5_vl_architecture from "../../../assets/image/Qwen2-5-VL-architecture.png";
+import qwen2_5_vl_model_config from "../../../assets/image/Qwen2-5-VL-model_config.png";
+import qwen2_5_vl_pretraining from "../../../assets/image/Qwen2-5-VL-pretraining.png";
+import qwen2_5_vl_general_vqa from "../../../assets/image/Qwen2-5-VL-general_vqa.png";
+import qwen2_5_vl_document_understanding from "../../../assets/image/Qwen2-5-VL-document_understanding.png";
+import qwen2_5_vl_grounding from "../../../assets/image/Qwen2-5-VL-grounding.png";
+import qwen2_5_vl_video from "../../../assets/image/Qwen2-5-VL-video.png";
+import qwen2_5_vl_agent from "../../../assets/image/Qwen2-5-VL-agent.png";
 
-import Image from '../../../components/Image.astro';
-import qwen2_5_vl_architecture from '../../../assets/image/Qwen2-5-VL-architecture.png';
-import qwen2_5_vl_model_config from '../../../assets/image/Qwen2-5-VL-model_config.png';
-import qwen2_5_vl_pretraining from '../../../assets/image/Qwen2-5-VL-pretraining.png';
-import qwen2_5_vl_general_vqa from '../../../assets/image/Qwen2-5-VL-general_vqa.png';
-import qwen2_5_vl_document_understanding from '../../../assets/image/Qwen2-5-VL-document_understanding.png';
-import qwen2_5_vl_grounding from '../../../assets/image/Qwen2-5-VL-grounding.png';
-import qwen2_5_vl_video from '../../../assets/image/Qwen2-5-VL-video.png';
-import qwen2_5_vl_agent from '../../../assets/image/Qwen2-5-VL-agent.png';
+## Qwen2.5 VL
 
-# Introduction
-
-2025年2月20号Qwen团队发布了Qwen2.5 VL技术报告，Qwen2.5 VL包括3B，7B， 72B三个size。Qwen2.5-VL主要在架构，数据上进行了改进。通过评测，Qwen2.5-VL在多个benchmark上取得了SOTA。
+2025年2月20号 Qwen 团队发布了Qwen2.5 VL [Qwen2.5-VL] 技术报告，Qwen2.5 VL包括3B，7B， 72B三个size。Qwen2.5-VL主要在架构，数据上进行了改进。
+通过评测，Qwen2.5-VL在多个benchmark上取得了SOTA。
 
 Qwen2.5 VL认为已有模型的缺点为：
 
@@ -34,9 +34,7 @@ Qwen2.5 VL的主要亮点为：
 - 针对长视频的理解和细粒度grounding能力
 - 针对UI的agent functionality
 
-# 模型架构
-
-## 总览
+### Architecture
 
 Qwen2.5 VL和Qwen2 VL的架构基本一致，包括Vision Encoder，Language Encoder，以及projector layer三个部分，其架构图如下：
 
@@ -50,7 +48,7 @@ Qwen2.5 VL和Qwen2 VL的架构基本一致，包括Vision Encoder，Language Enc
 
 <Image src={qwen2_5_vl_model_config} alt="Qwen2.5 VL模型参数配置" />
 
-## Vision Encoder
+#### Vision Encoder
 
 Vision encoder的主要改进点为：
 
@@ -58,7 +56,7 @@ Vision encoder的主要改进点为：
 2. 使用了2D RoPE来捕捉空间信息，使用3D RoPE来捕捉视频输入的时间信息
 3. 与LLM的结构进行对齐，包括使用RMSNorm替换LayerNorm，使用SwiGLU替换ReLU
 
-## 输入处理
+#### Input Processor
 
 对于图片输入，Qwen2.5 VL使用原始图片的空间信息来构建坐标，而不是将坐标normalize到[0, 1000]之间，这样让模型可以处理不同精度的图片输入。
 
@@ -89,11 +87,9 @@ Here we calculate the text start position_ids as the max vision position_ids plu
 [(t, 0, 0), (t, 0, 1), (t, 1, 0), (t, 1, 1)]
 ```
 
-# 训练
+### Data
 
-## 预训练
-
-### 数据
+#### Pre-training data
 
 预训练阶段使用了4.1T的token，包括image captions, interleaved image-text data, optical character recognition (OCR) data, visual knowledge (e.g., celebrity, landmark, flora, and fauna identification), multi-modal academic questions, localization data, document parsing data, video descriptions, video localization, and agent-based interaction data. 作者详细介绍了以下几种数据：
 
@@ -104,19 +100,7 @@ Here we calculate the text start position_ids as the max vision position_ids plu
 - Video data：作者通过pipeline构建了long video caption来提升模型长视频的理解能力
 - Agent data：作者收集了一些mobile device和网页的screenshots,然后基于agent框架来合成控制轨迹
 
-### 训练
-
-<Image src={qwen2_5_vl_pretraining} alt="Qwen2.5 VL预训练阶段" />
-
-如上图所示，Qwen2.5 VL的预训练阶段包括了三个阶段：
-
-1. Visual Pretraining:这一阶段使用了image-caption, knowledge, OCR数据集，旨在提升ViT提取视觉特征的能力
-2. multimodal pretraining:这一阶段在第一阶段的基础上增加了pure-text, interleaved data, VQA, Video grounding, agent data, 旨在提升模型处理复杂视觉信息的能力
-3. long-context pretraining: 这一阶段，在第二阶段的基础上，增加了long video, long agent, long document data，旨在提升模型处理长上下文的能力
-
-## 后训练
-
-### 数据
+#### Post-training data
 
 SFT阶段使用大概2M的样本进行训练，其中纯文本和多模态数据占比为1:1，语言主要是中文和英文。
 
@@ -129,24 +113,33 @@ SFT阶段使用大概2M的样本进行训练，其中纯文本和多模态数据
 
 为了进一步提升模型的推理能力，作者还是用了rejection sampling来refine 数据集。
 
+### Training
+
+#### Pre-training
+
+<Image src={qwen2_5_vl_pretraining} alt="Qwen2.5 VL预训练阶段" />
+
+如上图所示，Qwen2.5 VL的预训练阶段包括了三个阶段：
+
+1. Visual Pretraining:这一阶段使用了image-caption, knowledge, OCR数据集，旨在提升ViT提取视觉特征的能力
+2. multimodal pretraining:这一阶段在第一阶段的基础上增加了pure-text, interleaved data, VQA, Video grounding, agent data, 旨在提升模型处理复杂视觉信息的能力
+3. long-context pretraining: 这一阶段，在第二阶段的基础上，增加了long video, long agent, long document data，旨在提升模型处理长上下文的能力
+
+#### Post-training
+
 ### 训练
 
 post-training阶段分为SFT和[DPO](/p/notes-on-dpo/)两个小阶段，这个阶段都会冻结VIT. SFT阶段使用大多数的训练数据，而DPO阶段专注于image-text data和pure text data，以更好地进行对齐。具体做法就是基于Grounding truth，使用checkpoint来评估数据的质量，然后只保留答案正确的数据来训练。
 
-# 评测
+### Evaluation
 
 1. 通用VQA
-<Image src={qwen2_5_vl_general_vqa} alt="通用VQA" />
+   <Image src={qwen2_5_vl_general_vqa} alt="通用VQA" />
 2. 文档理解和OCR
-<Image src={qwen2_5_vl_document_understanding} alt="文档理解和OCR" />
+   <Image src={qwen2_5_vl_document_understanding} alt="文档理解和OCR" />
 3. 空间理解
-<Image src={qwen2_5_vl_grounding} alt="空间理解" />
+   <Image src={qwen2_5_vl_grounding} alt="空间理解" />
 4. 视频理解和Grounding
-<Image src={qwen2_5_vl_video} alt="视频理解和Grounding" />
+   <Image src={qwen2_5_vl_video} alt="视频理解和Grounding" />
 5. Agent
-<Image src={qwen2_5_vl_agent} alt="Agent" />
-
-# Reference
-
-- [Github](https://github.com/QwenLM/Qwen2.5-VL)
-- [Paper](https://arxiv.org/abs/2502.13923)
+   <Image src={qwen2_5_vl_agent} alt="Agent" />
