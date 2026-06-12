@@ -11,25 +11,22 @@ import keye_vl_1_5_ablation_rejection_sampling from "../../../assets/image/Keye-
 
 ## Keye-VL 1.5
 
-快手提出了 Keye-VL 1.5 [@Keye-VL1.5], 一个强调 reasoning, video understanding 的 8B 多模态大模型。作者提出了 slow-fast video encoding strategy 来提高模型的视频理解能力，作者通过在预训练和后训练提高了模型的长上下文能力和 reasoning 能力
-
-作者回顾了多模态大模型的进展，然后提到视频理解能力仍然是一个挑战。为了解决这个问题，作者提出了 Keye-VL-1.5, 一个 8B 的视频理解多模态大模型。
-
-Keye-VL-1.5 主要做了三点改进：
+快手在 25年9月 提出了 Keye-VL 1.5 [@Keye-VL1.5], 一个强调 reasoning, video understanding 的 8B 多模态大模型。
+Keye-VL-1.5 相比于 [Keye-VL](#keye-vl) 主要做了三点改进：
 
 1. 在架构上，使用了 Slow-Fast Video Encoding
 2. 在预训练阶段，使用多个 stage 来提升模型的长上下文能力
-3. 在 post-training 阶段，提高模型的 reasoning 能力和 alignment 表现
+3. 在 post-training 阶段，进一步提高模型的 reasoning 能力和 alignment 表现
 
 ### Architecture
 
-Keye-VL 1.5 的架构与 [Keye-VL](/p/notes-on-keye-vl/) 一致。
+Keye-VL 1.5 的架构与 [Keye-VL](#keye-vl) 一致。
 
 Keye-VL 1.5 主要做出的改进点为针对视频的 encoding 方式
 
-作者回顾了已有 MLLM 处理视频的方式，比如 [Qwen2.5-VL](/p/notes-on-qwen2.5-vl/) 使用 3D convolution 来 merge 相邻的两帧，[Seed1.5-VL](/p/notes-on-seed1.5-vl/) 采用了 Dynamic Frame-Resolution Sampling 技巧，来根据 budget 和处理的任务来动态调整采样率 (frame) 和每一帧的图片精度 (resolution)。
+如 [Qwen2.5-VL](https://maosong.website/blog/qwen-vl-series/#qwen25-vl) 使用 3D convolution 来 merge 相邻的两帧，Seed1.5-VL [@Seed1.5-VL] 采用了 Dynamic Frame-Resolution Sampling 技巧，来根据 budget 和处理的任务来动态调整采样率 (frame) 和每一帧的图片精度 (resolution).
 
-但是这些方法很难进行泛化。因此，作者在本文中就提出了 **SlowFast video encoding stratrgy**:
+作者认为这些方法比较难进行泛化，因此，作者在本文中就提出了 **SlowFast video encoding strategy**:
 
 1. Slow Pathway: 空间信息丰富（high resolution），时间信息简略 (low number of frames)
 2. Fast Pathway: 时间信息丰富（high number of frames），空间信息简略 (low resolution)
@@ -39,7 +36,8 @@ Keye-VL 1.5 主要做出的改进点为针对视频的 encoding 方式
 1. 第一帧始终定义为 slow frame
 2. 接下来的每一帧，如果其和上一帧的相似度超过 $95\%$, 则定义为 fast frame; 反之则定义为 slow frame.
 
-得到 slow/fast frames 之后，作者将 fast-frame 的 token budget 限制为 slow frame token budget 的 $30\%$ 来平衡时间信息以及空间信息。接下来，作者使用二分搜索来决定 slow frame 的 token budget. 为了区分 slow frame 和 fast frame 的 token, 作者使用了特殊的 token 来进行分离。
+得到 slow/fast frames 之后，作者将 fast-frame 的 token budget 限制为 slow frame token budget 的 $30\%$ 来平衡时间信息以及空间信息。
+接下来，作者使用二分搜索来决定 slow frame 的 token budget. 为了区分 slow frame 和 fast frame 的 token, 作者使用了特殊的 token 来进行分离。
 
 最终的处理结果如下图所示
 
