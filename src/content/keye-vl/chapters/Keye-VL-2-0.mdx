@@ -11,13 +11,99 @@ Keye-VL 2.0 进行了如下改进：
 
 架构如下：
 
-- vision encoder: 和 [KeyeVL1.5](#keye-vl-15) 一样，使用了插值来处理绝对位置编码，使用 2D RoPE
+- vision encoder: 和 [KeyeVL1.5](#keye-vl-15) 一样，使用了插值来处理绝对位置编码，使用 2D RoPE 和 sequence packing
 - LLM: Qwen3-A30B-A3B-Thinking-2507
 - MLP: patch merger
-- attention: DSA
+- attention: DSA [@DSA] + GQA [@GQA], topK=2048.
 
 ### Data
 
+- Stage 0: ViT continual pre-training, **500B** tokens, 包括 DataComp, LAION, CC12M, PD12M, COCO
+- Stage 1: image caption data, image-text interleaved data
+- Stage 2: 通过 recaption 和 remake 来提高数据集质量
+- Stage 3: Image-text data, pure-text data
+
+post-training: 500B tokens, 40% pure text data, 包括 Text NLP, Video, Perception, Reasoning, Agent 和 Long context data
+
+#### Visual encoding
+
+对不同的数据使用了相同的处理方式：
+
+1. image: 按照动态分辨率图片进行处理
+2. video: 加入 explicit timestamp, 作者认为这种 frame-as-image 的方式可以简化视觉信息处理方式，作者根据不同的视频来动态分配最大 token 数量
+
 ### Training
 
-### Experiments
+#### Pre-training
+
+Pre-training 包含 4 个 stage:
+
+1. 仅训练 projector
+2. 全量微调，32K 上下文，1T tokens
+3. 全量微调，64K 上下文，加入 OCR, VQA 等下游任务数据，2T tokens
+4. 全量微调，256K 上下文， long video, multi-page
+
+#### Post-training
+
+包括以下几个阶段：
+
+1. SFT: 使用了通用的指令跟随数据和 reasoning CoT 数据
+2. RL: 训练不同的专家模型，算法为 GSPO [@GSPO]
+   - Synthetic-Data RL: 基于图片编辑数据完成找不同
+   - General RL: reward 包括 format reward, outcome reward, process reward 和 ContextRL reward
+   - Specialized RL: 训练 Grounding, spatial understanding, math reasoning, counting 和 OCR expert
+   - Video RL: 31K video samples
+   - Agentic RL: Coding RL, Tool use RL, Search RL
+3. MOPD: 使用 13 个 teacher 来进行 MOPD.
+
+##### MOPD
+
+给定 prompt $x_i$, 学生模型 $\pi_{\theta}$ on policy 输出
+
+$$
+y_i = (y_{i,1},\dots,y_{i,T}) \sim \pi_{\theta}(\cdot\mid x_i)
+$$
+
+对于状态 $s_{i,t}=(x_i,y_{i,<t})$, 选择的 teacher 提供 token-level feedback, 作者使用了 segmented prompt-response re-tokenization (SPRR) 来对齐选择的教师模型 $\pi_T^{r_i}$ 和学生模型的概率。
+作者使用了 overlap set 来提供更稳健的 feedback [@li2026rethinkingonpolicydistillationlarge], 首先，作者定义 topK overlap set 为
+
+$$
+\Omega_{i,t}=\mathrm{TopK}(\pi_T^{r_i}（\cdot\mid s_{i,t})\cap \mathrm{topK}(\pi_{\theta}(\cdot\mid s_{i,t}))
+$$
+
+当 $\Omega_{i,t}$ 不为空时， raw advantage 定义为
+
+$$
+A_{i,t} = \begin{cases}
+\sum_{v\in\Omega_{i,t}}\bar{\pi}_{\theta}(v\mid s_{i,t})\left[\log\pi_T^{r_i}(v\mid s_{i,t})-\log\pi_{\theta}(v\mid s_{i,t})\right],&\text{if }\Omega_{i,t}\neq\emptyset\\
+0,&\text{otherwise}
+\end{cases}
+$$
+
+其中
+
+$$
+\bar{\pi}_{\theta}(v\mid s_{i,t}) = \frac{\pi_{\theta}(v\mid s_{i,t})}{\sum_{u\in\Omega_{i,t}}\pi_{\theta}(u\mid s_{i,t})}
+$$
+
+通过在 overlap 上进行蒸馏，我们可以避免计算非常低概率 token 的概率值。
+最后，学生模型的训练目标为
+
+$$
+\mathcal{L}_{\mathrm{MOPD}} = -\mathbb{E}\left[\frac{1}{|\mathcal{M}_i|}\sum_{t\in\mathcal{M}_i}\hat{A}_{i,t}\log \pi_\theta(y_{i,t}\mid x_y,y_{i,<t})\right]
+$$
+
+其中 $\mathcal{M}_i$ 是 valid response-token mask.
+
+### Infra
+
+在预训练阶段，作者提出了 ExtraIO, 将数据处理作为一个独立的服务，避免数据处理称为训练的瓶颈。
+
+并且，作者对 ViT 和 LLM 使用了不同的 sharding 策略，吧 ViT 模型的计算和显存开销摊分到不同的 GPU 上
+
+针对动态分辨率图片/不同长度视频输入，作者设计了两级动态均衡：
+
+1. 多模态 token 级： 每个 ViT 处理的数据不按照样本数量分，而是按照视觉 token 的实际总量分，确保 ViT 各个 GPU 工作量一致
+2. LLM 样本级：根据序列的实际长度进行重排和对齐，确保 LLM 各个阶段的 token 总数尽可能一致
+
+对于 DSA, 作者使用了 FlashInfer 和 TileLang 来实现加速。
