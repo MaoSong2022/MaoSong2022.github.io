@@ -1,1 +1,21 @@
 ## Agentic RL
+
+### TODO
+
+https://zhuanlan.zhihu.com/p/2049573597455312162
+
+agentic RL 相比与 [RLHF](https://maosong.website/blog/RLHF/) / [RLVR](https://maosong.website/blog/RLVR/) 有三个挑战：
+
+1. 决策的自然单位从 token-level 转向了 turn-level, agent 的一次交互包括了 observation, reasoning, tool call, tool calling result 这几个过程，其中的单个 token 不独立面对环境，也不会收到反馈，因此 agentic RL 与 RLHF 和 RLVR 之间存在 granularity mismatch: 后者比前者细两三个数量级
+2. Long-horizon tasks: agentic rollout 动辄几十步，上万 token, 很难做 credit assignment, 并且由于 decay 的存在，初始 token 衰减非常严重，而早期的 token 又非常重要
+3. sparse outcome reward: agentic tasks 只有任务成功/失败的信号， GRPO [@DeepSeek-Math] 的做法是 rollout 内部所有 token 共享 advantage. 在 agentic 场景下，这会导致数据使用效率低下。
+
+| Method      | RLVR/RLHF    | Agentic RL |
+| ----------- | ------------ | ---------- |
+| Granularity | token        | turn       |
+| Action      | tool calling | token      |
+| horizon     | long         | short      |
+| State       | POMDP        | MDP        |
+
+用 GRPO 做 agentic RL 的问题： 一条成功 rollout 里也有无效动作，而一条失败 rollout 里也有高质量动作，而 GRPO 则凭结果论英雄，认为成功 rollout 里的动作都是好动作，失败 rollout 里的动作都是坏动作。
+其本质上就是将 multi-turn 作为 single-turn 来考虑，并且仅使用 outcome reward 来打分，整个 rollout 成为了一个单一的决策步。
