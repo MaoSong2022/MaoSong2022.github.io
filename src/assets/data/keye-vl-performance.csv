@@ -1,0 +1,4 @@
+Benchmark,Keye-VL-thinking,Keye-VL-Auto-Think,Keye-VL-1.5-Thinking,Keye-VL-2.0,Qwen3-VL-235B-A22B
+LongVideoBench,62.8,64.8,66.0,74.1,70.5
+Video-MMMU,57.6,56.9,66.0,80.0,80.0
+Video-MME,67.7,59.7,73.0,78.3,79.0
