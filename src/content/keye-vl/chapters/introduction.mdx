@@ -1,1 +1,25 @@
+import HtmlEmbed from "../../../components/HtmlEmbed.astro";
+
 ## Introduction
+
+Keye-VL 系列是快手 Kwai 团队提出的一个多模态大模型系列，这个系列主要强调了模型的视频理解能力。
+
+模型架构变化如下
+
+|   Model    |      Keye-VL       | Keye-VL 1.5 |         Keye-VL 2.0          |
+| :--------: | :----------------: | :---------: | :--------------------------: |
+| Parameters |         8B         |     8B      |           30B-A3B            |
+|    ViT     | SigLIP-400M-384-14 |    same     |             same             |
+|    MLP     |    Patch Merger    |    same     |             same             |
+|    LLM     |      Qwen3-8B      |    same     | Qwen3-A30B-A3B-Thinking-2507 |
+
+模型表现如下图所示
+
+<HtmlEmbed
+  frameless
+  id="keey-vl-performance"
+  data="keye-vl-performance.csv"
+  src="d3-benchmark.html"
+  title="Performance of Keye-VL series"
+  desc={`Performance of Keye-VL series on video benchmarks`}
+/>
