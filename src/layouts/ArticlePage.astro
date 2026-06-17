@@ -396,7 +396,7 @@ const links: Array<{ label: string; url: string; icon?: string }> =
       />
     )}
 
-    {template === "paper" && articleFM?.banner !== false && (
+    {template === "paper" && articleFM?.banner && (
       <div class="paper-hero-banner" style={articleFM?.bannerAspectRatio ? `aspect-ratio: ${articleFM.bannerAspectRatio}` : undefined}>
         <HtmlEmbed src={articleFM?.banner || "banner.html"} frameless />
       </div>
