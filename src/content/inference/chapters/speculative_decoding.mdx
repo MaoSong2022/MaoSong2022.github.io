@@ -1,0 +1,25 @@
+## Speculative decoding
+
+[【llm基础】为什么说投机解码是无损的 - 燕雄飞的一天的文章 - 知乎](https://zhuanlan.zhihu.com/p/2000545509719438645)
+
+[备忘：关于 LLM 的加速解码：speculative 解码 - 张 Mc 的文章 - 知乎](https://zhuanlan.zhihu.com/p/1961426996279083425)
+
+https://aclanthology.org/2023.findings-emnlp.257/
+
+[Speculative Decoding: 从Padding 的视角重新理解投机解码 - 笑渐不闻声渐悄的文章 - 知乎](https://zhuanlan.zhihu.com/p/1991904699117490479)
+
+https://proceedings.mlr.press/v202/leviathan23a.html
+
+[有没有speculative decoding的综述？ - DeclK的回答 - 知乎](https://www.zhihu.com/question/657854511/answer/1983922186562594120)
+
+speculative decoding 使用了两个模型来加速推理
+
+1. draft model ($M_d$) , 用于生成一个 candidate sequence
+2. target model ($M_t$), 用于对 candidate sequence 进行验证
+
+工作原理：
+
+1. drafting: 给定一个 prompt $x_{1:n}$, draft model 基于 prompt 生成一个包含 $K$ 个 token 的 candidate sequence $y_1,\dots,y_k$
+2. verification: target model 对 输入 $\{(x_{1:n}, y_{1:k})\}_{k=1}^K$ 进行一次 forward 计算每个 token 的可能性
+3. acceptance/rejection: 顺序检查 candidate sequence 中的每一个 token, 如果一个 token 不是概率最大的 token, 则该 token 与后续所有的 token 都会被丢弃
+4. correction: 对于第一个被丢弃的 token, 使用 target model 生成的 token 来替换该 token, 然后调用 draft model 进一步生成

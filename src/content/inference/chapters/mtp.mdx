@@ -1,0 +1,31 @@
+## MTP
+
+Multi-token prediction (MTP) 是一个被广泛应用于 DeepSeek-V3 [@DeepSeek-V3], DeepSeek-V4 [@DeepSeek-V4], MiMo-V2-Flash [@MiMo-V2-Flash], MiniMax-M2 [@MiniMax-M2], Qwen3-Next [@Qwen3-Next], GLM-4.5 [@GLM-4.5].
+
+MTP 在训练阶段可以提高模型表现，在推理阶段可以作为 draft model 来实现 speculative decoding.
+
+MTP 优势：
+
+1. 训练阶段可以提高训练信号的密度，提高数据使用效率
+
+### Method
+
+MTP 最早由 [] 提出，然后被 DeepSeek-V3 应用，后续其他模型也采用了这个模块。
+
+### Experiments
+
+### Comparison
+
+| Model           | DeepSeek-V3 | DeepSeek-V4 | MiMo-V2-Flash | MiniMax-M2 | Qwen3-Next | GLM-4.5 |
+| --------------- | ----------- | ----------- | ------------- | ---------- | ---------- | ------- |
+| architecture    |             |             |               |            |            |         |
+| parameters      | 14B         |             |               |            |            |         |
+| Depth           |             | 1           |               |            |            |         |
+| MTP loss weight | 0.3 -> 0.1  | 0.3 -> 0.1  |               |            |            |         |
+| inference       |             |             |               |            |            |         |
+| RL              |             |             |               |            |            |         |
+
+好处：
+
+1. 提高 RL rollout 效率
+2. 减少 GPU idle time

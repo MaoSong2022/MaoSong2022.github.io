@@ -1,5 +1,11 @@
 ## Sampling Strategy
 
+- [LLM推理中的temperature、top_k、top_p理解 - 姚光超的文章 - 知乎](https://zhuanlan.zhihu.com/p/32968633664)
+- [Basic LLM Inference/Generation，一篇就够了。 - LastWhisper的文章 - 知乎](https://zhuanlan.zhihu.com/p/694176507)
+- [一文搞懂大模型生成文本的解码策略 - 吃果冻不吐果冻皮的文章 - 知乎](https://zhuanlan.zhihu.com/p/1921914053485376792)
+- [Generation configurations: temperature, top-k, top-p, and test time compute](https://huyenchip.com/2024/01/16/sampling.html)
+- [大模型中目前最快最好的解码策略是什么呢？还有哪些问题值得研究？ - 白白小白的回答 - 知乎](https://www.zhihu.com/question/641130465/answer/1944129627581834804)
+
 ### Strategies
 
 #### Greedy Search
@@ -29,6 +35,10 @@ def greedy_search(logits):
 
 将 logits 经过 softmax 转化为概率分布之后，直接按照分布进行随机采样
 
+$$
+x_t \sim P(x\mid x_{<t})
+$$
+
 特点是极具创意性和多样性，但缺点在于具有长尾效应，概率极低但非0的低质量 token 也可能被选中，导致生成文本语无伦次
 
 ```python
@@ -48,7 +58,7 @@ def random_sampling(logits):
 对 logits 进行缩放
 
 $$
-P(x_i) = \frac{\mathrm{logits}_i / T}{\sum_j \mathrm{logits}_j / T}
+P(x_i) = \frac{\exp(\mathrm{logits}_i) / T}{\sum_j \exp(\mathrm{logits}_j / T)}
 $$
 
 作用机制：
@@ -72,8 +82,12 @@ def sample_with_temperature(logits, temperature=0.7):
 
 #### Top-K sampling
 
-top-K 采样可以解决随机次啊样长尾低概率 token 导致的胡言乱语。
+top-K 采样可以解决随机采样长尾低概率 token 导致的胡言乱语 [@fan2018hierarchical].
 其策略在于在采样前，只保留概率最高的前 K 个 token, 并对这 $K$ 个 token 的概率进行重新归一化，其余 token 彻底丢弃。
+
+$$
+[p_{n_1},\dots,p_{n_K}]=\mathrm{TopK}(p(\cdot\mid x_{1:n})),\quad x_{n+1}\sim\mathrm{Uniform}(\{n_1,\dots,n_K\})
+$$
 
 top-K 采样的问题在于对于某些分布很陡峭的情况，K 个 token 可能比较多，容易放进来脏数据；对于分布很平缓的情况，K 显的太小，会扼杀多样性。
 
@@ -92,7 +106,7 @@ def top_k_sampling(logits, k=50):
 
 #### Top-p sampling
 
-Top-p sampling 通过动态调整候选集的大小来解决 top-K 的动态适应问题。
+Top-p sampling 通过动态调整候选集的大小来解决 top-K 的动态适应问题 [@holtzman2020curiouscaseneuraltext].
 其策略是将所有的 token 按照概率从大到小排序并计算累计概率。
 当累计概率超过阈值 $p$ 时截断，只保留这个动态集合的 token
 
@@ -127,4 +141,35 @@ def top_p_sampling(logits, p=0.9):
 
 #### Beam Search
 
+beam search 同时生成多条候选 sequence, 然后生成若干（由 `num_beams`) 决定之后，选取概率最高的 sequence 并重复这个过程。
+
+其代码实现比较复杂，TODO
+
+beam search 的问题在于在 open-ended generation 场景下效果不是很好，主要原因有：
+
+1. beam search 比较适用于输出长度（某种程度上）可预测，比如翻译或者总结。但是对于 open-ended generation, 其表现就会打折扣
+2. beam search 也会有重复输出的问题，我们必须使用 n-gram 等 penalty 来避免这个问题
+3. 对人类来说，我们想要生成更加 "surprise" 的文本，而 beam search 的输出则是 predictable.
+
 ### Practices
+
+transformers 里默认使用 greedy search, max_token 为 $20$ 对应的代码为
+
+```python
+import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer
+from accelerate import Accelerator
+
+device = Accelerator().device
+
+tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-hf")
+inputs = tokenizer("Hugging Face is an open-source company", return_tensors="pt").to(device)
+
+model = AutoModelForCausalLM.from_pretrained("meta-llama/Llama-2-7b-hf", dtype=torch.float16).to(device)
+# explicitly set to default length because Llama2 generation length is 4096
+outputs = model.generate(**inputs,
+                         do_sample=False, # can be omited, grredy search
+                         max_new_tokens=20)
+tokenizer.batch_decode(outputs, skip_special_tokens=True)
+'Hugging Face is an open-source company that provides a suite of tools and services for building, deploying, and maintaining natural language processing'
+```
