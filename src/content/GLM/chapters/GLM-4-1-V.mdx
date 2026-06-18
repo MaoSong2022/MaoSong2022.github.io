@@ -1,14 +1,13 @@
+import Image from "../../../components/Image.astro";
+import glm_4_1_v_thinking_architecture from "../../../assets/image/GLM_4_1_V_Thinking_architecture.png";
+import glm_4_1_v_reward_ablation from "../../../assets/image/GLM_4_1_V_reward_ablation.png";
+import glm_4_1_v_reward_design from "../../../assets/image/GLM_4_1_V_reward_design.png";
+import glm_4_1_v_performance from "../../../assets/image/GLM_4_1_V_performance.png";
+import glm_4_1_v_cross_domain_generalization from "../../../assets/image/GLM_4_1_V_cross_domain_generalization.png";
 
-import Image from '../../../components/Image.astro';
-import glm_4_1_v_thinking_architecture from '../../../assets/image/GLM_4_1_V_Thinking_architecture.png';
-import glm_4_1_v_reward_ablation from '../../../assets/image/GLM_4_1_V_reward_ablation.png';
-import glm_4_1_v_reward_design from '../../../assets/image/GLM_4_1_V_reward_design.png';
-import glm_4_1_v_performance from '../../../assets/image/GLM_4_1_V_performance.png';
-import glm_4_1_v_cross_domain_generalization from '../../../assets/image/GLM_4_1_V_cross_domain_generalization.png';
+## GLM-4.1V-Thinking
 
 智谱 AI 在 25 年 7 月份发布了 GLM-4.1V-Thinking, 一个 9B 的多模态大语言模型，其在多个 benchmark 上达到了相同大小 MLLM 的 SOTA
-
-## Introduction
 
 已有工作如 [MiMo-VL](/p/notes-on-mimo-vl/) 和 V-Triune 主要集中在特定的领域，目前还没有一个在所有领域都能超过 non-reasoning model 表现的多模态 reasoning model.
 
@@ -20,8 +19,6 @@ import glm_4_1_v_cross_domain_generalization from '../../../assets/image/GLM_4_1
 2. 动态选择 RL 训练的数据可以有效提高模型的表现和训练效率
 3. 一个 robust 以及 precise 的 reward model 对于 multi-domain RL 是至关重要的
 
-## Method
-
 ### Architecture
 
 GLM-4.1V-Thinking 是一个标准的 ViT-MLP-LLM 架构，其中：
@@ -30,7 +27,10 @@ GLM-4.1V-Thinking 是一个标准的 ViT-MLP-LLM 架构，其中：
 - MLP: 是一个 3 层的 MLP，架构为 `linear-LayerNorm-GELU-SwiGLU`, 并且在进入 MLP 之前，GLM-4.1V-Thinking 还会在 spatial 上进行降采样，降采样率为 2
 - LLM: LLM 使用的是 GLM
 
-<Image src={glm_4_1_v_thinking_architecture} alt="Architecture of GLM4.1V-Thinking" />
+<Image
+  src={glm_4_1_v_thinking_architecture}
+  alt="Architecture of GLM4.1V-Thinking"
+/>
 
 与 [Qwen2.5-VL](/p/notes-on-qwen2.5-vl/) 一样，作者将 encoder 的 2D convolution 替换为了 3D convolution，用于处理视频输入，然后对于 single-image inputs，GLM-4.1V-Thinking 会将输入复制，变成一个含有两帧相同图片的 video 输入
 
@@ -44,7 +44,7 @@ $$
 g_{norm} = (w_{norm}, h_{norm}) = 2* \left(\frac{w+0.5}{W_p}, \frac{h+0.5}{H_p}\right) - 1
 $$
 
-然后，我们再使用 bicubic interpolation $\mathcal{I}_{bicubic}$ 将坐标映射到原始的 position  embedding 上：
+然后，我们再使用 bicubic interpolation $\mathcal{I}_{bicubic}$ 将坐标映射到原始的 position embedding 上：
 
 $$
 P_{adapted} = \mathcal{I}_{bicubic}(P_{orig}, g_{norm})
@@ -52,7 +52,7 @@ $$
 
 对于视频输入，作者在每一帧之后插入了一个 time index token, 用每一帧的 timestamp string 来表示。这个做法与 [Qwen2.5-VL](/p/notes-on-qwen2.5-vl/) 一样。
 
-### Pre-training
+### Data
 
 #### Pre-training Data
 
@@ -99,15 +99,6 @@ instruction tuning data 的策略如下：
 
 最终一共收集到 **50M**样本，覆盖 visual perception, multimodal reasoning, GUI agent 等任务。
 
-#### Pre-training Training
-
-Pre-training 由两个 stage 组成：
-
-1. Multimodal pre-training: 提高模型的通用多模态能力，上下文长度为 8192, global batch size 为 1536. 使用了 data packing 策略，使用了 2-way tensor parallelism
-2. Long-context continue training: 提升模型在高精度图片，长视频，长上下文场景下的表现，上下文长度为 32768, 使用了 2-way tensor parallelism 和 4-way context parallelism.
-
-### SFT
-
 #### SFT Data
 
 数据包括 long CoT reasoning 数据，来让模型以标准格式输出 multi-step solution.
@@ -134,6 +125,15 @@ Pre-training 由两个 stage 组成：
 
 作者还使用 RL checkpoints 来生成一部分高质量数据，加入到 SFT 阶段的数据集里面。
 
+### Training
+
+#### Pre-training
+
+Pre-training 由两个 stage 组成：
+
+1. Multimodal pre-training: 提高模型的通用多模态能力，上下文长度为 8192, global batch size 为 1536. 使用了 data packing 策略，使用了 2-way tensor parallelism
+2. Long-context continue training: 提升模型在高精度图片，长视频，长上下文场景下的表现，上下文长度为 32768, 使用了 2-way tensor parallelism 和 4-way context parallelism.
+
 #### SFT Training
 
 全参数微调。上下文长度为 32768， batch size 为 32.数据包括 long-form reasoning data 以及纯文本数据，包括 math, multi-turn conversation, agent planning 以及 instruction following 等.
@@ -151,7 +151,10 @@ Pre-training 由两个 stage 组成：
 **Reward modelling**
 作者构建了一个 reward system, 用于给不同 domain 的任务进行奖励。为了探究不同 domain 的 reward 对模型整体表现的影响，作者设计了一个 low-quality reward system，实验结果如下，可以看到模型在训练后期出现了 collapse 或者 reward hacking 的情况。
 
-<Image src={glm_4_1_v_reward_ablation} alt="GLM-4.1V-Thinking reward ablation" />
+<Image
+  src={glm_4_1_v_reward_ablation}
+  alt="GLM-4.1V-Thinking reward ablation"
+/>
 
 > [!tip] Observation
 > 作者发现，不同任务的不同信号奖励会对模型最终表现产生巨大影响。
@@ -204,8 +207,6 @@ Pre-training 由两个 stage 组成：
 3. Sample packing and reorganization within DP ranks. data packing
 4. Dynamic sampling expansion via ratio EMA. 平衡 naive 样本和高质量样本之间的比例
 
-## Evaluation
-
 ### Performance
 
 <Image src={glm_4_1_v_performance} alt="Performance of GLM4.1V Thinking" />
@@ -216,7 +217,10 @@ Pre-training 由两个 stage 组成：
 
 作者评估了一下不同 domain 的 RL 训练对模型整体表现的影响。作者使用不同的数据来进行训练，然后分析结果的相关性，结果如下
 
-<Image src={glm_4_1_v_cross_domain_generalization} alt="Cross-domain generalization in reinforcement learning" />
+<Image
+  src={glm_4_1_v_cross_domain_generalization}
+  alt="Cross-domain generalization in reinforcement learning"
+/>
 
 实验结果发现：
 
@@ -225,7 +229,7 @@ Pre-training 由两个 stage 组成：
 
 作者还发现，不同的任务之间存在关联，如 GUI-agent 和 grounding 这两个任务是高度相关的。OCR & Chart 以及 GUI-agent 也是高度相关的。
 
-## Conclusion
+### Conclusion
 
 在本文中，作者提出了 GLM-4.1V-Thinking, 一个 9B 的通用多模态 reasoning model, 作者通过构建高质量的数据，多阶段的训练，让模型在 reasoning 和 non-reasoning 任务上均超过了已有的 SOTA 模型的表现
 
@@ -240,11 +244,6 @@ Pre-training 由两个 stage 组成：
 1. 如何构建更好的 reward 机制，来同时评估结果和中间过程。从而防止模型 reward hacking
 2. 如何基于 multimodal training 来提升模型在纯文本任务上的表现。探究 visual reasoning 和 text reasoning 如何互相促进也是一个课题
 3. 如何更好评估模型的表现，即如何更好评估模型的 failure modes, 比如幻觉，short reasoning 等
-
-## References
-
-- [Arxiv](https://arxiv.org/abs/2507.01006)
-- [Huggingface](https://huggingface.co/THUDM/GLM-4.1V-9B-Thinking)
 
 ## Appendix
 

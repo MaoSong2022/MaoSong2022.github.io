@@ -1,17 +1,16 @@
+import Image from "../../../components/Image.astro";
+import glm4_5_pre_training from "../../../assets/image/GLM4_5-pre-training.png";
+import glm4_5_post_training_framework from "../../../assets/image/GLM4.5-post-training-framework.png";
+import glm4_5_curriculum_rl from "../../../assets/image/GLM4.5-curriculum-RL.png";
+import glm4_5_multi_stage_context_extension from "../../../assets/image/GLM4.5-multi-stage-context-extension.png";
+import glm4_5_code_science_rl from "../../../assets/image/GLM4.5-code-science-RL.png";
+import glm4_5_interaction_turns from "../../../assets/image/GLM4.5-interaction-turns.png";
+import glm4_5_average_performance from "../../../assets/image/GLM4.5-average_performance.png";
+import glm4_5_agent_coding_performance from "../../../assets/image/GLM4.5-agent-coding-performance.png";
 
-import Image from '../../../components/Image.astro';
-import glm4_5_pre_training from '../../../assets/image/GLM4_5-pre-training.png';
-import glm4_5_post_training_framework from '../../../assets/image/GLM4.5-post-training-framework.png';
-import glm4_5_curriculum_rl from '../../../assets/image/GLM4.5-curriculum-RL.png';
-import glm4_5_multi_stage_context_extension from '../../../assets/image/GLM4.5-multi-stage-context-extension.png';
-import glm4_5_code_science_rl from '../../../assets/image/GLM4.5-code-science-RL.png';
-import glm4_5_interaction_turns from '../../../assets/image/GLM4.5-interaction-turns.png';
-import glm4_5_average_performance from '../../../assets/image/GLM4.5-average_performance.png';
-import glm4_5_agent_coding_performance from '../../../assets/image/GLM4.5-agent-coding-performance.png';
+## GLM 4.5
 
 智谱 AI 提出了 GLM4.5, 包含 GLM4.5 和 GLM-4.5-Air,两个 MoE LLM. 模型大小分别为 355B-A22B 和 106B-A12B, GLM4.5 主要关注 agentic, reasoning 以及 coding 三个领域。
-
-## Introduction
 
 作者认为，通用模型有三个关键能力，即 ARC：
 
@@ -23,13 +22,9 @@ import glm4_5_agent_coding_performance from '../../../assets/image/GLM4.5-agent-
 
 基于这个目标，作者就提出了 GLM4.5 和 GLM-4.5-Air, 来统一完成三个不同的目标。
 
-## Method
-
-## Pre-training
-
 ### Architecture
 
-GLM-4.5 是一个基于 MoE 架构的 LLM,  架构与 DeepSeek-MoE 相似，作者做了如下几点改变：
+GLM-4.5 是一个基于 MoE 架构的 LLM, 架构与 DeepSeek-MoE 相似，作者做了如下几点改变：
 
 1. 在 MoE layer 中，使用了 loss-free balance routing, 然后使用了 sigmoid function 作为 routing score 的 normalization.
 2. 与 [Kimi-k2](/p/notes-on-kimi-k2/) 和 DeepSeek-V3 [@DeepSeek-V3] 相比，作者降低了 head dimension, 提升了 number of layers. 作者认为更深的模型更有利于提高模型的 Reasoning 表现
@@ -60,7 +55,9 @@ GLM-4.5 与 DeepSeek-V3 和 Kimi-k2 的对比如下
 | # Shared Experts           | 1        | 1           | 1         | 1         |
 | QK-Norm                    | Yes      | No          | No        | No        |
 
-### Pre-training Data
+### Data
+
+#### Pre-training Data
 
 预训练数据包括四个方面
 
@@ -71,7 +68,9 @@ GLM-4.5 与 DeepSeek-V3 和 Kimi-k2 的对比如下
 
 最终，预训练数据一共包括 **23T token**.
 
-### Pre-training Recipe
+### Training
+
+#### Pre-training Recipe
 
 <Image src={glm4_5_pre_training} alt="Pre-training recipe of GLM4.5" />
 
@@ -130,7 +129,10 @@ Agentic SFT 数据的构建包括四个步骤：
 
 其次，作者探究了以下渐进式扩展模型上下文对模型表现的影响。DeepScaleR 认为，逐步提高模型的上下文长度，可以有效提高模型的表现。但是，本文确认为这种方法会损害模型的性能，原因在于，模型在 SFT 阶段的上下文长度就是 64K, 如果我们降低模型的上下文长度，这会导致训练数据分布不一致，从而影响模型的长上下文表现。因此作者直接在 64K 的上下文上进行训练。
 
-<Image src={glm4_5_multi_stage_context_extension} alt="Ablation on progressive context extension" />
+<Image
+  src={glm4_5_multi_stage_context_extension}
+  alt="Ablation on progressive context extension"
+/>
 
 接下来，作者探究了以下采样温度对模型表现的影响，温度太低会导致模型探索能力下降，太高的话会导致输出质量下降。因此作者动态调整采样温度来平衡模型的性能以及探索能力。
 
@@ -179,7 +181,7 @@ General RL 用于提高模型的整体表现，解决潜在的问题以及提升
 
 最后，对于 Pathology RL, 作者希望通过 RL 来解决潜在的问题，比如语言混合输出，重复输出以及格式错误等。作者构建了一批模型容易出错的数据，然后来训练模型。
 
-#### Infra
+### Infra
 
 作者针对不同任务分别构建了不同的 scheduling 模式：
 
@@ -190,11 +192,14 @@ General RL 用于提高模型的整体表现，解决潜在的问题以及提升
 
 针对 agentic RL 任务，作者还进行了优化。与 Kimi-k2 类似，作者让 inference engine 持续产出 rollout, 然后让 training engine 来更新模型权重，最后同步到 inference engine 上
 
-## Experiments
+### Experiments
 
 整体表现如下图所示，GLm4.5 在 ARC benchmark 上的平均表现达到了第三名。
 
-<Image src={glm4_5_average_performance} alt="Average performance on ARC benchmarks" />
+<Image
+  src={glm4_5_average_performance}
+  alt="Average performance on ARC benchmarks"
+/>
 
 具体来看，
 
@@ -204,12 +209,7 @@ General RL 用于提高模型的整体表现，解决潜在的问题以及提升
 
 人工对比 coding agent 能力的结果如下图所示
 
-<Image src={glm4_5_agent_coding_performance} alt="Comparison of GLM4.5 aginst other models" />
-
-## Conclusion
-
-作者提出了 GLM4.5， 一个基于 MoE 架构的大语言模型系列，包含 GLM4.5(355B-A22B) 和 GLM4.5-Air(106B-A12B) 两个模型，作者详细介绍了模型的架构，训练，数据和评估。
-
-## References
-
-- [arxiv](http://arxiv.org/abs/2508.06471)
+<Image
+  src={glm4_5_agent_coding_performance}
+  alt="Comparison of GLM4.5 aginst other models"
+/>
