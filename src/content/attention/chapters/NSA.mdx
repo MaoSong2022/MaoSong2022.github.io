@@ -3,7 +3,7 @@
 现有的大模型主要是基于 Transformer 提出的 softmax attention, 其主要问题在于随上下文长度增加，其 latency 也上升更快。
 理论估计，对于 64k 上下文长度的输出，softmax attention 部分的计算占 $70\%\sim80\%$ 的 latency.
 
-为了解决 softmax 的 high latency 问题，，一个做法就是使用稀疏注意力机制，如 MInference 等，但是这些系数注意力机制大多没有实际部署，且它们一般只在 inference 阶段使用
+为了解决 softmax 的 high latency 问题，一个做法就是使用稀疏注意力机制，如 MInference 等，但是这些系数注意力机制大多没有实际部署，且它们一般只在 inference 阶段使用
 
 作者认为解决这个问题有两个挑战：
 
@@ -199,7 +199,3 @@ NSA 配置如下
 | Full attention | 8192 | 16384 | 32768 | 65536 |
 | NSA            | 2048 | 2560  | 3584  | 5632  |
 | speedup        | 4x   | 6.4x  | 9.1x  | 11.6x |
-
-## References
-
-- [arxiv](http://arxiv.org/abs/2502.11089)
