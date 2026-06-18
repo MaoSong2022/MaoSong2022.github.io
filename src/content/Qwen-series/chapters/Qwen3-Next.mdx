@@ -1,8 +1,7 @@
-
-import Image from '../../../components/Image.astro';
-import qwen3_next_architecture from '../../../assets/image/Qwen3-Next-architecture.png';
-import qwen3_next_pre_training_efficiency from '../../../assets/image/Qwen3-Next-pre-training-efficiency.png';
-import qwen3_next_base_performance from '../../../assets/image/Qwen3-Next-base-performance.png';
+import Image from "../../../components/Image.astro";
+import qwen3_next_architecture from "../../../assets/image/Qwen3-Next-architecture.png";
+import qwen3_next_pre_training_efficiency from "../../../assets/image/Qwen3-Next-pre-training-efficiency.png";
+import qwen3_next_base_performance from "../../../assets/image/Qwen3-Next-base-performance.png";
 
 ## Qwen3-Next
 
@@ -35,9 +34,9 @@ Qwen3-Next 包含三个模型：
 
 1. Gated DeltaNet 相比于 [SWA](/p/notes-on-rnope-swa/) 和 Mamba2, 其 in-context learning 能力更强
 2. 对于 softmax attention:
-    1. 使用了 [Gated Attention](/p/notes-on-gated-attention/) 提出的 gating 机制来解决 massive activation 和 attention sink 问题
-    2. 将 attention head 的 dimension 从 128 提高到 256
-    3. 使用了和 [DeepSeek-V3](/p/notes-on-deepseek-v3/) 类似的 partial RoPE 机制，仅对前 $25\%$ 的元素进行旋转
+   1. 使用了 [Gated Attention](/p/notes-on-gated-attention/) 提出的 gating 机制来解决 massive activation 和 attention sink 问题
+   2. 将 attention head 的 dimension 从 128 提高到 256
+   3. 使用了和 [DeepSeek-V3](/p/notes-on-deepseek-v3/) 类似的 partial RoPE 机制，仅对前 $25\%$ 的元素进行旋转
 
 ### MoE
 
@@ -57,7 +56,10 @@ Qwen3-Next 包含三个模型：
 
 下图是 Qwen3-Next 与 Qwen3-32B 模型的训练效率对比
 
-<Image src={qwen3_next_pre_training_efficiency} alt="Pre-training efficiency of Qwen3-Next" />
+<Image
+  src={qwen3_next_pre_training_efficiency}
+  alt="Pre-training efficiency of Qwen3-Next"
+/>
 
 从结果可以看出，相比于 Qwen3-32B, Qwen3-Next 只用了 $9.3\%$ 的算力就达到了更强的表现。
 
