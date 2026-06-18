@@ -14,6 +14,10 @@ Math:
 - AceReason-Math, 49K
 - II-Thought-RL, 30K
 
+### DAPO-Math-17K
+
+作者构建了 DAPO-Math-17K 数据集用于 DAPO 的训练，该数据集从 AoPS 得到，包含了 17K prompts，每个 prompt 都对应一个整数作为答案。
+
 ### data construction
 
 HiPO [@HiPO] 的方式为：让模型在不同的模式下生成 $N$ 条回答，然后作为动态思考数据集，如果 reasoning mode 相比与 non-reasoning mode 提升不大，就使用 non-reasoning mode 数据，并且选择的 mode 里，会保留最短的。

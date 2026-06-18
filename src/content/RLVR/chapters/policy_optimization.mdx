@@ -6,8 +6,67 @@
 
 #### GRPO variants
 
-- DAPO
-- Dr.GRPO
+##### DAPO
+
+DAPO 是字节 Seed 团队和清华合作提出来的针对 GRPO 算法优化的一系列策略，其优化的目标函数为：
+
+$$
+\mathcal{J}_{\mathrm{DAPO}}(\theta) = \mathbb{E}_{(q,a)\sim\mathcal{D},\{o_i\}_{i=1}^G\sim \pi_{\theta_{old}}(\cdot\mid q)}\left[ \frac{1}{\sum_{t=1}^G|o_i|}\sum_{i=1}^G\sum_{t=1}^{|o_i|}\min\left(r_{i,t}(\theta)\hat{A}_{i,t},\mathrm{clip}\left(r_{i,t}(\theta), 1-\epsilon_{low}, 1+\epsilon_{high}\right)\hat{A}_{i,t}\right) \right]
+s.t. \quad 0< \vert \{o_i\mid \text{is\_equivalent}(o_i,a)\} \vert < G
+$$
+
+DAPO 相对于 GRPO 的改进有以下几点：
+
+**clip higher**
+作者认为，PPO 和 GRPO 存在 entropy collapse 问题，也就是 policy 的 entropy 会迅速的下降，导致最终每个 group 的输出基本都差不多，模型很难探索到新的知识。因此，作者提出了 Clip-Higher 策略，也就是说，让模型能够充分探索。
+因此，作者修改了其阈值。进一步地，作者分离了 clip 的阈值，分别使用 $\epsilon_{low}$ 和 $\epsilon_{high}$ 来约束更新幅度。
+加入 Clip-Higher 策略之后，目标函数变为
+
+$$
+\mathcal{J}_{\mathrm{DAPO}}(\theta) = \mathbb{E}_{(q,a)\sim\mathcal{D},\{o_i\}_{i=1}^G\sim \pi_{\theta_{old}}(\cdot\mid q)}\left[ \frac{1}{\sum_{t=1}^G|o_i|}\sum_{i=1}^G\sum_{t=1}^{|o_i|}\min\left(r_{i,t}(\theta)\hat{A}_{i,t},\mathrm{clip}\left(r_{i,t}(\theta), 1-\epsilon_{low}, 1+\epsilon_{high}\right)\hat{A}_{i,t}\right) \right]
+s.t. \quad 0< \vert \{o_i\mid \text{is\_equivalent}(o_i,a)\} \vert < G
+$$
+
+在实际训练中，作者使用了一个比较大的 $\epsilon_{high}$ 来保证概率较小的 token 也能有较大的概率被采样到。
+
+**dynamic sampling**
+作者认为，在 GRPO 中，如果一个 group 的输出全都是对的，那么其 advantage 会趋近于 0，结果导致 policy 不会得到更新，这样就降低了采样效率。
+
+为了解决这个问题，坐着提出了 over-sample 以及 filtering 策略，来过滤 accracy 等于 1 或者 0 的 prompts,也就是 DAPO 中的约束项：
+
+$$
+s.t. \quad 0< \vert \{o_i\mid \text{is\_equivalent}(o_i,a)\} \vert < G
+$$
+
+通过增加这个约束项，我们可以保证每个 group 的输出不会趋同，从保证模型能够得到更新，以提高采样效率。
+
+**Token level policy gradient loss**
+GRPO 采用了一个 sample-level 的 loss 计算方式，也就是 GRPO 首先在每个 sample 中计算每个 token 的损失并进行平均，然后在不同的 sample 中在此进行平均。在这种方式下，每个 sample 对最终的 loss 贡献是相同的。这样就导致两个问题：
+
+1. 对于高质量的 long answer，通过在 token 层面进行平均，因为 answe 比较长，因此整体 loss 会比较低，也就会降低这个 sample 的贡献，导致模型很难学习到长答案。
+2. 一些非常长的 sample，其往往包含 gibberish 或者 repetitive tokens，这些 sample 对模型训练是有害的
+
+因此，为了解决这个问题，作者提出了 Token-level policy gradient loss，也就是我们改变了求和方式
+
+$$
+\frac{1}{G}\sum_{i=1}^G\frac{1}{|o_i|}\sum_{t=1}^{|o_i|}\left(\cdot\right)\to \frac{1}{\sum_{t=1}^G|o_i|}\sum_{i=1}^G\sum_{t=1}^{|o_i|}\left(\cdot\right)
+$$
+
+通过这种方式，我们让长回答的 loss 贡献更大，从而提高模型学习长回答的能力。另一方面，现在每个 token 对整体 loss 的贡献是相同的，一些关键 token 的 loss 也会被放大，从而提高模型的表现。
+
+**overlong reward shaping**
+与 [Kimi-k1.5](Kimi-k1.5.md) 类似，DAPO 也增加了 length penalty，用于惩罚过长的回答。作者首先使用了一个 overlong filtering 技巧，来 mask 掉 truncated samples 的 loss，作者发现通过这个技巧，可以提升模型的训练稳定性以及表现。
+作者还提出了 soft overlong punishment， 用于 reshape truncated samples 的 reward，表达式如下：
+
+$$
+R_{length}(y) = \begin{cases}
+0, & \text{if } |y|\leq L_{\max}-L_{cache} \\
+\frac{(L_{\max}-L_{cache})-|y|}{L_{cache}}, & \text{if } L_{\max}-L_{cache}<|y|\leq L_{\max} \\
+-1, & \text{if } |y|>L_{\max}
+\end{cases}
+$$
+
+##### Dr.GRPO
 
 ### REINFORCE
 
