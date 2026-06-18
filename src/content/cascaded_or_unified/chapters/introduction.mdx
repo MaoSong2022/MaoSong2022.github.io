@@ -1,0 +1,21 @@
+## Introduction
+
+[@wang2026mix] 探究了对于 multi-domain RL 训练，是 multi-task RL 训练范式好还是 model merging 效果更好，作者使用了 Qwen3-4B 作为训练模型来进行实验，数据集为 [Nemotron 3 Nano](https://maosong.website/blog/nemotron/#nemotron-3-nano), 包含以下四个 domain:
+
+| domain                | dataset                    |
+| --------------------- | -------------------------- |
+| math                  | DAPO;skyworks              |
+| coding                | CodeContests; Open-R1      |
+| Science               | OpenScienceReasoning-2     |
+| instruction following | WildChat-1M; Open-Instruct |
+
+结果：
+
+1. multi-task RL 比 model merging 效果更好
+2. 不同领域的权重偏移有相似性，佐证了跨领域的相互影响
+3. 如果两个领域的专家模型比较相近，则 model merging 可以提高表现
+4. model merging 继承单任务模型原有的能力，与原有模型一致性较高
+5. multi-task RL 与单任务训练有较大分歧，表现出更强的探索能力
+6. RLVR 会自然诱导模型产生自我判别能力，即使没有明确的奖励模型监督
+
+结论：multi-task RL 可以有效提高模型的泛化能力
