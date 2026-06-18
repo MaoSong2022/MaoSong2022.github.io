@@ -1,13 +1,12 @@
+import Image from "../../../components/Image.astro";
+import gpt_oss_architecture from "../../../assets/image/gpt-oss-architecture.png";
+import gpt_oss_precision_format from "../../../assets/image/gpt-oss-precision-format.png";
+import gpt_oss_chat_template from "../../../assets/image/gpt-oss-chat-template.png";
+import gpt_oss_performance from "../../../assets/image/gpt-oss-performance.png";
 
-import Image from '../../../components/Image.astro';
-import gpt_oss_architecture from '../../../assets/image/gpt-oss-architecture.png';
-import gpt_oss_precision_format from '../../../assets/image/gpt-oss-precision-format.png';
-import gpt_oss_chat_template from '../../../assets/image/gpt-oss-chat-template.png';
-import gpt_oss_performance from '../../../assets/image/gpt-oss-performance.png';
+## GPT-oss
 
-openAI 发布了 gpt-oss 大语言模型，包含 120B-A5.1B 以及 20.9B-A3.6B 两个 size, 作者强调了模型的 instruction following, tool use, 以及 adaptive thinking 能力
-
-## Method
+openAI 发布了 gpt-oss [@GPT-oss] 大语言模型，包含 120B-A5.1B 以及 20.9B-A3.6B 两个 size, 作者强调了模型的 instruction following, tool use, 以及 adaptive thinking 能力
 
 ### Architecture
 
@@ -49,7 +48,7 @@ $$
 y = W_2(W_3x \odot \mathrm{SwiGLU}(W_1x))
 $$
 
-其中 $\mathrm{SwiGLU}(x)=x\odot\mathrm{sigmoid}(x)$,  在 gpt-oss 模型中，作者首先定义了两个常数 $\alpha=1.702$, $\mathrm{limit}=7.0$,  然后 SwiGLU MLP 的定义如下
+其中 $\mathrm{SwiGLU}(x)=x\odot\mathrm{sigmoid}(x)$, 在 gpt-oss 模型中，作者首先定义了两个常数 $\alpha=1.702$, $\mathrm{limit}=7.0$, 然后 SwiGLU MLP 的定义如下
 
 $$
 \begin{aligned}
@@ -74,7 +73,6 @@ $$
 <Image src={gpt_oss_precision_format} alt="precision format of gpt-oss" />
 
 通过这个流程，gpt-oss-120B 可以部署在 80GB 内存的 GPU 上，gpt-oss-20B 可以部署在 16GB 内存的 GPU 上。模型各部分参数量如下表所示
-
 
 | Component         | 120b    | 20b     |
 | ----------------- | ------- | ------- |
@@ -110,11 +108,3 @@ System > Developer > User > Assistant > Tool
 gpt-oss 系列的表现如下表所示
 
 <Image src={gpt_oss_performance} alt="performance of gpt-oss" />
-
-## Conclusion
-
-作者提出了 gpt-oss 系列大语言模型，gpt-oss 在架构上与已有的主流模型架构如 [Qwen3](/p/notes-on-qwen3/), [DeepSeek-V3](/p/notes-on-deepseek-v3/) 等都有一定区别
-
-## References
-
-- [technical report](https://openai.com/index/introducing-gpt-oss/)
