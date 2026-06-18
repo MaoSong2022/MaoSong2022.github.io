@@ -1,0 +1,31 @@
+## DeepNorm
+
+作者提出了 DeepNorm, 一个提高包含超级多层 Transformer layer 模型训练稳定性的方法。作者通过基于 DeepNorm 成功将 transformer 的层数提高到了 1000 层。
+
+作者首先回顾了一下 transformer 架构，已有工作发现使用 pre-norm residual connection (Pre-LN) 可以提高 transformer 的训练稳定性。但是，Pre-LN 的问题在于，bottom layer 的梯度要比 top layer 的高，这导致其表现要比 post-norm connection 低。虽然说有一些方法来解决这个问题，但是大部分问题仅能扩展到几百层左右。而本文则是要提出一种方法，来提升 1000 层以上 layer 模型的训练稳定性。
+
+因此，作者提出了 DeepNorm, 来提高模型训练的稳定性。
+
+### Method
+
+DeepNorm 的伪代码如下：
+
+```python
+def deepnorm(x):
+    return LayerNorm(x * alpha + f(x))
+
+def deepnorm_init(w):
+    if w in ['ffn', 'v_proj', 'out_proj']:
+        nn.init.xavier_normal_(w, gain=beta)
+    elif w in ['q_proj', 'k_proj']:
+        nn.init_xavier_normal_(w, gain=1)
+```
+
+假如模型的 encoder 包含 $N$ 层， decoder 包含 $M$ 层。作者给出了超参数的设置如下：
+
+| Architecture    | Encoder             |                      | Decoder      |                          |
+| --------------- | ------------------- | -------------------- | ------------ | ------------------------ |
+|                 | $\alpha$            | $\beta$              | $\alpha$     | $\beta$                  |
+| Encoder-only    | $(2N)^{1/4}$        | $(8N)^{-1/4}$        | -            | -                        |
+| Decoder-only    | -                   | -                    | $(2M)^{1/4}$ | $(8M)^{-1/4}$            |
+| Encoder-Decoder | $0.81(N^4M)^{1/16}$ | $0.87(N^4M)^{-1/16}$ | $(3M)^{1/4}$ | $(3M)^{1/4}(12M)^{-1/4}$ |
