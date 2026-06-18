@@ -1,23 +1,24 @@
+import Image from "../../../components/Image.astro";
+import minimax_01_dense_vs_moe from "../../../assets/image/MiniMax-01-dense-vs-MoE.png";
+import minimax_01_scaling_law from "../../../assets/image/MiniMax-01-scaling-law.png";
+import minimax_01_performance_attention from "../../../assets/image/MiniMax-01-performance-attention.png";
+import minimax_01_attention_speed_comparison from "../../../assets/image/Minimax-01-attention-speed-comparison.png";
+import minimax_01_hybrid_attention_comparison from "../../../assets/image/Minimax-01-hybrid-attention-comparison.png";
+import minimax_01_hybrid_window_comparison from "../../../assets/image/MiniMax-01-hybrid-window-comparison.png";
+import minimax_01_module_ablation from "../../../assets/image/MiniMax-01-module-ablation.png";
+import minimax_01_ep_overlap from "../../../assets/image/MiniMax-01-EP-overlap.png";
+import minimax_01_ep_etp_overlap from "../../../assets/image/MiniMax-01-EP-ETP-overlap.png";
+import minimax_01_varlen_ring_attention from "../../../assets/image/MiniMax-01-varlen-ring-attention.png";
+import minimax_01_text_performance from "../../../assets/image/MiniMax-01-text-performance.png";
+import minimax_01_text_ruler_performance from "../../../assets/image/MiniMax-01-text-Ruler-performance.png";
+import minimax_01_vl_data_distribution from "../../../assets/image/MiniMax-01-VL-data-distribution.png";
+import minimax_01_vl_performance from "../../../assets/image/MiniMax-01-VL-performance.png";
 
-import Image from '../../../components/Image.astro';
-import minimax_01_dense_vs_moe from '../../../assets/image/MiniMax-01-dense-vs-MoE.png';
-import minimax_01_scaling_law from '../../../assets/image/MiniMax-01-scaling-law.png';
-import minimax_01_performance_attention from '../../../assets/image/MiniMax-01-performance-attention.png';
-import minimax_01_attention_speed_comparison from '../../../assets/image/Minimax-01-attention-speed-comparison.png';
-import minimax_01_hybrid_attention_comparison from '../../../assets/image/Minimax-01-hybrid-attention-comparison.png';
-import minimax_01_hybrid_window_comparison from '../../../assets/image/MiniMax-01-hybrid-window-comparison.png';
-import minimax_01_module_ablation from '../../../assets/image/MiniMax-01-module-ablation.png';
-import minimax_01_ep_overlap from '../../../assets/image/MiniMax-01-EP-overlap.png';
-import minimax_01_ep_etp_overlap from '../../../assets/image/MiniMax-01-EP-ETP-overlap.png';
-import minimax_01_varlen_ring_attention from '../../../assets/image/MiniMax-01-varlen-ring-attention.png';
-import minimax_01_text_performance from '../../../assets/image/MiniMax-01-text-performance.png';
-import minimax_01_text_ruler_performance from '../../../assets/image/MiniMax-01-text-Ruler-performance.png';
-import minimax_01_vl_data_distribution from '../../../assets/image/MiniMax-01-VL-data-distribution.png';
-import minimax_01_vl_performance from '../../../assets/image/MiniMax-01-VL-performance.png';
+## MiniMax-01
+
+### Introduction
 
 MiniMax-01 是一个基于 hybrid attention 架构的大模型系列，包含 MiniMax-Text-01 和 MiniMax-VL-01 两个模型，其中 MiniMax-Text-01 推理时支持 4M 的上下文长度，MiniMax-VL-01 支持 512B 的上下文长度
-
-## Introduction
 
 现有大部分模型的上下文长度为 32K-256K, 但实际上我们对于长上下文的需求已经超过了这个范围。已有的模型主要基于 self-attention, 这是一个平方复杂度的算法。
 
@@ -141,7 +142,10 @@ $$
 **Performance**
 作者还对比了一下三种 attention 在 public benchmark 上的表现，结果如下图
 
-<Image src={minimax_01_performance_attention} alt="Performance of different attention architectures" />
+<Image
+  src={minimax_01_performance_attention}
+  alt="Performance of different attention architectures"
+/>
 
 是检验结果发现，lightning attention 和 softmax attention 除了在 retrieval 任务（Needle in a Haystack）上之外，表现都差不多。与之相对的是，hybrid attention 弥补了这一问题，大幅度提升了模型在 retrieval 任务上的表现
 
@@ -150,19 +154,28 @@ $$
 
 作者还评估了一下三种 attention 的速度，结果如下图所示
 
-<Image src={minimax_01_attention_speed_comparison} alt="Training speed of various attention mechanisms" />
+<Image
+  src={minimax_01_attention_speed_comparison}
+  alt="Training speed of various attention mechanisms"
+/>
 
 实验结果显示，softmax attention 随序列长度上升其速度急剧下降，Lightning attention 的速度基本没有太大变化。而 Hybrid attention 的速度介于两者之间。
 
 作者进一步对比了以下两种不同的变体：hybrid-cosformer2 以及 hybrid-hgrn2.这两个模型替换的逻辑与 minimax-01 的结果一致，都是 8 个 block 为一组，每组中前面 7 个 block 将 softmax attention 更换为对应的模块，最后一层不做改动。三种 hybrid attention 机制的表现如下表所示
 
-<Image src={minimax_01_hybrid_attention_comparison} alt="Performance of various hybrid-linear models" />
+<Image
+  src={minimax_01_hybrid_attention_comparison}
+  alt="Performance of various hybrid-linear models"
+/>
 
 实验结果显示，hybrid-lightning 的表现最好。
 
 作者最后对比了以下 hybrid-lightning 和 hybrid-window, hybrid window 在每个 group 的前 7 个 block 使用了 window attention, window size 为别为 256, 512, 1024.实验结果如下图所示
 
-<Image src={minimax_01_hybrid_window_comparison} alt="Comparison between hybrid lighting and hybrid window" />
+<Image
+  src={minimax_01_hybrid_window_comparison}
+  alt="Comparison between hybrid lighting and hybrid window"
+/>
 
 **Discussion**
 作者最后总结认为，虽然 linear attention 的效率很高，但是它们在 retrieval 相关的任务表现很差，而 retrieval 对于 In-context learning 来说是至关重要的。因此，作者采取了 hybrid 架构，来兼顾模型的效率以及表现。
@@ -256,7 +269,7 @@ $$
 
 但是，由于同一个 ProcessGroup 内部的通信必须串行执行，如果计算效率比较高的话，就会产生 bubble, 作者的改进方法是提高计算量，让计算消耗的时间与通信消耗的时间大致相当。
 
-作者还尝试降低 ProcessGroup 的 size,  这样可以进一步提高计算和通信之间的 overlap, 但是问题是降低 group size 之后，group 的数量会增加，而这会导致 scheduling 以及让通信变为 CPU-bound. 作者认为这需要根据具体场景来进行设置。最终，通过优化，作者将 MoE 模块的通信开销降低了 50%.
+作者还尝试降低 ProcessGroup 的 size, 这样可以进一步提高计算和通信之间的 overlap, 但是问题是降低 group size 之后，group 的数量会增加，而这会导致 scheduling 以及让通信变为 CPU-bound. 作者认为这需要根据具体场景来进行设置。最终，通过优化，作者将 MoE 模块的通信开销降低了 50%.
 
 改进的示意图如下图所示
 
@@ -427,7 +440,10 @@ RL 训练包括 offline stage 以及 online stage.
 
 作者还评估了以下 MiniMax-Text-01 在长上下文情境下表现，我们这里列出 Ruler 上的结果，如下图所示
 
-<Image src={minimax_01_text_ruler_performance} alt="MiniMax-Text-01 performance on Ruler benchmark" />
+<Image
+  src={minimax_01_text_ruler_performance}
+  alt="MiniMax-Text-01 performance on Ruler benchmark"
+/>
 
 可以看到在 1M 上下文时，模型的表现超过了 Gemini-1.5-Pro 的表现。
 
@@ -453,7 +469,10 @@ RL 训练包括 offline stage 以及 online stage.
 
 最后，作者对收集收集数据的类别分布进行了可视化，结果如下
 
-<Image src={minimax_01_vl_data_distribution} alt="Visualization of top rags of sampled instruction data" />
+<Image
+  src={minimax_01_vl_data_distribution}
+  alt="Visualization of top rags of sampled instruction data"
+/>
 
 ## Training
 
