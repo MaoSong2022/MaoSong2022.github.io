@@ -1,3 +1,6 @@
+import Image from "../../../components/Image.astro";
+import MRoPE_interleaved from "../../../assets/image/MRoPE-I-comparison.png.png";
+
 ## MRoPE
 
 使用范围
@@ -16,3 +19,16 @@
 MRoPE: 将 head dimension 拆分为不同部分，分别进行旋转， RoPE 是对整个 head dimension 进行旋转，MRoPE 进行了拆分，将 head dimension 分为 [24, 20, 20] 三部分，分别负责 T, H, W 仨个维度
 
 ### Interleaved MRoPE
+
+MRoPE 存在的问题是时空间信息不对等，即 temporal information 始终处于高频区域。
+
+Interleaved MRoPE 提出了 MRoPE-I 来结合 MRoPE 以及 IL-RoPE 的优点，保证了：
+
+1. 视觉内容的 3D 结构信息
+2. 增长率慢
+3. 避免了生成时的 modality confusion
+4. modality interval 比较合适
+
+其示意图如下所示
+
+<Image src={MRoPE_interleaved} alt="Illustration of Interleaved MRoPE" />
