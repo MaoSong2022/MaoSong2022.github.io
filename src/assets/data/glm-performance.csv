@@ -1,0 +1,4 @@
+Benchmark,GLM-5.1,GLM-5,GPT-5.4,Opus-4.6,Gemini-3.1 Pro
+SWE-Bench Pro,58.4, 55.1, 57.7, 57.3, 54.2
+Terminal Bench 2.0, 69.0, 56.2, 65.4, 75.1, 68.5
+HLE,31.0,30.5,39.8,36.7,45.0
