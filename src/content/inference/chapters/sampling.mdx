@@ -107,8 +107,18 @@ def top_k_sampling(logits, k=50):
 #### Top-p sampling
 
 Top-p sampling 通过动态调整候选集的大小来解决 top-K 的动态适应问题 [@holtzman2020curiouscaseneuraltext].
-其策略是将所有的 token 按照概率从大到小排序并计算累计概率。
+其策略是将所有的 token 按照概率从大到小排序并计算累计概率，
 当累计概率超过阈值 $p$ 时截断，只保留这个动态集合的 token
+
+$$
+\begin{aligned}
+    &\mathcal{V}_p=\arg\min |\mathcal{V}_p|,\ \mathrm{s.t.}\ \sum_{x\in\mathcal{V}_p} P(x\mid \mid x_{1:n}) \geq p\\
+    &P(x_i) = \begin{cases}
+        P(x\mid \mid x_{1:n})/\sum_{x\in\mathcal{V}_p} P(x\mid \mid x_{1:n}),&\text{ if } x\in \mathcal{V}_p\\
+        0, &\text{ otherwise}
+    \end{cases}
+\end{aligned}
+$$
 
 Top-p sampling 的优势在于能够自适应 logits 的分布，如果模型对下一步很确定，候选集可能只有 1-2 个词，如果模型很犹豫，候选集会自动扩大到几十个词
 
