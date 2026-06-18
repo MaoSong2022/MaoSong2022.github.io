@@ -5,7 +5,8 @@ import Sidenote from "../../../components/Sidenote.astro";
 ### What is TIM
 
 现代的 RL 框架比如 verl 会使用不同的框架来完成 inference engine 和 training engine, 比如说使用 megatron [@Megatron] 进行训练，使用 FSDP [@FSDP] 进行训练。
-尽管使用的模型一致，但由于 kernel 等实现不同，inference engine 和 training engine 的输出不完全一致，这就导致了 training inference mismatch 问题。
+尽管使用的模型一致，但由于 training engine 和 inference engine 的优化目标不同： 前者要求数值稳定性和精度， 后者强调最大化 throughput.
+这种优化目标的不一致使得 inference engine 和 training engine 的实现和最终输出不完全一致，因此 training inference mismatch 问题 [@liu-li-2025-rl-collapse].
 
 ### Why TIM
 
@@ -76,6 +77,15 @@ $$
 
 ### Solutions
 
+#### Algorithm Optimizations
+
+Truncated importance sampling:
+
+$$
+
+
+$$
+
 #### System solutions
 
 1. 获取真实的采样概率
@@ -102,3 +112,10 @@ MoE RL 训练不稳定性解决：
 - KPop [@KPop]
 
 TODO: https://openreview.net/pdf?id=8MHqvb4lK9
+
+#### Kernel Optimization
+
+1. 利用 `torch.compile` 来固化 RoPE 实现，底层消除算子行为差异
+2. 通过 `enable_batch_invariant_mode` 来强制训练端采用与 SGLang 一致的算子，消除 batch size 对计算结果的影响
+3. training 和 inference 都使用 FlashAttention3 作为 backend, 来实现 bitwise equal
+4. 使用 DeepGEMM 进行矩阵乘法
