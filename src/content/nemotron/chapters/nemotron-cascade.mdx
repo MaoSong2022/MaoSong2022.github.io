@@ -1,0 +1,72 @@
+## Nemotron-cascade
+
+NVIDIA 在 25 年 12 月提出了 cascaded RL 以及训练得到的模型 Nemotron-Cascade [@Nemotron-Cascade], 模型包含 instruct 以及 thinking 两种模式。
+cascaded RL 使用了 sequential, domain-wise RL 来提高模型的数学和代码能力。
+
+### Introduction
+
+现有的 RLHF 主要分为了 RLHF 和 RLVR 两种范式，前者用于提高模型的 alignment 能力，后者用于提高模型的 reasoning 能力。
+
+但是提高模型的 reasoning 能力涉及到多个 domain, 每个 domain 的 verification 方式不一致，比如 math reasoning 依赖 symbolic rule-based verification, code generation 依赖于 execution based verification, alignment 依赖与 reward model based score.
+
+在 [AceReason-nemotron](#AceReason-nemotron) 中，作者提出了使用 Cascade RL 的方式来提高模型的数学和代码能力，作者发现这样做有以下优势：
+
+1. rule-based math verification 比 execution based verification 效率更高，可以在训练早期提高模型训练效率
+2. math reasoning 能力可以泛化到其他 domian 上
+3. math RL 之后，我们可以通过 code RL 提高模型的 code 能力而不损失模型的 math reasoning 表现
+
+因此，在本文中，作者基于 Qwem3 [@Qwen3] 的 Qwen3-8B-Base 以及 Qwen3-14B-Base 构建了一个开源的 post training recipe.
+
+本文贡献如下：
+
+- 在算法上，作者提出了 cascaded RL 框架，扩展了 RL 的 domain. Cascaded RL 的优势有：
+  - RLHF 可以有效提高模型输出的质量
+  - 后续 domain 的 RL 训练不会对前序 RL 产生影响
+  - 可以针对不同的 domain RL 分别调整超参数
+- 作者通过优化数据构建了 Nemotron-Cascade-8B unified reasoning model.
+
+#### SFT
+
+SFT 包含了两个阶段，分别覆盖 reasoning 相关 domain 和通用 domain.
+
+- stage 1: 包含通用 domain 任务和 thinking domain 数据，通用 domian 数据每个 prompt 包含 thinking 和 non-thinking 两种 response, 上下文长度为 16K, 训练 1 epoch
+- stage 2: 加入了新的 math, science, code 数据，将模型上下文长度扩展到 32K, 进一步提高模型的 tool use, software engineering skills
+
+对于 chat template, 作者使用了 ChatML 格式，然后使用了 `/think` 和 `/no_think` 两个 flag 来控制。作者通过实验发现，[Qwen3](Qwen3.md) 的 explicit flags 效果更好，并且可以覆盖所有场景，因此，作者舍弃了 `<think></think>` block. 作者还是用了 `<tools></tools>`, `<tool_call></tool_call>` tags 来表明可用工具以及模型的工具调用
+
+stage 1 数据构造
+
+- 通用 domain 数据包含 2.8M samples, 3.2B token, knowlege 相关官数据有 1.M samples, 1.5B tokens. 作者对数据进行了处理和增广。
+- reasoning domain 数据包含了 [AceReason-nemotron](#AceReason-nemotron) 中的数据，包含 AceMath, NuminaMath, OpenMathReasoning 这些数据集，作者手机了 353K prompts, 通过多次采样得到 2.77M samples.
+- code reasoning data 来源于 [AceReason-nemotron](#AceReason-nemotron), 包含 TACO, APPs, OpenCoder-Stage-2, OpenCodeReasoning. 数据包含 172K prompts, 1.42M samples, context length 16K
+- science reasoning data, 基于 S1K 和 LLaMA-Nemotron, 租中包含 226K prompts, 289K samples
+
+stage 2 数据构造
+
+- reasoning domain 数据，作者使用了 `DeepSeek-R1-0528` 来生成回答，得到 163k prompts, 1.88M samples. context length 32K
+- code reasoning data, 作者使用了 OpenCodeReasoning 和 OpenCoder-Stage-2 数据，使用 `DeepSeek-R1-0528` 来生成回答，得到 79K prompts, 1.39M samples, context length 32K
+- science reasoning data, 226K samples, 345K samples. upsample by 2.
+- tool calling data, 基于 LLaMA-Nemotron, 使用 `Qwen3-235B-A22B` 来生成回答，最终包含 320K 对话，1.41 M turns.
+- SWE, 基于 SWE-Bench-Train, SWE-Fixer-Train, SWE-reBench, SWE-Smith. task 包含 localization, repair, test code generation 三个任务。最终 127K repair 数据，92K localization 数据，31K test case generation 数据，stage2 阶段 upsample by 2.
+
+训练的超参数如下所示
+
+![](nometron-cascade-sft-config.png)
+
+### RL
+
+作者构造数据时，确保 SFT 和 RL 不会出现重复的 prompts.
+
+作者先进行 RLHF, 再进行 RLVR, 因为作者认为 RLHF 可以有效提高输出质量
+
+作者将 RL 分为了 RLHF, instruction following RL, Math RL, Code RL, 以及 SWE RL 5 个阶段
+
+作者认为 cascaded RL 没有灾难性遗忘的原因：
+
+1.
+
+训练使用了 GRPO 算法，使用了 verl 框架，基于 [AceReason-nemotron](#AceReason-nemotron).
+
+### Experiments
+
+作者对比了 Qwen3 提出的 Qwen3-8B,, Qwen3-14B, Nemotron-Nano 9B-v2, [DeepSeek-R1](DeepSeek-R1.md), [Gemini2.5](Gemini2.5.md) Flash Thinking, 表现如下表所示
