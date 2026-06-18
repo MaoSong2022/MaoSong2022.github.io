@@ -1,12 +1,11 @@
+import Image from "../../../components/Image.astro";
+import rnope_swa_8k_attention from "../../../assets/image/RNoPE-SWA-8k-attention.png";
+import rnope_swa_32k_attention from "../../../assets/image/RNoPE-SWA-32k-attention.png";
+import rnope_swa_128k_attention from "../../../assets/image/RNoPE-SWA-128k-attention.png";
 
-import Image from '../../../components/Image.astro';
-import rnope_swa_8k_attention from '../../../assets/image/RNoPE-SWA-8k-attention.png';
-import rnope_swa_32k_attention from '../../../assets/image/RNoPE-SWA-32k-attention.png';
-import rnope_swa_128k_attention from '../../../assets/image/RNoPE-SWA-128k-attention.png';
+## RNoPE-SWA
 
 作者系统性分析了已有的 attention 机制，然后作者提出了混合的 attention 机制，来提高模型在长上下文的表现以及维持模型在短上下文场景下的表现。
-
-## Introduction
 
 作者首先强调了提升 LLM 上下文长度面临的问题：
 
@@ -49,17 +48,17 @@ import rnope_swa_128k_attention from '../../../assets/image/RNoPE-SWA-128k-atten
 
 作者将 needle 放置在 50% 深度的位置。评测的实验结果如下
 
-|Context Length| Model Variants| begin| needle |context |qc |
-|---|---|---|---|---|---|
-|8k | RoPE| 0.3863 |0.0328| 0.3809 |0.2000  |
-||QK-Norm |0.0242 |0.0173 |0.8020| 0.1565|
-||NoPE |0.3058| 0.0454 |0.4501| 0.1987 |
-|32k  |RoPE| 0.3541 |0.0201 |0.4343 |0.1915  |
-||QK-Norm |0.0064 |0.0056 |0.8517 |0.1364|
-||NoPE| 0.2807 |0.0325 |0.4981| 0.1886 |
-|128k|  RoPE |0.3463| 0.0010| 0.4751 |0.1776  |
-||QK-Norm| 0.0010 |0.0004 |0.8993| 0.0994  |
-||NoPE |0.0846| 0.0073 |0.8156 |0.0925|
+| Context Length | Model Variants | begin  | needle | context | qc     |
+| -------------- | -------------- | ------ | ------ | ------- | ------ |
+| 8k             | RoPE           | 0.3863 | 0.0328 | 0.3809  | 0.2000 |
+|                | QK-Norm        | 0.0242 | 0.0173 | 0.8020  | 0.1565 |
+|                | NoPE           | 0.3058 | 0.0454 | 0.4501  | 0.1987 |
+| 32k            | RoPE           | 0.3541 | 0.0201 | 0.4343  | 0.1915 |
+|                | QK-Norm        | 0.0064 | 0.0056 | 0.8517  | 0.1364 |
+|                | NoPE           | 0.2807 | 0.0325 | 0.4981  | 0.1886 |
+| 128k           | RoPE           | 0.3463 | 0.0010 | 0.4751  | 0.1776 |
+|                | QK-Norm        | 0.0010 | 0.0004 | 0.8993  | 0.0994 |
+|                | NoPE           | 0.0846 | 0.0073 | 0.8156  | 0.0925 |
 
 实验结果显示：
 
@@ -68,13 +67,22 @@ import rnope_swa_128k_attention from '../../../assets/image/RNoPE-SWA-128k-atten
 
 作者发现 QK-Norm 对初始的 token 信息关注度较少，作者认为这是因为 normalization 会让模型更关注邻近的 token 信息。为了验证这个观点，作者在不同的上下文长度下，分别计算了不同方法的 attention 分布情况，为了避免噪声，作者将开始的 10 个 token 以及最后的 $3\%$ token 排除在外，实验结果如下图所示
 
-<Image src={rnope_swa_8k_attention} alt="Attention distribution on 8K context length" />
+<Image
+  src={rnope_swa_8k_attention}
+  alt="Attention distribution on 8K context length"
+/>
 
-<Image src={rnope_swa_32k_attention} alt="Attention distribution on 32K context length" />
+<Image
+  src={rnope_swa_32k_attention}
+  alt="Attention distribution on 32K context length"
+/>
 
-<Image src={rnope_swa_128k_attention} alt="Attention distribution on 128K context length" />
+<Image
+  src={rnope_swa_128k_attention}
+  alt="Attention distribution on 128K context length"
+/>
 
-实验结果说明，相比于 softmax attention, QK-Norm 的 attention score 分布更平滑，其对于 need  token 的注意力不如 RoPE, 这也说明了为什么 QK-Norm 的长上下文能力比较差。并且，QK-Norm 的 recency bias 更严重。
+实验结果说明，相比于 softmax attention, QK-Norm 的 attention score 分布更平滑，其对于 need token 的注意力不如 RoPE, 这也说明了为什么 QK-Norm 的长上下文能力比较差。并且，QK-Norm 的 recency bias 更严重。
 
 作者通过计算 RoPE 和 QK-Norm 的 attention distribution 的 entropy 来进一步说明这一点，结果如下表所示
 
@@ -92,7 +100,7 @@ import rnope_swa_128k_attention from '../../../assets/image/RNoPE-SWA-128k-atten
 RNoPE 不同 layer 与不同 base frequency 产生的 attention score 分布如下
 
 | Model         | NoPE Layers - begin | NoPE Layers - needle | NoPE Layers - context | NoPE Layers - qc | RoPE Layers - begin | RoPE Layers - needle | RoPE Layers - context | RoPE Layers - qc | needles-128k |
-|---------------|---------------------|----------------------|-----------------------|------------------|---------------------|----------------------|-----------------------|------------------|--------------|
+| ------------- | ------------------- | -------------------- | --------------------- | ---------------- | ------------------- | -------------------- | --------------------- | ---------------- | ------------ |
 | RoPE          | -                   | -                    | -                     | -                | 0.3541              | 0.0201               | 0.4343                | 0.1915           | 7.395        |
 | RNoPE-10k     | 0.3275              | 0.0765               | 0.5672                | 0.0287           | 0.0049              | 0.0004               | 0.6805                | 0.3142           | 8.036        |
 | RNoPE-100k    | 0.3263              | 0.0778               | 0.5633                | 0.0327           | 0.0241              | 0.0005               | 0.6782                | 0.2972           | 7.461        |

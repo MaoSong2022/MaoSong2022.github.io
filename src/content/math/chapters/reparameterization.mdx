@@ -1,0 +1,23 @@
+## Reparameterization
+
+### Gumbel-Max Trick
+
+Gumbel-Max trick 是一个从 categorical distribution 中采样的 reparameterization 技巧。
+
+我们定义 $X\in\{1,\dots,V\}$, 其对应的 Boltzmann distribution 由一个 logits $\mathbf{\ell}=(\ell_1,\dots,\ell_V)\in\mathbb{R}^V$,
+
+$$
+P(X=k) = \frac{\exp(\ell_k)}{\sum_{j=1}^V\exp(\ell_j)}
+$$
+
+我们可以先从 Gumbel noise $\{\xi_k\sim\mathcal{G}(0,1)\}_{k=1}^V$ 中进行采样，然后计算
+
+$$
+Y=\arg\max_{k}(\ell_k+\xi_k)
+$$
+
+则 $Y$ 与 $X$ 的分布相同。
+
+通常我们使用 inverse transform sampling 来实现 $\xi\sim\mathcal{G}(0,1)$ 的采样，即我们先从均匀分布中进行采样 $u\sim\mathcal{U}[0,1]$, 然后我们计算 $\xi=-\log(-\log u)$.
+
+- [Reparameterization trick](https://en.wikipedia.org/wiki/Reparameterization_trick)
