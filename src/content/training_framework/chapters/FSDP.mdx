@@ -1,6 +1,20 @@
 ## FSDP
 
-FSDP (fully sharded data parallelism, [@FSDP])
+FSDP (fully sharded data parallelism, [@FSDP]) 是 Meta 提出的一个针对大模型训练的数据并行策略。
+
+为了训练大模型，一般我们会采用 pipeline parallelism, tensor parallelisim 或者 Zero-Redundancy parallelism. 但是已有的方法存在两个问题：
+
+1. 一些方法与特定的模型架构绑定，无法迁移到其他模型上
+2. 一些方法与特定的框架绑定，一旦框架更新，方法可能就会失效
+
+因此，作者在本文中就提出了一个 robust 以及 efficient 的分布式训练策略，即 **Fully Sharded Data Parallel (FSDP)**, 通过 shard 模型参数的方式来支持大模型的训练。
+
+FSDP 的设计原则有以下几点：
+
+1. User Experience: FSDP 引入了 deferred initialization, 来让用户再不需要 GPU 的情形下构造 model instance
+2. Hardware Heterogeneity: FSDP 支持可配置的 sharding 策略，来适配不同的集群
+3. Resource Utilization: FSDP 通过 overlap communication 以及 computation 的方式来提高整体的计算效率
+4. Memory Planning: FSDP 通过限制 block 的数量来避免内存爆炸
 
 ### FSDP2
 
