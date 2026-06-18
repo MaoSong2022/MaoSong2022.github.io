@@ -1,0 +1,20 @@
+## Phi-4
+
+基于 [phi-4](phi-4.md) 和 [phi-4-reasoning](phi-4-reasoning.md) 开发得到
+
+phi4-reasoning-vision 使用了标准的 ViT-MLP-LLM 架构，
+
+1. ViT: SigLIP-2
+2. LLM: Phi4-Reasoning
+
+作者探究了不同的 image cropping 方法，包括 [[NVILA]] 提出的 dynamic $S^2$ , [SigLip-2](SigLip-2.md) 的 dynamic resolution
+
+| Method             | Max Tokens | MathVista | ScreenSpot | ScreenSpot-Pro | V\* Bench |
+| ------------------ | ---------- | --------- | ---------- | -------------- | --------- |
+| Dynamic-S2         | 3096       | 42.9      | 78.4       | 9.4            | 52.9      |
+| Multi-crop         | 3096       | 43.4      | 67.8       | 5.4            | 51.8      |
+| Multi-crop with S2 | 2048 43.4  | 79.1      | 10.6       | 57.1           |           |
+| Dynamic resolution | 2048       | 45.2      | 81.5       | 9.2            | 51.3      |
+| Dynamic resolution | 3600       | 44.9      | 79.7       | 17.5           | 56.0      |
+
+结果现实 dynamic resolution 的效果最好，并且 token 越多效果越好，但是 Multi-crop S2 使用的 token 数量更少。
