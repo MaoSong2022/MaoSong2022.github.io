@@ -1,16 +1,13 @@
-
-import Image from '../../../components/Image.astro';
-import qwen2_5_1m_dca from '../../../assets/image/Qwen2_5_1M_DCA.png';
-import qwen2_5_1m_sparsity_config_performance from '../../../assets/image/Qwen2_5_1M_sparsity_config_performance.png';
-import qwen2_5_1m_pp from '../../../assets/image/Qwen2_5_1M_PP.png';
-import qwen2_5_1m_scheduling from '../../../assets/image/Qwen2_5_1M_scheduling.png';
-import qwen2_5_1m_ruler_performance from '../../../assets/image/Qwen2_5_1M_RULER_performance.png';
+import Image from "../../../components/Image.astro";
+import qwen2_5_1m_dca from "../../../assets/image/Qwen2_5_1M_DCA.png";
+import qwen2_5_1m_sparsity_config_performance from "../../../assets/image/Qwen2_5_1M_sparsity_config_performance.png";
+import qwen2_5_1m_pp from "../../../assets/image/Qwen2_5_1M_PP.png";
+import qwen2_5_1m_scheduling from "../../../assets/image/Qwen2_5_1M_scheduling.png";
+import qwen2_5_1m_ruler_performance from "../../../assets/image/Qwen2_5_1M_RULER_performance.png";
 
 ## Qwen2.5
 
-Qwen 在 2025 年 1 月提出了 Qwen2.5-1M [@Qwen2.5_1M]，一个拥有 1M 上下文长度的大语言模型系列。包含 7B，14B 两个开源模型以及 API 模型 Qwen2.5-Turbo.  主要改进方法包括长上下文数据合成，渐进式预训练以及多阶段 post-training 等。作者还对 inference 进行了优化，提高了 inference 的效率。
-
-### Method
+Qwen 在 2025 年 1 月提出了 Qwen2.5-1M [@Qwen2.5_1M]，一个拥有 1M 上下文长度的大语言模型系列。包含 7B，14B 两个开源模型以及 API 模型 Qwen2.5-Turbo. 主要改进方法包括长上下文数据合成，渐进式预训练以及多阶段 post-training 等。作者还对 inference 进行了优化，提高了 inference 的效率。
 
 ### Architecture
 
@@ -55,11 +52,11 @@ SFT 训练时，作者拆分为了两个 stage。 stage 1 作者在 32768 的上
 
 RL 训练时，与 Qwen2.5 不一样的是，作者进使用了 offline RL，也就是 DPO。作者仅在 8192 的上下文长度上面进行训练。作者认为，长上下文的 RL 训练是非常耗时的，并且作者发现，短文本上进行 RL 的训练之后，模型在长文本上的表现也能得到提升。结果如下表所示
 
-| Model               | Before RL | After RL    |
-|---------------------|-----------|-------------|
-| Qwen2.5-7B-Instruct-1M | 7.32      | 8.08 (+0.75) |
-| Qwen2.5-14B-Instruct-1M | 8.56     | 8.76 (+0.20) |
-| Qwen2.5-Turbo        | 7.60      | 8.34 (+0.74) |
+| Model                   | Before RL | After RL     |
+| ----------------------- | --------- | ------------ |
+| Qwen2.5-7B-Instruct-1M  | 7.32      | 8.08 (+0.75) |
+| Qwen2.5-14B-Instruct-1M | 8.56      | 8.76 (+0.20) |
+| Qwen2.5-Turbo           | 7.60      | 8.34 (+0.74) |
 
 ### Inference
 
@@ -98,7 +95,10 @@ Attention Recall 越高，说明选取的 critical token 越好，其 configurat
 
 作者进一步分析了 sparse attention 对 accuracy 的影响，结果如下
 
-<Image src={qwen2_5_1m_sparsity_config_performance} alt="Qwen2.5 performance on sparsity refinement" />
+<Image
+  src={qwen2_5_1m_sparsity_config_performance}
+  alt="Qwen2.5 performance on sparsity refinement"
+/>
 
 可以看到，仅使用 MInference 会导致模型性能 下降，但是加入 refinement 之后，模型的表现基本上和 full attention 差不太多。
 
@@ -139,7 +139,10 @@ BladeLLm 使用了 Dynamic Chunked pipeline parallelism 来解决这个问题，
 
 Qwen2.5-1M 与 Qwen2.5 的对比表现如下
 
-<Image src={qwen2_5_1m_ruler_performance} alt="Qwen2.5-1M performance on RULER" />
+<Image
+  src={qwen2_5_1m_ruler_performance}
+  alt="Qwen2.5-1M performance on RULER"
+/>
 
 可以看到，相比于 Qwen2.5，Qwen2.5 模型的表现有了大幅度的提升。
 
