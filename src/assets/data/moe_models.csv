@@ -2,6 +2,7 @@ Model,Time,total parameters,activated parameters,shared expert,Routed experts,ac
 ST-MoE,2022-Q2,269B,32B,0,64,2
 DeepSeek-MoE,2024-Q1,145B,22B,4,128,12
 Mistral,2024-Q1,47B,13B,0,8,2
+Grok1,2024-Q1,314B,84B,0,8,2
 DeepSeek-V2,2024-Q2,236B,21B,2,160,6
 DeepSeek-V3,2024-Q4,671B,37B,1,256,8
 Qwen3,2025-Q2,235B,22B,0,128,8
