@@ -1,0 +1,41 @@
+## dots.vlm
+
+小红书提出了 dots.vlm1, 一个基于 DeepSeek-V3 [@DeepSeek-V3] 的视觉多模态大模型
+
+作者强调了 dots.vlm1 的两个关键：
+
+1. NaViT Vision Encoder: ViT 从零开始训练，支持动态分辨率图片输入
+2. Multimodal Training Data: 使用了合成和改写的方式来提高多模态数据质量
+
+## Method
+
+dots.vlm1 是一个 `ViT-MLP-LLM` 的架构，
+
+- ViT 是一个 1.2B 的 NaViT [@NaViT]
+- MLP 和 Qwen 2.5-Vl [@Qwen2.5-VL] 一样都是一个 patch merger
+- LLM 是 [DeepSeek-V3](DeepSeek-V3.md)
+
+dots.vlm1 训练分为了三个阶段
+
+- Stage 1: Vision Encoder Pretraining- 从零开始训练 ViT
+- Stage 2: VLM pretraining: 联合训练 ViT 和 DeepSeek-V3 LLM
+- Stage 3: VLM Post-training: SFT
+
+> [!tip] Remark
+> 在 post-training 阶段，作者并没有进行 RL 的训练
+
+对于 NaViT, 作者采用了和 AIMv2 一样的架构和训练方式。训练包含 2 个阶段：
+
+- stage 1: 作者使用 224 的图片进行训练，训练目标包括 next token prediction 以及 next patch generation 两个目标，后者可以提高 vision encoder 的空间语义感知能力
+- stage 2: 作者逐步提高图片精度，从 1M 像素的图片到 10M 像素的图片，作者还加入了更多的数据，包括 OCR 数据，grounding 数据和 video 数据等
+
+对于 pre-training 阶段，作者将数据分为了两类：
+
+1. Cross-Modal Translation Data
+   - image caption data
+   - chart, table, formula, graphic with caption
+   - Video frames with caption
+   - grounding data with bb and keypoints
+2. Cross-Modal Fusion Data
+   - web data
+   - pdf data

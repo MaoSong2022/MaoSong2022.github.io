@@ -1,0 +1,92 @@
+## dots.llm
+
+小红书在 6 月 6 日发布了 dots.llm1 [@dots.llm1]，一个基于 MoE 架构的大语言模型，总参数为 142B，激活参数为 14B.
+预训练阶段使用了 **11.2T** token，在 MMMU-Pro 上与 Qwen3-235B-22B 表现相当，且激活参数减少了 1/3
+
+`dots.llm1` 主要亮点：
+
+1. 数据处理 pipeline：构建了 3 阶段的数据处理 pipeline，来提供高质量的数据
+2. efficiency：激活参数仅有 14B
+3. infra：在 infra 上进行了改进提高了训练效率
+4. open-source：开源了模型权重
+
+### Architecture
+
+架构参考了 DeepSeek-MoE [@DeepSeekMoE]
+
+- Attention: multi head attention [@vaswani2017attention], QK-Norm[@QK-Norm]
+- FFN: MoE 架构，128 个 experts，激活 8 个 experts，其中 2 个为 shared experts，6 个为 routed experts. gating layer 采用了 FP32 防止出现数值不稳定性
+- Load Balancing：与 DeepSeek-V3 [@DeepSeek-V3] 一样，采用了 auxiliary-loss-free approach. 另外还增加了一个 sequence-wise balance loss 来避免 sequence 内部的不平衡
+- 包含 62 layers，第一个 layer 使用了 Dense FFN，后面使用的是 MoE
+
+### Data
+
+#### Pre-training data
+
+数据处理过程
+
+1. document separation: 预处理以及组织数据
+   - URL filtering
+   - Text Extraction
+   - Language identification
+   - Identity Removal
+2. rule-based processing：自动化过滤和清洗数据
+   - Line-wise Inter-Document Deduplication
+   - Rule-Based Filtering
+   - Fuzzy Deduplication
+3. model-based processing：提高数据的质量和多样性
+   - Web-Type Classification Model
+   - Web Clutter Removal Model
+   - Quality Model
+   - Semantic Deduplication
+   - Category Balancing
+
+关键亮点：
+
+1. Web Clutter Removal Model：按照行来去除重复的内容
+2. Category balancing：构建了一个 200 个类别的分类器来分类数据
+
+最后，数据包括 **11.2T** token，中英文的数据配比为 1:1，没有使用合成数据
+
+#### Post-training data
+
+Post-training 数据包括了：
+
+- multi-lingual
+- multi-turn dialogues
+- knowledge understanding
+- QA
+- complex instruction following
+- reasoning (math, coding)
+
+最终收集了**400K**的样本
+
+### Training
+
+#### Pre-training
+
+预训练包括三个阶段
+
+1. 预训练阶段的上下文长度为 8K，消耗了 10T token，使用了 warmup-stable-decay 的 learning rate schedule
+2. annealing 阶段，增加了两个 annealing stage，消耗了 1.2T 的 token
+   - stage 1: 使用了 1T 的 token，提高了 reasoning 和 knowledge 相关的数据比例到 90%
+   - stage 2: 使用了 200B 的 token，提高了 code，math 和 reasoning 相关的数据
+3. 扩展上下文阶段，作者使用 UtK 策略将模型的上下问程度从 8K 扩展到了 32K
+
+与 Qwen 2.5 72B [@Qwen2.5] 的训练成本对比
+
+| Model        | GPU Hours per One Trillion Tokens | Pre-training Tokens | Total GPU Hours |
+| ------------ | --------------------------------- | ------------------- | --------------- |
+| Qwen 2.5 72B | 340K (×1.0)                       | 18.0T               | 6,120K (×1.0)   |
+| dots.llm1    | 130K (×0.38)                      | 11.2T               | 1,456K (×0.24)  |
+
+#### Post-training
+
+训练包含两个 phase
+
+- phase 1: 通过 upsampling 和 multi-session concat，训练了 2 个 epoch
+- phase 2: 通过 RFT 在 reasoning 相关人物上进一步训练。
+
+### Infra
+
+作者构建了一个基于 Megatron-Core 的 Cybertron 框架。对于 pre-training，SFT 和 RL 三个训练阶段，使用了不同的 trainer
