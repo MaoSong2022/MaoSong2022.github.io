@@ -1,4 +1,4 @@
-import Quote from '../../../components/Quote.astro'
+import Quote from "../../../components/Quote.astro";
 import Image from "../../../components/Image.astro";
 
 import olmoe_load_balancing_loss from "../../../assets/image/olmoe-load-balancing-loss.png";
@@ -113,7 +113,8 @@ $$
 目前关于 load balancing loss 可以实现负载均衡的数学分析是比较少的。Switch Transformer [@SwitchTransformer] 中进行了如下分析：
 
 <Quote source="Switch Transformer">
-  The auxiliary loss of Equation 4 encourages uniform routing since it is minimized under a uniform distribution.
+  The auxiliary loss of Equation 4 encourages uniform routing since it is
+  minimized under a uniform distribution.
 </Quote>
 
 但实际上，这个分析是错误的，Switch transformer 中定义的 load balancing loss 并不是在均匀分布时取最小值，而是取最大值。考虑如下情形，
@@ -173,7 +174,31 @@ $$
 
 Loss-Free load balancing [@wang2024auxiliarylossfreeloadbalancingstrategy] 是 DeepSeek 提出来的一个无需 load balancing loss 实现负载均衡的方法，其核心思想是 load balancing loss 会影响语言建模性能，因此在 $\mathrm{TopK}$ 操作时，作者加入一些扰动，从而让负载高的专家被选择的概率降低，让负载低的专家被选择的概率提高。
 
-TODO. 具体细节
+具体做法就是在每个专家的 gating score 上加入一个 bias term, 然后再决定对应的专家：
+
+$$
+g_{i,t} = \begin{cases}
+s_{i,t}, & s_{i,t}+b_i\in\mathrm{Topk}(\{s_{i,j}+b_j\mid 1\leq j\leq N\}, K)\\
+0, &\text{otherwise}
+\end{cases}
+$$
+
+注意这里的 bias item 仅影响 top-K 操作，其对最终的输出没有影响。
+
+为了实现负载均衡，作者根据上一个 batch 的 expert load 情况来调整 bias item, 如果某一个专家的 load 太大，则对应的 bias item 会变小。 其算法实现过程如下：
+
+TODO
+
+作者对比不同的负载均衡算法如下表所示
+
+| Load Balancing Methods                  | Balanced Expert Load | Interference Gradients | Future Token Leakage |
+| --------------------------------------- | -------------------- | ---------------------- | -------------------- |
+| Loss-Controlled (strong auxiliary loss) | balanced             | strong                 | no leakage           |
+| Loss-Controlled (weak auxiliary loss)   | imbalanced           | weak                   | no leakage           |
+| Expert Choice                           | balanced             | none                   | with leakage         |
+| Loss-Free (Ours)                        | balanced             | none                   | no leakage           |
+
+TODO
 
 #### Global-batch Load Balancing Loss Strategy
 

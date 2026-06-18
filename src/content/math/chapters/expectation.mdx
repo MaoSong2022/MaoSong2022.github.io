@@ -1,0 +1,31 @@
+## Expectation
+
+conditional expectation 的定义如下
+
+$$
+\mathbb{E}[X\mid A=a] = \sum_{x}xp(x\mid a)
+$$
+
+全概率公式定义如下
+
+$$
+\boxed{\mathbb{E}[X] = \sum_{a}\mathbb{E}[X\mid A=a]p(a)} \tag{law of total expectation}
+$$
+
+证明如下
+
+$$
+\begin{aligned}
+\sum_{a}\mathbb{E}[X\mid A=a]p(a) &= \sum_a\left[\sum_xp(x\mid a)x\right]p(a)\\
+&= \sum_x\sum_a p(x\mid a)p(a)p(x)\\
+&= \sum_x\left[\sum_a p(x\mid a)p(a)\right]x\\
+&= \sum_x p(x)x\\
+&= \mathbb{E}[x]
+\end{aligned}
+$$
+
+我们可以扩展得到如下结论
+
+$$
+\mathbb{E}[X\mid A=a] = \sum_b \mathbb{E}[X\mid A=a, B=b]p(b\mid a)
+$$
