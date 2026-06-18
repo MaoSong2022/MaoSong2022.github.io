@@ -19,3 +19,18 @@ agentic RL 相比与 [RLHF](https://maosong.website/blog/RLHF/) / [RLVR](https:/
 
 用 GRPO 做 agentic RL 的问题： 一条成功 rollout 里也有无效动作，而一条失败 rollout 里也有高质量动作，而 GRPO 则凭结果论英雄，认为成功 rollout 里的动作都是好动作，失败 rollout 里的动作都是坏动作。
 其本质上就是将 multi-turn 作为 single-turn 来考虑，并且仅使用 outcome reward 来打分，整个 rollout 成为了一个单一的决策步。
+
+[ LLM Agent RL的一些实践感悟](https://zhuanlan.zhihu.com/p/1979913424113771020)
+
+1. 稳定性是工业级 RL 训练最重要的前提，包括 [Training-Inference mismatch](Training-Inference%20mismatch.md), PPO EWMA 等
+2. 对 reasoning RL: algorithm > reward > environment, 对于 agent RL: environment > reward > algorithm
+3. 需要稳定进行工具调用的 RL 训练环境
+4. 使用 llm-as-a-judge 会出现 reward hacking 问题
+5. 减少 hand-craft reward, 避免 reward hacking
+6. 对齐训练和评测环境，来保证训练能反映模型的表现
+7. environment 和 reward 准备好之后，才有必要进行数据和算法的消融实验
+8. 有足够的 GPU 资源是，PPO-EWMA 比 on-policy 效果更好，增大 batch size, group size 和 RL compute
+9. RL grokking, on-policy 场景尤其明显
+10. 工具层面的探索非常重要，会影响模型能力训练上限
+11. 更大模型的 RL 训练泛化效果更好
+12. 做 continue RL, 不一定需要 trick, 而是需要高质量数据
