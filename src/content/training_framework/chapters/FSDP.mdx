@@ -1,0 +1,16 @@
+## FSDP
+
+FSDP (fully sharded data parallelism, [@FSDP])
+
+### FSDP2
+
+相比于 FSDP1 将所有的参数展开成一个巨大的 `FlatParameter`,
+FSDP2 引入了 `DTensor`, `DTensor` 能够在保持 Tensor 原始结构的前提下，在指定的并行维度上进行更优的切分。
+这不仅解决了 FSDP1 中元数据易丢失和 padding 复杂的痛苦，更为 mixed precision training 和 LoRA 提供了支持。
+
+### Why FSDP
+
+1. VLM 架构适配： VLM 的模态交互架构复杂，FSDP 的灵活性比 megatron-lm [@Megatron] 更轻松
+2. 敏捷性：对于Qwen3-Next [@Qwen3-Next], gpt-oss [@GPT-oss] 这类新架构，FSDP 可以以更快的速度支持 RL
+3. 易用性： FSDP 是一个 pytorch native 的框架，学习曲线与 debug 成本显著低于 megatron-lm
+4. 生态兼容：FSDP 能够直接兼容 Huggingface model 格式，不必像 megatron 一样通过 `mbridge` 来进行权重转换
