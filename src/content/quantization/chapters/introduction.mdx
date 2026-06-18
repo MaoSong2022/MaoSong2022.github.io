@@ -1,0 +1,68 @@
+## Introduction
+
+大模型量化是一种模型压缩和加速技术，它的核心思想是降低模型参数的数值精度。
+
+现有大模型训练完成后，其模型参数一般是由 BF16 (2bits per parameter) 来存储的，虽然这样能够保持模型的性能，但是对部署的硬件要求比较高。
+
+量化则是将高精度的参数，映射到低精度的数值上，比如我们使用 INT8 (1bit per parameter) 来表示模型的参数，则可以将模型的参数所需内存降低一半。并且，GPU 对于低精度的运算效率更高，我们还可以提高整体的计算效率。
+
+## Basics
+
+量化的核心原理在于找到一个映射，用于将高精度的数值映射到低精度的数值。其最基本的公式为
+
+$$
+Q = \mathrm{round}\left(\frac{R}{S}+Z\right)
+$$
+
+其中：
+
+- $R$ 是原始的高精度数值，一般为 BF16 或者 FP32
+- $Q$ 是量化后的低精度数值，如 INT8, FP8 等
+- $S$ 是缩放因子 (Scale factor), 是一个浮点数，用于决定映射的步长
+
+$$
+S = \frac{R_\max-R_\min}{Q_\max-Q_\min}
+$$
+
+- $Z$ 是零点 (Zero point), 是一个整数，确保原始数值中的 0 在量化之后能被精确表示
+
+在参与计算时，我们还需要对量化的数值进行反量化，其计算公式为
+
+$$
+\tilde{R} = (Q - Z) * R
+$$
+
+如果 $Z=0$ 的话，则我们称为对称量化，否则我们称为非对称量化。
+
+### Quantization Precision
+
+- Per-Tensor Quantization
+- Per-Channel Quantization
+- Per-Group Quantization
+
+## Quantization Aware Training (QAT)
+
+### GPTQ
+
+### AWQ
+
+### GGUF
+
+GGUF 使用了分组量化 (Group wise quantization) 技巧，来将需要量化的 tensor 拆分为多个小块，每个块单独进行量化和缩放。
+
+### SmoothQuant
+
+## Post-training Quantization (PTQ)
+
+### LLM-QAT
+
+### PEQA
+
+## Experiments
+
+## Conclusion
+
+## References
+
+- [一文搞懂大模型量化技术：GGUF、GPTQ、AWQ](https://zhuanlan.zhihu.com/p/1899107168172630461)
+- [大模型量化技术原理：总结 - 吃果冻不吐果冻皮的文章 - 知乎](https://zhuanlan.zhihu.com/p/11886909512)
