@@ -84,7 +84,55 @@ $$
 
 ### Discrete Diffusion Model
 
+令 $\mathbf{x}_0=[x^i]_{i=1}^N$ 为一个包含 $N$ 个 token 的 sequence, 令 $[M]$ 为一个特殊的 mask token. 在 forward 过程中，tokens 以一个与时间步 $t\in[0,1]$ 相关的概率 $\alpha_t$ 保持不变或者被转换为 mask token , $\alpha_t$ 满足 $\alpha_0=0$, $\alpha_1=1$. 其转换概率如下
+
+$$
+q_{t|0}(\mathbf{x}_t\mid \mathbf{x}_0) = \prod_{i=0}^{N-1} q_{t|0}(\mathbf{x}_t^i|\mathbf{x}_0^i)
+$$
+
+其中，
+
+$$
+q_{t|0}(\mathbf{x}_t^i|\mathbf{x}_0^i) = \begin{cases}
+\alpha_t, & \mathbf{x}_t^i = \mathbf{x}_0^i\\
+1-\alpha_t, &  \mathbf{x}_t^i = [M]
+\end{cases}
+$$
+
+reverse process 负责从 $\mathbf{x}_1$ (全部是 mask token 的序列) 重建原始序列 $\mathbf{x}_0$. 考虑两个时间步 $0\leq s<t\leq 1$, 已经倍恢复的 token 会保持不变，而被 mask 的 token 则要么保持不变，要么被模型 $p_\theta(\mathbf{x}_0^i|\mathbf{x}_t)$ 解码
+
+$$
+q_{s|t}(\mathbf{x}_s\mid\mathbf{x}_t) =  \prod_{i=0}^{N-1} q_{s|t}(\mathbf{x}_s^i|\mathbf{x}_t)
+$$
+
+其中，
+
+$$
+q_{s|t}(\mathbf{x}_s^i|\mathbf{x}_t) = \begin{cases}
+1, & \mathbf{x}_t^i\neq [M], \mathbf{x}_s^i = \mathbf{x}_t^i\\
+\frac{1-\alpha_s}{1-\alpha_t}, &\mathbf{x}_t^i= [M], \mathbf{x}_s^i = [M]\\
+\frac{\alpha_s-\alpha_t}{1-\alpha_t}p_\theta(\mathbf{x}_0^t\mid \mathbf{x}_t),&\mathbf{x}_t^i= [M], \mathbf{x}_s^i \neq [M]\\
+0, &\text{otherwise}
+\end{cases}
+$$
+
+推理时，MDM 通过 reverse process 来逐步生成对应的文本。
+
+训练时，模型通过基于观测到的文本来逐步恢复被 mask 的 token, 其损失函数如下所示
+
+$$
+\mathcal{L}(\theta) = \int_0^1 \frac1t \mathbb{E}_{\mathbf{x}_0,\mathbf{x}_t\sim q_{t|0}}\left[\sum_{i;\mathbf{x}_t\sim q_{t|0}}-\log p_\theta(\mathbf{x}_0^i\mid \mathbf{x}_t)\right] d_t
+$$
+
 ### Any-order Diffusion LLM
+
+### Esoteric Language Models
+
+Esoteric Language Models (Eso-LM) 结合了 AR models 和 MDLM, 与 block diffusion model 不同，Eso-LM 支持 KV caching 且不影响 parallel generation
+
+$$
+p_\theta(\mathbf{x}) = \sum_{\mathbf{z}_0\in\mathcal{V}^L}p_\theta^{AR}(\mathbf{x}\mid \mathbf{z}_0)p_\theta^{MDLM}(\mathbf{z}_0)
+$$
 
 ### Masked Diffusion LLM
 

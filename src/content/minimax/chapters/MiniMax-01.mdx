@@ -16,8 +16,6 @@ import minimax_01_vl_performance from "../../../assets/image/MiniMax-01-VL-perfo
 
 ## MiniMax-01
 
-### Introduction
-
 MiniMax-01 是一个基于 hybrid attention 架构的大模型系列，包含 MiniMax-Text-01 和 MiniMax-VL-01 两个模型，其中 MiniMax-Text-01 推理时支持 4M 的上下文长度，MiniMax-VL-01 支持 512B 的上下文长度
 
 现有大部分模型的上下文长度为 32K-256K, 但实际上我们对于长上下文的需求已经超过了这个范围。已有的模型主要基于 self-attention, 这是一个平方复杂度的算法。
@@ -41,7 +39,7 @@ MiniMax-01 是一个基于 hybrid attention 架构的大模型系列，包含 Mi
 3. 作者详细介绍了使用的数据，模型和训练策略
 4. 作者开源了模型
 
-## Architecture
+### Architecture
 
 模型架构如下图所示
 
@@ -223,7 +221,7 @@ $$
 
 基于这些发现，作者构建了 scaling law 来决定最优模型配置。作者训练了不同大小的模型，然后拟合 scaling law 的曲线，最后，作者将模型的总参数确定为 456B, 激活参数确定为 45.9B.
 
-## Infra
+### Infra
 
 本节介绍了一下 MiniMax-01 的 infra, 作者主要解决了以下几个关键问题：
 
@@ -231,7 +229,7 @@ $$
 2. 在处理长上下文时，不同 GPU 之间的信息需要共享，这会导致额外的通信开销。因此，如何减少长上下文情形下的通信开销也是一个挑战
 3. 如何提高 lightning attention 在 inference 阶段的效率。当前只在训练阶段做了优化，但是推理阶段也需要提高模型的效率
 
-### MoE Optimization
+#### MoE Optimization
 
 优化 MoE 架构的主要目的是**最小化通信开销**，特别是 all-to-all 的通信开销。为了解决这个问题，作者构建了一个 token-grouping-based overlap scheme, 来让通信和计算尽可能并行执行，也就是在计算的同时进行通信。为了保证通信的正确性，每个 ProcessGroup 之间的通信操作必须串行执行，这就导致了不同 group 之间的通信无法 overlap, 也就造成了 idle time 的产生，示意图如下图所示
 
@@ -275,7 +273,7 @@ $$
 
 <Image src={minimax_01_ep_etp_overlap} alt="EP-ETP overlap" />
 
-### Long Context Optimization
+#### Long Context Optimization
 
 为了处理不同长度的 sequence, 作者使用了 sequence packing 的技巧。
 
@@ -304,7 +302,7 @@ TransformerEngine 的问题在于每个 sequence 必须是 $2\times \texttt{size
 > [!tip] Remark
 > LISP+ 说明了现在大模型分布式训练的一个重要趋势，也就是用通信换并行。特别是 GPU 通信带宽特别高的情况。因此，算法设计不仅要考虑理论复杂度还要考虑实际中硬件并行的利用率。
 
-### Lightning Attention Inference Optimization
+#### Lightning Attention Inference Optimization
 
 已有的 lightning attention 并没有考虑实际的部署需求。作者提出了四个策略来优化 lightning attention 的 inference efficiency:
 
@@ -324,7 +322,7 @@ inference 的 decoding 阶段模型每次只生成 1 个 token, 此时任务是 
 
 通过以上这些优化，作者在 H20 上达到了 75% 的 MFU. 作者发现，由于使用了 lightning attention, attention 不分计算从传统的 95% 以上降低到了 12% 左右，不再是算力的瓶颈部分。
 
-## Pre-training
+### Pre-training
 
 作者首先介绍了预训练的数据构成，然后作者介绍了如何选取高质量的训练数据，最后，作者介绍了实验的参数。
 
