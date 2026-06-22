@@ -1,0 +1,128 @@
+## DAPO
+
+字节 Seed 团队和清华合作提出了 DAPO [@DAPO]，一种全开源的，基于 PPO 的强化学习方法，一用于提升 LLM 的 reasoning 能力。
+
+Preliminary 包括 [PPO](#ppo)，[GRPO](#grpo) 还有 KL divergence
+
+### KL Divergence
+
+在传统的 RLHF 框架中，我们再 [PPO](#ppo) 的基础上，增加了一个 KL divergence 正则项，用于约束新旧策略的差异。具体来说，给定旧策略 $\pi_{\theta_{old}}$ 和新策略 $\pi_{\theta}$，我们实际上优化的损失函数为
+
+$$
+\mathcal{J}_{\mathrm{RLHF}}(\theta) = \mathcal{J}_{\mathrm{PPO}}(\theta) - \beta\mathrm{KL}\left(\pi_{\theta_{old}}(\cdot\mid q)\|\pi_{\theta}(\cdot\mid q)\right)
+$$
+
+其中，$\beta$ 是一个超参数，用于平衡 PPO 损失和 KL divergence 损失。
+上面的 PPO 损失函数也可以改为 GRPO 损失函数。
+
+作者在本文中认为，reasoning model 和 RLHF 的训练目标是不一样的，RLHF 加上 KL divergence 正则项，会使得模型在推理时过于保守，偏向于 exploitation 而 reasoning model 则需要 exploration.
+因此，作者在本文中去掉了这一项。
+
+### Rule-based Reward Modeling
+
+作者基于 final accuracy 来作为 outcome reward, 避免模型训练出现 reward hacking 问题。reward function 如下：
+
+$$
+R(\hat{y},y) = \begin{cases}
+1, & \text{if is\_equivalent}(\hat{y},y) \\
+-1, & \text{otherwise}
+\end{cases}
+$$
+
+## DAPO
+
+DAPO 基于 GRPO 改进，其优化的目标函数为：
+
+$$
+\mathcal{J}_{\mathrm{DAPO}}(\theta) = \mathbb{E}_{(q,a)\sim\mathcal{D},\{o_i\}_{i=1}^G\sim \pi_{\theta_{old}}(\cdot\mid q)}\left[ \frac{1}{\sum_{t=1}^G|o_i|}\sum_{i=1}^G\sum_{t=1}^{|o_i|}\min\left(r_{i,t}(\theta)\hat{A}_{i,t},\mathrm{clip}\left(r_{i,t}(\theta), 1-\epsilon_{low}, 1+\epsilon_{high}\right)\hat{A}_{i,t}\right) \right]
+s.t. \quad 0< \vert \{o_i\mid \text{is\_equivalent}(o_i,a)\} \vert < G
+$$
+
+其中，$\alpha$ 是一个超参数，用于约束输出数量, $r_{i,t}(\theta)$ 和 $\hat{A}_{i,t}$ 的定义与 GRPO 相同。
+
+接下来就是 DAPO 算法的几个关键点：
+
+### Clip-Higher
+
+作者认为，PPO 和 GRPO 存在 entropy collapse 问题，也就是 policy 的 entropy 会迅速的下降，导致最终每个 group 的输出基本都差不多，模型很难探索到新的知识。因此，作者提出了 Clip-Higher 策略，也就是说，让模型能够充分探索。
+
+作者举了一个例子，当 $\epsilon=0.2$ 时，如果一个 group 的输出为 $[0.01, 0.9]$, 那么在 clip 之后，最大的更新幅度为 $[0.01, 0.9]\times 0.2=[0.002, 0.18]$. 这对于概率比较小的输出来说，很难帮助模型提升。因此，作者修改了其阈值。进一步地，作者分离了 clip 的阈值，分别使用 $\epsilon_{low}$ 和 $\epsilon_{high}$ 来约束更新幅度。作者通过实验验证了这个例子，结果如下图所示：
+
+最后，加入 Clip-Higher 策略的 DAPO 的训练目标为，与 [GRPO](#grpo) 的训练目标相比，我们使用 $\epsilon_{low}$ 和 $\epsilon_{high}$ 来约束更新幅度。
+
+$$
+\mathcal{J}_{\mathrm{DAPO}}(\theta) = \mathbb{E}_{(q,a)\sim\mathcal{D},\{o_i\}_{i=1}^G\sim \pi_{\theta_{old}}(\cdot\mid q)}\left[ \frac{1}{\sum_{t=1}^G|o_i|}\sum_{i=1}^G\sum_{t=1}^{|o_i|}\min\left(r_{i,t}(\theta)\hat{A}_{i,t},\mathrm{clip}\left(r_{i,t}(\theta), 1-\epsilon_{low}, 1+\epsilon_{high}\right)\hat{A}_{i,t}\right) \right]
+s.t. \quad 0< \vert \{o_i\mid \text{is\_equivalent}(o_i,a)\} \vert < G
+$$
+
+在实际训练中，作者使用了一个比较大的 $\epsilon_{high}$ 来保证概率较小的 token 也能有较大的概率被采样到。
+
+Clip-Higher 的实验结果如下图所示：
+
+### Dynamic Sampling
+
+作者认为，在 GRPO 中，如果一个 group 的输出全都是对的，那么其 advantage 会趋近于 0，结果导致 policy 不会得到更新，这样就降低了采样效率。
+
+为了解决这个问题，坐着提出了 over-sample 以及 filtering 策略，来过滤 accracy 等于 1 或者 0 的 prompts,也就是 DAPO 中的约束项：
+
+$$
+s.t. \quad 0< \vert \{o_i\mid \text{is\_equivalent}(o_i,a)\} \vert < G
+$$
+
+通过增加这个约束项，我们可以保证每个 group 的输出不会趋同，从保证模型能够得到更新，以提高采样效率。实验结果如下图所示：
+
+### Token-level Policy Gradient Loss
+
+GRPO 采用了一个 sample-level 的 loss 计算方式，也就是 GRPO 首先在每个 sample 中计算每个 token 的损失并进行平均，然后在不同的 sample 中在此进行平均。在这种方式下，每个 sample 对最终的 loss 贡献是相同的。这样就导致两个问题：
+
+1. 对于高质量的 long answer，通过在 token 层面进行平均，因为 answe 比较长，因此整体 loss 会比较低，也就会降低这个 sample 的贡献，导致模型很难学习到长答案。
+
+2. 一些非常长的 sample，其往往包含 gibberish 或者 repetitive tokens，这些 sample 对模型训练是有害的
+
+因此，为了解决这个问题，作者提出了 Token-level policy gradient loss，也就是我们改变了求和方式
+
+$$
+\frac{1}{G}\sum_{i=1}^G\frac{1}{|o_i|}\sum_{t=1}^{|o_i|}\left(\cdot\right)\to \frac{1}{\sum_{t=1}^G|o_i|}\sum_{i=1}^G\sum_{t=1}^{|o_i|}\left(\cdot\right)
+$$
+
+通过这种方式，我们让长回答的 loss 贡献更大，从而提高模型学习长回答的能力。另一方面，现在每个 token 对整体 loss 的贡献是相同的，一些关键 token 的 loss 也会被放大，从而提高模型的表现。
+
+实验结果如下图所示：
+
+### Overlong Reward Shaping
+
+与 Kimi-k1.5 类似，DAPO 也增加了 length penalty，用于惩罚过长的回答。作者首先使用了一个 overlong filtering 技巧，来 mask 掉 truncated samples 的 loss，作者发现通过这个技巧，可以提升模型的训练稳定性以及表现，实验结果如下图所示
+
+作者还提出了 soft overlong punishment， 用于 reshape truncated samples 的 reward，表达式如下：
+
+$$
+R_{length}(y) = \begin{cases}
+0, & \text{if } |y|\leq L_{\max}-L_{cache} \\
+\frac{(L_{\max}-L_{cache})-|y|}{L_{cache}}, & \text{if } L_{\max}-L_{cache}<|y|\leq L_{\max} \\
+-1, & \text{if } |y|>L_{\max}
+\end{cases}
+$$
+
+### 算法
+
+DAPO 的算法流程如下：
+
+### Experiments
+
+作者构建了 DAPO-Math-17K 数据集用于 DAPO 的训练，该数据集从 AoPS 得到，包含了 17K prompts，每个 prompt 都对应一个整数作为答案。
+
+作者以 GRPO 作为 baseline， $G=16$, $L_{\max}=16384$, $L_{cache}=4096$, $\epsilon_{low}=0.2$, $\epsilon_{high}=0.28$
+
+评估时，使用 AIME 作为 benchmark，以 avg@32 作为指标，temperature 设置为 1.0, topp 设置为 0.7。
+
+DAPO 与 GRPO 的对比如下图所示：
+
+作者探究了每一个部分对最终表现的影响，结果如下：
+
+作者还探究了 mean response length, reward score, generation entropy 以及 mean probability 随训练轮数的变化，其中：
+
+- mean response length: 在一定程度上反应了模型训练的稳定性和表现
+- reward score: 反应模型的表现，作者认为，给定一个 reliable reward signal， LLM 可以很好的 fit 到训练数据集上，但是作者发现最终的 reward 与 val score 相关性比较大，很可能是因为模型过拟合了
+- generation entropy & mean probability: 代表了模型的探索能力，通过实验结果可以看到，DAPO 初期的探索能力比较强，但是随着训练的进行，探索能力下降，利用能力增强。
+
+结果如下:

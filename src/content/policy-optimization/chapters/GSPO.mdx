@@ -1,16 +1,13 @@
+## GSPO
 
-
-Qwen 提出了 Group Sequence Policy Optimization (GSPO), 一个针对 GRPO 进行改进的 RL 算法。GSPO 在 sequence 层面计算 importance ratio, 避免了 token-level 计算带来的训练不稳定性。
-
-## Introduction
+Qwen 提出了 Group Sequence Policy Optimization (GSPO, [@GSPO]), 一个针对 GRPO 进行改进的 RL 算法。
+GSPO 在 sequence 层面计算 importance ratio, 避免了 token-level 计算带来的训练不稳定性。
 
 GRPO 的问题在于训练超大规模的 LLM 时，会出现 model collapse, [Qwen3](/p/notes-on-qwen3/) 和 [MiniMax-01](/p/notes-on-minimax-01/) 均对 GRPO 算法进行了改进。
 
 在本文中，作者认为 GRPO 算法的问题在于 Importance sampling weight 的计算是有问题的，这导致了误差随生成回答长度累积，最后被 clipping 机制放大，从而导致模型崩溃。
 
 为了解决这个问题，作者提出了 GSPO, 一个在 sequence 层面进行 Importance sampling 的 RL 算法，GSPO 还对 reward 进行 normalization 来保持训练的稳定性
-
-## Method
 
 ### Preliminary
 
@@ -130,9 +127,9 @@ $$
 
 这里 $\mathrm{sg}$ 是 stop gradient operation. 通过这种改写方式，GSPO-token 与 GSPO 的优化目标一致，但是可以在更细粒度的 token 层面进行优化。
 
-## Evaluation
+### Evaluation
 
-作者使用 Qwen3-30B-A3B 进行测试。对于 GRPO，作者发现必须使用 Routing Replay training strategy 才能提升 MoE RL 的收敛性，  Routing Replay 的具体做法就是保留 $\pi_{\theta_{old}}$ 的激活专家，在 $\pi_{\theta}$ 中使用相同的专家来保持稳定性。但是，GSPO 则不需要这个技巧。
+作者使用 Qwen3-30B-A3B 进行测试。对于 GRPO，作者发现必须使用 Routing Replay training strategy 才能提升 MoE RL 的收敛性， Routing Replay 的具体做法就是保留 $\pi_{\theta_{old}}$ 的激活专家，在 $\pi_{\theta}$ 中使用相同的专家来保持稳定性。但是，GSPO 则不需要这个技巧。
 
 ![Routing Replay strategy for GRPO](/posts/notes-on-gspo/GSPO-GRPO-routing-replay.png)
 
@@ -147,11 +144,3 @@ $$
 作者还介绍了以下 MoE 模型中 RL 训练的 expert-activation volatility 现象，也就是说，MoE 模型参数更新之后，对于同一个 response, 激活的专家可能飞铲个不同。作者举例说明，对于 Qwen3-30B-A3B, 更新一次梯度之后，有 $10\%$ 左右的激活专家变得不一样了。
 
 作者最后介绍了以下 GSPO 的两个优势，一个是解决了 GRPO 依赖于 Routing Replay 的问题；第二个是支持 SGLang 和 vLLM 等推理框架。
-
-## Conclusion
-
-作者提出了 GSPO，一个在 sequence 层面计算 importance ratio 的 RL 算法，解决了 GRPO 在训练大规模 MoE LLM 时出现的训练不稳定性以及 mode collapse 现象。
-
-## References
-
-- [Group Sequence Policy Optimization](http://arxiv.org/abs/2507.18071)
