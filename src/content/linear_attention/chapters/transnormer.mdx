@@ -1,0 +1,172 @@
+## TransNormer
+
+[@TransNormer] 分析了 linear attention 存在的两个问题，分别是 unbounded gradients 以及 attention dilution, 作者提出了 NormAttention 以及 DiagAttention 来解决这两个问题，最后，基于这两个方法训练得到的 TransNormer 的表现与 softmax attention 表现相当。
+
+已有的 linear attention 可以分为两类：
+
+1. Pattern based methods: 基于构造的或者学习的 pattern 来提高 attention 的效率
+2. Kernel based methods: 如 [linear transformer](#linear_transformer), 使用不同的 kernel function 来达到和 softmax attention 相同的效果。
+
+linear attention 尽管解决了 softmax attention 平方复杂度的问题，但是其表现不如 softmax attention. 作者分析认为，这里有两个原因：
+
+1. unbounded gradients: linear attention 的 gradient 是无界的，这会使得训练不稳定
+2. attention dilution: linear attention 在 early layers 更关注全局，而不是局部细节，这会降低其表现
+
+### Unbounded Gradients
+
+attention weight 的矩阵 $P\in\mathbb{R}^{n\times n}$ 可以写成如下形式：
+
+$$
+p_{ij} = \frac{f(s_{ij})}{\sum_{i=1}^nf(s_{ij})},\quad f:\mathbb{R}\to\mathbb{R}_+
+$$
+
+linear attention 和 softmax attention 不同的地方在于 $s_{ij}$ 的计算方式，对于 softmax attention 来说，我们有
+
+$$
+s_{ij} = \mathbf{q}_i^T\mathbf{k}_j/\sqrt{d}, \quad f(x) = e^x
+$$
+
+对于 linear attention 来说，其有如下形式
+
+$$
+s_{ij} = \phi(\mathbf{q}_i)^T\phi(\mathbf{k}_j),\quad f(x)=x
+$$
+
+计算梯度如下
+
+$$
+\frac{\partial p_{ij}}{\partial s_{ik}} = \frac{f'(s_{ik})}{f(s_{ik})}(\mathbf{1}_{j=k}p_{ij}-p_{ij}p_{ik})
+$$
+
+对于 softmax attention 而言，我们有 $f'(x)=f(x)$, 因此
+
+$$
+\frac{\partial p_{ij}}{\partial s_{ik}} = \begin{cases}
+p_{ik} - p_{ik}p_{ik},&\text{ if }j=k\\
+- p_{ik}p_{ik},&\text{ otherwise }
+\end{cases}
+$$
+
+易知，其梯度是有界的：
+
+$$
+\left|\frac{\partial p_{ij}}{\partial s_{ik}}\right| \leq \frac14
+$$
+
+然而，对于 linear attention 来说，我们有 $f'(x)=1$, 因此
+
+$$
+\frac{\partial p_{ij}}{\partial s_{ik}} = \begin{cases}
+\frac{1}{s_{ik}}\left(p_{ik} - p_{ik}p_{ik}\right),&\text{ if }j=k\\
+\frac{1}{s_{ik}}\left(- p_{ik}p_{ik}\right),&\text{ otherwise }
+\end{cases}
+$$
+
+梯度范围为
+
+$$
+\left|\frac{\partial p_{ij}}{\partial s_{ik}}\right| \leq \frac{1}{4|s_{ik}|}
+$$
+
+由于 $|s_{ik}|=\phi(\mathbf{q}_i)^T\phi(\mathbf{k}_j)$ 可以任意大，因此 linear attention 的梯度是无上界的。作者还进一步证明 linear attention 的梯度无下界：
+
+> [!tip] Proposition
+> $\forall M>0$, there exists $\mathbf{q}_i, \mathbf{k}_j\in\mathbb{R}^d$, $j=1,\dots,n$, such that
+>
+> $$
+> \left|\frac{\partial p_{ij}}{\partial s_{ik}}\right| > M
+> $$
+
+### Attention Dilution
+
+softmax attention 的一个性质就是其更关注于局部信息。作者设计了一个 metric 来评估 linear attention 架构中的 attention 分布情况。
+
+对于一个输入长度为 $N$ 的 sequence, 考虑一个以 $x_i$ 为中心，长度为 $rN$ 的局部序列 $\{x_{\mathrm{start}},\dots,x_i,\dots,x_{\mathrm{end}}\}$, 其中 $r$ 是一个比例， $\mathrm{end}-i=i-\mathrm{start}=rN/2$. 则局部注意力之和定义为
+
+$$
+\ell(i,r,N) = p_{i,\mathrm{start}}+\cdots+p_{i,\mathrm{end}}
+$$
+
+局部注意力之和越高，说明 layer 越关注局部细节，注意力越集中；反之则说明注意力越分散。
+
+作者对比 softmax attention 和 linear attention 的结果如下
+
+![Accumulated attention score of different attention](TransNormer-accumulated-attention-score.png)
+
+可以看到，linear transformer 的注意力更分散，作者进一步可视化了模型的 attention 分布，如下图所示
+
+![Visualization of Attention matrices](TransNormer-accumulated-attention-visualization.png)
+
+可以看到，softmax attention 比 linear transformer 的注意力更集中。
+
+### NormAttention
+
+为了解决 linear transformer 梯度无界的问题，作者移除了 attention 的 scaling, 然后加入了一个 normalization 用于控制梯度，即
+
+$$
+O_{norm} = \mathrm{Norm}(Q(K^TV))
+$$
+
+作者证明，使用 normalization 之后，linear attention 的梯度就是有界的
+
+$$
+\left|\frac{\mathcal{L}}{\partial s_{ik}}\right| \leq \frac{3c_1c_2d}{2\sqrt{\epsilon}} < \infty
+$$
+
+其中 $\mathcal{L}$ 是损失函数， $\epsilon$ 是 $\mathrm{Norm}$ 中使用的常数参数，
+
+$$
+c_1 = \max_{i=1,\dots,n} \|\nabla_{O_i}\mathcal{L}\|_2<\infty, c_2 = \max_{i=1,\dots,n} \|V_i\|_2<\infty
+$$
+
+加入 NormAttention 之后，作者对比了不同模型梯度的标准差，结果如下表所示
+
+| method        | Relative Standard Deviation |
+| ------------- | --------------------------- |
+| 1 + elu       | 0.58                        |
+| Performer     | 0.47                        |
+| softmax       | 0.25                        |
+| NormAttention | 0.20                        |
+
+可以看到，NormAttention 的梯度更稳定，与 softmax attention 的表现接近。
+
+### DiagAttention
+
+为了解决 linear transformer 注意力分散的问题，作者在 early layers 使用了 softmax attention, 为了提高 softmax attention 的计算效率，作者将输入进行分块，然后只在块内计算 softmax attention
+
+作者对比了不同配置的 ppl, 结果如下表所示
+
+| Early Layers | Later Layers | ppl(val) |
+| ------------ | ------------ | -------- |
+| 1+elu        | 1+elu        | 4.98     |
+| 1+elu        | softmax      | 3.90     |
+| softmax      | 1+elu        | 3.76     |
+
+### Architecture
+
+最后，将上面两个方法放在一起，作者提出了 TransNormer, 其架构如下图所示
+
+![Architecture of TransNormer](TransNormer-architecture.png)
+
+### Evaluation
+
+我们仅关注模型在自回归大语言模型场景下的表现，结果如下表所示，可以看到 TransNormer 的表现与 softmax attention 的表现相当。
+
+| Method         | PPL (val) | PPL (test) | Params (m) |
+| -------------- | --------- | ---------- | ---------- |
+| Vanilla        | 29.63     | 31.01      | 156.00     |
+| LS             | 32.37     | 32.59      | 159.46     |
+| FLASH-quad     | 31.88     | 33.50      | 153.51     |
+| FLASH          | 33.18     | 34.63      | 153.52     |
+| l+elu          | 32.63     | 34.25      | 156.00     |
+| Performer      | 75.29     | 77.65      | 156.00     |
+| TRANSNORMER T1 | 29.89     | 31.35      | 155.99     |
+| TRANSNORMER T2 | 29.57     | 31.01      | 155.99     |
+
+### Ablation Study
+
+1. 【比例】DiagAttention layer 的个数与 NormAttention layer 的个数相当时，模型表现最好
+2. 【次序】early layer 使用 DiagAttention, later layer 使用 NormAttention 的表现最好
+3. 【FFN】使用 GLU 要比 FFN 效果更好
+4. 【block size】DiagAttention 的 block size 越大越好，但是更大的 block size 意味着更大的算力消耗
+5. 【Attention 结合】将 DiagAttention 和 NormAttention 结合带来的收益很有限，并且计算起来可能更加复杂
