@@ -1,14 +1,11 @@
+## SAPO
 
-## Introduction
+相关工作包括 [GRPO](#grpo) 以及 [GSPO](#gspo)
 
-相关工作包括 GRPO 以及 [GSPO](/p/notes-on-gspo/)
-
-SAPO 的关键思想有两点：
+SAPO [@SAPO] 的关键思想有两点：
 
 1. tokne-level soft trust region 可以保证 sequence-level coherence
 2. 非对称的 temperature 可以针对 postive token 和 negative token 进行不同的优化
-
-## Method
 
 作者首先给出了 SAPO 的目标函数如下：
 
@@ -50,8 +47,6 @@ $\mathcal{J}_{\mathrm{SAPO}}(\theta)$ 和 $w_{i,t}(\theta)$ 与 $r_{i,t}(\theta)
 ![illustration of gating mechanism](/posts/notes-on-sapo/SAPO-gating-illustration.png)
 
 为了保证当 $r_{i,t}(\theta)=1$ 时，SAPO 等价于 $r_{i,t}(\theta)\hat{A}_{i,t}$ 而与 $\tau_{i,t}$ 无关，作者在 $f_{i,t}(x)$ 加入了系数 $4/\tau_{i,t}$.
-
-## Comparison
 
 作者接下来对比了 GSPO 以及 GRPO 两个算法
 
@@ -95,7 +90,7 @@ $$
 \end{aligned}
 $$
 
-其中 $g_{\tau_i}(\log s_i(\theta)) = \mathrm{sech}^2\left(\tau_i/2\log s_i(\theta)\right)$.  相比于 GSPO, SAPO 有两个优势：
+其中 $g_{\tau_i}(\log s_i(\theta)) = \mathrm{sech}^2\left(\tau_i/2\log s_i(\theta)\right)$. 相比于 GSPO, SAPO 有两个优势：
 
 1. smoothness and stability, soft gate 避免了 hard clipping 带来的不连续性
 2. token-level adaptivity with sequence-level coherence. 当假设不成立的时候，SAPO 退化为 token-level gating, 这样可以降低 outliers 的权重
@@ -118,7 +113,7 @@ $$
 - 相比于 GSPO, SAPO 对于 off-policy 的数据利用率更高
 - 相比于 GRPO, SAPO 避免了 hard token level clipping 导致的 zero-gradient 问题
 
-## Experiments
+### Experiments
 
 作者对比了 SAPO, GSPO 以及 GRPO-R2(GRPO with routing replay) 三种方法，实验结果如下图所示
 
@@ -137,11 +132,3 @@ $$
 ![Performance of SAPO on Qwen3-VL](/posts/notes-on-sapo/SAPO-Qwen3-VL-perfornance.png)
 
 实验结果显示，SAPO 的表现超过了 GSPO 以及 GRPO-R2
-
-## Conclusion
-
-在本文中，作者提出了 SAPO, 一个解决 hard-clipping 训练不稳定性以及低效率的策略优化算法，作者使用了基于温度的 soft gate 来代替 clipping, 以及对于 positive token 和 negative token 使用了不同的 temperature 这两点改进。结果验证了 SAPO 的有效性，作者认为使用 smooth 以及 adaptive gating 机制可以有效提高 RL 训练的稳健性以及有效性。
-
-## References
-
-- [arxiv](http://arxiv.org/abs/2511.20347)
