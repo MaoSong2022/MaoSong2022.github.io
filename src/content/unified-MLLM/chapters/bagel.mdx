@@ -1,0 +1,55 @@
+## BAGEL
+
+问题介绍
+
+1. 已有的模型只是在理解和生成任务上进行训练，没有考虑更多的任务
+2. 图文交错预训练很重要
+
+feature
+
+1. 增加了更多的数据
+2. 加入了 reasoning 数据
+3. 架构改进
+
+### 架构
+
+![BAGEL_architecture](BAGEL_architecture.png)
+
+LLM: Qwen2.5-LLM
+
+Und encoder: Siglip2-so400M (384, NaVit)
+
+projection layer: 2-layer MLP
+
+Gen encoder: VAE of FLUX (downsample ratio=8, 2\*2 patch embedding)
+
+time step:embedding
+
+- Noised VAE tokens: Rectified Flow, MSE loss
+- Clean VAE tokens: original latents
+- ViT tokens: SigLIP2 encoder
+
+attentions
+
+![BAGEL_self_attention](BAGEL_self_attention.png)
+
+Ablation study: MoT is better than MoE
+
+Extra data
+
+1. Video data
+2. Web data
+3. Reasoning-Augmented data
+
+4. Alignment: MLP connector
+5. Pre-training: freezing VAE, train other parameters
+6. Continued training: increase image resolution
+7. SFT: all
+   ![BAGEL_training](BAGEL_training.png)
+
+- multimodal understanding
+- text-to-image generation
+- image editing
+- intelligent image editing
+
+![BAGEL_emergent_property](BAGEL_emergent_property.png)

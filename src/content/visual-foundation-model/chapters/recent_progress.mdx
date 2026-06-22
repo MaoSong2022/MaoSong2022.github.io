@@ -4,9 +4,77 @@
 
 Qwen2.5-VL [@Qwen2.5-VL] 使用了 sliding window attention (SWA) 来减少 ViT 处理长图片/视频输入时 attention 计算开销。
 
-### CoMP
-
 ### ViT-5
+
+模型架构：
+
+1. QK norm, RoPE
+2. pre-norm, RMSNorm
+3. layer-scale residual
+
+模型细节
+
+- Normalization: pre-norm 使用了 RMSNorm, post-norm 使用了 layer-scale $\mathbf{x}_{l+1} = \mathbf{x}_l+\mathcal{F}(\mathbf{x}_l)\odot \lambda$, layerscale 与 post-norm 表现差不多
+- MLP: MLP 使用了 GeLU, 效果比 SwiGLU 好
+- position encoding: 联合了 APE 和 2D-RoPE, 与 [CoMP](CoMP.md) 一致
+- register token: 使用了 4 个 resiter token
+- attention: 使用了 [QK-norm](QK-norm.md), 没有 QKV-bias
+
+模型配置
+
+| model    | # layers | dim  | # heads | # registers | # params |     |
+| -------- | -------- | ---- | ------- | ----------- | -------- | --- |
+| ViT-5-S  | 12       | 384  | 6       | 4           | 22M      |     |
+| ViT-5-B  | 12       | 768  | 12      | 4           | 87M      |     |
+| ViT-5-L  | 24       | 1024 | 16      | 4           | 304M     |     |
+| ViT-5-XL | 28       | 1152 | 16      | 4           | 449M     |     |
+
+### ViT-22B
+
+https://proceedings.mlr.press/v202/dehghani23a.html
+
+#### Parallel Layers
+
+ViT-22B 同时处理 MLP 和 attention, 也就是
+
+$$
+\begin{aligned}
+y' &=  \mathrm{LayerNorm}(x)\\
+y &= x + \mathrm{MLP}(y') + \mathrm{Attention}(y')
+\end{aligned}
+$$
+
+通过这种方式，我们可以同时处理 $\mathrm{MLP}$ 和 $\mathrm{Attention}$ 的 linear layer. 这样我们可以把不同模块的矩阵乘法进行打包计算，从而提高计算效率。这个方法 [[PaLM]] 页使用了，作者发现，该方法可以在不损失精度的情况下，将计算效率提高 $15\%$.
+
+#### QK Normalization
+
+作者发现，ViT 训练崩溃的原因主要是 attention logits 会爆炸，这就导致了 attention weights 非常接近 one-shot 向量。为了解决这个问题，作者在计算 query 和 key 内积之前，先对 query 和 key 进行一次 normalization, 具体来将，attention score 的计算方式如下：
+
+$$
+\mathrm{softmax}\left[\mathrm{LN(XW_Q)}\mathrm{LN(XW_K)}^T/\sqrt{d}\right]
+$$
+
+其中, $d$ 是 ViT 的 hidden size, $W_Q, W_K$ 分别是 query projection layer, key projection layer 的权重矩阵。$\mathrm{LN}$ 代表 layer normalization.
+
+作者比较了 Qk Normalization 和没有时的区别，实验结果如下图所示
+
+#### Omitting Biases
+
+作者还移除了 QKV projection layer 中的 bias, 移除之后，作者发现模型表现没有收到影响，而训练效率提升了 $3\%$ 左右。
+
+对于 MLP 的 bias, 作者进行了保留，作者发现尽管表现有稍微提升 ($0.4\%$), 但是效率上并没有改变。
+
+ViT-22B 的 patch size 为 14, 输入图片精度为 224, 作者使用了和 ViT 一样的可学习位置编码，使用高精度图片进行 fine-tune 的时候，作者使用了 2D interpolation 来进行插值。
+
+模型的配置如下表
+
+| Name    | hidden size | layers | MLP hidden size | Heads | Params(M) |
+| ------- | ----------- | ------ | --------------- | ----- | --------- |
+| ViT-G   | 1664        | 48     | 8192            | 16    | 1843      |
+| ViT-e   | 1792        | 56     | 15360           | 16    | 3926      |
+| ViT-22B | 6144        | 48     | 24576           | 48    | 22165     |
+
+训练时，作者使用了 JFT 数据集，包含了 4B 的图片，作者使用 sigmoid cross-entropy loss 进行训练。
 
 ### CogViT
 

@@ -1,0 +1,47 @@
+## Show-o2
+
+已有的工作：
+
+- Native unified MLLM: 生成和理解放在一个目标里
+- Decoupled representation： 使用 adapter 来集成不同的模型
+
+Show-o2 亮点：
+
+1. 支持 text, image, video,对于视觉模态，使用了一个 3D causal VAE
+2. 生成时使用 flow head
+3. 两阶段训练
+
+框架如下图所示
+
+![show_o2_framework](show_o2_framework.png)
+
+- Semantic layers：负责提取高阶语义信息，基于 SigLIP 蒸馏
+- projector：提取低阶语义信息，2D patch embedding layer
+- spatial temporal fusion: 2 层的 MLP
+- flow-head: DiT
+- LLM: Qwen2.5-1.5B-Instruct, Qwen2.5-7B-Instruct
+
+训练目标：
+
+$$
+\mathcal{L} = \alpha\mathcal{L}_{NTP} + \mathcal{L}_{FM}
+$$
+
+data
+
+| Stage | Components                       | \# Image text           | \# Video text                    | \# Interleaved Data |
+| ----- | -------------------------------- | ----------------------- | -------------------------------- | ------------------- |
+| 1     | projector<br>fusion<br>flow head | 66M                     | WebVid<br>Pandas                 | OmniCorpus          |
+| 2     | Full Model (w/o VAE)             | 9M HQ Und<br>16M HQ Gen | OpenVid-1M<br>1.5M Internal Data | VIST<br>CoMM        |
+
+- understanding
+- text-to-image
+- text-to-video
+
+ablation
+
+1. STF: 合并高频信息和低频信息可以提高模型的理解和生成能力
+2. 提高 CFG 以及推理步数，可以提高模型在 GenEval 上的表现
+
+3. text rendering 做的不好，原因是训练数据比较少 [BAGEL](BAGEL.md)
+4. small object 做的不好，原因是图片精度太低
