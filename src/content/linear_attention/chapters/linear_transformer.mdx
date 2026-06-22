@@ -1,1 +1,160 @@
+import Algorithm from "../../../components/Algorithm.astro";
+
 ## Linear Transformer
+
+[@katharopoulos2020transformers] 提出了 linear transformer 的架构，将 attention 的计算复杂度从 $\mathcal{O}(n^2)$ 降低到 $O(n)$, 其中 $n$ 是 sequence length.
+作者通过实验证明，linear transformer 相比于 transformer 快 4000 倍左右。
+
+作者首先将 transformer [@vaswani2017attention] 重写为一个函数 $T:\mathbb{R}^{n\times d}\to\mathbb{R}^{n\times  d}$, 其中 $n$ 是 sequence length, $d$ 是 hidden size.
+对于输入的 hidden states $x\in\mathbb{R}^{n\times d}$, 我们有
+
+$$
+T_\ell(x) = f_{\ell}(A_{\ell}(x) + x), \ell=1,\dots, L
+$$
+
+这里 $L$ 是 transformer layer 的层数， $f_{\ell}(\cdot)$ 一般是一个两层的 MLP, $A_{\ell}(x)$ transformer 中的 self-attention, 其定义如下：
+
+$$
+A_{\ell}(x) = V' =\mathrm{softmax}\left(\frac{QK^T}{\sqrt{d}}\right)V
+$$
+
+其中，
+
+$$
+Q = xW_Q, K=xW_K, V=xW_V
+$$
+
+上面的公式实际上使用了 exponential 函数来计算相似度，我们可以将其改写为更一般的形式
+
+$$
+\htmlId{general_attention}{\begin{equation}
+    V_i' = \frac{\sum_{j=1}^N \mathrm{sim}(Q_i, K_j)V_j}{\sum_{j=1}^n \mathrm{sim}(Q_i, K_j)},\quad i=1,\dots,n
+\end{equation}}
+$$
+
+其中， $Q_i,K_i,V_i\in\mathbb{R}^{d}$ 分别代表 $Q,K,V$ 的每一行。
+
+对于 softmax attention, 我们可以定义相似度为如下形式
+
+$$
+\mathrm{sim}(q, k) := \exp\left(\frac{q^Tk}{d}\right)
+$$
+
+注意在 [definition](#general_attention) 中，我们仅要求 $\mathrm{sim}(\cdot)$ 是一个非负函数，因此我们可以使用任意的 kernels: $k(x,y): \mathbb{R}^{2\times d}\to\mathbb{R}_+$.
+
+给定一个满足条件的 kernel $\phi(x)$, 我们可以将公式 [definition](#general_attention) 改写为
+
+$$
+V_i' = \frac{\sum_{j=1}^N \phi(Q_i)^T\phi(K_j)V_j}{\sum_{j=1}^n \phi(Q_i)^T\phi(K_j)},\quad i=1,\dots,n
+$$
+
+然后，我们进行简化得到
+
+$$
+\htmlId{linear_attention}{\begin{equation}
+V_i' = \frac{\phi(Q_i)^T\sum_{j=1}^N \phi(K_j)V_j^T}{\phi(Q_i)^T\sum_{j=1}^n \phi(K_j)},\quad i=1,\dots,n
+\end{equation}}
+$$
+
+再将其改写为
+
+$$
+V_i' = \frac{\phi(Q_i)^T\langle \phi(K), V\rangle}{\phi(Q_i)^T\sum_{j=1}^n \phi(K_j)},\quad i=1,\dots,n
+$$
+
+这里内积 $\langle\cdot, \cdot\rangle$ 是按照行进行计算的。此时我们就完成了转换，其矩阵形式可以表达如下
+
+$$
+\langle \phi(Q), \phi(K)\rangle V = \phi(Q) \langle \phi(K), V \rangle
+$$
+
+注意到，这里我们先计算 $\langle \phi(K), V \rangle\in\mathbb{R}^{d\times d}$， 其复杂度为 $\mathcal{O}(nd^2)$, 然后我们计算 $\phi(Q) \langle \phi(K), V \rangle\in\mathbb{R}^{n\times d}$, 其复杂度也是 $\mathcal{O}(nd^2)$, 因此现在 attention 的复杂度就是 $\mathcal{O}(nd^2)$, 也就是说，attention 的复杂度与 sequence length 是一个线性的关系。
+
+接下来，对于 Decoder-only transformer, 我们在 attention 的基础上还会加上 causal mask, 也就是
+
+$$
+M_{ij} = \begin{cases}
+1, &\text{ if }j \leq i\\
+0, &\text{ otherwise}
+\end{cases}
+$$
+
+此时，我们将对应的 attention 表达式 [linear attention](linear_attention) 改写如下：
+
+$$
+V_i' = \frac{\phi(Q_i)^T\sum_{j=1}^i \phi(K_j)V_j^T}{\phi(Q_i)^T\sum_{j=1}^i \phi(K_j)},\quad i=1,\dots,n
+$$
+
+作者在这里定义两个新的变量
+
+$$
+S_i = \sum_{j=1}^i\phi(K_j)V_j^T, \quad Z_i = \sum_{j=1}^i\phi(K_j)
+$$
+
+这样，我们可以将 causal attention 改写为
+
+$$
+V_i' = \frac{\phi(Q_i)^TS_i}{\phi(Q_i)^TZ_i}, i=1,\dots,n
+$$
+
+作者提到，因为 $S_i$ 和 $Z_i$ 可以由 $S_{i-1}$ 和 $Z_{i-1}$ 在常数时间计算得到，因此其并不会影响 linear attention 的线性时间复杂度。
+
+为了解决 linear attention 在实现时需要保存所有中间状态 $S_i$ 来计算梯度的问题，作者将 $S_i$ 改写为 cumulative sums, 这样可以保证算法的线性时间复杂度和常数空间复杂度。
+给定分子的值 $\bar{V}_i$ 和对应的梯度 $\nabla_{\bar{V}_i}\mathcal{L}$, 我们可以使用如下方式计算梯度：
+
+$$
+\begin{align}
+\nabla_{\phi(Q_i)}\mathcal{L} &= \nabla_{\bar{V}_i}\mathcal{L}\left(\sum_{j=i}^n \phi(K_j)V_j^T\right)^T\\
+\nabla_{\phi(K_i)}\mathcal{L} &= \left(\sum_{j=i}^n \phi(Q_j)(\nabla_{\bar{V}_i}\mathcal{L})^T\right)^TV_i\\
+\nabla_{V_j}\mathcal{L} &= \left(\sum_{j=i}^n \phi(Q_j)(\nabla_{\bar{V}_j}\mathcal{L})^T\right)^T\phi(K_i)\\
+\end{align}
+$$
+
+最终，整体的计算的算法如下
+
+<Algorithm title="Linear transformers with causal masking">
+
+**function** `forward`$(\phi(Q), \phi(K), V)$:
+
+    - $V'\gets0$, $S\gets0$
+    - **For** $i=1,\dots,N$
+      - $S\gets S + \phi(K_i)V_i^T$
+      - $\bar{V}_i\gets \phi(Q_i)S$
+    - Return $\bar{V}$
+
+**function** `backward`$(\phi(Q), \phi(K), V, G)$:
+
+    - $S\gets0$, $\nabla_{\phi(Q)}\mathcal{L}\gets0$
+    -  **For** $i=1,\dots,N$
+       -  $S\gets S+\phi(K_i)V_i^T$
+       -  $\nabla_{V_i}\mathcal{L}\gets S^T\phi(K_i)$
+       -  $\nabla_{\phi(K_i)}\mathcal{L}\gets SV_i$
+    - Return $\nabla_{\phi(Q)}\mathcal{L}, \nabla_{\phi(K)}\mathcal{L}, \nabla_{V}\mathcal{L}$
+
+</Algorithm>
+
+计算时，由于 cumulative sum 的时间复杂度为 $\mathcal{O}(n)$, 空间复杂度为 $\mathcal{O}(1)$, 因此整体的复杂度仍然是 $\mathcal{O}(nd^2)$, 空间复杂度为 $\mathcal{O}(nd)$.
+
+训练时，我们可以高效利用平行来加速计算。但是在推理的时候，我们只需要保存 $\phi(K_j)V_j^T$ 作为 internal state, 这样就可以实现高速推理了。
+
+### Relationship with transformer
+
+作者还将 transformer 建模为 RNN 的形式，注意到 transformer 的定义如下：
+
+$$
+T_\ell(x) = f_{\ell}(A_{\ell}(x) + x), \ell=1,\dots, L
+$$
+
+我们可以使用两个变量，即 attention memory $s$ 以及 normalized memory $z$ 来便是 hidden states, 这样 transformer 的流程可以表示如下：
+
+$$
+\begin{aligned}
+s_0&=0,\\
+z_0&=0,
+s_i = s_{i=1} + \phi(x_iW_k)(xW_V)^T\\
+z_i &= z_{i-1} + \phi(x_iW_K)\\
+y_i &= f_\ell \left(\frac{\phi(x_iW_Q)^Ts_i}{\phi(x_iW_Q)^Tz_i}+x_i\right)
+\end{aligned}
+$$
+
+也就是说，任意一个 transformer 都可以表示为一个 RNN.
