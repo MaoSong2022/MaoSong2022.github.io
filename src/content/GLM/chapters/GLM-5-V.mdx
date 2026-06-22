@@ -1,0 +1,67 @@
+## GLM-5V-Turbo
+
+### CogViT
+
+作者使用了两阶段训练策略
+
+第一阶段作者使用了 masking image modeling 来提高模型的视觉表征能力，作者使用了蒸馏的策略来进行训练，这一阶段输入图片大小为 224 \* 224, masking ratio 为 35%， 教师模型采用了 [SigLip-2](SigLip-2.md) 和 [DINOv3](DINOv3.md) 分别用于学习语义表示和细节特征。
+
+数据包括 80% 高质量自然图片，10% 指令跟随数据，10% 科学相关图片。
+
+使用的优化器为 [Muon](Muon.md), cosine decay schedule, 作者还是用了 [QK-norm](QK-norm.md) 技巧
+
+第二个阶段作者使用了对比学习来对齐视觉和文本特征
+
+1. 使用了 NaFlex 来处理动态输入
+2. 将 batch size 扩展到 64K, 使用了 [SigLIP](SigLIP.md) 提出的 Sigmoid loss.
+3. 使用了 8B 的 chinese-english image-text corpus 来提高双语能力
+
+仍然使用 Muon optimizer
+
+### MMTP
+
+这里要解决的问题就是，如何支持多模态大模型的 [MTP](MTP.md), 与纯文本的 MTP 不同的地方在与，视觉 token 可能占比很高，因此我们需要考虑如何将视觉 token 转化为 MTP 的输入，这里作者尝试了三种方法：
+
+1. direct vision embedding: 即使用原始的视觉 token 作为 MTP 的输入
+2. masked vision token: 将视觉 token mask 掉
+3. `<image>` place holder: 使用 `<image>` 替换 vision token
+
+作者最终采取了第三种方式，原因在于，方式一要求 MTP 能够接收和处理视觉 token, 而 MTP 一般比较小，能力不足，加入视觉 token 之后模型表现反而下降。方式二则会对 SP 和 CP 产生影响，保留 token 占位符可以避免 offset.
+
+### Joint RL
+
+与 [Kimi-K2.5](Kimi-K2.5.md) 一样，在训练时，作者采用了 native multimodal training 的范式来保留模型的多模态表征能力。
+
+作者还在 30 个多个任务上使用了 multi-task RL 来进行训练，作者认为 multi-task RL 可以避免模型收敛到特定的分布上
+
+在实现 Joint RL 时，作者采用了一下策略：
+
+1. 统一的 reward 和 task abstraction, 作者构建了一个统一的 VLM RL Gym 来作为环境
+2. 解耦 rollout, reward evaluation, batch construction, weight transfer 来提高效率
+3. 对视觉特征使用 CPU offloading 来进行记忆管理
+4. 优化变长的视觉输入：在 data loading 时就进行 partition, 来减少 peak memory; 将大的 python 对象 offload 到 CPU 上; 使用 packing 技巧来拼接不同的序列
+
+### Insight
+
+**perception 能力仍然是 MLLM 的瓶颈**
+
+这一点我的理解有两个方面：
+
+1. 当前视觉特征并没有真正与文本特征形成一个统一的表示，两者仍然是貌合神离，之前的一些探究也发现，LLM 在 early layer 中只会在模态内部进行交互，在 mid layer 才会出现模态间的交互。因此，如何让视觉模态拥有与文本模态一样的地位仍然是一个挑战，目前来看，InternVL 的“大 LLM 使用大的 vision encoder" 思路并不成立，因为 "large vision encoder\neq better visual representation", 个人想法有两个方向：1. 使用 world model 这类纯视觉模型来理解世界；2. 无限扩展 LLM 的能力，一力降十会。
+2. 过强的 LLM backbone 以及只包含文本监督信号让模型逐渐不依赖视觉特征来完成任务，实际上，现在的训练范式只要求模型输出正确的答案，至于这个答案怎么来的，我们不关心，模型也不关心，这也就造成了模型容易产生幻觉。
+
+**通过分层优化提高模型的 agent 能力**
+
+这一点跟 [Kimi-K2.5](Kimi-K2.5.md) 的思路应该是类似，Kimi-K2.5 采用了 multi-agent 的架构，master agent 负责拆解和规划，sub agent 负责执行，
+
+**long horizon tasks 的构建，评估与优化依赖于任务的定义，结果的验证以及评估过程。**
+
+作者认为，大多数现实世界的任务都是 open-ended, 很难构造对应的损失函数。因此，end-to-end tasks 如何定义，验证，评估可能比训练本身更重要，也就是说你定义这个任务的方式会影响模型的行为。这一点在现有的 coding agent 产品上也由体现，有的 coding agent 更愿意一手操办，按照它自己的想法解决问题，而有的 coding agent 则更尊重用户，会尝试人机协同的方式来解决问题。
+
+### Challenges
+
+第一个挑战是如何让 agent 能力涌现。作者认为先 cold start 再 RL 尽管是一个训练上更加高效的方法，但实际上这会损害模型的泛化性，进一步地，如何让模型在 agent RL 训练过程中出现 "aha moment" 也是一个亟需关注的问题。
+
+第二个挑战是如何做多模态的记忆管理。这个问题其实纯文本 agent 就存在，存哪些上下文？怎么存？怎么用？这三个问题我认为是记忆管理的核心，现在大部分 chat bot 的做法就是都存，但是问题在于有时候问一个毫不相关的问题，模型都能把很久以前的回答拿出来联系上。记忆管理在未来肯定是个性化中重要的一环，但是目前来看，还没有统一的一个范式。
+
+第三个挑战是 harness. 其主要观点就是，agent 不应该是一个独立优化的对象，而应该与 harness 一起作为一个系统协同工作来更好解决问题。
