@@ -1,0 +1,55 @@
+---
+title: "Overview of Hunyuan series"
+authors:
+  - name: "Mao Song"
+    url: "https://maosong.website/"
+published: "May. 28, 2026"
+tags:
+  - "Hunyuan"
+categories:
+  - "LLM"
+tableOfContentsAutoCollapse: true
+---
+
+## Hunyuan-Large
+
+腾讯混元提出了 Hunyuan-Large, 一个 389B-A52B 的 MoE LLM, 上下文长度为 256K.
+
+Hunyuan-Large 主要在三个方向进行了改进：
+
+1. 使用了更高质量的合成数据：模型使用了 7T 的预训练数据，其中包含了 1.5T 的合成数据
+2. 优化了模型的架构：作者提出了 KV cache compression, recycle routing, expert-specific learning rate scaling 策略来提高模型的表现
+3. 探究了 MoE 模型的 scaling law: 作者探究了 MoE 模型的 scaling law
+
+### Architecture
+
+Hunyuan-Large 是一个基于 MoE 的 transformer 架构，attention 部分使用了 [GQA](GQA.md), position encoding 使用了 RoPE, MLP 的激活函数为 SwiGLU. 在 MoE layer 中，Hunyuan-Large 使用了 shared experts. 最终，模型的配置如下图
+
+## Hunyuan-TurboS
+
+## Hunyuan-A13B
+
+架构：Deepseek-moe, GQA
+
+- pre-training: 20T tokens, 4096 context length
+- annealing: 300B tokens, 8192 context length
+- long context: NTK-aware, 32K -> 256K
+- post-training: reasoning SFT -> reasoning RL -> all SFT -> all RL
+
+RL: GRPO
+
+SFT 150k samples: Mathematics : Coding : Logic : Science ratio 2:2:1:1
+
+## Hunyuan T1
+
+3 月 21 日腾讯发布了 hunyuan-T1，一个基于 [Hunyuan-TurboS](Hunyuan-TurboS.md) 的 reasoning model
+
+在 post-training 阶段，96.7% 的算力用于强化学习训练，重点围绕提升 reasoning 能力和对齐人类偏好。
+
+训练时使用了课程学习的方式，然后阶梯式扩展模型的上下文长度
+
+训练策略上，作者使用了数据回放/阶段性策略重置等策略，提升了训练的稳定性
+
+在 aliment 阶段，作者使用了 self-rewarding+reward 的统一奖励反馈方案
+
+评估结果
