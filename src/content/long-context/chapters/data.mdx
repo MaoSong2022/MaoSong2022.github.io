@@ -1,0 +1,17 @@
+## Data
+
+[@Harm2023longcontextrun] 分析了预训练数据中的长度分布。
+
+结果发现：
+
+1. C4 数据集中，95% 的文档长度小于 2K. 从 token 角度看，55% 的文档 token 低于 2K tokens, 80% 的文档 token 低于 8K.
+2. RefinedWeb 数据集中，12.5% 的文档 token 超过了 16K.
+3. StarCoderData 数据集中，80% 的文档 token 低于 5K.
+4. WikiPedia 数据中， 50% 的 article 包含的 token 数超过了 4k
+5. Book 类数据中，超过 75% 的书籍包含的 token 超过了 16k
+
+如何获取高质量数据：
+
+1. 使用 web documents 之间的 hyperlink
+2. 使用 code base 中的 repository metadata
+3. 使用 source code files 的 meta information, 比如 commit history
