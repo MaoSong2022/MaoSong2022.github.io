@@ -1,1 +1,62 @@
 ## Introduction
+
+|                |                                |                    |                                            |      |             |
+| -------------- | ------------------------------ | ------------------ | ------------------------------------------ | ---- | ----------- |
+| 时间           | series                         | model              | infra                                      | blog | Tech report |
+| 2023.2         | [LLaMA](LLaMA.md) 1            | 7B,13B,33B,65B     | -                                          |      |             |
+| 2023.7         | [LLaMA 2](LLaMA%202.md)LLaMA 2 | 7B,13B,70B         | -                                          |      |             |
+| 2023.8-2023.12 | Code LLaMA,Purple LlaMA        | 8B,70B             | LLaMA Guard,CyberSec Eval                  |      |             |
+| 2024.4         | [LLaMA 3](LLaMA%203.md)LLaMA 3 | 8B 70B,405B        | LLaMA Guarc 2,CyberSec Eval 2,Code Shield  |      |             |
+| 2024.7         | LLaMA 3.1                      | 1B,3B,LLaMA Vision | LLaMA Guard 3,CyberSec Eval 3,Prompt Guard |      |             |
+| 2024.9         | [LLaMA3.2](LLaMA3.2.md)        | -                  | LlaMA Stack                                |      |             |
+|                |                                |                    |                                            |      |             |
+
+|                   |                   |                        |                                            |
+| ----------------- | ----------------- | ---------------------- | ------------------------------------------ |
+|                   | LLaMA 1           | LLaMA 2                | LLaMA 3                                    |
+| License           | Research Only     | Commercial             | Commercial                                 |
+| Model sizes       | 7b, 13b, 30b, 65b | 7b, 13b, 70b           | 1b, 3b, 7b, 70b, 405b, multimodal          |
+| Training data     | 1~1.4t tokens     | 2t tokens (+40%)       | 15t tokens                                 |
+| Context length    | 2k                | 4k                     | 128k                                       |
+| Models avaliable  | Pretraining only  | Pretraining, finetuned | + llama guard, cybersec eval, prompt guard |
+| Pretraining flops | 5.4e23            | 8.3e23                 | 3.8e25                                     |
+
+raining
+
+1. Initial pre-training
+2. Data mix adjustments
+3. Long context pre-training
+4. annealing
+
+Data
+
+- Data grows with compute
+- If the trend continues,the next 100 times of FLOPs scale, would require ~10 times model parameters and ~10x data
+
+Post-training challenges
+
+- Need for higher quality data
+- Need to carefully balance different objectives
+- Scaling laws aren't as developed
+- Evaluation difficuties
+
+Eval challenges
+
+- The lifecycle of a benchmark is too short
+  - One model cycle from adoption to saturation
+  - Training data pollution
+- some things are to measure
+  - Quality of generated images
+  - Quality of speech
+  - Tone of response
+- General shortage of good benchmarks
+
+How to help make the next LLaMA better
+
+- Better community driven benchmarks
+  - Measure what really matters to you
+  - Not leaked into the training data
+- Better post training
+  - DPO wasn't invented in a large industry lab
+  - Scaling laws for post training
+- Better data
