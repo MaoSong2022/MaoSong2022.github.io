@@ -1,0 +1,42 @@
+## RLHF
+
+OpenAI 提出了 RLHF [@ziegler2020finetuninglanguagemodelshuman], 用于在 NLP 任务对齐 GPT-2 和人类的偏好
+
+首先我们有一个语言模型，本文使用的是 [GPT-2](GPT-2.md), 作为初始模型 $\rho$, 定义词表为 $V$, 则我们可以将一个 sequence $x=(x_1,\dots,x_{n-1})$ 建模为
+
+$$
+\rho(x_0,\dots,x_{n-1}) = \prod_{0\leq k < n} \rho(x_k\mid x_0,\dots,x_{k-1})
+$$
+
+首先我们将 Policy model 初始化为语言模型，即 $\pi=\rho$, 然后我们使用 RL 的方法来微调 $\pi$. 在微调时，Policy model 的奖励来源于一个 reward model $r: X\times Y\to\mathbb{R}^n$, 这里 $X=V^m$ 是输入输入的空间，$Y=V^n$ 是输出输入的空间。policy model 的优化目标为最大化期望奖励
+
+$$
+\mathbb{E}_{\pi}[r] = \mathbb{E}_{x\sim \mathcal{D},y\sim\pi(\cdot\mid x)}[r(x,y)]
+$$
+
+reward model 的形式是多样的，如果说我们希望 reward model 能够体现人类偏好的话，那么我们需要基于人类标注数据来训练一个 reward model.
+
+作者的做法为，给定输入 $x$ 以及模型采样的回答 $(y_0,y_1,y_2,y_3)$ , 作者请人类标注员选择出最优的答案，标记为 $b\in\{0,1,2,3\}$. 最终，基于收集到的数据 $\{(x,y_0,y_1,y_2,y_3,b)\}$, 作者训练了一个 reward model, 训练的目标函数为
+
+$$
+\mathcal{L}(r) = \mathbb{E}_{(x,\{y_i\},b)}\left[\log\frac{\exp(x,y_b)}{\sum_i\exp(r(x,y_i))}\right]
+$$
+
+由于 reward model 需要理解自然语言，因此作者使用原始的 language model $\rho$ 来初始化 reward model, 作者在 language model 的基础上加入了一个 Linear layer 来预测最终的输出。作者还对输出进行了 normalization,将其转换为一个均值为 0，方差为 1 的分布。
+
+> 作者也尝试了同时训练 reward model 和 Policy model, 但是由于数据的不平衡性，最终的效果很差。因此作者最终的做法就是分开训练 reward model 以及 policy model.
+
+最后，微调 $\pi$ 的时候，为了避免 $\pi$ 与 $\rho$ 相差太远，作者加入了一个 KL divergence 惩罚项，最终 reward 的表达式为
+
+$$
+R(x,y) = r(x,y) - \beta \log \frac{\pi(y\mid x)}{\rho(y\mid x)}
+$$
+
+最终，整体的训练过程如下图所示
+
+训练流程为：
+
+1. 收集数据，$\{(x,y_0,y_1,y_2,y_3,b)\}$, 其中 $x\sim \mathcal{D}$, $y_i\sim\rho(\cdot\mid x)$, $b\in\{0,1,2,3\}$ 为人类偏好。
+2. 初始化 reward model 为 $r=\rho$, reward 通过一个 Linear layer 预测，基于收集到的数据训练 reward model.
+3. 基于 [PPO](PPO.md) 算法在数据集 $\mathcal{D}$ 上训练 Policy model $\pi$
+4. 持续收集数据来训练 reward model $r$. 在每一轮 PPO 算法开始之前，作者都保证收集到足够多的训练数据来更新 reward model, 进而避免 distribution shift
