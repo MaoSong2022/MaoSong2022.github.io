@@ -1,0 +1,103 @@
+## Lightning Attention
+
+[@LightningAttention] 提出了 lightning attention, 一个在不同长度输入和固定内存消耗的情况下可以保持一个固定训练速度的线性注意力机制。
+
+lightning attention 的具体做法是将 attention 分为 inter-block 和 intra-block 两部分，其中
+
+为了减少 `cumsum` 计算的影响，作者还使用了 tiling 的技巧。
+
+作者首先回顾了 [linear attention](#linear_transformer) 的问题，主要有两点：
+
+1. inferior performance: linear attention 和 softmax attention 之间存在性能差距
+2. slow training speed: linear attention 需要使用 `cumsum` 操作，这个操作会降低模型的训练速度
+
+在本文中，作者提出了 lightning attention 来解决上面这两个问题。
+
+首先，为了解决训练速度慢的问题，作者使用了分治法的思想，将 attention 的计算分为 inter-block 和 intra-block, 然后和 flash attention 一样，作者还使用了 tiling 机制来最大化 GPU 的利用率。最终，模型的训练速度保持在了一个常数数值。
+
+其次，作者基于 lightning attention, 提出了 TransNormer LLM (TNL) 来保证模型的表现，具体来说，作者使用了 LRPE 和 exponential decay 来避免 attention dilution 的问题。作者还是用了 gating 机制来是模型训练更平滑。作者实现了一个新的 tensor normalization 以及模型并行策略来加速模型训练。
+
+作者首先回顾了一下 [TransNormer](#TransNormer), NormAttention 的计算方式如下
+
+$$
+O =\mathrm{Norm}((QK^T)V)
+$$
+
+其中 $Q,K,V\in\mathbb{R}^{n\times d}$ 分别是 query, key 以及 attention, 作者使用矩阵右乘对上面的 attention 计算进行了优化，得到
+
+$$
+O = \mathrm{Norm}(Q(K^TV))
+$$
+
+这样，训练时的计算的复杂度就是 $O(nd^2)$, 推理时的计算复杂度就是 $O(d^2)$. 而标准的 softmax attention 的时间复杂度为 $O(nd^2)$.
+
+但是，Linear attention 的问题在于，在进行因果推理时其需要计算 `cumsum`, 这会降低计算效率。
+
+解决的方法有两个，一个是使用传统的 attention 计算方式，也就是
+
+$$
+O = [(QK^T)\odot M]V
+$$
+
+其中 $M_{ts}=\mathbb{1}_{t\geq s}$, 算法如下图所示
+
+![Linear Attention Left Product](lightning-attention-linear-attention-left-product.png)
+
+这个算法是可以并行计算的，但是其时间复杂度为 $O(nd^2)$.
+
+另一个方法是先计算 $k_tv_t^T$, 然后再基于递归算法进行计算
+
+$$
+kv_0=0,kv_t = kv_{t-1} + k_tv_t^T, o_t^T = q_t^Tkv_t
+$$
+
+其时间复杂度为 $O(nd^2)$, 但是其内存访问开销比较高，会降低整体的计算效率。其算法如下图所示
+
+![Linear attention right product](lightning-attention-linear-attention-right-product.png)
+
+接下来作者介绍了以下如何使用 tiling 来计算 casual linear attention, 作者将 $Q,K,V$ 基于 rows 分成两个 block
+
+$$
+X = \begin{bmatrix}
+X_1\\
+X_2
+\end{bmatrix}, X_1 = \mathbb{R}^{m\times d}, X_2\in\mathbb{R}^{(n-m)\times d}, X\in\{Q,K,V\}
+$$
+
+通过展开 $O = [(QK^T)\odot M]V$, 我们有
+
+$$
+\begin{aligned}
+kv_s &= kv_0 + \sum_{j=1}^sk_jv_j^T, s=1,\dots,m\\
+o_s^T &= q_s^Tkv_s = q_s^Tkv_0 + q_s^T\sum_{j=1}^s k_jv_j^T.
+\end{aligned}
+$$
+
+我们将其写成矩阵形式，得到
+
+$$
+\begin{aligned}
+O_1 &= Q_1kv_0 + [(Q_1K_1^T)\odot M]V_1\\
+&= Q_1KV_0 + [(Q_1K_1^T)\odot M]V_1
+\end{aligned}
+$$
+
+也就是说，我们可以将 causual linear attention 拆分为两部分：
+
+1. intra block: 即 $[(Q_1K_1^T)\odot M]V_1$, 这一部分可以使用 lefr product 进行计算
+2. inter block: 即 $Q_1KV_0$, 这一部分可以使用 right product 进行计算
+
+对于 $O_2$ 我们可以使用类似的做法：
+
+$$
+\begin{aligned}
+kv_{m+t} &= kv_0 + \sum_{j=m+1}^{m+t}k_jv_j^T, t=1,\dots,n-m\\
+o_{m+t}^T &= q_{m+t}^Tkv_{m+t}\\
+O_2 &= Q_2kv_m + [(Q_2K_2^T)\odot M]V_2\\
+&= Q_2KV_1 + [(Q_2K_2^T)\odot M]V_2
+\end{aligned}
+$$
+
+其中 $KV_1=kv_m$.
+
+通过这种方式，我们可以将矩阵拆解为多个 block, 从而我们就得到了 lightning attention, 其算法 TODO
