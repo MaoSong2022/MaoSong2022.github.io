@@ -1,0 +1,875 @@
+<div class="d3-communication"></div>
+
+<style>
+  .d3-communication {
+    font-family:
+      -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.5;
+    color: var(--text-color);
+    padding: 20px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .d3-communication .controls {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: center;
+    background: var(--surface-bg);
+    padding: 16px 20px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    width: 100%;
+    max-width: 900px;
+    box-sizing: border-box;
+  }
+
+  .d3-communication .controls .control-group {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .d3-communication .controls label {
+    font-size: 12px;
+    color: var(--text-color);
+    font-weight: 700;
+  }
+
+  .d3-communication select,
+  .d3-communication input,
+  .d3-communication button {
+    font-size: 14px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    background: var(--page-bg);
+    color: var(--text-color);
+  }
+
+  .d3-communication select {
+    cursor: pointer;
+  }
+
+  .d3-communication input[type="range"] {
+    width: 120px;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--border-color);
+    outline: none;
+    cursor: pointer;
+    padding: 0;
+    appearance: none;
+  }
+
+  .d3-communication input[type="range"]::-webkit-slider-thumb {
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    cursor: pointer;
+    border: 2px solid var(--page-bg);
+    box-shadow: 0 2px 4px var(--border-color);
+  }
+
+  .d3-communication input[type="range"]::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    cursor: pointer;
+    border: 2px solid var(--page-bg);
+    box-shadow: 0 2px 4px var(--border-color);
+  }
+
+  .d3-communication .gpu-count {
+    font-size: 14px;
+    font-weight: 600;
+    min-width: 24px;
+    text-align: center;
+    color: var(--text-color);
+  }
+
+  .d3-communication .btn {
+    background: var(--primary-color) !important;
+    color: var(--page-bg) !important;
+    border: 1px solid var(--primary-color) !important;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s ease;
+    padding: 8px 16px !important;
+  }
+
+  .d3-communication .btn:hover {
+    opacity: 0.85;
+  }
+
+  .d3-communication .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  #viz-container {
+    position: relative;
+    width: 100%;
+    max-width: 600px;
+    aspect-ratio: 1 / 1;
+    background: var(--surface-bg);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+
+  #viz-container svg.ring-lines {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .d3-communication .gpu {
+    width: 56px;
+    height: 72px;
+    background: color-mix(in srgb, var(--primary-color) 12%, var(--surface-bg));
+    border: 2px solid var(--primary-color);
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: absolute;
+    z-index: 1;
+    transform: translate(-50%, -50%);
+    transition: none;
+  }
+
+  .d3-communication .gpu-label {
+    background: var(--primary-color);
+    color: var(--page-bg);
+    width: 100%;
+    text-align: center;
+    padding: 3px 0;
+    font-size: 10px;
+    font-weight: 700;
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+  }
+
+  .d3-communication .gpu-body {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .d3-communication .gpu-elements {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .d3-communication .gpu-element {
+    width: 14px;
+    height: 14px;
+    border-radius: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 7px;
+    font-weight: 700;
+    color: white;
+    flex-shrink: 0;
+  }
+
+  .d3-communication .data-chunk {
+    width: 26px;
+    height: 26px;
+    color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: 700;
+    font-size: 11px;
+    border-radius: 50%;
+    position: absolute;
+    transition: all 1s ease-in-out;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+    z-index: 10;
+    transform: translate(-50%, -50%);
+  }
+
+  .d3-communication #explanation {
+    font-size: 15px;
+    max-width: 700px;
+    text-align: center;
+    line-height: 1.5;
+    color: var(--text-color);
+    padding: 0 12px;
+  }
+
+  .d3-communication .step-label {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-color);
+    background: color-mix(in srgb, var(--surface-bg) 85%, transparent);
+    padding: 4px 12px;
+    border-radius: 6px;
+    z-index: 5;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+
+  @media (max-width: 640px) {
+    .d3-communication .gpu {
+      width: 40px;
+      height: 56px;
+    }
+    .d3-communication .gpu-label {
+      font-size: 9px;
+      padding: 2px 0;
+    }
+    .d3-communication .gpu-body {
+      font-size: 8px;
+    }
+    .d3-communication .data-chunk {
+      width: 20px;
+      height: 20px;
+      font-size: 9px;
+    }
+    #viz-container {
+      max-width: 360px;
+    }
+  }
+</style>
+
+<script>
+  (() => {
+    const bootstrap = () => {
+      const scriptEl = document.currentScript;
+      let container = scriptEl ? scriptEl.previousElementSibling : null;
+      if (
+        !(
+          container &&
+          container.classList &&
+          container.classList.contains("d3-communication")
+        )
+      ) {
+        const candidates = Array.from(
+          document.querySelectorAll(".d3-communication"),
+        ).filter((el) => !(el.dataset && el.dataset.mounted === "true"));
+        container = candidates[candidates.length - 1] || null;
+      }
+      if (!container) return;
+      if (container.dataset) {
+        if (container.dataset.mounted === "true") return;
+        container.dataset.mounted = "true";
+      }
+
+      container.innerHTML = `
+        <div class="controls">
+          <div class="control-group">
+            <label for="primitive">Primitive</label>
+            <select id="primitive">
+              <option value="sendrecv">Send / Receive</option>
+              <option value="broadcast" selected>Broadcast</option>
+              <option value="scatter">Scatter</option>
+              <option value="gather">Gather</option>
+              <option value="reduce">Reduce</option>
+              <option value="allgather">All-Gather</option>
+              <option value="allreduce">All-Reduce</option>
+              <option value="ring_allgather">Ring All-Gather</option>
+              <option value="ring_allreduce">Ring All-Reduce</option>
+            </select>
+          </div>
+          <div class="control-group">
+            <label for="gpus">GPUs</label>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <input type="range" id="gpus" min="2" max="8" value="4">
+              <span class="gpu-count" id="gpu-val">4</span>
+            </div>
+          </div>
+          <button class="btn" id="playBtn">Play Animation</button>
+        </div>
+        <div id="viz-container"></div>
+        <div id="explanation">Select a primitive and click Play to see how data moves!</div>
+      `;
+
+      const vizContainer = container.querySelector("#viz-container");
+      const explanation = container.querySelector("#explanation");
+      const primitiveSelect = container.querySelector("#primitive");
+      const gpusSlider = container.querySelector("#gpus");
+      const gpuVal = container.querySelector("#gpu-val");
+      const playBtn = container.querySelector("#playBtn");
+
+      let chunks = [];
+      let isPlaying = false;
+
+      const gpuW = 56,
+        gpuH = 72;
+      const chunkSize = 26;
+      const colors = [
+        "#ef4444",
+        "#3b82f6",
+        "#10b981",
+        "#f59e0b",
+        "#8b5cf6",
+        "#ec4899",
+        "#14b8a6",
+        "#f97316",
+      ];
+
+      function getRingPositions(numGPUs) {
+        const rect = vizContainer.getBoundingClientRect();
+        const cx = rect.width / 2;
+        const cy = rect.height / 2;
+        const radius =
+          Math.min(rect.width, rect.height) / 2 - Math.max(gpuW, gpuH) * 0.8;
+        const positions = [];
+        for (let i = 0; i < numGPUs; i++) {
+          const angle = (i / numGPUs) * 2 * Math.PI - Math.PI / 2;
+          positions.push({
+            cx: cx + radius * Math.cos(angle),
+            cy: cy + radius * Math.sin(angle),
+          });
+        }
+        return positions;
+      }
+
+      function drawRingLines(numGPUs) {
+        let svg = vizContainer.querySelector("svg.ring-lines");
+        if (!svg) {
+          svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+          svg.setAttribute("class", "ring-lines");
+          vizContainer.appendChild(svg);
+        }
+        const rect = vizContainer.getBoundingClientRect();
+        svg.setAttribute("viewBox", `0 0 ${rect.width} ${rect.height}`);
+
+        let defs = svg.querySelector("defs");
+        if (!defs) {
+          defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+          const marker = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "marker",
+          );
+          marker.setAttribute("id", "ring-arrow");
+          marker.setAttribute("viewBox", "0 0 10 10");
+          marker.setAttribute("refX", "8");
+          marker.setAttribute("refY", "5");
+          marker.setAttribute("markerWidth", "5");
+          marker.setAttribute("markerHeight", "5");
+          marker.setAttribute("orient", "auto");
+          const arrowPath = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "path",
+          );
+          arrowPath.setAttribute("d", "M 0 0 L 10 5 L 0 10 z");
+          arrowPath.setAttribute("fill", "var(--primary-color)");
+          arrowPath.setAttribute("opacity", "0.4");
+          marker.appendChild(arrowPath);
+          defs.appendChild(marker);
+          svg.appendChild(defs);
+        }
+
+        svg.querySelectorAll("path.ring-edge").forEach((el) => el.remove());
+
+        const positions = getRingPositions(numGPUs);
+        for (let i = 0; i < numGPUs; i++) {
+          const from = positions[i];
+          const to = positions[(i + 1) % numGPUs];
+          const path = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "path",
+          );
+          path.setAttribute("class", "ring-edge");
+          path.setAttribute("d", `M ${from.cx} ${from.cy} L ${to.cx} ${to.cy}`);
+          path.setAttribute("stroke", "var(--primary-color)");
+          path.setAttribute("stroke-opacity", "0.3");
+          path.setAttribute("stroke-width", "2");
+          path.setAttribute("stroke-dasharray", "6,4");
+          path.setAttribute("fill", "none");
+          path.setAttribute("marker-end", "url(#ring-arrow)");
+          svg.appendChild(path);
+        }
+      }
+
+      function getGPUCenter(gpuIndex) {
+        const gpuElements = vizContainer.querySelectorAll(".gpu");
+        if (gpuElements.length === 0) return { x: 0, y: 0 };
+        const rect = gpuElements[gpuIndex].getBoundingClientRect();
+        const containerRect = vizContainer.getBoundingClientRect();
+        return {
+          x: rect.left - containerRect.left + rect.width / 2,
+          y: rect.top - containerRect.top + rect.height / 2,
+        };
+      }
+
+      function createChunk(text, cx, cy, color) {
+        const chunk = document.createElement("div");
+        chunk.className = "data-chunk";
+        chunk.innerText = text;
+        chunk.style.left = cx + "px";
+        chunk.style.top = cy + "px";
+        chunk.style.backgroundColor = color;
+        vizContainer.appendChild(chunk);
+        chunks.push(chunk);
+        return chunk;
+      }
+
+      function clearVisualization(numGPUs) {
+        vizContainer.innerHTML = "";
+        chunks = [];
+
+        drawRingLines(numGPUs);
+
+        const positions = getRingPositions(numGPUs);
+        for (let i = 0; i < numGPUs; i++) {
+          const gpu = document.createElement("div");
+          gpu.className = "gpu";
+          gpu.style.left = positions[i].cx + "px";
+          gpu.style.top = positions[i].cy + "px";
+          gpu.innerHTML = `<div class="gpu-label">GPU ${i}</div><div class="gpu-body"><div class="gpu-elements"></div></div>`;
+          vizContainer.appendChild(gpu);
+        }
+      }
+
+      function renderElements(data) {
+        const gpuBodies = vizContainer.querySelectorAll(".gpu-elements");
+        for (let gpu = 0; gpu < gpuBodies.length; gpu++) {
+          if (!gpuBodies[gpu]) continue;
+          gpuBodies[gpu].innerHTML = data[gpu]
+            .map(
+              (val, idx) =>
+                `<div class="gpu-element" style="background:${colors[gpu]}">${val}</div>`,
+            )
+            .join("");
+        }
+      }
+
+      function addStepLabel(text) {
+        const existing = vizContainer.querySelector(".step-label");
+        if (existing) existing.remove();
+        const label = document.createElement("div");
+        label.className = "step-label";
+        label.textContent = text;
+        vizContainer.appendChild(label);
+      }
+
+      function sleep(ms) {
+        return new Promise((resolve) => setTimeout(resolve, ms));
+      }
+
+      async function animateChunkTo(chunk, x, y) {
+        chunk.style.left = x + "px";
+        chunk.style.top = y + "px";
+      }
+
+      async function playAnimation() {
+        if (isPlaying) return;
+        isPlaying = true;
+        playBtn.disabled = true;
+
+        const primitive = primitiveSelect.value;
+        const numGPUs = parseInt(gpusSlider.value);
+        clearVisualization(numGPUs);
+        await sleep(50);
+
+        if (primitive === "sendrecv") {
+          explanation.innerText =
+            "Send / Receive: A specific chunk of data moves from one specific GPU (0) to another (1).";
+          const pos0 = getGPUCenter(0);
+          const pos1 = getGPUCenter(1);
+          let chunk = createChunk("A", pos0.x, pos0.y, colors[0]);
+          await sleep(500);
+          animateChunkTo(chunk, pos1.x, pos1.y);
+        } else if (primitive === "broadcast") {
+          explanation.innerText =
+            "Broadcast: GPU 0 sends an exact copy of its tensor to all other GPUs in the group.";
+          const pos0 = getGPUCenter(0);
+          createChunk("A", pos0.x, pos0.y, colors[0]);
+          await sleep(500);
+          for (let i = 1; i < numGPUs; i++) {
+            const posI = getGPUCenter(i);
+            let replica = createChunk("A", pos0.x, pos0.y, colors[0]);
+            replica.getBoundingClientRect();
+            animateChunkTo(replica, posI.x, posI.y);
+          }
+        } else if (primitive === "scatter") {
+          explanation.innerText =
+            "Scatter: GPU 0 splits a large tensor into chunks and distributes one chunk to each GPU.";
+          const pos0 = getGPUCenter(0);
+          let localChunks = [];
+          for (let i = 0; i < numGPUs; i++) {
+            localChunks.push(
+              createChunk(
+                `${i}`,
+                pos0.x,
+                pos0.y - (numGPUs - 1) * 7 + i * 14,
+                colors[i],
+              ),
+            );
+          }
+          await sleep(500);
+          for (let i = 0; i < numGPUs; i++) {
+            const posI = getGPUCenter(i);
+            animateChunkTo(localChunks[i], posI.x, posI.y);
+          }
+        } else if (primitive === "gather") {
+          explanation.innerText =
+            "Gather: Every GPU sends its data chunk to a single root GPU (0), which concatenates them.";
+          let localChunks = [];
+          for (let i = 0; i < numGPUs; i++) {
+            const posI = getGPUCenter(i);
+            localChunks.push(createChunk(`${i}`, posI.x, posI.y, colors[i]));
+          }
+          await sleep(500);
+          const pos0 = getGPUCenter(0);
+          for (let i = 0; i < numGPUs; i++) {
+            animateChunkTo(
+              localChunks[i],
+              pos0.x,
+              pos0.y - (numGPUs - 1) * 7 + i * 14,
+            );
+          }
+        } else if (primitive === "reduce") {
+          explanation.innerText =
+            "Reduce: GPUs send individual data to GPU 0, where a mathematical operation (e.g., SUM) aggregates them.";
+          let localChunks = [];
+          for (let i = 0; i < numGPUs; i++) {
+            const posI = getGPUCenter(i);
+            localChunks.push(createChunk("1", posI.x, posI.y, "#3b82f6"));
+          }
+          await sleep(500);
+          const pos0 = getGPUCenter(0);
+          for (let i = 0; i < numGPUs; i++) {
+            animateChunkTo(localChunks[i], pos0.x, pos0.y);
+          }
+          await sleep(1500);
+          localChunks.forEach((c) => (c.style.opacity = "0"));
+          createChunk("Σ", pos0.x, pos0.y, "#10b981");
+        } else if (primitive === "allgather") {
+          explanation.innerText =
+            "All-Gather: Every GPU shares its chunk with everyone. It is essentially Gather + Broadcast.";
+          let startPos = [];
+          for (let i = 0; i < numGPUs; i++) {
+            startPos.push(getGPUCenter(i));
+          }
+          await sleep(500);
+          for (let i = 0; i < numGPUs; i++) {
+            for (let j = 0; j < numGPUs; j++) {
+              let c = createChunk(
+                `${i}`,
+                startPos[i].x,
+                startPos[i].y,
+                colors[i],
+              );
+              c.getBoundingClientRect();
+              animateChunkTo(
+                c,
+                startPos[j].x,
+                startPos[j].y - (numGPUs - 1) * 7 + i * 14,
+              );
+            }
+          }
+        } else if (primitive === "allreduce") {
+          explanation.innerText =
+            "All-Reduce: Data is reduced across all devices, and the final aggregated result is distributed back to all GPUs.";
+          let localChunks = [];
+          for (let i = 0; i < numGPUs; i++) {
+            const posI = getGPUCenter(i);
+            localChunks.push(createChunk("1", posI.x, posI.y, "#3b82f6"));
+          }
+          await sleep(500);
+          const containerRect = vizContainer.getBoundingClientRect();
+          const centerX = containerRect.width / 2;
+          const centerY = containerRect.height / 2;
+          for (let i = 0; i < numGPUs; i++) {
+            animateChunkTo(localChunks[i], centerX, centerY);
+          }
+          await sleep(1500);
+          localChunks.forEach((c) => (c.style.opacity = "0"));
+          for (let i = 0; i < numGPUs; i++) {
+            const posI = getGPUCenter(i);
+            let finalChunk = createChunk("Σ", centerX, centerY, "#10b981");
+            finalChunk.getBoundingClientRect();
+            animateChunkTo(finalChunk, posI.x, posI.y);
+          }
+        } else if (primitive === "ring_allgather") {
+          explanation.innerText =
+            "Ring All-Gather: Each GPU passes its chunk clockwise. After N-1 steps, every GPU holds all chunks.";
+          const pos = [];
+          for (let i = 0; i < numGPUs; i++) {
+            pos.push(getGPUCenter(i));
+          }
+
+          // Track which chunks each GPU has accumulated
+          let hasChunk = [];
+          for (let i = 0; i < numGPUs; i++) {
+            hasChunk[i] = new Set([i]);
+          }
+
+          function renderGatherState() {
+            vizContainer
+              .querySelectorAll(".data-chunk")
+              .forEach((c) => c.remove());
+            for (let gpu = 0; gpu < numGPUs; gpu++) {
+              let offset = 0;
+              for (let cIdx = 0; cIdx < numGPUs; cIdx++) {
+                if (hasChunk[gpu].has(cIdx)) {
+                  createChunk(
+                    `${cIdx}`,
+                    pos[gpu].x,
+                    pos[gpu].y - (numGPUs - 1) * 7 + offset * 14,
+                    colors[cIdx],
+                  );
+                  offset++;
+                }
+              }
+            }
+          }
+
+          renderGatherState();
+          await sleep(800);
+
+          // N-1 rotation steps
+          for (let step = 0; step < numGPUs - 1; step++) {
+            addStepLabel(`Step ${step + 1}: rotate clockwise`);
+            // In ring all-gather, step s: GPU i sends chunk (i-s+N)%N to GPU i+1
+            for (let i = 0; i < numGPUs; i++) {
+              const chunkToSend = (i - step + numGPUs * 2) % numGPUs;
+              const receiver = (i + 1) % numGPUs;
+              let c = createChunk(
+                `${chunkToSend}`,
+                pos[i].x,
+                pos[i].y,
+                colors[chunkToSend],
+              );
+              c.getBoundingClientRect();
+              animateChunkTo(c, pos[receiver].x, pos[receiver].y);
+            }
+            await sleep(1200);
+
+            for (let i = 0; i < numGPUs; i++) {
+              const chunkToSend = (i - step + numGPUs * 2) % numGPUs;
+              const receiver = (i + 1) % numGPUs;
+              hasChunk[receiver].add(chunkToSend);
+            }
+            renderGatherState();
+            await sleep(600);
+          }
+
+          await sleep(300);
+          vizContainer
+            .querySelectorAll(".step-label")
+            .forEach((el) => el.remove());
+          addStepLabel("All GPUs have all chunks ✓");
+        } else if (primitive === "ring_allreduce") {
+          explanation.innerText =
+            "Ring All-Reduce: Each GPU hosts N elements. Phase 1 (Scatter-Reduce) reduces via rotation. Phase 2 (All-Gather) distributes results.";
+          const pos = [];
+          for (let i = 0; i < numGPUs; i++) {
+            pos.push(getGPUCenter(i));
+          }
+
+          // Each GPU i has N elements elem[i][j] = i*N + j
+          let elem = [];
+          for (let i = 0; i < numGPUs; i++) {
+            elem[i] = [];
+            for (let j = 0; j < numGPUs; j++) {
+              elem[i][j] = i * numGPUs + j;
+            }
+          }
+
+          function renderElemFloat() {
+            vizContainer.querySelectorAll('.data-chunk').forEach(c => c.remove());
+            for (let gpu = 0; gpu < numGPUs; gpu++) {
+              let offset = 0;
+              for (let k = 0; k < numGPUs; k++) {
+                createChunk(`${elem[gpu][k]}`, pos[gpu].x, pos[gpu].y - (numGPUs - 1) * 7 + offset * 14, colors[k]);
+                offset++;
+              }
+            }
+          }
+
+          renderElemFloat();
+          await sleep(800);
+
+          // Phase 1: Scatter-Reduce — N-1 steps
+          for (let step = 0; step < numGPUs - 1; step++) {
+            addStepLabel(`Phase 1 — Step ${step + 1}: rotate`);
+            const prevElem = elem.map((row) => [...row]);
+
+            for (let i = 0; i < numGPUs; i++) {
+              const sendIdx = (i - step + numGPUs * 2) % numGPUs;
+              const receiver = (i + 1) % numGPUs;
+              const val = prevElem[i][sendIdx];
+              let c = createChunk(`${val}`, pos[i].x, pos[i].y, colors[i]);
+              c.getBoundingClientRect();
+              animateChunkTo(c, pos[receiver].x, pos[receiver].y);
+            }
+            await sleep(900);
+
+            vizContainer
+              .querySelectorAll(".data-chunk")
+              .forEach((c) => c.remove());
+
+            addStepLabel(`Phase 1 — Step ${step + 1}: reduce`);
+            for (let i = 0; i < numGPUs; i++) {
+              const sendIdx = (i - step + numGPUs * 2) % numGPUs;
+              const receiver = (i + 1) % numGPUs;
+              const val = prevElem[i][sendIdx];
+              elem[receiver][sendIdx] += val;
+
+              if (val !== 0) {
+                let plus = document.createElement("div");
+                plus.className = "data-chunk";
+                plus.innerText = `+${val}`;
+                plus.style.left = pos[receiver].x + "px";
+                plus.style.top = pos[receiver].y + 26 + "px";
+                plus.style.backgroundColor = "transparent";
+                plus.style.color = "#10b981";
+                plus.style.fontSize = "10px";
+                plus.style.fontWeight = "700";
+                plus.style.boxShadow = "none";
+                plus.style.width = "auto";
+                plus.style.height = "auto";
+                plus.style.borderRadius = "0";
+                plus.style.transform = "translate(-50%, 0)";
+                plus.style.transition = "opacity 0.6s ease";
+                vizContainer.appendChild(plus);
+                setTimeout(() => {
+                  plus.style.opacity = "0";
+                }, 600);
+              }
+            }
+            await sleep(700);
+            vizContainer
+              .querySelectorAll(".data-chunk")
+              .forEach((c) => c.remove());
+
+            renderElemFloat();
+            await sleep(600);
+          }
+
+          // Compute final reduced sums for each element index
+          const finalSums = [];
+          for (let j = 0; j < numGPUs; j++) {
+            let s = 0;
+            for (let i = 0; i < numGPUs; i++) s += i * numGPUs + j;
+            finalSums.push(s);
+          }
+
+          // Cleanup: discard partial sums, keep only reduced sums
+          await sleep(400);
+          vizContainer
+            .querySelectorAll(".gpu-elements")
+            .forEach((el) => (el.innerHTML = ""));
+          addStepLabel("Discard partial sums, keep reduced sums");
+          await sleep(400);
+
+          // Phase 2: Ring All-Gather — clockwise (same direction as Phase 1)
+          // Each GPU circulates its reduced sum to the right neighbor step by step
+          addStepLabel("Phase 2 — circulate reduced sums");
+          await sleep(500);
+
+          let gathered = [];
+          for (let i = 0; i < numGPUs; i++) {
+            const pos = (i + 1) % numGPUs;
+            gathered[i] = [{ value: finalSums[pos], pos }];
+          }
+
+          function renderGathered() {
+            vizContainer.querySelectorAll('.data-chunk').forEach(c => c.remove());
+            for (let gpu = 0; gpu < numGPUs; gpu++) {
+              let offset = 0;
+              for (let k = 0; k < gathered[gpu].length; k++) {
+                const item = gathered[gpu][k];
+                createChunk(`${item.value}`, pos[gpu].x, pos[gpu].y - (numGPUs - 1) * 7 + offset * 14, colors[item.pos]);
+                offset++;
+              }
+            }
+          }
+
+          renderGathered();
+          await sleep(600);
+
+          for (let step = 0; step < numGPUs - 1; step++) {
+            addStepLabel(`Phase 2 — Step ${step + 1}: circulate`);
+            const toSend = gathered.map(g => g[step]);
+
+            for (let i = 0; i < numGPUs; i++) {
+              const val = toSend[i];
+              if (val !== undefined) {
+                const receiver = (i + 1) % numGPUs;
+                let c = createChunk(`${val.value}`, pos[i].x, pos[i].y, colors[val.pos]);
+                c.getBoundingClientRect();
+                animateChunkTo(c, pos[receiver].x, pos[receiver].y);
+              }
+            }
+            await sleep(1000);
+            vizContainer.querySelectorAll('.data-chunk').forEach(c => c.remove());
+
+            for (let i = 0; i < numGPUs; i++) {
+              const val = toSend[i];
+              if (val !== undefined) {
+                const receiver = (i + 1) % numGPUs;
+                gathered[receiver].push(val);
+              }
+            }
+
+            renderGathered();
+            await sleep(600);
+          }
+
+          await sleep(500);
+          vizContainer.querySelectorAll('.data-chunk').forEach(c => c.remove());
+
+          // Final display: correctly ordered sums
+          for (let i = 0; i < numGPUs; i++) {
+            gathered[i] = finalSums.map((v, j) => ({ value: v, pos: j }));
+          }
+          renderGathered();
+
+          vizContainer.querySelectorAll('.step-label').forEach(el => el.remove());
+          addStepLabel('All GPUs have all reduced sums ✓');
+        }
+
+        await sleep(2000);
+        isPlaying = false;
+        playBtn.disabled = false;
+      }
+
+      gpusSlider.addEventListener("input", () => {
+        gpuVal.innerText = gpusSlider.value;
+      });
+
+      playBtn.addEventListener("click", playAnimation);
+
+      clearVisualization(4);
+    };
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", bootstrap, { once: true });
+    } else {
+      bootstrap();
+    }
+  })();
+</script>

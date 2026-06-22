@@ -1,30 +1,28 @@
-import Image from '../../../components/Image.astro';
-import basic_concepts from '../../../assets/image/basic_concepts.png';
+import Image from "../../../components/Image.astro";
+import HtmlEmbed from "../../../components/HtmlEmbed.astro";
 
 ## Introduction
 
-### What is distributed training
+### What is Distributed Training
 
 分布式系统允许一个软件的多个组件运行在不同的机器上。与传统集中式系统不一样，分布式系统可以有效提高系统的稳健性。
-一个比较比较经典的分布式就是Git，Git允许我们把代码保存在多个remote上。这样当一个remote宕机时，其他remote也能提供服务。
 
-评估一个分布式系统的重要标准就是规模效益(scalablity)，也就是说，我们希望使用8台设备应该要比4台设备快2倍。但是，由于通信带宽等原因，实际上加速比并不是和设备数量成线性关系。因此，我们需要设计分布式算法，来有效提高分布式系统的效率。
+一个比较比较经典的分布式就是 Git，Git 允许我们把代码保存在多个 remote 上。这样当一个 remote 宕机时，其他 remote 也能提供服务。
 
-### Why distributed training
+评估一个分布式系统的重要标准就是规模效益 (scalablity)，也就是说，我们希望使用 8 台设备应该要比 4 台设备快 2 倍。
+但是，由于通信带宽等原因，实际上加速比并不是和设备数量成线性关系。因此，我们需要设计分布式算法，来有效提高分布式系统的效率。
+
+### Why Distributed Training
 
 我们需要分布式训练的原因主要是以下几点：
 
-1. 模型越来越大。当下（2025）领先模型如Qwen，LLaMA系列的最大模型都超过了100B [2][3]。LLaMA系列最大的模型甚至超过了1000B。Scaling law告诉我们模型表现与参数量，算力，数据量成正相关关系。
-2. 数据集越来越大。现在领先的模型需要的数据量基本都需要100M以上，而大语言模型训练需要的token数量也都超过了10T的量级 [2][3].
-3. 算力越来越强。现有最强的GPU H100其显存为80GB，拥有3.35TB/s 的带宽 (PcIe)，这让训练大规模模型成为可能。
+1. 模型越来越大。当下（2025）领先模型如 Qwen，LLaMA 系列的最大模型都超过了 100B [2][3]。LLaMA 系列最大的模型甚至超过了 1000B。Scaling law 告诉我们模型表现与参数量，算力，数据量成正相关关系。
+2. 数据集越来越大。现在领先的模型需要的数据量基本都需要 100M 以上，而大语言模型训练需要的 token 数量也都超过了 10T 的量级 [2][3].
+3. 算力越来越强。现有最强的 GPU H100 其显存为 80GB，拥有 3.35TB/s 的带宽 (PcIe)，这让训练大规模模型成为可能。
 
-超大的模型使得我们很难在一张GPU上进行训练，甚至我们都很难使用单张GPU进行部署。而10T级的数据也也需要几个月的时间才能训练完毕。因此，如何高效利用多张GPU在大规模数据上训练超大模型就是我们需要解决的问题。
-
-### How to perform distributed training
-
-### Overview
-
-这篇 blog 中，我们将循序渐进介绍目前训练大模型所用的并行策略，包括 DP, TP, PP 等。
+超大的模型使得我们很难在一张 GPU 上进行训练，甚至我们都很难使用单张 GPU 进行部署。
+而 10T 级的数据也也需要几个月的时间才能训练完毕。
+因此，如何高效利用多张 GPU 在大规模数据上训练超大模型就是我们需要解决的问题。
 
 ### Notation
 
@@ -35,34 +33,39 @@ import basic_concepts from '../../../assets/image/basic_concepts.png';
 - Port: port (master port) 主要是用于通信的 master port
 - Rank: rank 是通信网络中每个设备唯一的 ID
 - world size: world size 是通信网络中设备的数量
-- process group: 一个process group 是通信网络中所有设备集合的一个子集。通过process group, 我们可以限制device只在group内部进行通信
+- process group: 一个 process group 是通信网络中所有设备集合的一个子集。通过 process group, 我们可以限制 device 只在 group 内部进行通信
 
 我们以下图为例：
 
-<Image src={basic_concepts} alt="basic concepts" />
+<HtmlEmbed
+  src="multi_node.html"
+  title="An example of two nodes with 4 GPUs on each node"
+/>
 
-上图中一共包含2个node (2台机器)，每台机器包含4个GPU (device)，当我们初始化分布式环境时，我们一共启动了8个进程（每台机器4个进程），每个进程绑定一个GPU。
+上图中一共包含 2 个 node (2 台机器)，每台机器包含 4 个 GPU (device)，当我们初始化分布式环境时，我们一共启动了 8 个进程（每台机器 4 个进程），每个进程绑定一个 GPU.
 
-在初始化分布式环境之间，我们需要指定host和port。假设我们指定host为`node 0`和port为 `29500`，接下来，所有的进程都会基于这个host和port来与其他进程连接。默认的process group（包含所有device）的world size 为8. 其细节展示如下
+在初始化分布式环境之间，我们需要指定 host 和 port。假设我们指定 host 为 `node 0` 和 port 为 `29500`，接下来，所有的进程都会基于这个 host 和 port 来与其他进程连接。
+默认的 process group（包含所有 device）的 world size 为 8.
+其细节展示如下
 
-| process ID | rank | Node index| GPU index |
-| --- | --- | --- |--- |
-| 0 | 0 | 0 | 0|
-| 1 | 1 | 0 | 1|
-| 2 | 2 | 0 | 2|
-| 3 | 3 | 0 | 3|
-| 4 | 4 | 1 | 0|
-| 5 | 5 | 1 | 1|
-| 6 | 6 | 1 | 2|
-| 7 | 7 | 1 | 3|
+| process ID | rank | Node index | GPU index |
+| ---------- | ---- | ---------- | --------- |
+| 0          | 0    | 0          | 0         |
+| 1          | 1    | 0          | 1         |
+| 2          | 2    | 0          | 2         |
+| 3          | 3    | 0          | 3         |
+| 4          | 4    | 1          | 0         |
+| 5          | 5    | 1          | 1         |
+| 6          | 6    | 1          | 2         |
+| 7          | 7    | 1          | 3         |
 
-我们可以创建一个新的process group，使其仅包含ID为偶数的process：
+我们可以创建一个新的 process group，使其仅包含 ID 为偶数的 process：
 
-| process ID | rank | Node index| GPU index |
-| --- | --- | --- |--- |
-| 0 | 0 | 0 | 0|
-| 2 | 1 | 0 | 2|
-| 4 | 2 | 1 | 0|
-| 6 | 3 | 1 | 2|
+| process ID | rank | Node index | GPU index |
+| ---------- | ---- | ---------- | --------- |
+| 0          | 0    | 0          | 0         |
+| 2          | 1    | 0          | 2         |
+| 4          | 2    | 1          | 0         |
+| 6          | 3    | 1          | 2         |
 
-**Remark**: 注意，rank与process group相关，一个process在不同的process group里可能会有不同的rank.
+**Remark**: 注意，rank 与 process group 相关，一个 process 在不同的 process group 里可能会有不同的 rank.

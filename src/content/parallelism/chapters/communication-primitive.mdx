@@ -1,13 +1,6 @@
-
-import Image from '../../../components/Image.astro';
-import Accordion from '../../../components/Accordion.astro'
-
-import send_recv from '../../../assets/image/send_recv.png';
-import scatter_broadcast from '../../../assets/image/scatter_broadcast.png';
-import gather_reduce from '../../../assets/image/gather_reduce.png';
-import all_gather_reduce from '../../../assets/image/all_gather_reduce.png';
-
-> 说明：本文参考了 [nanotron/ultrascale-playbook](https://huggingface.co/spaces/nanotron/ultrascale-playbook) 和 [Colossal-AI Concepts](https://colossalai.org/docs/concepts/distributed_training)
+import Image from "../../../components/Image.astro";
+import Accordion from "../../../components/Accordion.astro";
+import HtmlEmbed from "../../../components/HtmlEmbed.astro";
 
 ## Communication Primitives
 
@@ -18,15 +11,15 @@ import all_gather_reduce from '../../../assets/image/all_gather_reduce.png';
 3. many-to-one: 多个device与一个device之间进行通信
 4. many-to-many: 多个device之间互相进行通信
 
+对应的示意图如下所示
+
+<HtmlEmbed src="communication.html" title="GPU communication primitives" />
+
 ### One-to-one
 
 One-to-one的情况很简单，一个 process 与另一个 process 进行通信，通信通过 `send` 和 `recv` 完成。
 
 #### Send and Receive
-
-示意图如下所示
-
-<Image src={send_recv} alt="point to point communication" />
 
 测试代码如下：
 
@@ -43,7 +36,7 @@ import torch.distributed as dist
 def init_process():
     dist.init_process_group(backend='nccl')
     torch.cuda.set_device(dist.get_rank())
-    
+
 def example_send():
     if dist.get_rank() == 0:
         tensor = torch.tensor([1, 2, 3, 4, 5], dtype=torch.float32).cuda()
@@ -66,12 +59,12 @@ example_send()
 Before send on rank 1: tensor([0., 0., 0., 0., 0.], device='cuda:1')
 After send on rank 1: tensor([1., 2., 3., 4., 5.], device='cuda:1')
 :::
+
 </Accordion>
 
 结果输出
 
 > 注：为了方便，后续代码仅定义函数和运行方式，`init_process()`和import部分省略
->
 
 #### Isend and Irecev
 
@@ -90,7 +83,7 @@ def example_isend():
         tensor = torch.tensor([1, 2, 3, 4, 5], dtype=torch.float32).cuda()
         req = dist.isend(tensor, dst=1)
         print("Rank 0 is sending")
-        
+
     elif dist.get_rank() == 1:
         tensor = torch.zeros(5, dtype=torch.float32).cuda()
         print(f"Before irecv on rank {dist.get_rank()}: {tensor}")
@@ -130,8 +123,6 @@ Scatter 的作用是将一个 process 的数据均分并散布到其他 process,
 Broadcast 的作用是将一个 process 的数据广播到其他 process.
 两者不同的地方在于其他 process 获取到的是全量数据 (copy) 还是部分数据 (slice)，其示意图如下所示
 
-<Image src={scatter_broadcast} alt="scatter and broadcast" />
-
 #### Scatter
 
 Scatter 表达式为
@@ -155,7 +146,7 @@ def example_scatter():
         print(f"Rank 0 scatter list: {scatter_list}")
     else:
         scatter_list = None
-    
+
     tensor = torch.zeros(5, dtype=torch.float32).cuda()
     print(f"Before scatter on rank {dist.get_rank()}: {tensor}")
     dist.scatter(tensor, scatter_list, src=0)
@@ -170,10 +161,10 @@ example_broadcast()
 
 :::output
 Rank 0 scatter list: [
-    tensor([1., 1., 1., 1., 1.], device='cuda:0'),
-    tensor([2., 2., 2., 2., 2.], device='cuda:0'),
-    tensor([3., 3., 3., 3., 3.], device='cuda:0'),
-    tensor([4., 4., 4., 4., 4.], device='cuda:0')
+tensor([1., 1., 1., 1., 1.], device='cuda:0'),
+tensor([2., 2., 2., 2., 2.], device='cuda:0'),
+tensor([3., 3., 3., 3., 3.], device='cuda:0'),
+tensor([4., 4., 4., 4., 4.], device='cuda:0')
 ]
 Before scatter on rank 2: tensor([0., 0., 0., 0., 0.], device='cuda:2')
 Before scatter on rank 1: tensor([0., 0., 0., 0., 0.], device='cuda:1')
@@ -261,7 +252,7 @@ def example_gather():
         print(f"Rank 0 gather list: {gather_list}")
     else:
         gather_list = None
-    
+
     print(f"Before gather on rank {dist.get_rank()}: {tensor}")
     dist.gather(tensor, gather_list, dst=0)
     if dist.get_rank() == 0:
@@ -280,10 +271,10 @@ Before gather on rank 2: tensor([3., 3., 3., 3., 3.], device='cuda:2')
 Before gather on rank 0: tensor([1., 1., 1., 1., 1.], device='cuda:0')
 Before gather on rank 1: tensor([2., 2., 2., 2., 2.], device='cuda:1')
 After gather on rank 0: [
-    tensor([1., 1., 1., 1., 1.], device='cuda:0'),
-    tensor([2., 2., 2., 2., 2.], device='cuda:0'),
-    tensor([3., 3., 3., 3., 3.], device='cuda:0'),
-    tensor([4., 4., 4., 4., 4.], device='cuda:0')
+tensor([1., 1., 1., 1., 1.], device='cuda:0'),
+tensor([2., 2., 2., 2., 2.], device='cuda:0'),
+tensor([3., 3., 3., 3., 3.], device='cuda:0'),
+tensor([4., 4., 4., 4., 4.], device='cuda:0')
 ]
 :::
 
@@ -300,8 +291,6 @@ $$
 $$
 
 示意图如下所示
-
-<Image src={gather_reduce} alt="gather and reduce" />
 
 Reduce 测试代码:
 
@@ -343,9 +332,7 @@ Many-to-many 情形下的两种通信方式为：All-Reduce 和 All-Gather，分
 
 #### AllReduce
 
-AllGather 则对所有process执行一次gather操作，其示意图如下所示
-
-<Image src={all_gather_reduce} alt="all-gather and all-reduce" />
+AllGather 则对所有process执行一次gather操作，
 
 AllGather 测试代码：
 
@@ -377,27 +364,27 @@ Before all gather on rank 3: tensor([4., 4., 4., 4., 4.], device='cuda:3')
 Before all gather on rank 0: tensor([1., 1., 1., 1., 1.], device='cuda:0')
 Before all gather on rank 1: tensor([2., 2., 2., 2., 2.], device='cuda:1')
 After all gather on rank 0: [
-    tensor([1., 1., 1., 1., 1.], device='cuda:0'),
-    tensor([2., 2., 2., 2., 2.], device='cuda:0'),
-    tensor([3., 3., 3., 3., 3.], device='cuda:0'),
-    tensor([4., 4., 4., 4., 4.], device='cuda:0')]
+tensor([1., 1., 1., 1., 1.], device='cuda:0'),
+tensor([2., 2., 2., 2., 2.], device='cuda:0'),
+tensor([3., 3., 3., 3., 3.], device='cuda:0'),
+tensor([4., 4., 4., 4., 4.], device='cuda:0')]
 After all gather on rank 2: [
-    tensor([1., 1., 1., 1., 1.], device='cuda:2'),
-    tensor([2., 2., 2., 2., 2.], device='cuda:2'),
-    tensor([3., 3., 3., 3., 3.], device='cuda:2'),
-    tensor([4., 4., 4., 4., 4.], device='cuda:2')
+tensor([1., 1., 1., 1., 1.], device='cuda:2'),
+tensor([2., 2., 2., 2., 2.], device='cuda:2'),
+tensor([3., 3., 3., 3., 3.], device='cuda:2'),
+tensor([4., 4., 4., 4., 4.], device='cuda:2')
 ]
 After all gather on rank 3: [
-    tensor([1., 1., 1., 1., 1.], device='cuda:3'),
-    tensor([2., 2., 2., 2., 2.], device='cuda:3'),
-    tensor([3., 3., 3., 3., 3.], device='cuda:3'),
-    tensor([4., 4., 4., 4., 4.], device='cuda:3')
+tensor([1., 1., 1., 1., 1.], device='cuda:3'),
+tensor([2., 2., 2., 2., 2.], device='cuda:3'),
+tensor([3., 3., 3., 3., 3.], device='cuda:3'),
+tensor([4., 4., 4., 4., 4.], device='cuda:3')
 ]
 After all gather on rank 1: [
-    tensor([1., 1., 1., 1., 1.], device='cuda:1'),
-    tensor([2., 2., 2., 2., 2.], device='cuda:1'),
-    tensor([3., 3., 3., 3., 3.], device='cuda:1'),
-    tensor([4., 4., 4., 4., 4.], device='cuda:1')
+tensor([1., 1., 1., 1., 1.], device='cuda:1'),
+tensor([2., 2., 2., 2., 2.], device='cuda:1'),
+tensor([3., 3., 3., 3., 3.], device='cuda:1'),
+tensor([4., 4., 4., 4., 4.], device='cuda:1')
 ]
 :::
 
