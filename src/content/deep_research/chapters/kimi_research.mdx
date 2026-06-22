@@ -1,0 +1,93 @@
+## Kimi-Researcher
+
+Kimi 在 6 月 20 号发布了 Kimi-Researcher，一个可以进行 Multi-turn search 和 reasoning 的自动化 agent
+
+Kimi 基于 [Kimi-k1.5](Kimi-k1.5.md) 开发得到，使用 agentic end-to-end RL 进行训练
+
+评测结果显示，Kimi-Researcher 在 HLE 上达到了 26.9% 的准确率 (Pass@1)
+
+### End-to-end Agentic RL
+
+RL 的训练是让 agent 掌握三个能力：
+
+1. 并行，实时的搜索工具 (search tool) 调用能力
+2. 用于网页交互的文本浏览工具 (browser tool)
+3. 自动化代码执行工具 (coding tool)
+
+给定 state $s_t$=(system prompt, tool declarations, user query), agent 的行为模式为：
+
+$$
+\begin{cases}
+s_t \to (\mathrm{think}_t,\mathrm{action}_t)\\
+s_{t+1}= \mathrm{context_manager}(s_t,\mathrm{think}_t,\mathrm{tool\_call\_result}_t), & \text{if }\mathrm{action}_t\neq \mathrm{finish}\\
+\text{terminate}, &\text{if  } \mathrm{action}_t= \mathrm{finish}
+\end{cases}
+$$
+
+传统 agentic 训练的缺陷：
+
+1. workflow-based systems: 基于 prompt，优势是高效，缺点是环境改变之后，需要手动调整 prompt
+2. imitation learning with SFT：优势是可以与 demonstration 对齐，缺点是数据标注比较难，SFT 数据的 tool version 是固定的，限制了模型的泛化性
+
+End-to-end agentic RL 的优势在于可以执行 long, on-policy 的 reasoning，模型同时学习 planning, perception 和 tool-use
+
+End-to-end agentic RL 的挑战：
+
+1. dynamic environments: agent 必须适应动态的环境变化
+2. Long horizon tasks: 轨迹长度可能会很长，对模型的长下文长度以及内存管理有很大挑战
+3. data scarcity: 高质量的 RL 数据集很少
+4. Rollout efficiency: multi-turn reasoning 和 tool-use 可能会降低 GPU 的利用率
+
+## Method
+
+### Data
+
+数据包括两部分：
+
+1. 第一部分包括了 tool-centric 任务的数据，这部分数据要求模型调用特定的工具来解决任务，从而提高模型的工具调用能力
+2. 第二部分数据在 tool-use 的基础上加入了 reasoning 能力，数据包含两类：
+   1. Math and code reasoning： 覆盖 logical inference, algorithmic problem solving, sequential computation. 模型需要同时基于 reasoning 和 tool 来解决问题
+   2. Hard search：要求模型进行 search, synthesize 以及 reason 来得到最终的答案
+
+### RL Training
+
+Kimi-Researcher 使用了 REINFORCE 算法进行训练，训练的两个关键点：
+
+1. on-policy training: 在训练过程中，作者关闭了 toolcall format 等机制，而是让模型依赖自身能力来生成完整的轨迹
+2. Negative sample control: 在训练过程中，作者丢弃了一些负样本，来持续提升模型的表现
+
+reward 来自于 outcome，reward 包括：
+
+1. format reward: 要求模型生成有效的 tool-call 并且满足上下文长度限制
+2. correctness reward: 结果的正确性
+
+作者在最终的 reward 上乘了一个关于步数缩放因子，来估计模型进行更高效的探索
+
+### Context Management
+
+不对上下文进行管理的话，模型在 10 次迭代后内存就会爆炸。组着构建了一个上下文管理机制，来丢弃掉不相关的文档，从提升将迭代次数提升到 50 次以上。
+
+### Infra
+
+![Kimi_Researcher_infra](Kimi_Researcher_infra.png)
+
+1. Fully asynchronous rollout: 异步训练，这个猜测应该是和 Kimi-k1.5 差不太多
+2. Turn-level partial rollout：轨迹太长的话，就保存到 replay buffer 里，下一次迭代继续计算，猜测应该是和 Kimi-k1.5 差不太多
+3. Robust sanbox environment：通过 MCP 来进行 agent-tool 的通信
+
+### Evaluation
+
+![Kimi_Research_performance](Kimi_Research_performance.png)
+
+### Training Dynamics
+
+![Kimi_Researcher_training_dynamics](Kimi_Researcher_training_dynamics.png)
+
+### Emerging Agentic Capacities
+
+1. 当多个信息源的信息互相冲突时，Kimi-Researcher 会通过改进假设以及自我修正来解决冲突
+2. Kimi-Researcher 变的严谨，即使是很简单的问题，也会进行额外的搜索确保答案的正确性
+
+作者提到未来的工作在于提升 Kimi-Researcher 在通用 domain 上的表现
+
+- [Kimi Researcher](https://moonshotai.github.io/Kimi-Researcher/)
