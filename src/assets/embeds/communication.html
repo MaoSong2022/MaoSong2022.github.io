@@ -497,18 +497,18 @@
             "Send / Receive: A specific chunk of data moves from one specific GPU (0) to another (1).";
           const pos0 = getGPUCenter(0);
           const pos1 = getGPUCenter(1);
-          let chunk = createChunk("A", pos0.x, pos0.y, colors[0]);
+          let chunk = createChunk("0", pos0.x, pos0.y, colors[0]);
           await sleep(500);
           animateChunkTo(chunk, pos1.x, pos1.y);
         } else if (primitive === "broadcast") {
           explanation.innerText =
             "Broadcast: GPU 0 sends an exact copy of its tensor to all other GPUs in the group.";
           const pos0 = getGPUCenter(0);
-          createChunk("A", pos0.x, pos0.y, colors[0]);
+          createChunk("0", pos0.x, pos0.y, colors[0]);
           await sleep(500);
           for (let i = 1; i < numGPUs; i++) {
             const posI = getGPUCenter(i);
-            let replica = createChunk("A", pos0.x, pos0.y, colors[0]);
+            let replica = createChunk("0", pos0.x, pos0.y, colors[0]);
             replica.getBoundingClientRect();
             animateChunkTo(replica, posI.x, posI.y);
           }
@@ -699,11 +699,18 @@
           }
 
           function renderElemFloat() {
-            vizContainer.querySelectorAll('.data-chunk').forEach(c => c.remove());
+            vizContainer
+              .querySelectorAll(".data-chunk")
+              .forEach((c) => c.remove());
             for (let gpu = 0; gpu < numGPUs; gpu++) {
               let offset = 0;
               for (let k = 0; k < numGPUs; k++) {
-                createChunk(`${elem[gpu][k]}`, pos[gpu].x, pos[gpu].y - (numGPUs - 1) * 7 + offset * 14, colors[k]);
+                createChunk(
+                  `${elem[gpu][k]}`,
+                  pos[gpu].x,
+                  pos[gpu].y - (numGPUs - 1) * 7 + offset * 14,
+                  colors[k],
+                );
                 offset++;
               }
             }
@@ -797,12 +804,19 @@
           }
 
           function renderGathered() {
-            vizContainer.querySelectorAll('.data-chunk').forEach(c => c.remove());
+            vizContainer
+              .querySelectorAll(".data-chunk")
+              .forEach((c) => c.remove());
             for (let gpu = 0; gpu < numGPUs; gpu++) {
               let offset = 0;
               for (let k = 0; k < gathered[gpu].length; k++) {
                 const item = gathered[gpu][k];
-                createChunk(`${item.value}`, pos[gpu].x, pos[gpu].y - (numGPUs - 1) * 7 + offset * 14, colors[item.pos]);
+                createChunk(
+                  `${item.value}`,
+                  pos[gpu].x,
+                  pos[gpu].y - (numGPUs - 1) * 7 + offset * 14,
+                  colors[item.pos],
+                );
                 offset++;
               }
             }
@@ -813,19 +827,26 @@
 
           for (let step = 0; step < numGPUs - 1; step++) {
             addStepLabel(`Phase 2 — Step ${step + 1}: circulate`);
-            const toSend = gathered.map(g => g[step]);
+            const toSend = gathered.map((g) => g[step]);
 
             for (let i = 0; i < numGPUs; i++) {
               const val = toSend[i];
               if (val !== undefined) {
                 const receiver = (i + 1) % numGPUs;
-                let c = createChunk(`${val.value}`, pos[i].x, pos[i].y, colors[val.pos]);
+                let c = createChunk(
+                  `${val.value}`,
+                  pos[i].x,
+                  pos[i].y,
+                  colors[val.pos],
+                );
                 c.getBoundingClientRect();
                 animateChunkTo(c, pos[receiver].x, pos[receiver].y);
               }
             }
             await sleep(1000);
-            vizContainer.querySelectorAll('.data-chunk').forEach(c => c.remove());
+            vizContainer
+              .querySelectorAll(".data-chunk")
+              .forEach((c) => c.remove());
 
             for (let i = 0; i < numGPUs; i++) {
               const val = toSend[i];
@@ -840,7 +861,9 @@
           }
 
           await sleep(500);
-          vizContainer.querySelectorAll('.data-chunk').forEach(c => c.remove());
+          vizContainer
+            .querySelectorAll(".data-chunk")
+            .forEach((c) => c.remove());
 
           // Final display: correctly ordered sums
           for (let i = 0; i < numGPUs; i++) {
@@ -848,8 +871,10 @@
           }
           renderGathered();
 
-          vizContainer.querySelectorAll('.step-label').forEach(el => el.remove());
-          addStepLabel('All GPUs have all reduced sums ✓');
+          vizContainer
+            .querySelectorAll(".step-label")
+            .forEach((el) => el.remove());
+          addStepLabel("All GPUs have all reduced sums ✓");
         }
 
         await sleep(2000);
