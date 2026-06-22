@@ -1,0 +1,442 @@
+## Chat Template
+
+chat template 是一个针对对话模型格式化输入的模板。由于 pretrained model 只会进行补全，不具备对话能力，因此我们需要使用包含 control token 的对话模板来引导模型输出我们想要的内容。
+
+### Format
+
+- standard
+- conversational
+- tool calling
+- Harmony, 见 [gpt-oss](gpt-oss.md)
+
+type
+
+- language modeling
+- prompt-only
+- prompt completion
+- preference
+- unpaired preference
+- stepwise supervision
+
+### Apply Chat Template
+
+下面是一个例子
+
+```python
+from transformers import AutoTokenizer
+
+tokenizer = AutoTokenizer.from_pretrained("mistralai/Mistral-7B-Instruct-v0.1")
+chat = [
+  {"role": "user", "content": "Hello, how are you?"},
+  {"role": "assistant", "content": "I'm doing great. How can I help you today?"},
+  {"role": "user", "content": "I'd like to show off how chat templating works!"},
+]
+
+tokenizer.apply_chat_template(chat, tokenize=False)
+```
+
+输出为
+
+```
+<s>[INST] Hello, how are you? [/INST]I'm doing great. How can I help you today?</s> [INST] I'd like to show off how chat templating works! [/INST]
+```
+
+这里的关键在于 `apply_chat_template` 这个函数，其关键输入为一个 `list[dict[str, str]]`
+
+`dict` 包含 `role` 和 `content` 两个 key, 常见的 `role` 有：
+
+1. `system`: 模型的预设人格
+2. `user`: 用户输入的问题
+3. `assistent`: 模型输出的内容
+
+一般来说，`apply_chat_template` 通过如下方式调用
+
+```
+tokenized_chat = tokenizer.apply_chat_template(messages, tokenize=True, add_generation_prompt=True, return_tensors="pt")
+outputs = model.generate(tokenized_chat, max_new_tokens=128)
+```
+
+这里 `tokenize=True` 表明我们希望将输入先应用对应的 template 之后，再转换为对应的 token_id, `add_generation_prompt=True` 表示我们希望在生成的 prompt 之后加入一个特殊的 token 来告诉模型应该回答用户的问题而不是续写。下面是一个具体的例子。
+
+```
+<|system|>
+You are a friendly chatbot who always responds in the style of a pirate</s>
+<|user|>
+How many helicopters can a human eat in one sitting?</s>
+<|assistant|> # add_generation_prompt=True
+```
+
+有些情况下，我们希望模型能够续写用户的输入，而不是回答用户的问题，此时我们可以使用 `continue_final_message=True` 来告诉模型续写。
+
+```python
+formatted_chat = tokenizer.apply_chat_template(chat, tokenize=True, return_dict=True, continue_final_message=True)
+```
+
+> 注意
+> `continue_final_message` 和 `add_generation_prompt` 不能同时为 `True`, 否则会报错。
+
+在对模型进行训练时，我们需要设置 `add_generation_prompt`, 这是因为输入已经是一个完整的对话了，再加入 control token 会产生冗余。
+
+```python
+dataset = Dataset.from_dict({"chat": [chat1, chat2]})
+dataset = dataset.map(lambda x: {"formatted_chat": tokenizer.apply_chat_template(x["chat"], tokenize=False, add_generation_prompt=False)})
+```
+
+### Patterns
+
+接下来我们介绍不同的 message 输入，
+
+对于纯文本 message, 其内容比较简单
+
+```python
+message = [
+    {
+        "role": "user",
+        "content": "Explain the French Bread Law."
+    }
+]
+```
+
+我们还可以显式标注 `content` 的 `type`:
+
+```python
+message = [
+    {
+        "role": "user",
+        "content": [
+            {
+                "type": "text",
+                "text": "Explain the French Bread Law."
+            }
+        ]
+    }
+]
+```
+
+对于 `tool`, 我们也可以使用 `type` 进行标注
+
+```python
+weather = {
+    "name": "get_current_temperature",
+    "arguments": {
+        "location": "Paris, France",
+        "unit": "celsius"
+    }
+}
+message.append(
+    {
+        "role": "assistant",
+        "tool_calls": [
+            {
+                "type": "function",
+                "function": weather
+            }
+        ]
+    }
+)
+```
+
+对于多模态数据，我们可以用 `url` 或者 `path` 来标注对应的数据地址
+
+```python
+message = [
+    {
+        "role": "user",
+        "content": [
+            {
+                "type": "image",
+                "url": "https://assets.bonappetit.com/photos/57ad4ebc53e63daf11a4ddc7/master/w_1280,c_limit/kouign-amann.jpg"
+            },
+            {
+                "type": "text",
+                "text": "What pastry is shown in the image?"
+            }
+        ]
+    }
+]
+```
+
+对于多条 message, 我们可以将其组装为一个 batch
+
+```python
+messages = [
+    [ # message 1
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "image",
+                    "url": "https://assets.bonappetit.com/photos/57ad4ebc53e63daf11a4ddc7/master/w_1280,c_limit/kouign-amann.jpg"
+                },
+                {
+                    "type": "text",
+                    "text": "What type of pastry is this?"
+                }
+            ]
+        },
+    ],
+    [ # message 2
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "image",
+                    "url": "https://assets.bonappetit.com/photos/57e191f49f19b4610e6b7693/master/w_1600%2Cc_limit/undefined"
+                },
+                {
+                    "type": "text",
+                    "text": "What type of pastry is this?"
+                }
+            ]
+        },
+    ],
+]
+```
+
+对于 multi-turn conversation, 我们可以将其 append 到对应的 list 中
+
+```python
+message = [
+    { # turn 1 query
+        "role": "user",
+        "content": [
+            {
+                "type": "image",
+                "url": "https://assets.bonappetit.com/photos/57ad4ebc53e63daf11a4ddc7/master/w_1280,c_limit/kouign-amann.jpg"
+            },
+            {
+                "type": "text",
+                "text": "What pastry is shown in the image?"
+            }
+        ]
+    },
+    { # turn 1 answer
+        "role": "assistant",
+        "content": [
+            {
+                "type": "text",
+                "text": "This is kouign amann, a laminated dough pastry (i.e., dough folded with layers of butter) that also incorporates sugar between layers so that during baking the sugar caramelizes."
+            }
+        ]
+    },
+    { # turn 2 query
+        "role": "user",
+        "content": [
+            {
+                "type": "image",
+                "url": "https://static01.nyt.com/images/2023/07/21/multimedia/21baguettesrex-hbkc/21baguettesrex-hbkc-videoSixteenByNineJumbo1600.jpg"
+            },
+            {
+                "type": "text",
+                "text": "Compare it to this image now."
+            }
+        ]
+    }
+]
+```
+
+### Multimodal Chat Templates
+
+在纯文本模型中，由 `tokenizer` 负责处理 chat templates 和 tokenization, 而在多模态大模型中，则由 `processor` 来处理 pre-processing, tokenization 以及 chat templates.
+
+下面是一个调用例子
+
+```python
+from transformers import AutoProcessor, AutoModelForImageTextToText
+
+model = AutoModelForImageTextToText.from_pretrained("Qwen/Qwen2.5-VL-3B-Instruct", device_map="auto", torch_dtype="auto")
+processor = AutoProcessor.from_pretrained("Qwen/Qwen2.5-VL-3B-Instruct")
+
+messages = [
+    {
+      "role": "system",
+      "content": [
+          {
+              "type": "text",
+              "text": "You are a friendly chatbot who always responds in the style of a pirate"
+          }
+        ],
+    },
+    {
+      "role": "user",
+      "content": [
+            {
+                "type": "image",
+                "url": "http://images.cocodataset.org/val2017/000000039769.jpg"
+            },
+            {
+                "type": "text",
+                "text": "What are these?"
+            },
+        ],
+    },
+]
+
+processed_chat = processor.apply_chat_template(messages, add_generation_prompt=True, tokenize=True, return_dict=True, return_tensors="pt")
+# list(processed_chat.keys()) = ['input_ids', 'attention_mask', 'pixel_values', 'image_grid_thw']
+out = model.generate(**processed_chat.to(model.device), max_new_tokens=128)
+```
+
+可以看到，多模态模型的 `apply_chat_template` 输出包含了预处理后的多模态（图片）数据以及对应的 tokenized text.
+
+### Tool Use
+
+对于工具调用，我们有两种方法，分别是 python 函数和 JSON Schema.
+
+#### Python 函数
+
+第一种方法就是我们使用 Python 函数，使用 python 函数时，我们会将 arguments, argument types, function docstring 进行解析然后自动化转换为 JSON Schema
+
+> 注意
+> function docstring 只能使用 Google-Style
+
+下面是一个例子
+
+```python
+def get_current_temperature(location: str, unit: str):
+    """
+    Get the current temperature at a location.
+
+    Args:
+        location: The location to get the temperature for, in the format "City, Country"
+        unit: The unit to return the temperature in. (choices: ["celsius", "fahrenheit"])
+    """
+    return 22.
+
+def get_current_wind_speed(location: str):
+    """
+    Get the current wind speed in km/h at a given location.
+
+    Args:
+        location: The location to get the wind speed for, in the format "City, Country"
+    """
+    return 6.
+
+tools = [get_current_temperature, get_current_wind_speed]
+
+import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer
+
+checkpoint = "NousResearch/Hermes-2-Pro-Llama-3-8B"
+tokenizer = AutoTokenizer.from_pretrained(checkpoint)
+model = AutoModelForCausalLM.from_pretrained(checkpoint, dtype="auto", device_map="auto")
+
+inputs = tokenizer.apply_chat_template(messages, tools=tools, add_generation_prompt=True, return_dict=True, return_tensors="pt")
+```
+
+模型根据问题来判断是否需要调用工具，如果需要调用工具，则模型会产生一个 tool call, 例子如下
+
+```
+<tool_call>
+{"arguments": {"location": "Paris, France", "unit": "celsius"}, "name": "get_current_temperature"}
+</tool_call><|im_end|>
+```
+
+我们将其进行解析，调用对应的函数并返回结果后，需要将其添加到 message 中，我们将工具调用的结果的 `role` 指定为 `tool_calls` 来告诉模型这是工具调用的结果
+
+```python
+tool_call = {
+    "name": "get_current_temperature",
+    "arguments": {
+        "location": "Paris, France",
+        "unit": "celsius"
+    }
+}
+messages.append(
+    {
+        "role": "assistant",
+        "tool_calls": [
+            {
+                "type": "function",
+                "function": tool_call
+            }
+        ]
+    }
+)
+```
+
+然后我们继续对话，就可以得到对应的结果
+
+```python
+inputs = tokenizer.apply_chat_template(messages, tools=tools, add_generation_prompt=True, return_dict=True, return_tensors="pt")
+out = model.generate(**inputs.to(model.device), max_new_tokens=128)
+```
+
+### JSON Schema
+
+另一种方式则是直接使用 JSON Schema 这种格式，其形式如下所示
+
+```json
+{
+  "type": "function",
+  "function": {
+    "name": "multiply",
+    "description": "A function that multiplies two numbers",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "a": {
+          "type": "number",
+          "description": "The first number to multiply"
+        },
+        "b": {
+          "type": "number",
+          "description": "The second number to multiply"
+        }
+      },
+      "required": ["a", "b"]
+    }
+  }
+}
+```
+
+上面这个 JSON Schema 可以下面这个函数转换得到
+
+```python
+from transformers.utils import get_json_schema
+
+def multiply(a: float, b: float):
+    """
+    A function that multiplies two numbers
+
+    Args:
+        a: The first number to multiply
+        b: The second number to multiply
+    """
+    return a * b
+
+schema = get_json_schema(multiply)
+print(schema)
+```
+
+使用时，与 python 函数的传递方式一致
+
+```
+model_input = tokenizer.apply_chat_template(
+    messages,
+    tools = [multiply]
+)
+```
+
+### Behind Chat Template
+
+chat template 实际上是由 Jinja template 实现的， Jinja 是一个模板语言，下面是一个对应的 Jinja template
+
+```jinja
+{%- for message in messages %}
+    {{- '<|' + message['role'] + |>\n' }}
+    {{- message['content'] + eos_token }}
+{%- endfor %}
+{%- if add_generation_prompt %}
+    {{- '<|assistant|>\n' }}
+{%- endif %}
+```
+
+这里需要注意的是，我们使用了 `-` 来去除不需要的空格，否则额外的空格可能会对模型表现产生影响。
+
+如果我们的 template 比较大，我们可以将其额外放在一个文件中
+
+```python
+open("template.jinja", "w").write(tokenizer.chat_template)
+tokenizer.chat_template = open("template.jinja").read()
+```

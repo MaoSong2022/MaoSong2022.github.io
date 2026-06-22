@@ -1,0 +1,77 @@
+## Dream 7B
+
+作者提出了 Dream 7B, 一个 7B 的基于 diffusion language model 的 LLM.
+
+基于自回归架构的大语言模型的问题在于在复杂推理，长线规划，在长上下文中保持一致性等方面仍然存在不足。
+
+基于 discrete diffusion model 架构的 LLM 通过逐步去噪来生成最终的文本，在生成过程中可以利用更多未知 token 的信息。
+
+但是，已有的 DLLM 的问题在于与自回归架构的 LLM 表现还存在一定差距。因此，在本文中，作者就提出了 Dream7B, 一个 7B 的 DLLM.
+
+假设 $x=(x^1,\dots,x^N)\sim q(x)$ 是一个文本 token 组成序列，其联合概率可以建模如下
+
+$$
+p_{\theta}(x) = p_{\theta}(x^1)\prod_{i=1}^N p_{\theta}(x^i\mid x^1,\dots,x^{i-1})
+$$
+
+其中 $\theta$ 是模型参数。
+
+对于 discrete diffusion model 来说，我们会从一个初始状态开始，然后逐步生成所有的文本 token, 我们令 $x_t$ 为 $t$ 时刻的 token 序列，令 `[MASK]` 为 noise token, 则前向过程为
+
+$$
+q(x_{1:T}\mid x_0) = \prod_{t=1}^T q(x_t\mid x_{t-1})
+$$
+
+前向过程逐步将输入的 token 序列 $x_0=x$ 转化为全部是 `[MASK]` 的 token 序列，在时刻 $T$, 所有的 token 都会转化为 `[MASK]` token, 在某一时刻 $0<t<T$, $x_t$ 中每个 token 转化为 `[MASK]` token 的概率为 $\alpha_t$, 在反向过程中，模型的目标是从 `[MASK]` token 序列中恢复出原始文本，建模过程为
+
+$$
+p_{\theta}(x) = \sum_{x_{1:T}\sim q} p(x_T)\prod_{t=1}^T p_{\theta}(x_{t-1}\mid x_t)
+$$
+
+使用离散的时间表示会限制 noise level, 作者使用了一个 continuous-time parameterzation 技巧，使得 $t$ 可以在 $[0,1]$ 之间进行采样，这样我们可以将前向过程表示为 $q(x_t\mid x_s)$, 其中 $0\leq s<t\leq 1$. 最终，损失函数为
+
+$$
+\mathcal{L}(\theta) = -\mathbb{E}_{x_0\sim q(x),t\sim \mathcal{U}(0,1),x_t\sim q(x_t\mid x_0)}w(t)\sum_{i=1}^n\mathbb{1}_{x_t^i=\mathrm{MASK}}\log p_{\theta}(x_0^i\mid x_t)
+$$
+
+其中 $w(t)$ 是一个与时间相关的权重参数，比如当 $\alpha_t=1-t$ 时， $w(t)=1/t$, 也就是说数据越接近真实数据，权重越高。
+
+已有的工作证明，上面的损失函数是 NLL loss 的一个 ELBO.
+
+作者基于 DiffuLLaMA, 来将已有的基于自回归架构的 LLM 转换为 DLLM. 作者采用了 Shift Operation 的技巧。具体来讲，训练时，模型要求基于当前的 hidden state 来预测下一个 token. 示意图如下所示
+
+![Comparison with autoregressive modeling](Dream-7B-Comparison-with-autogressive-models.png)
+
+接下来，作者提出了 CART (Context-Adaptive noise Rescheduling at Token-level), 来为 sequence 中不同 token 分配不同的权重。具体的做法如下
+
+$$
+\mathcal{L}(\theta) = -\mathbb{E}_{x_0\sim q(x),t\sim \mathcal{U}(0,1),x_t\sim q(x_t\mid x_0)}\sum_{i=1}^n\mathbb{1}_{x_t^i=\mathrm{MASK}}w(t,x_t,n)\log p_{\theta}(x_0^i\mid x_t)
+$$
+
+这里，作者使用了一个混合分布，来量化每个 token 的贡献，表达式如下
+
+$$
+w(t,x_t,n) = \frac12\sum_{i=1}^N \mathbb{1}[x_t^i\neq \mathrm{MASK}]\text{Geo}(p, |n-i|-1)
+$$
+
+$p$ 越小，代表 clean token 的贡献程度越平均；反之则说明 clean token 对附近的 mask token 贡献程度更大。
+
+作者基于 Qwen2.5-7B [Qwen2.5](Qwen2.5.md) 进行训练。
+
+预训练使用了 580B token, 覆盖 math, text 以及 code, 数据来源为 Dolma, OpenCoder 以及 DCLM-Baseline
+
+SFT 阶段，作者使用了 1.8M 的指令数据，数据来源为 [Tulu3](Tulu3) 和 [SmolLM2](SmolLM2.md)
+
+从零开始训练与使用 AR model 进行初始化对比的结果如下
+
+![Ablation study on AR intialization](Dream-7B-ablation-AR-initialization.png)
+
+结果发现，使用 AR model 进行初始化，模型的表现更好
+
+作者还探究了以下速度与表现的平衡，实验结果如下图所示
+
+![Quality-speed comparison](Dream-7B-quality-speed-comparison.png)
+
+结果显示，当我们将 diffusion timestep 设置在 5-20 步左右时，模型的表现和速度均超过了 Qwen2.5 7B.
+
+- [arxiv](http://arxiv.org/abs/2508.15487)
