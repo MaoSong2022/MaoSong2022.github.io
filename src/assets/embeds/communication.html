@@ -762,9 +762,6 @@
                 plus.style.transform = "translate(-50%, 0)";
                 plus.style.transition = "opacity 0.6s ease";
                 vizContainer.appendChild(plus);
-                setTimeout(() => {
-                  plus.style.opacity = "0";
-                }, 600);
               }
             }
             await sleep(700);
@@ -803,50 +800,39 @@
             gathered[i] = [{ value: finalSums[pos], pos }];
           }
 
-          function renderGathered() {
-            vizContainer
-              .querySelectorAll(".data-chunk")
-              .forEach((c) => c.remove());
+          function renderSorted() {
+            vizContainer.querySelectorAll('.data-chunk').forEach(c => c.remove());
             for (let gpu = 0; gpu < numGPUs; gpu++) {
+              const sorted = [...gathered[gpu]].sort((a, b) => a.pos - b.pos);
               let offset = 0;
-              for (let k = 0; k < gathered[gpu].length; k++) {
-                const item = gathered[gpu][k];
-                createChunk(
-                  `${item.value}`,
-                  pos[gpu].x,
-                  pos[gpu].y - (numGPUs - 1) * 7 + offset * 14,
-                  colors[item.pos],
-                );
+              for (const item of sorted) {
+                createChunk(`${item.value}`, pos[gpu].x, pos[gpu].y - (numGPUs - 1) * 7 + offset * 14, colors[item.pos]);
                 offset++;
               }
             }
           }
 
-          renderGathered();
+          renderSorted();
           await sleep(600);
 
           for (let step = 0; step < numGPUs - 1; step++) {
             addStepLabel(`Phase 2 — Step ${step + 1}: circulate`);
-            const toSend = gathered.map((g) => g[step]);
+            const toSend = gathered.map(g => g[step]);
 
+            let flying = [];
             for (let i = 0; i < numGPUs; i++) {
               const val = toSend[i];
               if (val !== undefined) {
                 const receiver = (i + 1) % numGPUs;
-                let c = createChunk(
-                  `${val.value}`,
-                  pos[i].x,
-                  pos[i].y,
-                  colors[val.pos],
-                );
+                let c = createChunk(`${val.value}`, pos[i].x, pos[i].y, colors[val.pos]);
                 c.getBoundingClientRect();
                 animateChunkTo(c, pos[receiver].x, pos[receiver].y);
+                flying.push(c);
               }
             }
             await sleep(1000);
-            vizContainer
-              .querySelectorAll(".data-chunk")
-              .forEach((c) => c.remove());
+
+            flying.forEach(c => c.remove());
 
             for (let i = 0; i < numGPUs; i++) {
               const val = toSend[i];
@@ -856,20 +842,11 @@
               }
             }
 
-            renderGathered();
+            renderSorted();
             await sleep(600);
           }
 
           await sleep(500);
-          vizContainer
-            .querySelectorAll(".data-chunk")
-            .forEach((c) => c.remove());
-
-          // Final display: correctly ordered sums
-          for (let i = 0; i < numGPUs; i++) {
-            gathered[i] = finalSums.map((v, j) => ({ value: v, pos: j }));
-          }
-          renderGathered();
 
           vizContainer
             .querySelectorAll(".step-label")
