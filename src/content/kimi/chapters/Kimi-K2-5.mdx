@@ -1,20 +1,17 @@
+import Image from "../../../components/Image.astro";
+import kimi_k2_5_pre_training from "../../../assets/image/Kimi-k2.5-pre-training.png";
+import kimi_k2_5_zero_vision_sft from "../../../assets/image/Kimi-k2.5-zero-vision-sft.png";
+import kimi_k2_5_toggle from "../../../assets/image/Kimi-k2.5-toggle.png";
+import kimi_k2_5_agent_swarm from "../../../assets/image/Kimi-k2.5-agent-swarm.png";
+import kimi_k2_5_parl from "../../../assets/image/Kimi-k2.5-PARL.png";
+import kimi_k2_5_rank_frequency from "../../../assets/image/Kimi-k2.5-rank-frequency.png";
 
-import Image from '../../../components/Image.astro';
-import kimi_k2_5_pre_training from '../../../assets/image/Kimi-k2.5-pre-training.png';
-import kimi_k2_5_zero_vision_sft from '../../../assets/image/Kimi-k2.5-zero-vision-sft.png';
-import kimi_k2_5_toggle from '../../../assets/image/Kimi-k2.5-toggle.png';
-import kimi_k2_5_agent_swarm from '../../../assets/image/Kimi-k2.5-agent-swarm.png';
-import kimi_k2_5_parl from '../../../assets/image/Kimi-k2.5-PARL.png';
-import kimi_k2_5_rank_frequency from '../../../assets/image/Kimi-k2.5-rank-frequency.png';
-
-## Introduction
+## Kimi-K2.5
 
 Kimi-K2.5 的核心有亮点：
 
 1. native multi-modal: 通过在预训练，SFT, RL 阶段使用多模态数据来提高模型的多模态能力
 2. agent: 通过并行 multi-agent 的方式来提高模型解决复杂问题的效率和能力
-
-## Method
 
 ### Architecture
 
@@ -32,7 +29,7 @@ Kimi K2.5 是一个标准的 ViT-MLP-LLM 架构，其中
 ```python
 # config.json temporal_merge_kernel_size
 # kimi_k25_vision_processing.py split_video_chunks
-video_chunk = frames[0:4] 
+video_chunk = frames[0:4]
 patches = []
 for frame in video_chunk:
     patches.extend(split_into_patches(frame))
@@ -103,11 +100,11 @@ LLM 基于 [Kimi-k2](/p/notes-on-kimi-k2/) 的 MoE 模型，总参数为 1T, 激
 
 作者探究了预训练阶段不同的数据对比，试验结果如下图所示
 
-|       | Vision Injection Timing | Vision-Text Ratio | Vision Knowledge | Vision  Reasoning | OCR  | Text  Knowledge | Text  Reasoning | Code |
-| ----- | ----------------------- | ----------------- | ---------------- | ----------------- | ---- | --------------- | --------------- | ---- |
-| Early | 0%                      | 10%:90%           | 25.8             | 43.8              | 65.7 | 45.5            | 58.5            | 24.8 |
-| Mid   | 50%                     | 20%:80%           | 25.0             | 40.7              | 64.1 | 43.9            | 58.6            | 24.0 |
-| Late  | 80%                     | 50%:50%           | 24.2             | 39.0              | 61.5 | 43.1            | 57.8            | 24.0 |
+|       | Vision Injection Timing | Vision-Text Ratio | Vision Knowledge | Vision Reasoning | OCR  | Text Knowledge | Text Reasoning | Code |
+| ----- | ----------------------- | ----------------- | ---------------- | ---------------- | ---- | -------------- | -------------- | ---- |
+| Early | 0%                      | 10%:90%           | 25.8             | 43.8             | 65.7 | 45.5           | 58.5           | 24.8 |
+| Mid   | 50%                     | 20%:80%           | 25.0             | 40.7             | 64.1 | 43.9           | 58.6           | 24.0 |
+| Late  | 80%                     | 50%:50%           | 24.2             | 39.0             | 61.5 | 43.1           | 57.8           | 24.0 |
 
 结果显示，在训练早期加入少部分的多模态数据可以有效提高模型的表现。
 
@@ -115,7 +112,10 @@ LLM 基于 [Kimi-k2](/p/notes-on-kimi-k2/) 的 MoE 模型，总参数为 1T, 激
 
 Post-training 分为了 SFT 和 RL, SFT 阶段作者使用了合成的高质量数据，主要提升模型的交互式推理能力以及工具调用能力。为了解决传统 VLM 工具调用能力比较差且扩展性差的问题，Kimi-k2.5 提出了 Zero-Vision SFT, 其核心思想模型在预训练阶段已经完成了多模态对齐，因此我们可以仅使用纯文本 SFT 数据来激活 VLM 的视觉 agent 能力，具体做法就是将所有图像操作通过 IPython 的代码进行代理操作，这样视觉工具的调用就编程了程序化的图像处理指令。
 
-<Image src={kimi_k2_5_zero_vision_sft} alt="Performance of Vision RL on zero-vision SFT" />
+<Image
+  src={kimi_k2_5_zero_vision_sft}
+  alt="Performance of Vision RL on zero-vision SFT"
+/>
 
 在 RL 阶段，作者基于 [Kimi-k1.5](/p/notes-on-kimi-k1.5/) 提出的策略优化算法加入了一个 token-level clipping 机制来减少 off-policy divergence, 目标函数如下所示
 
@@ -199,7 +199,7 @@ Kimi-k2.5 的 infra 基于 [Kimi-k2](/p/notes-on-kimi-k2/), 作者主要强调�
 
 通过 DEP, Kimi-k2.5 的训练效率达到了 Kimi-k2 的 90%.
 
-## Experiments
+### Experiments
 
 首先是 Kimi-k2.5 在 general & reasoning 类任务上的表现，可以看到，Kimi-k2.5 超过了 DeeoSeek-V3.2 的表现，
 
@@ -208,27 +208,27 @@ Kimi-k2.5 的 infra 基于 [Kimi-k2](/p/notes-on-kimi-k2/), 作者主要强调�
 | HLE-Full          | 30.1      | 30.8            | 34.5            | 37.5         | 25.1†         |
 | HLE-Full w/ tools | 50.2      | 43.2            | 45.5            | 45.8         | 40.8†         |
 | AIME 2025         | 96.1      | 92.8            | 100             | 95.0         | 93.1          |
-| HMMT 2025 (Feb)   | 95.4      | 92.9*           | 99.4            | 97.3*        | 92.5          |
-| IMO-AnswerBench   | 81.8      | 78.5*           | 86.3            | 83.1*        | 78.3          |
+| HMMT 2025 (Feb)   | 95.4      | 92.9\*          | 99.4            | 97.3\*       | 92.5          |
+| IMO-AnswerBench   | 81.8      | 78.5\*          | 86.3            | 83.1\*       | 78.3          |
 | GPQA-Diamond      | 87.6      | 87.0            | 92.4            | 91.9         | 82.4          |
-| MMLU-Pro          | 87.1      | 89.3*           | 86.7*           | 90.1         | 85.0          |
+| MMLU-Pro          | 87.1      | 89.3\*          | 86.7\*          | 90.1         | 85.0          |
 | SimpleQA Verified | 36.9      | 44.1            | 38.9            | 72.1         | 27.5          |
 | AdvancedIF        | 75.6      | 63.1            | 81.1            | 74.7         | 58.8          |
-| LongBench v2      | 61.0      | 64.4*           | 54.5*           | 68.2*        | 59.8*         |
+| LongBench v2      | 61.0      | 64.4\*          | 54.5\*          | 68.2\*       | 59.8\*        |
 
 接下来是模型在 coding 任务上的表现
 
 | Benchmark              | Kimi K2.5 | Claude Opus 4.5 | GPT-5.2 (xhigh) | Gemini 3 Pro | DeepSeek-V3.2 |
 | ---------------------- | --------- | --------------- | --------------- | ------------ | ------------- |
 | SWE-Bench Verified     | 76.8      | 80.9            | 80.0            | 76.2         | 73.1          |
-| SWE-Bench Pro (public) | 50.7      | 55.4*           | 55.6            | -            | -             |
+| SWE-Bench Pro (public) | 50.7      | 55.4\*          | 55.6            | -            | -             |
 | SWE-Bench Multilingual | 73.0      | 77.5            | 72.0            | 65.0         | 70.2          |
 | Terminal Bench 2.0     | 50.8      | 59.3            | 54.0            | 54.2         | 46.4          |
-| PaperBench (CodeDev)   | 63.5      | 72.9*           | 63.7*           | -            | 47.1          |
-| CyberGym               | 41.3      | 50.6            | -               | 39.9*        | 17.3*         |
+| PaperBench (CodeDev)   | 63.5      | 72.9\*          | 63.7\*          | -            | 47.1          |
+| CyberGym               | 41.3      | 50.6            | -               | 39.9\*       | 17.3\*        |
 | SciCode                | 48.7      | 49.5            | 52.1            | 56.1         | 38.9          |
-| OIBench (cpp)          | 57.4      | 54.6*           | -               | 68.5*        | 54.7*         |
-| LiveCodeBench (v6)     | 85.0      | 82.2*           | -               | 87.4*        | 83.3          |
+| OIBench (cpp)          | 57.4      | 54.6\*          | -               | 68.5\*       | 54.7\*        |
+| LiveCodeBench (v6)     | 85.0      | 82.2\*          | -               | 87.4\*       | 83.3          |
 
 在 agent 任务上的表现
 
@@ -237,11 +237,11 @@ Kimi-k2.5 的 infra 基于 [Kimi-k2](/p/notes-on-kimi-k2/), 作者主要强调�
 | BrowseComp                 | 60.6      | 37.0            | 65.8            | 37.8         | 51.4          |
 | BrowseComp (w/ ctx manage) | 74.9      | 57.8            | -               | 59.2         | 67.6          |
 | BrowseComp (Agent Swarm)   | 78.4      | -               | -               | -            | -             |
-| WideSearch                 | 72.7      | 76.2*           | -               | 57.0         | 32.5*         |
+| WideSearch                 | 72.7      | 76.2\*          | -               | 57.0         | 32.5\*        |
 | WideSearch (Agent Swarm)   | 79.0      | -               | -               | -            | -             |
-| DeepSearchQA               | 77.1      | 76.1*           | 71.3*           | 63.2*        | 60.9*         |
-| FinSearchCompT2&T3         | 67.8      | 66.2*           | -               | 49.9         | 59.1*         |
-| Seal-0                     | 57.4      | 47.7*           | 45.0            | 45.5*        | 49.5*         |
+| DeepSearchQA               | 77.1      | 76.1\*          | 71.3\*          | 63.2\*       | 60.9\*        |
+| FinSearchCompT2&T3         | 67.8      | 66.2\*          | -               | 49.9         | 59.1\*        |
+| Seal-0                     | 57.4      | 47.7\*          | 45.0            | 45.5\*       | 49.5\*        |
 | GDPVal-AA                  | 41.0      | 45.0            | 48.0            | 35.0         | 34.0          |
 | OSWorld-Verified           | 63.3      | 66.3            | 8.6             | 20.7         | -             |
 | WebArena                   | 58.9      | 63.4            | -               | -            | -             |
@@ -251,45 +251,38 @@ Kimi-k2.5 的 infra 基于 [Kimi-k2](/p/notes-on-kimi-k2/), 作者主要强调�
 | Benchmark          | Kimi K2.5 | Claude Opus 4.5 | GPT-5.2 (xhigh) | Gemini 3 Pro | Qwen3-VL-235B-A22B |
 | ------------------ | --------- | --------------- | --------------- | ------------ | ------------------ |
 | **Image**          |           |                 |                 |              |                    |
-| MMMU-Pro           | 78.5      | 74.0            | 79.5*           | 81.0         | 69.3               |
-| MMMU (val)         | 84.3      | 80.7            | 86.7*           | 87.5*        | 80.6               |
-| CharXiv (RQ)       | 77.5      | 67.2*           | 82.1            | 81.4         | 66.1               |
-| MathVision         | 84.2      | 77.1*           | 83.0            | 86.1*        | 74.6               |
-| MathVista (mini)   | 90.1      | 80.2*           | 82.8*           | 89.8*        | 85.8               |
-| SimpleVQA          | 71.2      | 69.7*           | 55.8*           | 69.7*        | 56.8*              |
+| MMMU-Pro           | 78.5      | 74.0            | 79.5\*          | 81.0         | 69.3               |
+| MMMU (val)         | 84.3      | 80.7            | 86.7\*          | 87.5\*       | 80.6               |
+| CharXiv (RQ)       | 77.5      | 67.2\*          | 82.1            | 81.4         | 66.1               |
+| MathVision         | 84.2      | 77.1\*          | 83.0            | 86.1\*       | 74.6               |
+| MathVista (mini)   | 90.1      | 80.2\*          | 82.8\*          | 89.8\*       | 85.8               |
+| SimpleVQA          | 71.2      | 69.7\*          | 55.8\*          | 69.7\*       | 56.8\*             |
 | WorldVQA           | 46.3      | 36.8            | 28.0            | 47.4         | 23.5               |
-| ZeroBench          | 9         | 3*              | 9*              | 8*           | 4*                 |
-| ZeroBench w/ tools | 11        | 9*              | 7*              | 12*          | 3*                 |
+| ZeroBench          | 9         | 3\*             | 9\*             | 8\*          | 4\*                |
+| ZeroBench w/ tools | 11        | 9\*             | 7\*             | 12\*         | 3\*                |
 | BabyVision         | 36.5      | 14.2            | 34.4            | 49.7         | 22.2               |
-| BLINK              | 78.9      | 68.8*           | -               | 78.7*        | 68.9               |
-| MMVP               | 87.0      | 80.0*           | 83.0*           | 90.0*        | 84.3               |
-| OmniDocBench 1.5   | 88.8      | 87.7*           | 85.7            | 88.5         | 82.0*              |
-| OCRBench           | 92.3      | 86.5*           | 80.7*           | 90.3*        | 87.5               |
-| InfoVQA (test)     | 92.6      | 76.9*           | 84*             | 57.2*        | 89.5               |
+| BLINK              | 78.9      | 68.8\*          | -               | 78.7\*       | 68.9               |
+| MMVP               | 87.0      | 80.0\*          | 83.0\*          | 90.0\*       | 84.3               |
+| OmniDocBench 1.5   | 88.8      | 87.7\*          | 85.7            | 88.5         | 82.0\*             |
+| OCRBench           | 92.3      | 86.5\*          | 80.7\*          | 90.3\*       | 87.5               |
+| InfoVQA (test)     | 92.6      | 76.9\*          | 84\*            | 57.2\*       | 89.5               |
 | **Video**          |           |                 |                 |              |                    |
-| VideoMMMU          | 86.6      | 84.4*           | 85.9            | 87.6         | 80.0               |
-| MMVU               | 80.4      | 77.3*           | 80.8*           | 77.5*        | 71.1               |
+| VideoMMMU          | 86.6      | 84.4\*          | 85.9            | 87.6         | 80.0               |
+| MMVU               | 80.4      | 77.3\*          | 80.8\*          | 77.5\*       | 71.1               |
 | MotionBench        | 70.4      | 60.3            | 64.8            | 70.3         | -                  |
-| Video-MME          | 87.4      | 66.0*           | 86.0*           | 88.4*        | 79.0               |
-| LongVideoBench     | 79.8      | 67.2*           | 76.5*           | 77.7*        | 65.6*              |
-| LVBench            | 75.9      | 57.3            | -               | 73.5*        | 63.6               |
+| Video-MME          | 87.4      | 66.0\*          | 86.0\*          | 88.4\*       | 79.0               |
+| LongVideoBench     | 79.8      | 67.2\*          | 76.5\*          | 77.7\*       | 65.6\*             |
+| LVBench            | 75.9      | 57.3            | -               | 73.5\*       | 63.6               |
 
 我们这里基于模型在不同类别任务上的排名来进行可视化，结果如下
 
-<Image src={kimi_k2_5_rank_frequency} alt="Rank performance of difference models" />
+<Image
+  src={kimi_k2_5_rank_frequency}
+  alt="Rank performance of difference models"
+/>
 
 从结果可以看出，Kimi-K2.5 的 agent 能力达到了 SOTA 级别，其多模态能力也比较强。
 
 与 [DeepSeek-V3.2](/p/notes-on-deepseek-v3.2/) 一样，作者也对比了不同模型的推理效率，结果如下图所示
 
-
 可以看到，相比与 Kimi-K2, Kimi-K2.5 通过在 RL 层面进行优化，降低了输出长度，但是相比与 DeepSeel-V3.2 和 Gemini3.0 Pro 之间还存在一定差距。
-
-## Conclusion
-
-在本文中，作者提出了 Kimi-k2.5， 一个多模态的 agent model, Kimi-k2.5 集成了 Kimi-k2 和 Kimi-VL 的能力，扩展了模型的 agent 能力。
-
-## References
-
-- [huggingface](https://huggingface.co/moonshotai/Kimi-K2.5)
-- [arxiv](https://arxiv.org/abs/2602.02276)
