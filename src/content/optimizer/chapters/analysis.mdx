@@ -1,0 +1,8 @@
+## Analysis
+
+[@liu2026optimizer] 探究了 pre-training 阶段和 post-training 阶段使用不同优化器对模型表现的影响，结果发现：
+
+1. 优化器会塑造模型的 activation 和 landscape
+2. 微调的权重需要拟合预训练带来的 activation normalization
+
+作者还发现 [Muon](#muon) 在推理任务上的效果比 [AdamW](#adamw) 要差，作者通过实验发现 Muon 具有 rote memorization 倾向，这种特性虽然在海量数据的预训练阶段能偶快速降低 loss, 但是在 SFT 阶段会损害模型对于 pattern acquisition 的学习效率。
