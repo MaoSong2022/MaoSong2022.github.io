@@ -1,3 +1,6 @@
+import Sidenote from "../../../components/Sidenote.astro";
+import Accordion from "../../../components/Accordion.astro";
+
 ## Expert Parallelism
 
 Shazeer [@shazeer2017]
@@ -12,11 +15,212 @@ EP 的计算分为以下步骤：
 
 计算 pipeline 如下所示: TODO
 
-一般来说，EP rank 和 TP rank 一致，这样可以简化计算，但是也导致EP不再是一个独立的scaling axis.
+一般来说，EP rank 和 TP rank 一致，这样可以简化计算，但是也导致EP不再是一个独立的 scaling axis.
 
 Composer 2.5 对这个进行了优化。
 
 DeepSeek-V4 进一步实现了细粒度的 EP 优化
+
+### Implementation
+
+<SideNote>
+  下面代码参考了知乎回答 [全面解析MoE专家并行EP all-to-all
+  Pytorch算子](https://zhuanlan.zhihu.com/p/1967192540953425479).
+</SideNote>
+
+MoE 实现包括以下步骤：
+
+1. 初始化，我们需要确定专家数量 `num_expert`，设备数量 `world_size` 和每个设备上专家的数量 `num_local_experts`, 并预留足够的缓冲区以应对动态的 token 数量 `max_recev`
+2. router computation, 用于选取 topK 专家
+3. dispatch: dispatch 包括 4 个步骤
+   1. 计算发送和接收计数 `send_counts`, 交换 `send_counts`, 得到每个设备需要接收的 token 数 `recv_counts_t` 并构建发送缓冲区。
+   2. 将需要发送的 token 和元数据整理为连续的缓冲区
+   3. All to All 数据交换，将数据发送到目标设备，同时接收来自其他设备的数据
+   4. 分发到本地专家，将 `recv_buf` 中的 token 按照元数据分配到当前设备的本地专家的 token 缓冲区 `expert_x`
+4. expert computation, 不同专家计算对应的输出
+5. combine: 包含 3 个步骤，用于将专家处理后的结果回传到原始 token 所在的设备，并按照 gating score 进行加权求和
+   1. 统计回传计数，确定当前设备的专家输出需要回传到哪些设备：
+   2. All to All 回传数据，通过 `dist.all_to_all` 将专家输出和元数据回传到原始设备
+   3. 加权求和，根据原数据找到原始 token, 并按照 gating score 加权求和
+
+代码如下
+
+<Accordion title="MoE with All to All">
+
+```python
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.distributed as dist
+
+# ----------------------------------------------------
+# 1. 专家模型定义 (通常是一个两层的 MLP)
+# ----------------------------------------------------
+class MoEExpert(nn.Module):
+    def __init__(self, hidden_dim: int, expert_ffn_dim: int):
+        super().__init__()
+        self.w1 = nn.Linear(hidden_dim, expert_ffn_dim, bias=False)
+        self.w2 = nn.Linear(expert_ffn_dim, hidden_dim, bias=False)
+
+    def forward(self, x):
+        # x shape: [num_tokens, hidden_dim]
+        # 如果当前没有 token 分配给该专家，直接返回空张量
+        if x.num_cells == 0 or x.size(0) == 0:
+            return x
+        return self.w2(F.silu(self.w1(x)))
+
+
+# ----------------------------------------------------
+# 2. 完整的 MoE 聚合层
+# ----------------------------------------------------
+class MoELayer(nn.Module):
+    META_DIM = 4  # [global_expert, src_rank, src_token, src_k]
+
+    def __init__(self, cfg, rank: int, world_size: int):
+        super().__init__()
+        self.cfg = cfg
+        self.rank = rank
+        self.world_size = world_size
+
+        self.num_experts = cfg.num_experts
+        self.top_k = cfg.top_k  # 通常为 2
+        self.num_local_experts = cfg.num_experts // world_size
+        self.max_recv = cfg.max_num_tokens * world_size
+
+        # 实例化 Gating Layer (路由层)
+        self.gate = nn.Linear(cfg.hidden_dim, cfg.num_experts, bias=False)
+
+        # 实例化当前 Rank 管辖的本地专家列表
+        self.local_experts = nn.ModuleList([
+            MoEExpert(cfg.hidden_dim, cfg.expert_ffn_dim)
+            for _ in range(self.num_local_experts)
+        ])
+
+    def forward(self, hidden_states):
+        """
+        hidden_states: 输入特征, shape = [num_tokens, hidden_dim]
+        """
+        num_tokens = hidden_states.size(0)
+        device = hidden_states.device
+
+        # ----------------------------------------------------
+        # 【步骤一】Gating Layer 计算
+        # ----------------------------------------------------
+        # 1. 计算所有专家的原始得分 logits: [num_tokens, num_experts]
+        gate_logits = self.gate(hidden_states)
+
+        # 2. 传统 Top-K 筛选：取前 K 个最大的权重和对应的专家索引
+        # weights: [num_tokens, top_k], indices: [num_tokens, top_k]
+        weights, indices = torch.topk(gate_logits, self.top_k, dim=-1)
+
+        # 3. 对选中的权重进行 Softmax 归一化
+        weights = F.softmax(weights, dim=-1)
+
+        # ----------------------------------------------------
+        # 【步骤二】Dispatch - 准备并执行 All-to-All 发送
+        # ----------------------------------------------------
+        send_counts = [0] * self.world_size
+        token_map = [[] for _ in range(self.world_size)]
+        meta_map = [[] for _ in range(self.world_size)]
+
+        for t, expert_list in enumerate(indices.tolist()):
+            for k, e in enumerate(expert_list):
+                dst_rank = e // self.num_local_experts
+                send_counts[dst_rank] += 1
+                token_map[dst_rank].append(t)
+                meta_map[dst_rank].extend([e, self.rank, t, k])
+
+        send_counts_t = torch.tensor(send_counts, dtype=torch.long, device=device)
+        recv_counts_t = torch.empty(self.world_size, dtype=torch.long, device=device)
+        dist.all_to_all_single(recv_counts_t, send_counts_t)
+
+        # [num_send_tokens, hidden_size]
+        send_buf = torch.cat([hidden_states[idx_list] for idx_list in token_map if idx_list], dim=0)
+        # [num_send_tokens, META_DIM]
+        send_meta = torch.tensor([v for sub in meta_map for v in sub], dtype=torch.int32, device=device).view(-1, self.META_DIM)
+
+        total_recv = int(recv_counts_t.sum().item())
+        # [num_recv_tokens, hidden_size]
+        recv_buf = torch.empty(total_recv, self.cfg.hidden_dim, dtype=hidden_states.dtype, device=device)
+        # [num_recv_tokens, META_DIM]
+        recv_meta = torch.empty(total_recv, self.META_DIM, dtype=torch.int32, device=device)
+
+        dist.all_to_all_single(recv_buf, send_buf, recv_counts_t.tolist(), send_counts_t.tolist())
+        dist.all_to_all_single(recv_meta.view(-1), send_meta.view(-1),
+                               [c * self.META_DIM for c in recv_counts_t.tolist()],
+                               [c * self.META_DIM for c in send_counts_t.tolist()])
+
+        # ----------------------------------------------------
+        # 【步骤三】分发到本地专家缓冲区并执行【专家计算】
+        # ----------------------------------------------------
+        # 为了高效计算，我们先把分发到当前 Rank 的各个 Token 按照本地专家归类
+        expert_tokens_list = [[] for _ in range(self.num_local_experts)]
+        expert_meta_list = [[] for _ in range(self.num_local_experts)]
+
+        for i in range(total_recv):
+            global_eid = int(recv_meta[i, 0].item())
+            local_eid = global_eid % self.num_local_experts
+            expert_tokens_list[local_eid].append(recv_buf[i].unsqueeze(0))
+            expert_meta_list[local_eid].append(recv_meta[i].unsqueeze(0))
+
+        # 存储专家计算后的输出结果
+        expert_y_list = [None] * self.num_local_experts
+        expert_num_tokens = [len(t) for t in expert_tokens_list]
+
+        for local_eid in range(self.num_local_experts):
+            if expert_num_tokens[local_eid] > 0:
+                # 拼接属于当前专家的所有 Token, [num_processed_token, hidden_size]
+                x_in = torch.cat(expert_tokens_list[local_eid], dim=0)
+                # >>> 核心：调用对应的专家进行前向 FFN 计算 <<<
+                expert_y_list[local_eid] = self.local_experts[local_eid](x_in)
+            else:
+                expert_y_list[local_eid] = torch.empty(0, self.cfg.hidden_dim, device=device)
+
+        # ----------------------------------------------------
+        # 【步骤四】Combine - 将计算结果反向 All-to-All 回传
+        # ----------------------------------------------------
+        # 此时的发送方变成了刚才的接收方，重新构建返回的 map
+        combine_y_map = [[] for _ in range(self.world_size)]
+        combine_meta_map = [[] for _ in range(self.world_size)]
+
+        for local_eid in range(self.num_local_experts):
+            cnt = expert_num_tokens[local_eid]
+            for j in range(cnt):
+                meta = expert_meta_list[local_eid][j].squeeze(0)
+                dst_rank = int(meta[1].item()) # 原始发送方 rank
+                combine_y_map[dst_rank].append(expert_y_list[local_eid][j].unsqueeze(0))
+                combine_meta_map[dst_rank].extend(meta.tolist())
+
+        combine_send_buf = torch.cat([torch.cat(sub_list, dim=0) for sub_list in combine_y_map if sub_list], dim=0)
+        combine_send_meta = torch.tensor([v for sub in combine_meta_map for v in sub], dtype=torch.int32, device=device).view(-1, self.META_DIM)
+
+        total_combine_recv = int(send_counts_t.sum().item())
+        combine_recv_buf = torch.empty(total_combine_recv, self.cfg.hidden_dim, dtype=hidden_states.dtype, device=device)
+        combine_recv_meta = torch.empty(total_combine_recv, self.META_DIM, dtype=torch.int32, device=device)
+
+        # 反向交换：接收当初发出去的量（send_counts_t），发送当初收到的量（recv_counts_t）
+        dist.all_to_all_single(combine_recv_buf, combine_send_buf, send_counts_t.tolist(), recv_counts_t.tolist())
+        dist.all_to_all_single(combine_recv_meta.view(-1), combine_send_meta.view(-1),
+                               [c * self.META_DIM for c in send_counts_t.tolist()],
+                               [c * self.META_DIM for c in recv_counts_t.tolist()])
+
+        # ----------------------------------------------------
+        # 【步骤五】加权恢复原始 Token 序列
+        # ----------------------------------------------------
+        output_states = torch.zeros(num_tokens, self.cfg.hidden_dim, dtype=torch.float32, device=device)
+
+        for i in range(total_combine_recv):
+            src_token = int(combine_recv_meta[i, 2].item()) # 该 token 在当前 rank 的原始位置
+            src_k = int(combine_recv_meta[i, 3].item())     # 是 top_k 中的第几个专家
+
+            # 乘以在【步骤一】中计算出的 Gating 权重
+            w = weights[src_token, src_k].to(torch.float32)
+            output_states[src_token] += combine_recv_buf[i].to(torch.float32) * w
+
+        return output_states.to(hidden_states.dtype)
+```
+
+</Accordion>
 
 ### Analysis
 

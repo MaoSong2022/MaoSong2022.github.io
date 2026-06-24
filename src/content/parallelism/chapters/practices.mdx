@@ -1,5 +1,32 @@
 ## Practices
 
+一般结合 TP, PP, DP, 设置规则：intra node 设置 TP, 然后 inter node 设置 PP, 最后设置 DP, $\mathrm{DP}=\mathrm{num\_GPU}/(\mathrm{TP}\times \mathrm{PP})$
+
+- 模型显存变为原来的 $1/(\mathrm{TP}\times \mathrm{PP})$
+- 梯度显存变为原来的 $1/\mathrm{PP}$
+
+TP 可以降低模型参数和 activation 的内存占用，使用 TP 之后，我们有
+
+$$
+\mathrm{Memory} =  \frac{\mathrm{Model}}{\mathrm{TP}} + \mathrm{Gradients} + \mathrm{Optimizer\_States} + \frac{\mathrm{Activation}}{\mathrm{TP}}
+$$
+
+PP 只改变模型参数和梯度，因此使用 PP 之后， 我们有
+
+$$
+\mathrm{Memory} =  \frac{\mathrm{Model}}{\mathrm{PP}} + \frac{\mathrm{Gradients}}{\mathrm{PP}} + \mathrm{Optimizer\_States} + \mathrm{Activation}
+$$
+
+TP, PP, DP (Zero 2) 结合之后，我们按照 TP, PP, DP 的顺序考虑，有
+
+$$
+\mathrm{Memory}_{3D} =  \frac{\mathrm{Model}}{\mathrm{PP}\times \mathrm{TP}} + \frac{\mathrm{Gradients}}{\mathrm{PP}\times \mathrm{DP}} + \frac{\mathrm{Optimizer\_States}}{\mathrm{DP}} + \frac{\mathrm{Activation}}{\mathrm{TP}}
+$$
+
+### EP
+
+传统的 EP 基于 All to All Dispatch 将 token 分发给不同 rank 上的专家
+
 ### DeepSeek-V3
 
 - https://github.com/deepseek-ai/profile-data?tab=readme-ov-file#inference
