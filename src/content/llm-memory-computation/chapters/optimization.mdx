@@ -1,0 +1,134 @@
+## Optimization
+
+### Overview
+
+| 阶段      | 核心方法         | 典型技术                                                                                                   |
+| :-------- | :--------------- | :--------------------------------------------------------------------------------------------------------- |
+| Training  | 显存与效率提升   | Activation Checkpointing, Mixed Precision Training, Flash Attention, ZeRO, Pipeline/Model/Data Parallelism |
+| Inference | 长序列与速度优化 | KV Cache Optimization, Paged/Radix Attention, Faster Attention, Quantization                               |
+
+### Mixed Precision Training
+
+计算量大的部分用低精度，计算量小的部分用高精度。低精度参与运算，高精度避免 Overflow/Underflow。
+
+下表是 DeepSeek-V3 [[3]](#references) 使用的混合精度训练框架的显存分析：
+
+| Precision                      |   BF16   |   FP32   |   BF16   |
+| :----------------------------- | :------: | :------: | :------: |
+| **AMP**                        |    No    |   Yes    |   Yes    |
+| Weights                        | BF16 (2) | FP32 (4) | BF16 (2) |
+| Master weights                 |    -     |    -     | FP32 (4) |
+| Gradients                      | BF16 (2) | FP32 (4) | BF16 (2) |
+| Adam m                         | BF16 (2) | FP32 (4) | FP32 (4) |
+| Adam v                         | BF16 (2) | FP32 (4) | FP32 (4) |
+| **Static total (bytes/param)** |  **8**   |  **16**  |  **16**  |
+
+**Remark:**
+
+1. BF16 (w/ AMP) 与 FP32 (w/ AMP) 的静态显存占用相同，但 BF16 (w/ AMP) 的动态显存占用更低。
+2. 主流框架基本都使用了 BF16/FP8 (w/ AMP) 的训练方式。
+
+### ZeRO
+
+ZeRO [@ZeRO] 将 optimizer states / gradients / weights 按不同 GPU 切片存储，需要参与计算时再 all-gather 整合成完整参数。这样每张卡只需维护自己负责的一部分，大幅降低单卡显存需求 [[4]](#references)。
+
+**ZeRO Stages:**
+
+- **ZeRO-1**：shard optimizer states
+
+$$
+\text{Training\_Memory} = \text{weight} + \text{activation} + \frac{\text{optimizer}}{\#\text{GPUs}} + \text{gradient}
+$$
+
+- **ZeRO-2**：shard optimizer states + gradients
+
+$$
+\text{Training\_Memory} = \text{weight} + \text{activation} + \frac{\text{optimizer} + \text{gradient}}{\#\text{GPUs}}
+$$
+
+- **ZeRO-3**：shard all
+
+$$
+\text{Training\_Memory} = \text{activation} + \frac{\text{weight} + \text{optimizer} + \text{gradient}}{\#\text{GPUs}}
+$$
+
+> ZeRO-3 可极大降低单卡显存上限，但通信量也会提高。
+
+### Model Parallelism
+
+将模型切分到不同的 GPU 上，计算时，先 dispatch，再执行计算，最后通过 all-gather 等操作得到最终结果。切分方式包括 PP (Pipeline Parallelism), TP (Tensor Parallelism), EP (Expert Parallelism) 等。
+
+$$
+\text{Training\_Memory} = \frac{\text{Memory}(\text{weight})}{\text{PP degree} \times \text{TP degree}}
+$$
+
+结合 ZeRO-1 与 Model Parallelism 时（activation 中与 TP 相关的部分按 TP degree 缩减）：
+
+$$
+\text{Memory}_{\text{train}} \approx \frac{\text{weight}}{\text{PP} \times \text{TP}} + \frac{\text{activation}}{\text{TP}} + \frac{\text{optimizer}}{\#\text{GPUs}} + \frac{\text{gradient}}{\text{PP}}
+$$
+
+### Activation Checkpointing
+
+在反向传播时，重新计算所需的输入，来达到以时间换空间的目的 [@Megatron]
+
+|               | No ckpt | Selective ckpt |    Full ckpt     |
+| :------------ | :-----: | :------------: | :--------------: |
+| memory        |  很高   |      中等      | 很低 $\sim 2bsd$ |
+| extra compute |   无    |      中等      | 很高 $\sim 2Pbs$ |
+
+selective checkpointing: forward pass 时，根据不同模块的计算量和 activation 大小来决定是否在反向传播是重新计算
+
+- 把耗时长，但显存占用低的留着为反向传播准备，比如 attention matrix
+- 把计算块，单显存占用高的 softmax, layernorm 等算子的 activation 丢弃，反向传播时重新计算
+
+下面我们对比不同的 checkpointing 策略，这里我们忽略 vocabulary 和 layernorm 部分的计算。
+
+- 无重计算， $bsL(32d + 4hs)$
+- TP, $bsL(\frac{24d}{\mathrm{TP}} +8d+ 4hs)$
+- TP + SP, $bsL(\frac{32d}{\mathrm{TP}}+ 4hs)$
+- selective checkpointing + TP, $bsL(\frac{24d}{\mathrm{TP}} +8d)$
+- selective checkpointing + TP + SP, $bsL(\frac{32d}{\mathrm{TP}})$
+- full checkpointing, $2sbhL$
+
+> 实践中常结合 model parallelism 与 selective checkpointing 来实现 trade-off。
+
+### Flash Attention
+
+FlashAttention [@FlashAttention] 通过将 Attention 的计算进行分块，来提高内存访问效率以及降低反向传播时所需要的 activation 大小。
+
+**Flash Attention** 通过 tiling 与 online-softmax 降低该部分显存并提升效率（详见 [notes on Flash Attention](/p/notes-on-flashattention/)）。这样 attention 部分的显存就由 $\text{activation} \propto bs^2$ 降低到了 $\text{activation} \propto bs$。
+
+**Theorem:** Flash Attention 输出 $O = \text{softmax}(QK^T)V$（correctness）。其时间复杂度为 $\mathcal{O}(s^2 d)$，空间复杂度为 $\mathcal{O}(s)$（memory savings）。
+
+### KV Cache Optimization
+
+$$
+\text{Memory}(\text{KV cache}) = s \times 2 \times 2 \times L \times h \times d_h
+$$
+
+针对公式中各因子的优化方向 [[8]](#references)：
+
+1. **$s$**: KV cache compression, eviction, selection
+2. **$2$ (bytes)**: KV cache quantization
+3. **$2$ (K+V)**: key-value sharing, MLA [[9]](#references)
+4. **$h \times d_h$**: MQA [[10]](#references), GQA [[11]](#references), MLA
+
+### Weight Quantization
+
+使用低精度来表示高精度数值的方法，来减少内存占用/提高计算效率。
+
+| 量化时机           | 代表性工作                                                                                                   |
+| :----------------- | :----------------------------------------------------------------------------------------------------------- |
+| 训练后量化 (PTQ)   | GPTQ [[12]](#references), AWQ [[13]](#references), SmoothQuant [[14]](#references), GGUF [[15]](#references) |
+| 量化感知训练 (QAT) | LLM-QAT [[16]](#references), PEQA [[17]](#references)                                                        |
+
+### Activation Offloading
+
+将一部分参数/优化器状态/激活值等存储到 CPU 上，需要的时候再加载到 GPU 上。
+
+| Offloading 场景     | 代表性工作                                                                             |
+| :------------------ | :------------------------------------------------------------------------------------- |
+| 训练阶段 Offloading | ZeRO-Offload [[18]](#references) / ZeRO-Infinity, FSDP [[19]](#references) CPU Offload |
+| 推理阶段 Offloading | FlexGen [[20]](#references), vLLM [[21]](#references) KV Cache Offload                 |
+| MoE Offloading      | KTransformers [[22]](#references), DeepSpeed-MoE [[23]](#references)                   |

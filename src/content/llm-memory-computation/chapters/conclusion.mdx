@@ -1,0 +1,21 @@
+## Conclusion
+
+### Takeaway
+
+| Components       |    Training    |    Inference     | Optimization                      |
+| :--------------- | :------------: | :--------------: | :-------------------------------- |
+| weights          |      $2P$      |       $2P$       | quantization                      |
+| optimizer states |      $4P$      |        0         | ZeRO, offloading                  |
+| gradients        |      $2P$      |        0         | ZeRO                              |
+| activations      | $\sim 4Lhs^2b$ |   $\sim 0.4P$    | ckpt, offloading, flash attention |
+| KV cache         |       0        |    $4sLhd_h$     | KV optimization, attention        |
+| **TOTAL**        | $8P + 4Lhs^2b$ | $2.4P + 4sLhd_h$ |                                   |
+
+- **训练**：瓶颈主要在激活值（随 batch size / 序列长度线性增长）。
+- **推理**：瓶颈主要在 KV Cache（随序列长度增长）。
+
+### Future Directions
+
+1. More efficient architecture (attention, MoE).
+2. Scalable training/inference framework.
+3. Software-hardware co-design algorithms.

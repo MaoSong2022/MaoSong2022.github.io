@@ -1,0 +1,38 @@
+## Introduction
+
+我们从一个简单的问题开始
+
+> 假如我有一张 80GB 的显卡，我想训练/推理一个 4B 的模型，我应该设置多大的 batch size 和 sequence length?
+
+在这个 tutorial 中，我们将基于这个问题来进行思考和分析。我们将考虑更一般的问题形式：
+
+**Motivation:** 在训练和推理时 LLM 所需要的内存是多少？如何进行优化内存占用？
+
+为了回答以上问题，我们先介绍训练/推理阶段的内存计算，再针对可优化部分进行分析并介绍相应优化算法。
+
+### Transformer Architecture
+
+以 Qwen3 [@Qwen3] 为例，现代 LLM 的架构包含多层 Transformer Block，其中具体的模块不同的模型可能有改动。下图是对应的模型架构
+
+### Notation
+
+与参数量、FLOPs 计算所用记号一致；参数量 $P$ 的推导见 [LLM parameter analysis](/p/llm-parameter-computation/)。
+
+|      变量       | 含义                      |
+| :-------------: | :------------------------ |
+|       $P$       | number of parameters      |
+|       $L$       | layers                    |
+|       $V$       | vocabulary size           |
+|       $d$       | hidden size               |
+| $d_{\text{ff}}$ | FFN hidden size           |
+|       $s$       | sequence length           |
+|       $b$       | batch size                |
+|       $h$       | number of attention heads |
+|      $d_h$      | attention head dimension  |
+
+### Assumptions
+
+1. 若无特别说明，使用 **BF16/FP16**，每个参数 **2** byte。
+2. 不使用 dropout（与现代大模型设定一致）。
+3. Attention 基于原始 multi-head attention.
+4. FFN 基于 SwiGLU.

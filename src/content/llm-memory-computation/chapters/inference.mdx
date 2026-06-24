@@ -1,0 +1,62 @@
+## Inference Memory Analysis
+
+### Inference Components
+
+Inference 阶段内存占用主要与模型参数、KV cache 两部分相关：
+
+$$
+\text{Inference\_Memory} = \text{weight} + \text{activation} + \text{KV cache}
+$$
+
+- **Weights**: $\boxed{2P}$
+- **Activations**（经验值，batch size=1）: $\approx 0.4P$（参见 [transformer-math](https://blog.eleuther.ai/transformer-math/)）
+- **KV cache**：与序列长度相关，见后续分析。
+
+### KV Cache Mechanism
+
+LLM 推理中为避免重复计算历史 token 的 key/value 而使用的**空间换时间**的缓存机制。
+
+自回归时逐 token 生成，每步 attention 形式为（$\mathbf{q}_t$ 当前 query，$\mathbf{k}_{:,t}$ / $\mathbf{v}_{:,t}$ 历史 K/V）：
+
+$$
+\mathbf{q}_t = W_Q \mathbf{x}_t, \quad \mathbf{k}_{:,t} = W_K[\mathbf{x}_1, \ldots, \mathbf{x}_t], \quad \mathbf{v}_{:,t} = W_V[\mathbf{x}_1, \ldots, \mathbf{x}_t]
+$$
+
+处理下一 token $\mathbf{x}_{t+1}$ 时只需在已有结果后追加当前步：
+
+$$
+\mathbf{k}_{:,t+1} = [\mathbf{k}_{:,t},\, W_K \mathbf{x}_{t+1}], \quad \mathbf{v}_{:,t+1} = [\mathbf{v}_{:,t},\, W_V \mathbf{x}_{t+1}]
+$$
+
+- **缓存前**：每生成一个 token 都重新计算 → 总计算量 $\sum_{t=1}^{s} \mathcal{O}(t) = \mathcal{O}(s^2)$
+- **缓存后**：每步只算当前 token $W_K \mathbf{x}_{t+1}$、$W_V \mathbf{x}_{t+1}$ → 计算量 $\mathcal{O}(s)$、空间占用 $\mathcal{O}(s)$ —— **以空间换时间**
+
+### KV Cache Memory
+
+对于 multi-head attention，KV cache 的显存占用为：
+
+$$
+\text{Memory}(\text{KV cache}) = s \times 2 \times 2 \times L \times h \times d_h = \boxed{4sLhd_h}
+$$
+
+**因子含义：** $s$ 序列长，第一个 $2$ 为 K+V，第二个 $2$ 为 BF16 的 2 bytes，$L$ 层、$h$ 头、$d_h$ 头维度。
+
+**Remark:**
+
+- KV 占用与**模型配置**（$L, h, d_h$）和**序列长度** $s$ 都有关，token 越多占用越高。
+- 实际中因 _page granularity_、_padding_、_fragmentation_ 往往略高于理论值。
+- 长输出时 KV 占比会超过权重，成为推理瓶颈 → 见后续「KV Cache 优化」。
+
+### Total Inference Memory
+
+综合前面分析，推理阶段的总内存为：
+
+$$
+\boxed{\text{Inference\_Memory} \approx 2.4P + 4sLhd_h}
+$$
+
+可以看到，推理阶段也由固定部分（参数量，activation）以及动态部分（KV cache）组成。
+
+### Dynamic vs. Static
+
+由于 Qwen3 的 KV cache 计算为 $4sLh_{kv}d_h$，而不同模型只有 $L$ 不一样，因此对于更大的模型，KV cache 显存占用超过模型权重的上下文长度更高。
