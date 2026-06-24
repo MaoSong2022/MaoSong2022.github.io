@@ -1,0 +1,18 @@
+## Real Systems
+
+### Training Frameworks
+
+| Framework                       | Memory Optimizations                                    |
+| :------------------------------ | :------------------------------------------------------ |
+| Megatron-LM [[5]](#references)  | TP, SP, Activation Checkpointing                        |
+| DeepSpeed [[24]](#references)   | ZeRO-1/2/3, CPU/NVMe Offload, Activation Checkpointing  |
+| FSDP [[19]](#references)        | Full parameter sharding, Gradient sharding, CPU Offload |
+| Colossal-AI [[25]](#references) | ZeRO, TP, PP, Activation Checkpointing                  |
+
+### Inference Frameworks
+
+| Framework                        | Key Techniques  | Memory Optimizations                       |
+| :------------------------------- | :-------------- | :----------------------------------------- |
+| vLLM [[21]](#references)         | Paged Attention | KV cache paging, Continuous batching       |
+| SGLang [[26]](#references)       | Radix Attention | KV cache reuse, Efficient scheduling       |
+| TensorRT-LLM [[27]](#references) | Kernel fusion   | Weight quantization, KV cache optimization |
