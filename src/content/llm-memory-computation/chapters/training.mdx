@@ -1,10 +1,12 @@
 ## Training
 
-### Training Memory Components
-
 训练部分的内存占用由四部分组成：
 
-$$ \text{training_memory} = \text{weight} + \text{activation} + \text{optimizer} + \text{gradient} $$
+$$
+\mathrm{training_memory} = \mathrm{weight}  + \mathrm{optimizer} + \mathrm{gradient}+ \mathrm{activation}
+$$
+
+其中参数和梯度和优化器状态三部分是静态部分，在训练中始终存在，而 activation 则随训练不同阶段，数据格式动态变化
 
 - **Weights**: $\boxed{2P}$
 - **Gradients**（与权重同精度）: $\boxed{2P}$
