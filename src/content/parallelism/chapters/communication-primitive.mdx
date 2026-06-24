@@ -328,7 +328,8 @@ Reduce 的应用场景为：
 
 ### Many-to-many
 
-Many-to-many 情形下的两种通信方式为：All-Reduce 和 All-Gather，分别是reduce和gather的升级版。
+Many-to-many 情形下的两种通信方式为：AllReduce 和 AllGather，分别是 Reduce 和 Gather 的升级版。
+针对 AllGather 和 AllGather 导致的 rank 0 通信量过高的问题, 我们还有 RingAllReduce 和 RingAllGather 版本
 
 #### AllReduce
 
@@ -438,6 +439,9 @@ After all reduce on rank 1: tensor([10., 10., 10., 10., 10.], device='cuda:1')
 #### ReduceScatter
 
 #### RingAllReduce
+
+在后面的 data parallelism 中，我们会把模型的梯度 shard 到不同的 rank 上，在更新模型参数之前，我们需要计算所有 rank 上梯度的均值。
+正常的做法是我们先通过 AllReduce
 
 ### Barrier
 
