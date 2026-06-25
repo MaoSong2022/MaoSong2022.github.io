@@ -9,7 +9,11 @@ import RL4LLM_process from "../../../assets/image/RL-process.png";
 
 RL 的基本思想是让 agent 通过与环境交互，学习到最优策略。
 
-> 强化学习是一个通过构建可以与环境进行交互的 agent 来解决控制和决策任务的学习框架，交互的方式为 agent 执行 action, 然后环境给予反馈。
+<Note variant="info">
+
+强化学习是一个通过构建可以与环境进行交互的 agent 来解决控制和决策任务的学习框架，交互的方式为 agent 执行 action, 然后环境给予反馈。
+
+</Note>
 
 RL 的执行过程如下所示
 
@@ -49,6 +53,8 @@ $$
 
 ### Trajectory
 
+接下来，我们介绍 trajectory, 也就是 RL 算法所需要的数据的定义
+
 <Definition term='Trajectory'>
 
 Trajectory (rollout) 定义为 agent 与环境完整的一次交互过程：
@@ -67,10 +73,13 @@ $$
 
 <Note variant="info">
 - 轨迹的概率分布由初始状态分布、策略以及环境模型共同决定，记为 $\tau \sim (p_0, \pi, p)$.
+- 轨迹的概率分布使用了 [Markov property](#markov_property).
 - 本教程仅考虑 finite horizon MDP, 即 $T < \infty$.
 </Note>
 
 ### Expected Return
+
+接下来，我们介绍 RL 算法的优化目标。
 
 <Definition term='Expected Return'>
 
@@ -111,10 +120,14 @@ $$
 RL 的最终目标为最大化 expected return, 形式化为：
 
 $$
-\max_{\pi} \quad \mathbb{E}_{\tau \sim (p_0, \pi, p)}^\pi \, R(\tau) = \max_{\pi} \quad \mathbb{E}_{s_0 \sim p_0}^\pi \left[ \sum_{t=0}^{T-1} \gamma^t r_t \right]
+\htmlId{rl_objective}{\begin{equation}
+\max_{\pi} \quad \mathbb{E}_{\tau \sim (p_0, \pi, p)} \, R(\tau) = \max_{\pi} \quad \mathbb{E}_{s_0 \sim p_0}^\pi \left[ \sum_{t=0}^{T-1} \gamma^t r_t \right]
+\end{equation}}
 $$
 
 这里期望 $\mathbb{E}^\pi$ 对应的随机变量为 $a_t \sim \pi(\cdot \mid s_t)$, $(r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)$.
+
+由于实际问题中，初始状态$s_0$ 和状态转移函数 $p$ 一般保持不变，因此我们一般省略目标函数中的 $s_0\sim p_0$.
 
 ### Connection with LLM
 

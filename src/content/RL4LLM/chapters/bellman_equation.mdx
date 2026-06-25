@@ -1,16 +1,18 @@
 import Note from "../../../components/Note.astro";
 import Definition from "../../../components/Definition.astro";
 import Theorem from "../../../components/Theorem.astro";
+import HtmlEmbed from "../../../components/HtmlEmbed.astro";
 
-## Bellman Equations
+## Bellman Equation Theorem
 
 Bellman Equation 构建了 expected return 和 policy 之间的关系。
 
 ### Why Bellman Equation?
 
-在强化学习中，我们关心的不是某一步立即得到的 reward，而是 agent 从当前状态出发，在未来持续决策后能够获得的 expected return.
-
-但是，expected return 依赖于整条未来轨迹：后续会到达什么状态、采取什么动作、获得什么奖励，都是随机的。直接分析 expected return 往往比较困难。
+在强化学习中，我们关心的是 agent 从当前状态出发，在未来持续决策后能够获得的 expected return.
+但是，expected return 依赖于整条未来轨迹：后续会到达什么状态、采取什么动作、获得什么奖励，都是随机的。
+我们直接分析 expected return 往往比较困难，在本节中，我们将构建一些关于 policy 的定理，后序章节我们基于本节的定义来一步步构建高效的 RL 算法。
+这里的核心思想在于：
 
 <Note variant="info">
 
@@ -24,7 +26,7 @@ $$
 
 ### Value Function and Q function
 
-首先，我们介绍两个基本概念，分别是 value function $V^{\pi}(s)$ 和 Q function $Q^{\pi}(s)$.
+首先，我们介绍两个基本概念，分别是 value function $V^{\pi}(s_t)$ 和 Q function $Q^{\pi}(s_t)$.
 
 <Definition term='Value Function'>
 我们定义 value function 如下：
@@ -49,7 +51,7 @@ $$
 </Definition>
 
 <Note variant="info">
-    为了方便，我们令 $V^{\pi}(\langle\text{term}\rangle) = 0$, $Q^{\pi}(\langle\text{term}\rangle, a) = 0, \forall a \in \mathcal{A}$.
+  为了方便，我们令 $V^{\pi}(\langle\text{term}\rangle) = 0$, $Q^{\pi}(\langle\text{term}\rangle, a) = 0, \forall a \in \mathcal{A}$.
 </Note>
 
 Value function 和 Q function 存在如下关系：
@@ -80,7 +82,7 @@ $$
 
 Value function 和 Q function 存在如下递推关系：
 
-<Theorem variant='proposition' title='Iterative property of Value function and Q function'>
+<Theorem variant='proposition' title='Iterative property of Value function and Q function' id='iterative_property'>
 
 $$
 \boxed{
@@ -95,19 +97,19 @@ $$
 
 <Theorem variant='proof'>
 
-我们以 value function 为例，利用 [Markov property](#markov_property) 和重期望定理，我们有：
+我们以 value function 为例：
 
 $$
 \begin{aligned}
 V^{\pi}(s_t) &= \mathbb{E}^{\pi}[G_t \mid S_t = s_t] \\
 &= \mathbb{E}^{\pi}[r_t + \gamma G_{t+1} \mid S_t = s_t] \\
-&= \mathbb{E}_{a_t \sim \pi(\cdot \mid s_t), \, (r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)}\left[\mathbb{E}^{\pi}[r_t + \gamma G_1 \mid s_t, a_t, r_t, s_{t+1}] \mid S_t = s_t\right] \\
+&= \mathbb{E}_{a_t \sim \pi(\cdot \mid s_t), \, (r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)}\left[\mathbb{E}^{\pi}[r_t + \gamma G_{t+1} \mid s_t, a_t, r_t, s_{t+1}] \mid S_t = s_t\right] \\
 &= \mathbb{E}_{a_t \sim \pi(\cdot \mid s_t), \, (r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)}\left[r_t + \gamma \mathbb{E}^{\pi}[G_{t+1} \mid s_{t+1}] \mid S_t = s_t\right] \\
 &= \mathbb{E}_{a_t \sim \pi(\cdot \mid s_t), \, (r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)}\left[r_t + \gamma V^{\pi}(s_{t+1}) \mid S_t = s_t\right]
 \end{aligned}
 $$
 
-这里第四个等式使用了 Markov property，即 $G_{t+1}$ 在已知 $s_{t+1}$ 的条件下与 $s_t, a_t, r_t$ 无关。
+这里第四个等式使用了 [Markov property](#markov_property)，即 $G_{t+1}$ 在已知 $s_{t+1}$ 的条件下与 $s_t, a_t, r_t$ 无关。
 
 Q function 的证明类似，略过.
 
@@ -118,12 +120,12 @@ Q function 的证明类似，略过.
 上面的递推关系说明了 value function 和 Q function 满足一个递推关系，接下来， Bellman Equation Theorem 证明了满足这个递归关系的函数一定是 value function/Q function.
 
 <Theorem title='Bellman Equation Theorem (Value Function)'>
-令 $\pi$ 为一个策略，假设 $\gamma \in (0, 1)$, $|\mathcal{S}| < \infty$ 以及 $|r| \leq R < \infty$, 几乎处处成立 (a.s.). 那么 $\pi$ 对应的 value function $V^{\pi}: \mathcal{S} \to \mathbb{R}$ 存在，且满足 Bellman equation:
+令 $\pi$ 为一个策略，假设 $\gamma \in (0, 1)$, $|\mathcal{S}| < \infty$ 以及 $|r| \leq R < \infty$, 几乎处处成立 ($a.s.$). 那么 $\pi$ 对应的 value function $V^{\pi}: \mathcal{S} \to \mathbb{R}$ 存在，且满足 Bellman equation:
 
 $$
-\boxed{
-V^{\pi}(s) = \mathbb{E}_{a \sim \pi(\cdot \mid s), \, (r, s') \sim p(\cdot, \cdot \mid s, a)}\left[r + \gamma V^{\pi}(s') \mid s\right]
-}
+\htmlId{BE_value_function}{\begin{equation}
+V^{\pi}(s_t) = \mathbb{E}_{a_t \sim \pi(\cdot \mid s_t), \, (r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)}\left[r_t + \gamma V^{\pi}(s_{t+1}) \mid S_t=s_t\right]
+\end{equation}}
 $$
 
 反之，如果存在函数 $V: \mathcal{S} \to \mathbb{R}$ 满足 Bellman equation, 则 $V = V^{\pi}$.
@@ -132,21 +134,23 @@ $$
 
 <Theorem variant='proof'>
 
-由 iterative property 我们知道 value function 满足 Bellman equation，接下来证明唯一性.
+由 [iterative property](#iterative_property) 我们知道 value function 满足 Bellman equation，接下来我们证明唯一性.
 
 假设存在函数 $V: \mathcal{S} \to \mathbb{R}$ 满足 Bellman equation. 定义 Bellman 算子 $\mathcal{T}^{\pi}$ 为：
 
 $$
-(\mathcal{T}^{\pi} V)(s) := \mathbb{E}_{a \sim \pi(\cdot \mid s), \, (r, s') \sim p(\cdot, \cdot \mid s, a)}\left[r + \gamma V(s') \mid s\right]
+\htmlId{bellman_operator}{\begin{equation}
+(\mathcal{T}^{\pi} V)(s_t) := \mathbb{E}_{a_t \sim \pi(\cdot \mid s_t), \, (r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)}\left[r_t + \gamma V(s_{t+1}) \mid S_t=s_t\right]
+\end{equation}}
 $$
 
 我们证明该算子是一个 contraction mapping. 考虑范数 $\|V\|_{\infty} = \max_{s \in \mathcal{S}} |V(s)|$:
 
 $$
 \begin{aligned}
-\left|(\mathcal{T}^{\pi} V_1)(s) - (\mathcal{T}^{\pi} V_2)(s)\right| &= \left|\mathbb{E}_{a \sim \pi(\cdot \mid s), \, (r, s') \sim p(\cdot, \cdot \mid s, a)}\left[\gamma V_1(s') - \gamma V_2(s')\right]\right| \\
-&\leq \gamma \, \mathbb{E}_{a \sim \pi(\cdot \mid s), \, (r, s') \sim p(\cdot, \cdot \mid s, a)}\left|V_1(s') - V_2(s')\right| \\
-&\leq \gamma \max_{s'' \in \mathcal{S}}\left|V_1(s'') - V_2(s'')\right| \\
+\left|(\mathcal{T}^{\pi} V_1)(s_t) - (\mathcal{T}^{\pi} V_2)(s_t)\right| &= \left|\mathbb{E}_{a_t \sim \pi(\cdot \mid s_t), \, (r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)}\left[\gamma V_1(s_{t+1}) - \gamma V_2(s_{t+1})\right]\right| \\
+&\leq \gamma \, \mathbb{E}_{a_t \sim \pi(\cdot \mid s_t), \, (r, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)}\left|V_1(s_{t+1}) - V_2(s_{t+1})\right| \\
+&\leq \gamma \max_{s \in \mathcal{S}}\left|V_1(s) - V_2(s)\right| \\
 &= \gamma \left\|V_1 - V_2\right\|_{\infty}
 \end{aligned}
 $$
@@ -167,11 +171,11 @@ $$
 
 <Theorem title='Bellman Equation Theorem (Q Function)'>
 
-令 $\pi$ 为一个策略，假设 $\gamma \in (0, 1)$, $|\mathcal{S}| < \infty$, $|\mathcal{A}| < \infty$ 以及 $|r| \leq R < \infty$, 几乎处处成立 (a.s.). 那么 $\pi$ 对应的 Q function $Q^{\pi}: \mathcal{S} \times \mathcal{A} \to \mathbb{R}$ 存在，且满足 Bellman equation:
+令 $\pi$ 为一个策略，假设 $\gamma \in (0, 1)$, $|\mathcal{S}| < \infty$, $|\mathcal{A}| < \infty$ 以及 $|r| \leq R < \infty$, 几乎处处成立 ($a.s.$). 那么 $\pi$ 对应的 Q function $Q^{\pi}: \mathcal{S} \times \mathcal{A} \to \mathbb{R}$ 存在，且满足 Bellman equation:
 
 $$
 \boxed{
-Q^{\pi}(s, a) = \mathbb{E}_{(r, s') \sim p(\cdot, \cdot \mid s, a), \, a' \sim \pi(\cdot \mid s')}\left[r + \gamma Q^{\pi}(s', a') \mid s, a\right]
+Q^{\pi}(s_t, a_t) = \mathbb{E}_{(r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t), \, a_{t+1} \sim \pi(\cdot \mid s_{t+1})}\left[r_t + \gamma Q^{\pi}(s_{t+1}, a_{t+1}) \mid S_t=s_t, A_t=a_t\right]
 }
 $$
 
@@ -203,12 +207,12 @@ $$
   policy 对应的 optimal value function 是同一个.
 </Note>
 
-与 $V^{\pi^*}$ 和 $Q^{\pi^*}$ 存在如下关系，
+与 value function $V^\pi$ 和 Q function $Q^\pi$ 之间存在联系一样，optimal value function $V^{\pi^*}$ 和 optimal Q function $Q^{\pi^*}$ 也存在类似关系
 
 <Theorem variant="proposition" title='Relationship between optimal value function and optimal Q function'>
 
 $$
-\boxed{V^*(s) = \max_{a \in \mathcal{A}} Q^*(s, a)}
+\boxed{V^*(s_t) = \max_{a \in \mathcal{A}} Q^*(s_t, a)}
 $$
 
 </Theorem>
@@ -218,52 +222,77 @@ $$
 我们先证左边小于等于右边：
 
 $$
-V^*(s) = \mathbb{E}_{a \sim \pi^*(\cdot \mid s)}[Q^*(s, a)] \leq \mathbb{E}_{a \sim \pi^*(\cdot \mid s)}[\max_{a \in \mathcal{A}} Q^*(s, a)] = \max_{a \in \mathcal{A}} Q^*(s, a)
+V^*(s_t) = \mathbb{E}_{a \sim \pi^*(\cdot \mid s_t)}[Q^*(s_t, a)] \leq \mathbb{E}_{a \sim \pi^*(\cdot \mid s_t)}[\max_{a \in \mathcal{A}} Q^*(s_t, a)] = \max_{a \in \mathcal{A}} Q^*(s_t, a)
 $$
 
 再证右边小于等于左边：
 
-令 $a^* \in \arg\max_{a} Q^*(s, a)$, 令策略 $\pi'$ 为确定性策略 $\pi'(a^* \mid s) = 1$, 则：
+令 $a^* \in \arg\max_{a} Q^*(s_t, a)$, 令策略 $\pi'$ 为确定性策略 $\pi'(a^* \mid s_t) = 1$, 则：
 
 $$
-\max_{a \in \mathcal{A}} Q^*(s, a^*) = Q^{\pi'}(s, a^*) = V^{\pi'}(s) \leq V^*(s)
+\max_{a \in \mathcal{A}} Q^*(s_t, a^*) = Q^{\pi'}(s_t, a^*) = V^{\pi'}(s_t) \leq V^*(s_t)
 $$
 
-因此两边相等. $\blacksquare$
+因此两边相等。
 
 </Theorem>
 
-> 假设 $\gamma \in (0, 1)$, $|\mathcal{S}| < \infty$, $|\mathcal{A}| < \infty$ 以及 $|r| \leq R < \infty$, 几乎处处成立 (a.s.). 那么 optimal value function $V^*: \mathcal{S} \to \mathbb{R}$ 存在，且满足 Bellman optimality equation:
->
-> $$
-> \boxed{
-> V^*(s) = \max_{a \in \mathcal{A}} \mathbb{E}_{(r, s') \sim p(\cdot, \cdot \mid s, a)}\left[r + \gamma V^*(s') \mid s, a\right]
-> }
-> $$
->
-> 反之，如果存在函数 $V: \mathcal{S} \to \mathbb{R}$ 满足 Bellman optimality equation, 则 $V = V^*$.
->
-> 最后，可以给出一个 optimal deterministic policy:
->
-> $$
-> \pi^*(s) = \arg\max_{a \in \mathcal{A}} \mathbb{E}_{(r, s') \sim p(\cdot, \cdot \mid s, a)}\left[r + \gamma V^*(s') \mid s, a\right] = \arg\max_{a \in \mathcal{A}} Q^*(s, a)
-> $$
+接下来，我们给出关于 optimal value function $V^*$ 对应的 Bellman optimality equation.
 
-**证明**（概要）：
+<Theorem title='Bellman Optimality Equation Theorem (value function)'>
 
-定义 Bellman optimality operator:
+假设 $\gamma \in (0, 1)$, $|\mathcal{S}| < \infty$, $|\mathcal{A}| < \infty$ 以及 $|r| \leq R < \infty$, 几乎处处成立 (a.s.). 那么 optimal value function $V^*: \mathcal{S} \to \mathbb{R}$ 存在，且满足 Bellman optimality equation:
 
 $$
-(\mathcal{T}^* V)(s) := \max_{a \in \mathcal{A}} \mathbb{E}_{(r, s') \sim p(\cdot, \cdot \mid s, a)}\left[r + \gamma V(s') \mid s, a\right]
+\boxed{
+V^*(s_t) = \max_{a \in \mathcal{A}} \mathbb{E}_{(r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)}\left[r_t + \gamma V^*(s_{t+1}) \mid S_t=s_t,A_t=a_t\right]
+}
 $$
 
-首先证明 $\mathcal{T}^*$ 是一个 contraction mapping: 对任意 $V_1, V_2$:
+反之，如果存在函数 $V: \mathcal{S} \to \mathbb{R}$ 满足 Bellman optimality equation, 则 $V = V^*$.
+
+最后，我们可以给出一个 optimal deterministic policy:
+
+$$
+\htmlId{optimal_deterministic_policy}{\begin{align}
+  \pi^*(s_t) &= \arg\max_{a \in \mathcal{A}} \mathbb{E}_{(r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)}\left[r_t + \gamma V^*(s_{t+1}) \mid S_t=s_t, A_t=a_t\right]\\
+  &=\arg\max_{a \in \mathcal{A}} V^*(s_t)\\
+  &= \arg\max_{a \in \mathcal{A}} Q^*(s_t, a_t)
+\end{align}}
+$$
+
+</Theorem>
+
+证明需要用到下面的引理
+
+<Theorem variant="lemma" title='Monotonicity of Bellman operator'>
+
+令 $\pi$ 为一个策略，$\mathcal{T}^{\pi}$ 和 $\mathcal{T}^*$ 分别是 [Bellman operator](#bellman_operator) 和 Bellman optimality operator, 其中
+
+$$
+\htmlId{bellman_optimality_operator}{\begin{equation}
+(\mathcal{T}^* V)(s_t) := \max_{a \in \mathcal{A}} \mathbb{E}_{(r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)}\left[r_t + \gamma V(s_{t+1}) \mid S_t=s_t, A_t=a_t\right]
+\end{equation}}
+$$
+
+我们有：
+
+1. 对任意 $V: \mathcal{S} \to \mathbb{R}$, 有 $\mathcal{T}^{\pi} V(s) \leq \mathcal{T}^* V(s), \, \forall s \in \mathcal{S}$.
+1. 对任意 $U, V: \mathcal{S} \to \mathbb{R}$, 如果 $U \leq V$, 则 $\mathcal{T}^* U(s) \leq \mathcal{T}^* V(s), \, \forall s \in \mathcal{S}$.
+
+</Theorem>
+
+证明如下
+
+<Theorem variant="proof">
+
+我们首先证明 [Bellman optimality operator](#bellman_optimality_operator) $\mathcal{T}^*$ 是一个 contraction mapping: 对任意 $V_1, V_2$:
 
 $$
 \begin{aligned}
-\left|(\mathcal{T}^* V_1)(s) - (\mathcal{T}^* V_2)(s)\right| &= \left|\max_{a} \mathbb{E}[r + \gamma V_1(s')] - \max_{a} \mathbb{E}[r + \gamma V_2(s')]\right| \\
-&\leq \max_{a} \left|\mathbb{E}[r + \gamma V_1(s')] - \mathbb{E}[r + \gamma V_2(s')]\right| \\
-&= \gamma \max_{a} \left|\mathbb{E}[V_1(s') - V_2(s')]\right| \\
+\left|(\mathcal{T}^* V_1)(s_t) - (\mathcal{T}^* V_2)(s_t)\right| &= \left|\max_{a} \mathbb{E}[r_t + \gamma V_1(s_{t+1})] - \max_{a} \mathbb{E}[r_t + \gamma V_2(s_{t+1})]\right| \\
+&\leq \max_{a} \left|\mathbb{E}[r_t + \gamma V_1(s_{t+1})] - \mathbb{E}[r_t + \gamma V_2(s_{t+1})]\right| \\
+&= \gamma \max_{a} \left|\mathbb{E}[V_1(s_{t+1}) - V_2(s_{t+1})]\right| \\
 &\leq \gamma \|V_1 - V_2\|_{\infty}
 \end{aligned}
 $$
@@ -272,38 +301,43 @@ $$
 
 因此 $\|\mathcal{T}^* V_1 - \mathcal{T}^* V_2\|_{\infty} \leq \gamma \|V_1 - V_2\|_{\infty}$, $\mathcal{T}^*$ 是 contraction mapping.
 
-根据不动点定理，$\mathcal{T}^*$ 存在唯一不动点 $V^*$. 定义：
+根据[不动点定理](#fixed-point-theorem)，$\mathcal{T}^*$ 存在唯一不动点 $V^*$.
+
+我们定义：
 
 $$
-\pi^*(s) = \arg\max_{a \in \mathcal{A}} \mathbb{E}_{(r, s') \sim p(\cdot, \cdot \mid s, a)}\left[r + \gamma V^*(s') \mid s, a\right]
+\pi^*(s_t) = \arg\max_{a \in \mathcal{A}} \mathbb{E}_{(r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)}\left[r + \gamma V^*(s_{t+1}) \mid S_t=s_t, A_t=a_t\right]
 $$
 
-然后可以验证 $V^* = V^{\pi^*}$ (通过展开递推), 且 $\pi^*$ 是最优策略 (对任意 $\pi$, 有 $V^{\pi} \leq V^* = V^{\pi^*}$). $\blacksquare$
+然后我们可以验证 $V^* = V^{\pi^*}$ (TODO), 且 $\pi^*$ 是最优策略 (对任意 $\pi$, 有 $V^{\pi} \leq V^* = V^{\pi^*}$).
 
-**辅助 Lemma**（省略证明）：
+</Theorem>
 
-> 令 $\pi$ 为一个策略，$\mathcal{T}^{\pi}$ 和 $\mathcal{T}^*$ 分别是 Bellman operator 和 Bellman optimality operator:
->
-> 1. 对任意 $V: \mathcal{S} \to \mathbb{R}$, 有 $\mathcal{T}^{\pi} V(s) \leq \mathcal{T}^* V(s), \, \forall s \in \mathcal{S}$.
-> 2. 对任意 $U, V: \mathcal{S} \to \mathbb{R}$, 如果 $U \leq V$, 则 $\mathcal{T}^* U(s) \leq \mathcal{T}^* V(s), \, \forall s \in \mathcal{S}$.
+对于 optimal Q function $Q^*$, 我们也有类似的结论。
 
-### Bellman Optimality Equation (Q function Version)
+<Theorem title='Bellman Optimality Equation Theorem (Q function)'>
 
-> 假设 $\gamma \in (0, 1)$, $|\mathcal{S}| < \infty$, $|\mathcal{A}| < \infty$ 以及 $|r| \leq R < \infty$, 几乎处处成立 (a.s.). 那么 optimal Q function $Q^*: \mathcal{S} \times \mathcal{A} \to \mathbb{R}$ 存在，且满足 Bellman optimality equation:
->
-> $$
-> \boxed{
-> Q^*(s, a) = \mathbb{E}_{(r, s') \sim p(\cdot, \cdot \mid s, a)}\left[r + \gamma \max_{a' \in \mathcal{A}} Q^*(s', a') \mid s, a\right]
-> }
-> $$
->
-> 反之，如果存在函数 $Q: \mathcal{S} \times \mathcal{A} \to \mathbb{R}$ 满足 Bellman optimality equation, 则 $Q = Q^*$.
+假设 $\gamma \in (0, 1)$, $|\mathcal{S}| < \infty$, $|\mathcal{A}| < \infty$ 以及 $|r| \leq R < \infty$, 几乎处处成立 (a.s.). 那么 optimal Q function $Q^*: \mathcal{S} \times \mathcal{A} \to \mathbb{R}$ 存在，且满足 Bellman optimality equation:
+
+$$
+\boxed{
+Q^*(s_t, a_t) = \mathbb{E}_{(r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)}\left[r + \gamma \max_{a_{t+1} \in \mathcal{A}} Q^*(s_{t+1}, a_{t+1}) \mid S_t=s_t, A_t=a_t\right]
+}
+$$
+
+反之，如果存在函数 $Q: \mathcal{S} \times \mathcal{A} \to \mathbb{R}$ 满足 Bellman optimality equation, 则 $Q = Q^*$.
+
+</Theorem>
+
+<Theorem variant="proof">
 
 证明与 value function 类似，略过.
 
+</Theorem>
+
 ### Value Iteration
 
-根据 BOE 定理的证明，$\mathcal{T}^*$ 是一个 contraction mapping, 因此可以构造函数序列：
+根据 BOE Theorem 的证明，$\mathcal{T}^*$ 是一个 contraction mapping, 因此我们可以构造函数序列：
 
 $$
 V, \mathcal{T}^* V, (\mathcal{T}^*)^2 V, \cdots
@@ -314,22 +348,22 @@ $$
 $$
 \begin{aligned}
 V^{k+1} &= \mathcal{T}^* V^k \\
-V^{k+1}(s) &= \max_{a \in \mathcal{A}} \mathbb{E}_{(r, s') \sim p(\cdot, \cdot \mid s, a)}\left[r + \gamma V^k(s') \mid s, a\right] \\
-\pi^{k+1}(s) &= \arg\max_{a \in \mathcal{A}} \mathbb{E}_{(r, s') \sim p(\cdot, \cdot \mid s, a)}\left[r + \gamma V^k(s') \mid s, a\right]
+V^{k+1}(s_t) &= \max_{a \in \mathcal{A}} \mathbb{E}_{(r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)}\left[r + \gamma V^k(s_{t+1}) \mid S_t=s_t, A_t=a_t\right] \\
+\pi^{k+1}(s_t) &= \arg\max_{a \in \mathcal{A}} \mathbb{E}_{(r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)}\left[r + \gamma V^k(s_{t+1}) \mid S_t=s_t, A_t=a_t\right]
 \end{aligned}
 $$
 
-类似地，还有 Q-value iteration:
+类似地，我们还有 Q value iteration algorithm:
 
 $$
 \begin{aligned}
 Q^{k+1} &= \mathcal{T}^* Q^k \\
-Q^{k+1}(s, a) &= \mathbb{E}_{(r, s') \sim p(\cdot, \cdot \mid s, a)}\left[r + \gamma \max_{a' \in \mathcal{A}} Q^k(s', a') \mid s, a\right] \\
-\pi^{k+1}(s) &= \arg\max_{a \in \mathcal{A}} Q^k(s, a)
+Q^{k+1}(s_t, a_t) &= \mathbb{E}_{(r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)}\left[r + \gamma \max_{a_{t+1} \in \mathcal{A}} Q^k(s_{t+1}, a_{t+1}) \mid S_t=s_t,A_t=a_t\right] \\
+\pi^{k+1}(s_t) &= \arg\max_{a \in \mathcal{A}} Q^k(s_t, a_t)
 \end{aligned}
 $$
 
-### Summary
+### Takeaway
 
 1. 我们介绍了 value function 和 Q function 的定义以及它们之间的联系，这是强化学习的核心概念.
 2. 我们介绍了 Bellman equation 和 Bellman optimality equation，BOE 定理是后续各种算法的核心.

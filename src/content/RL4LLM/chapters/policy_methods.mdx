@@ -1,14 +1,15 @@
-import Algorithm from '../../../components/Algorithm.astro';
-import Theorem from '../../../components/Theorem.astro'
-import Note from '../../../components/Note.astro'
-import Wide from '../../../components/Wide.astro'
+import Algorithm from "../../../components/Algorithm.astro";
+import Theorem from "../../../components/Theorem.astro";
+import Note from "../../../components/Note.astro";
+import Wide from "../../../components/Wide.astro";
 
 ## Policy Based Methods
 
 policy-based methods 的 motivation 很好理解，我们想要找到一个 optimal policy, 那我们就直接对当前 policy 进行优化。
 
 <Note title="Core idea" emoji="💡" variant="info">
-  我们基于某个策略采集一些数据，通过直接优化的方法来不停改进当前策略 $\pi$, 直到当前策略达到最优
+  我们基于某个策略采集一些数据，通过直接优化的方法来不停改进当前策略 $\pi$,
+  直到当前策略达到最优
 </Note>
 
 根据采样策略的不同，policy-based methods 一般会被分为两类：
@@ -20,15 +21,15 @@ policy-based methods 的 motivation 很好理解，我们想要找到一个 opti
 
 on-policy 和 off-policy 对比如下表所示
 
-|   Category         | on-policy                          | off-policy              |
-| :------------------: | :----------------------------------: | :-----------------------: |
-| examples           | PPO, TRPO                          | DQN, DDPG          |
-| sampled from       | current policy                     | arbitrary policy        |
-| exploration        | yes                                | no                      |
-| infra efficiency   | low (needs to generate new sample) | high                    |
-| training stability | unstable                           | more stable             |
-| compute cost       | high                               | low                     |
-| best for           | exploration is needed              | reused past experiences |
+|      Category      |             on-policy              |       off-policy        |
+| :----------------: | :--------------------------------: | :---------------------: |
+|      examples      |             PPO, TRPO              |        DQN, DDPG        |
+|    sampled from    |           current policy           |    arbitrary policy     |
+|    exploration     |                yes                 |           no            |
+|  infra efficiency  | low (needs to generate new sample) |          high           |
+| training stability |              unstable              |       more stable       |
+|    compute cost    |                high                |           low           |
+|      best for      |       exploration is needed        | reused past experiences |
 
 ### Policy Gradient Theorem
 
@@ -51,6 +52,7 @@ p_\theta(\tau) = p_0(s_0)\prod_{t=0}^{T-1} p(r_t,s_{t+1}\mid s_t,a_t)\pi_\theta(
 $$
 
 我们使用 cumulative return 的定义，就得到
+
 <Wide>
 $$
 \mathcal{J}(\theta)=\mathbb{E}_{s_0\sim p_0}^\pi\left[\sum_{t=0}^{T-1}\gamma^tr_t\right] = \mathbb{E}_{s_0\sim p_0,a_t\sim\pi_\theta(\cdot\mid s_t), (r_t,s_{t+1})\sim p(\cdot,\cdot\mid s_t,a_t)}^\pi\left[\sum_{t=0}^{T-1}\gamma^tr_t\right] = \mathbb{E}_{\tau\sim(p_0,\pi_\theta, p)}\left[G_0(\tau)\right]
@@ -173,6 +175,7 @@ $$
 $$
 
 因此， policy gradient 满足 baseline invairance property.
+
 </Theorem>
 
 上述等式说明我们可以通过改变 $b$ 来调整 policy gradient 的 variance,
@@ -183,7 +186,9 @@ $$
 Reward to go 的基本思想为
 
 <Note title="Core idea" emoji="💡" variant="info">
-对于时刻 $t$, 过去的轨迹 $s_0,r_0,\dots,r_{t-1}$ 不应该被考虑，因为它们都已经固定了,加入它们会产生额外的 variance, 此时，我们对应的 $b(s_t)$ 定义为
+  对于时刻 $t$, 过去的轨迹 $s_0,r_0,\dots,r_{t - 1}$
+  不应该被考虑，因为它们都已经固定了,加入它们会产生额外的 variance,
+  此时，我们对应的 $b(s_t)$ 定义为
 </Note>
 
 其定义的 baseline 如下所示
@@ -393,3 +398,13 @@ $$
 ### Experiments
 
 TODO
+
+### Value-Based Methods v.s. Policy-Based Methods
+
+|          | Value-Based                         | Policy-Based                |
+| :------- | :---------------------------------- | :-------------------------- |
+| 核心思想 | 学习 value/Q-function, 间接得到策略 | 直接优化策略参数            |
+| 代表算法 | DQN, Double DQN, Dueling DQN        | REINFORCE, PPO, TRPO        |
+| 策略形式 | 隐式 (从 Q 值推导)                  | 显式 (参数化策略)           |
+| 适用场景 | 离散动作空间                        | 离散/连续动作空间           |
+| 收敛性   | 较好                                | 需要基线/advantage 降低方差 |
