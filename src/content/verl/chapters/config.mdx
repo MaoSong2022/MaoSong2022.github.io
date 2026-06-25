@@ -1,0 +1,83 @@
+## Config
+
+- data.train_batch_size: 单次训练发送给 rollout engine 的样本数量，即从训练数据集中采样的 prompt 数量
+- actor_rollout_ref.actor.ppo_mini_batch_size, critic.ppo_mini_batch_size: PPO 训练更新中的 mini batch 大小，train_batch_size 收集到的数据将被分割为多个 mini-batch, 每块的大小就是 ppo_mini_batch_size, 每处理完一个 mini-batch, 模型会进行一次参数更新。越大梯度越稳定，更新频率越低
+- actor_rollout_ref.actor.ppo_micro_batch_size_per_gpu, critic.ppo_micro_batch_size_per_gpu: 定义了在单个 GPU 上进行一次 forward/backward 的数据大小，也就是梯度累计。越大梯度累计次数越小，吞吐量越高，显存消耗越大
+
+dynamic batch size:
+
+-
+
+train profiler
+
+- trainer.profile_steps: 被分析的步骤
+- trainer.controller_nsight_options.trace: 对于 controller 进程，选择要追踪的 API
+- trainer.controller_nsight_options.cuda-memory-usage: 对于 controller 进程，是否 profile CUDA 内存使用情况
+- trainer.controller_nsight_options.cuda-graph-trace: 对于 controller 进程，是否将 CUDA graphs 作为一个整体进行追踪
+- trainer.worker_nsight_options.trace: 对于 worker 进程，选择要追踪的 API
+- trainer.worker_nsight_optionscuda-memory-usage: 对于 worker 进程，是否 profile CUDA 内存使用情况
+- trainer.controller_nsight_options.cuda-graph-trace: 对于 worker 进程，是否将 CUDA graphs 作为一个整体进行追踪
+
+train meta config
+
+- trainer.project_name: wandb 的项目名称
+- trainer.experiment_name: 用于跟踪工具中识别运行的实验名称
+- trainer.logger: 日志后端，console 或者 wandb
+- trainer.log_val_generations: 验证期间要记录的生成数量
+- trainer.rollout_data_dir: 记录 rollout 数据的目录
+- trainer.validation_data_dir: 记录 valuation 数据的目录
+
+trainer checkpoint config
+
+- trainer.save_freq: checkpoint 保存频率
+- trainer.resume_mode: 恢复模式，auto, disable 或者 resume_path
+- trainer.resume_from_path: 当 resume_mode 为 resume_path 时使用的路径
+- trainer.default_hdfs_dir: 保存 checkpoint 的分布式文件系统路径
+- trainer.del_local_ckpt_after_load: 加载 checkpoint 之后是否删除该 checkpoint
+- trainer.default_local_dit: 保存 checkpoint 的目录
+- trainer.max_actor_ckpt_to_keep: actor checkpoint 最大数量
+- trainer.max_critic_ckpt_to_keep: critic checkpoint 最大数量
+
+train trainer config
+
+- trainer.val_before_train: 是否在训练签开始 validation
+- trainer.val_only: 是否值 validation
+- trainer.test_freq: validation frequency
+- trainer.critic_warmup: 更新 policy 之前 critic 的迭代次数
+
+- trainer.balance_batch: 是否在分布式工作节点间平衡批次大小
+- trainer.total_epochs: 训练的总 epochs
+- trainer.total_training_steps: 总训练步数，可以设置或者基于 epoch 计算得到
+
+train server config
+
+- trainer.nnodes: 训练使用的节点数
+- trainer.n_gpus_per_node: 每个节点的 gpu 数量
+- trainer.device: 训练运行的设备 (cuda, cpu)
+
+custom reward function:
+
+- custom_reward_function.path: 自定义奖励函数路径
+- custom_reward_function.name: 指定文件中的奖励函数名称，默认为 compute_score
+
+train algorithm config
+
+- algorithm.gamma: reward discount factor $\gamma$
+- algorithm.lam: coefficient of GAE
+- algorithm.adv_estimator: advanatge estimator: GAE, GARPO, reinforce++
+- algorithm.norm_adv_by_std_in_grpo: 是否在 GRPO 中按标准差归一化 advantage (Dr.GRPO)
+- algorithm.use_kl_in_reward: 是否在 reward 中启用 kl divergence
+- algorithm.kl_penalty: KL divergence 实现方式，kl, abs, mse, low_val_kl, full
+- algorithm.kl_ctrl.type: KL 控制类型，fixed 或者 adaptive
+- algorithm.kl_ctrl.coef: KL divergence 系数
+- algorithm.kl_ctrl.horizon: adaptive 下的 horizon 值
+- algorithm.kl_ctrl.target_kl: 目标 kl divergence
+- algorithm.use_pf_ppo: 是否启动偏好反馈 PPO
+- algorithm.pf_ppo.reweight_method: 样本加权方法，pow, max_min, 或 max_random
+- algorithm.pf_ppo.weight_pow: pow 方法中用于权重缩放的幂
+
+ray
+
+- trainer.ray_wait_register_center_timeout: ray worker 等待注册的超时时间
+- ray_init.num_cpus: ray 使用的 CPU 数量
+-
