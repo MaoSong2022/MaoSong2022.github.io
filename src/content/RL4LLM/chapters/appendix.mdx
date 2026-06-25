@@ -1,0 +1,35 @@
+import Definition from "../../../components/Definition.astro";
+import Theorem from "../../../components/Theorem.astro";
+
+## Appendix
+
+### Fixed Point Theorem
+
+在介绍不动点定理之前，我们先介绍 contraction mapping 的定义。
+
+<Definition term='Contraction Mapping'>
+> 对于函数 $f: \mathbb{R}^n \to \mathbb{R}^n$, 如果存在点 $x^* \in \mathbb{R}^n$ 满足 $f(x^*) = x^*$, 则称 $x^*$ 是 $f$ 的 **fixed point**.
+
+如果存在 $\gamma \in (0, 1)$ 满足：
+
+$$
+\|f(x_1) - f(x_2)\| \leq \gamma \|x_1 - x_2\|, \quad \forall x_1, x_2 \in \mathbb{R}^n
+$$
+
+则我们称 $f$ 是一个 **contraction mapping**.
+
+</Definition>
+
+对于 contraction mapping, 其满足如下的不动点定理。
+
+<Theorem title='Fixed Point Theorem'>
+
+**Fixed Point Theorem**：给定函数 $f: \mathbb{R}^n \to \mathbb{R}^n$, 如果 $f$ 是一个 contraction mapping, 则：
+
+1. **Existence**: 存在 fixed point $x^*$ 满足 $f(x^*) = x^*$.
+2. **Uniqueness**: fixed point $x^*$ 唯一.
+3. **Algorithm**: 对任意 $x_0 \in \mathbb{R}^n$, 使用迭代 $x_{k+1} = f(x_k)$ 产生的序列 $\{x_k\}_{k=1}^{\infty}$ 收敛到 $x^*$, 且收敛速度为指数级.
+
+</Theorem>
+
+### Total expectation
