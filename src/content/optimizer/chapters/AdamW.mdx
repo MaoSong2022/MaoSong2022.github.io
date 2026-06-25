@@ -1,13 +1,12 @@
-
-import Image from '../../../components/Image.astro';
-import adamw_sgdw_algorithm from '../../../assets/image/AdamW-SGDW-algorithm.png';
-import adamw_adamw_algorithm from '../../../assets/image/AdamW-AdamW-algorithm.png';
-
-作者提出了一个针对 [Adam](/p/notes-on-adam/) 优化器的 weight decay 方法
+import Image from "../../../components/Image.astro";
+import adamw_sgdw_algorithm from "../../../assets/image/AdamW-SGDW-algorithm.png";
+import adamw_adamw_algorithm from "../../../assets/image/AdamW-AdamW-algorithm.png";
 
 ## Introduction
 
-作者首先回顾了动态梯度算法如 AdaGrad, RMSProp, [Adam](/p/notes-on-adam/) 的进展。已有工作表明动态梯度算法的泛化性要比 SGD with momentum 要差。作者在本文中探究了在 SGD 和 Adam 中使用 L2 regularization 和 weight decay 对最终模型表现的影响。结果表明，模型泛化性较差的原因在于对于 Adam, L2 regularization 的效果要比 SGD 差。
+AdamW [@AdamW] 是一个针对 [Adam](#adam) 优化器的 weight decay 方法。
+作者首先回顾了动态梯度算法如 AdaGrad, RMSProp, [Adam](#adam) 的进展。已有工作表明动态梯度算法的泛化性要比 SGD with momentum 要差。
+作者在本文中探究了在 SGD 和 Adam 中使用 L2 regularization 和 weight decay 对最终模型表现的影响。结果表明，模型泛化性较差的原因在于对于 Adam, L2 regularization 的效果要比 SGD 差。
 
 作者有如下发现：
 
@@ -40,8 +39,8 @@ $$
 
 基于这个结论，大部分优化算法都将 L2 regularization 和 weight decay 看做是等价的。但实际上，这个结论对于 adaptive gradient 方法来说是不成立的。结论如下
 
- > Proposition 2
-> 令 $O$ 为一个 optimizer, 其目标函数为 $f_t(\theta)$,  当不考虑 weight decay 时，梯度更新过程为 $\theta_{t+1}\gets \theta_t-\alpha M_t\nabla f_t(\theta_t)$. 当考虑 weight decay 时，梯度更新过程为 $\theta_{t+1}\gets (1-\lambda)\theta_t-\alpha M_t\nabla f_t(\theta_t)$. 如果 $M_t\neq kI$, 则不存在 $\lambda'$, 使得 $O$ 在优化目标函数 $f_t^{reg}(\theta)=f_t(\theta)+\lambda'/2\|\theta\|_2^2$ 时，不考虑 weight decay 的梯度更新与 $O$ 在优化目标函数 $f_t(\theta)$ 时，考虑 weight decay 的梯度更新等价。
+> Proposition 2
+> 令 $O$ 为一个 optimizer, 其目标函数为 $f_t(\theta)$, 当不考虑 weight decay 时，梯度更新过程为 $\theta_{t+1}\gets \theta_t-\alpha M_t\nabla f_t(\theta_t)$. 当考虑 weight decay 时，梯度更新过程为 $\theta_{t+1}\gets (1-\lambda)\theta_t-\alpha M_t\nabla f_t(\theta_t)$. 如果 $M_t\neq kI$, 则不存在 $\lambda'$, 使得 $O$ 在优化目标函数 $f_t^{reg}(\theta)=f_t(\theta)+\lambda'/2\|\theta\|_2^2$ 时，不考虑 weight decay 的梯度更新与 $O$ 在优化目标函数 $f_t(\theta)$ 时，考虑 weight decay 的梯度更新等价。
 
 证明比较简单，只需要写出两个目标函数对应的梯度更新公式即可。
 
@@ -49,8 +48,8 @@ $$
 
 作者通过这个分析，给出了一个 weight decay 与 L2 regularization 相等的条件
 
- > Proposition 3
-> 令 $O$ 为一个 optimizer, 其目标函数为 $f_t(\theta)$,  当不考虑 weight decay 时，梯度更新过程为 $\theta_{t+1}\gets \theta_t-\alpha M_t\nabla f_t(\theta_t)$. 当考虑 weight decay 时，梯度更新过程为 $\theta_{t+1}\gets (1-\lambda)\theta_t-\alpha M_t\nabla f_t(\theta_t)$. 如果 $M_t= \mathrm{diag}(s)^{-1}$ ($s_i>0,\forall i$), 则 $O$ 在优化目标函数
+> Proposition 3
+> 令 $O$ 为一个 optimizer, 其目标函数为 $f_t(\theta)$, 当不考虑 weight decay 时，梯度更新过程为 $\theta_{t+1}\gets \theta_t-\alpha M_t\nabla f_t(\theta_t)$. 当考虑 weight decay 时，梯度更新过程为 $\theta_{t+1}\gets (1-\lambda)\theta_t-\alpha M_t\nabla f_t(\theta_t)$. 如果 $M_t= \mathrm{diag}(s)^{-1}$ ($s_i>0,\forall i$), 则 $O$ 在优化目标函数
 >
 > $$
 >  f_t^{reg}(\theta)=f_t(\theta)+\frac{\lambda'}{2\alpha}\|\theta\odot \sqrt{s}\|_2^2
