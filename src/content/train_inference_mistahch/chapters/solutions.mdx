@@ -1,0 +1,45 @@
+## Solutions
+
+### Algorithm Optimizations
+
+#### Truncated Importance Sampling
+
+$$
+a
+$$
+
+#### Masked Importance Sampling
+
+### System solutions
+
+1. 获取真实的采样概率
+2. 解决数值不一致性
+
+但是这些改进仍然无法解决 off-policy 问题。
+
+### MoE models
+
+MoE RL 训练不稳定性解决：
+
+- MiniRL
+
+#### Router Replay
+
+即在训练阶段，使用推理阶段的 MoE router, 避免 sample 时对 policy gradient 引入噪声。
+
+相关工作有
+
+- DeepSeek-V3 [@DeepSeek-V3]
+- Wenhan et.al [@ma2025stabilizingmoereinforcementlearning]
+- GSPO [@GSPO]
+- IcePop TODO
+- KPop [@KPop]
+
+TODO: https://openreview.net/pdf?id=8MHqvb4lK9
+
+#### Kernel Optimization
+
+1. 利用 `torch.compile` 来固化 RoPE 实现，底层消除算子行为差异
+2. 通过 `enable_batch_invariant_mode` 来强制训练端采用与 SGLang 一致的算子，消除 batch size 对计算结果的影响
+3. training 和 inference 都使用 FlashAttention3 作为 backend, 来实现 bitwise equal
+4. 使用 DeepGEMM 进行矩阵乘法

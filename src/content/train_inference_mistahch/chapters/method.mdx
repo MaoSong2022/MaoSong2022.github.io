@@ -1,0 +1,81 @@
+import Sidenote from "../../../components/Sidenote.astro";
+
+## Method
+
+### Problem definition
+
+RL 的目标函数为
+
+$$
+\mathcal{J}(\theta) = \mathbb{E}_{x\sim\mathcal{D},y\sim\pi_{\theta}(\cdot\mid x)}[R(x,y)]
+$$
+
+对应的梯度为
+
+<Sidenote>
+  See [RL4LLM](https://maosong.website/blog/RL4LLM/) for details.
+</Sidenote>
+
+$$
+\nabla_{\theta}\mathcal{J}(\theta) =\mathbb{E}_{x\sim\mathcal{D},y\sim\pi_{\theta}(\cdot\mid x)}[R(x,y)\nabla_{\theta}\log\pi_{\theta}(\theta)]
+$$
+
+由于 training engine 和 inference engine 的不同，我们的采样的输出 $y$ 实际上来源是 $\mu_{\theta_{\mathrm{old}}}$, 这里 $\mu_{\theta_{\mathrm{old}}}$ 是 inference engine 对 policy $\pi_{\theta_{\mathrm{old}}}$ 的实现，如 vllm 和 SGLang.
+
+<Sidenote>TODO：Explain</Sidenote>
+
+我们使用 importance sampling 对目标函数进行改写得到
+
+$$
+\mathcal{J}(\theta) = \mathbb{E}_{x\sim\mathcal{D}, y\sim\mu_{\theta_{\mathrm{old}}}(y\mid x)}\left[\frac{\pi_{\theta}(y\mid x)}{\mu_{\theta_{\mathrm{old}}}(y\mid x) }R(x,y)\right]
+$$
+
+对应的梯度为
+
+$$
+\nabla_{\theta}\mathcal{J}(\theta) =\mathbb{E}_{x\sim\mathcal{D}, y\sim\mu_{\theta_{\mathrm{old}}}(y\mid x)}\left[\frac{\pi_{\theta}(y\mid x)}{\mu_{\theta_{\mathrm{old}}}(\cdot\mid x) }R(x,y)\nabla_{\theta}\log \pi_{\theta}(y\mid x)\right]
+$$
+
+### Quantization
+
+这一节我们探究如何诊断 training inference mismatch 以及 training inference mismatch 随训练的变化
+
+一个比较直观的评估 metric 是衡量 $\mu_{\theta_{\mathrm{old}}}$ 和 $\pi_{\theta}$ 两个分布之间的区别，即 KL divergence
+
+$$
+\mathrm{KL}_{TIM} = \mathbb{E}_{s\sim d_{\mu_{\theta_{\mathrm{old}}}}}\left[\mathrm{KL}(\mu_{\theta_{\mathrm{old}}}\mid\mid \pi_{\theta})\right]
+$$
+
+这里 $d_{\pi}$ 是 policy $\pi$ 的 stationary distribution, $s$ 是 context 的 state.
+
+$\mathrm{KL}_{TIM}$ 的计算方式如下
+
+```python
+rollout_log_probs = batch.batch["rollout_log_probs"]
+actor_old_log_probs = batch.batch["old_log_probs"]
+response_mask = batch.batch["response_mask"]
+log_ratio = actor_old_log_probs - rollout_log_probs
+kl_tim_k3 = torch.exp(log_ratio) - log_ratio - 1
+kl_tim_k3 = masked_mean(kl_tim_k3.response_mask)
+```
+
+我们发现：
+
+1. $\mathrm{KL}_{TIM}$ 与 entropy 的 spike 的相关性非常高，而与 reward 的相关性没那么高
+2. 训练引擎会给 inference policy sample 的 token 极低的概率，导致梯度爆炸
+
+TIM 的 pattern: KL divergence 对于推理引擎 $\mu_{\theta_{\mathrm{old}}}$ 采样概率低的 token 更大，特别是在 $\mu_{\theta_{\mathrm{old}}}(y\mid y_{<t>})$ 趋近 $0$ 时。
+
+TIM 对于多轮工具调用的非第一轮更严重，其原因在于模型接收到的工具调用结果是一个 OOD 的输入，模型对于 OOD context 更容易输出低概率的 token, 而这些低概率的 token 更容易导致 TIM.
+
+结果：
+
+1. vllm log ppl 在 non-first-round 更大，说明模型更容易采样到低概率 token
+2.
+
+原因：
+
+1. RL 优化器会让模型权重超出 bf16 的精度
+2. kernel 级别的优化会方法这个误差
+
+上述两个步骤会形成一个循环，mismatch 会产生 biased and noise gradients, 这又会导致参数朝着更极端的区域更新，导致 TIM 现象越来越严重。
