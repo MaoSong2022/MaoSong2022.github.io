@@ -1,23 +1,21 @@
-import Algorithm from '../../../components/Algorithm.astro';
-import Note from '../../../components/Note.astro';
-import Definition from '../../../components/Definition.astro'
-import Theorem from '../../../components/Theorem.astro'
+import Algorithm from "../../../components/Algorithm.astro";
+import Note from "../../../components/Note.astro";
+import Definition from "../../../components/Definition.astro";
+import Theorem from "../../../components/Theorem.astro";
 
 ## Policy Evaluation
 
-### Why Policy Evaluation?
+在 [Bellman Equation Theorem](##bellman-equation-theorem) 一节中，我们已经知道 $V^{\pi}$ 满足 Bellman equation，并且，我们可以使用一个迭代解法（TODO）来求解。
+但是，我们在 [Connection with LLMs](#connection-with-llm) 中已经看到，对于 LLM 这类状态空间和动作空间都很大的问题时，直接进行精确求解往往计算代价较高。
+为了解决这个问题，我们需要一个更加高效求解 value function 的算法，这也是我们本节探讨的问题。
 
-在强化学习中，我们通常希望回答一个基本问题：
+<Note variant="info">
 
-**给定一个策略 $\pi$，它到底"好不好"？**
+给定一个策略 $\pi$，如何高效求解策略 $\pi$ 对应的 value function $V^\pi$?
 
-更具体地说，我们希望知道 agent 在不同状态下遵循该策略时，未来能够获得多大的长期回报.
+</Note>
 
-这个问题本质上对应于求解策略 $\pi$ 的 value function $V^{\pi}$.
-虽然我们上一节已经知道 $V^{\pi}$ 满足 Bellman equation，并且，我们可以使用一个迭代解法来求解，但当状态空间较大、动作空间较大时，直接进行精确求解往往计算代价较高.
-
-在本节中，我们将要介绍如何高效求解 value function $V^{\pi}$.
-**核心思想**：利用 Bellman equation、采样和函数逼近，高效地估计或拟合给定策略对应的 value function $V^{\pi}$.
+为了解决这个问题，我们会利用 Bellman equation、采样和函数逼近，高效地估计或拟合给定策略对应的 value function $V^{\pi}$.
 
 ### Monte Carlo
 
@@ -33,7 +31,7 @@ $$
 \{\tau^{(i)} = (s_0^{(i)}, a_0^{(i)}, r_0^{(i)}, \dots, a_{T^{(i)}-1}^{(i)}, r_{T^{(i)}-1}^{(i)}, s_{T^{(i)}}^{(i)})\}, \quad i = 1, \dots, N
 $$
 
-然后使用样本平均来近似期望：
+然后我们使用样本平均来近似期望：
 
 $$
 V^{\pi}(s_0) = \mathbb{E}^{\pi}[R(\tau) \mid s_0] \approx \frac{1}{N} \sum_{i=1}^{N} R(\tau^{(i)})
@@ -42,31 +40,34 @@ $$
 如果 $\mathcal{S}$ 比较小，我们可以遍历 $s \in \mathcal{S}$ 来估计 $V^{\pi}$. 但是，如果 $\mathcal{S}$ 比较大，这种方法的计算复杂度较高.
 
 <Note variant="info" emoji="💡">
+
 - **优点**: 简单、直观、无需环境模型
 - **缺点**: 必须等轨迹结束后才能得到一次完整的估计
+
 </Note>
 
-### Objective of Value-Based Methods
+### Function Approximation
 
+MC 方法虽然简单直观，但是其适用于$\mathcal{S}$ 比较小的场景。
 当状态空间 $\mathcal{S}$ 较大或连续时，我们可以使用函数逼近的方法来近似 $V^{\pi}$.
-这里我们使用 $V_{\phi}$ 来近似 $V^{\pi}$, 其中 $\phi$ 是函数的参数，使用最小二乘误差作为损失函数：
+这里我们使用 $V_{\phi}$ 来近似 $V^{\pi}$, 其中 $\phi$ 是函数的参数，我们使用最小二乘误差作为损失函数：
 
 $$
-\min_{\phi} \mathcal{L}(\phi) = \mathbb{E}_{s_0 \sim p_0}\left[\frac{1}{2}\left(V_{\phi}(s_0) - V^{\pi}(s_0)\right)^2\right]
+\min_{\phi} \mathcal{L}(\phi) = \mathbb{E}_{s_0 \sim p_0}^{\pi}\left[\frac{1}{2}\left(V_{\phi}(s_0) - V^{\pi}(s_0)\right)^2\right]
 $$
 
-对目标函数求导：
+对目标函数求导得到：
 
 $$
 \begin{aligned}
-\nabla_{\phi} \mathcal{L}(\phi) &= \mathbb{E}_{s_0 \sim p_0}\left[\left(V_{\phi}(s_0) - V^{\pi}(s_0)\right)\nabla_{\phi} V_{\phi}(s_0)\right] \\
-&= \mathbb{E}_{s_0 \sim p_0}\left[\left(V_{\phi}(s_0) - \mathbb{E}^{\pi}[G_0 \mid s_0]\right)\nabla_{\phi} V_{\phi}(s)\right] \\
-&= \mathbb{E}_{s_0 \sim p_0}\left[\mathbb{E}^{\pi}\left[\left(V_{\phi}(s_0) - G_0\right)\nabla_{\phi} V_{\phi}(s_0) \mid s_0\right]\right] \\
-&= \mathbb{E}_{s_0 \sim p_0}^{\pi}\left[\left(V_{\phi}(s_0) - G_0\right)\nabla_{\phi} V_{\phi}(s_0) \mid s_0\right]
+\nabla_{\phi} \mathcal{L}(\phi) &= \mathbb{E}_{s_0 \sim p_0}^{\pi}\left[\left(V_{\phi}(s_0) - V^{\pi}(s_0)\right)\nabla_{\phi} V_{\phi}(s_0)\right] \\
+&= \mathbb{E}_{s_0 \sim p_0}^{\pi}\left[\left(V_{\phi}(s_0) - \mathbb{E}^{\pi}[R(\tau) \mid s_0]\right)\nabla_{\phi} V_{\phi}(s)\right] \\
+&= \mathbb{E}_{s_0 \sim p_0}^{\pi}\left[\mathbb{E}^{\pi}\left[\left(V_{\phi}(s_0) - R(\tau)\right)\nabla_{\phi} V_{\phi}(s_0) \mid s_0\right]\right] \\
+&= \mathbb{E}_{s_0 \sim p_0}^{\pi}\left[\left(V_{\phi}(s_0) - R(\tau)\right)\nabla_{\phi} V_{\phi}(s_0) \mid s_0\right]
 \end{aligned}
 $$
 
-现在可以使用 MC 方法来估计梯度：
+现在我们可以使用 MC 方法来估计梯度：
 
 $$
 \nabla_{\phi} \mathcal{L}(\phi) \approx g := \frac{1}{N}\sum_{i=1}^{N} \left(V_{\phi}(s^{(i)}) - R(\tau^{(i)})\right)\nabla_{\phi} V_{\phi}(s^{(i)})
@@ -78,11 +79,11 @@ $$
 
 **while** not converged:
 
-1. $s_0 \sim p_0$, set $t = 0$.
+1. $s_0 \sim p_0$, $t = 0$.
 2. **while** $s_t \neq \langle\text{term}\rangle$:
-    - $a_t \sim \pi(\cdot \mid s_t)$
-    - $(r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)$
-    - $t \gets t + 1$
+   - $a_t \sim \pi(\cdot \mid s_t)$
+   - $(r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)$
+   - $t \gets t + 1$
 3. Set $T = t$.
 4. $g \gets \left(V_{\phi}(s_0) - \sum_{t=0}^{T-1} \gamma^t r_t\right)\nabla_{\phi} V_{\phi}(s_0)$.
 5. Update $\phi$ using $g$ with an optimizer.
@@ -91,20 +92,24 @@ $$
 
 ### Temporal Difference Learning
 
-MC 的优势是可以得到一个无偏估计，但是其劣势在于我们必须完整采样完一条轨迹才能得到这个估计，对于 long-horizon task, MC 方法效率很低。
+MC 的优点是梯度是一个无偏估计，其缺点在于我们必须完整采样完一条轨迹才能得到这个估计，对于 long-horizon task, MC 方法效率很低。
 为了解决这个问题，我们可以使用 Temporal difference (TD) learning 方法。
 
-Temporal difference (TD) learning 通过相邻两步的转换关系来近似 value function.
+Temporal difference (TD) learning 通过相邻两步的转换关系来近似 value function. 其核心思想在于
+
+<Note variant="info">通过新的信息和新的预测来更新旧的预测</Note>
+
 注意到：
 
 $$
-V^{\pi}(s_t) = \mathbb{E}^{\pi}[r_t + \gamma V^{\pi}(s_{t+1}) \mid s_t]
+V^{\pi}(s_t) = \mathbb{E}^{\pi}[r_t + \gamma V^{\pi}(s_{t+1}) \mid S_t=s_t]
 $$
 
-<Definition term='TD Learning'>
+我们定义 TD target 和 TD error 如下
 
-TD learning 是一个**通过新的信息和新的预测来更新旧的预测**的学习范式.
-对于 value function, 我们定义 **TD target** 为:
+<Definition term='TD target and TD error'>
+
+对于 value function $V^{\pi}(s_t)$, 我们定义 **TD target** 为:
 
 $$
 \overline{V}_t = r_t + \gamma V^{\pi}(s_{t+1})
@@ -118,10 +123,12 @@ $$
 
 </Definition>
 
+TODO: add explanation on TD error
+
 当 $\mathcal{S}$ 比较大或连续时，我们构造损失函数：
 
 $$
-\min_{\phi} \mathcal{L}(\phi) = \mathbb{E}_{s_0 \sim p_0}\left[\frac{1}{2}\left(V_{\phi}(s_0) - r_0 - \gamma V^{\pi}(s_1)\right)^2\right]
+\min_{\phi} \mathcal{L}(\phi) = \mathbb{E}_{s_0 \sim p_0}^\pi\left[\frac{1}{2}\left(V_{\phi}(s_0) - r_0 - \gamma V^{\pi}(s_1)\right)^2\right]
 $$
 
 TODO: explain why we use TD error as objective
@@ -132,13 +139,13 @@ $$
 \nabla_{\phi} \mathcal{L}(\phi) = \mathbb{E}_{s_0 \sim p_0}^{\pi}\left[\left(V_{\phi}(s_0) - r_0 - \gamma \boxed{V^{\pi}(s_1)}\right)\nabla_{\phi} V_{\phi}(s_0) \mid s_0\right]
 $$
 
-这里使用了 $V^{\pi}(s_1)$, 但这个值是未知的. 因此一个做法是使用当前的 value function $V_{\phi}$ 来进行代替：
+这里梯度力包含了一个未知量 $V^{\pi}(s_1)$. 为了解决这个问题，一个自然的想法是使用当前的 value function $V_{\phi}(s_1)$ 来进行代替：
 
 $$
 \nabla_{\phi} \mathcal{L}(\phi) \approx \mathbb{E}_{s_0 \sim p_0}^{\pi}\left[\left(V_{\phi}(s_0) - r_0 - \gamma V_{\phi}(s_1)\right)\nabla_{\phi} V_{\phi}(s_0) \mid s_0\right]
 $$
 
-这样，我们就得到了一个结合 TD 和 SGD 的 naive 算法：
+这样，我们就得到了一个结合 TD 和 SGD 的 naive TD learning 算法：
 
 <Algorithm title="Value function approximation with TD (not correct)">
 
@@ -230,12 +237,13 @@ loss.backward()
 </Algorithm>
 
 <Note variant="warn" emoji="⚠️">
-上述做法其实是 **semi-gradient methods**, 这类方法在参数更新时，只计算部分梯度。虽然这种方法牺牲了严格的梯度下降性质，但是其能够保证更好的表现.
+  上述做法其实是 **semi-gradient methods**,
+  这类方法在参数更新时，只计算部分梯度。虽然这种方法牺牲了严格的梯度下降性质，但是其能够保证更好的表现.
 </Note>
 
 ### k-step TD
 
-我们可以进一步推广 TD 到多步场景，注意到：
+实际上，我们可以进一步推广 TD 到多步场景，注意到：
 
 $$
 \begin{aligned}
@@ -271,8 +279,8 @@ $$
 
 1. $s_0 \sim p_0$, set $t = 0$.
 2. **for** $t = 0, \ldots, k-1$:
-    - $a_t \sim \pi(\cdot \mid s_t)$
-    - $(r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)$
+   - $a_t \sim \pi(\cdot \mid s_t)$
+   - $(r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)$
 3. compute k-step TD target
    $$
    y = \begin{cases}
@@ -282,16 +290,17 @@ $$
    $$
 4. $g \gets (V_{\phi}(s_0) - y) \nabla_{\phi} V_{\phi}(s_0)$.
 5. Update $\phi$ using $g$ with an optimizer.
+
 </Algorithm>
 
 一般来说，$k = 5$ 是一个常用的选择.
 
 ### MC v.s. TD
 
-| 方法 | 特点 |
-| :--: | :--- |
-| MC | 需要完整的一次采样，无偏但 variance 高 |
-| TD | 通过 bootstrap 提高采样效率，有偏但 variance 低 |
+| 方法 | 特点                                            |
+| :--: | :---------------------------------------------- |
+|  MC  | 需要完整的一次采样，无偏但 variance 高          |
+|  TD  | 通过 bootstrap 提高采样效率，有偏但 variance 低 |
 
 TD 本质上是 bootstrap: 当需要使用 $V^{\pi}$ 时，用 $V_{\phi}$ 来代替.
 当 $V_{\phi}$ 与 $V^{\pi}$ 差距较大时，bootstrap 会导致训练不稳定，而 MC 则相对稳定.
@@ -319,15 +328,16 @@ $$
 $$
 
 对应的算法如下
+
 <Algorithm title="Q-function approximation with MC">
 
 **while** not converged:
 
 1. $s_0 \sim p_0$, $a_0 \sim \pi(\cdot \mid s_0)$, set $t = 0$.
 2. **while** $s_t \neq \langle\text{term}\rangle$:
-    - $a_t \sim \pi(\cdot \mid s_t)$
-    - $(r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)$
-    - $t \gets t + 1$
+   - $a_t \sim \pi(\cdot \mid s_t)$
+   - $(r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)$
+   - $t \gets t + 1$
 3. Set $T = t$.
 4. $g = \left(Q_{\phi}(s_0, a_0) - \sum_{t=0}^{T-1} \gamma^t r_t\right) \nabla_{\phi} Q_{\phi}(s_0, a_0)$.
 5. Update $\phi$ using $g$ with an optimizer.
@@ -358,8 +368,8 @@ $$
 
 1. $s_0 \sim p_0$, set $t = 0$.
 2. **for** $t = 0, \ldots, k-1$:
-    - $a_t \sim \pi(\cdot \mid s_t)$
-    - $(r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)$
+   - $a_t \sim \pi(\cdot \mid s_t)$
+   - $(r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)$
 3. $y = \sum_{t=0}^{k-1} \gamma^t r_t + \gamma^k \, \mathrm{sg}[Q_{\phi}(s_k, a_k)]$
 4. $g = (Q_{\phi}(s_0, a_0) - y) \nabla_{\phi} Q_{\phi}(s_0, a_0)$
 5. Update $\phi$ using $g$ with an optimizer.
@@ -388,8 +398,7 @@ V^{\pi^{k+1}} \geq V^{\pi^k}, \quad k = 1, 2, \dots
 $$
 
 并且存在 $K \in \mathbb{N}$ 满足 $V^{\pi^K} = V^*$. 也就是说，有限步之后就可以得到最优策略.
+
 </Theorem>
 
-<Theorem variant='proof'>
-TODO
-</Theorem>
+<Theorem variant="proof">TODO</Theorem>

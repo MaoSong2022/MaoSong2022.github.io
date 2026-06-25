@@ -3,28 +3,42 @@ import Note from "../../../components/Note.astro";
 
 ## Value-Based Methods
 
-### TODO
+在 [policy evaluation](#policy_evaluation) 一节中，我们介绍了在固定策略 $\pi$ 的情况下，如何求解对应的 value function 或者 Q function.
+我们虽然给出了一个 policy iteration algorithm, 但是其严重依赖初始策略 $\pi^0$.
+为了解决这个问题，我们可以想办法直接找到最优策略 $\pi^*$ 对应的 optimal value function $V^*$ 或者 optimal Q function $V^*$.
+这也是 Value-based methods 的核心思想：
 
-1. Q-learning
-2. SARSA
-3. DQN
+<Note variant="info">
 
-Value-based methods 的核心思想是：给当前策略 $\pi$ 一个引导，让 agent 学会执行能达到更有价值的 states 的策略。
+求解得到 optimal value function $V^*$ 或者 optimal Q function $Q^*$, 再得到 optimal policy $\pi^*$.
 
-在 [Bellman Equation](./bellman_equation.md) 中，我们介绍了 value iteration 的基本思路：通过 Bellman optimality operator 迭代求解 $V^*$ 和 $Q^*$. 本节将 value iteration 的思想与函数逼近、TD learning 等技术结合，得到实用的 value-based 算法.
+</Note>
 
-### From Value Iteration to Function Approximation
+在 Bellman Equation 中，我们介绍了 value iteration 的基本思路：通过 Bellman optimality operator 迭代求解 $V^*$ 和 $Q^*$.
+本节将 value iteration 的思想与函数逼近、TD learning 等技术结合，得到实用的 value-based 算法.
 
-Value iteration 的更新公式为：
+### SARSA and Q-Learning
 
-$$
-\begin{aligned}
-V^{k+1}(s) &= \max_{a \in \mathcal{A}} \mathbb{E}_{(r, s') \sim p(\cdot, \cdot \mid s, a)}\left[r + \gamma V^k(s') \mid s, a\right] \\
-\pi^{k+1}(s) &= \arg\max_{a \in \mathcal{A}} \mathbb{E}_{(r, s') \sim p(\cdot, \cdot \mid s, a)}\left[r + \gamma V^k(s') \mid s, a\right]
-\end{aligned}
-$$
+当动作空间较小时，我们可以 TODO
 
-当状态空间较大或连续时，我们需要使用函数逼近. 用 $V_{\phi}$ 近似 $V^{\pi}$:
+在 Model-Free 设定下，我们无法直接计算转移概率 $\mathbb{E}_{s' \sim p}$。
+我们必须通过与环境交互产生的轨迹样本 $(s, a, r, s', a')$ 来更新价值。
+
+#### SARSA
+
+SARSA 的核心在于它的更新动作 $a'$ 严格来自于当前的 $\epsilon$-greedy 策略：
+
+$$\boxed{Q(s, a) \leftarrow Q(s, a) + \alpha \left[ r + \gamma Q(s', a') - Q(s, a) \right]}$$
+
+#### Q-Learning (Off-Policy TD Control)
+
+与 SARSA 不同，Q-Learning 在估计未来价值时，直接贪心地选择最优动作，而不受当前探索策略的影响：
+
+$$\boxed{Q(s, a) \leftarrow Q(s, a) + \alpha \left[ r + \gamma \max_{a' \in \mathcal{A}} Q(s', a') - Q(s, a) \right]}$$
+
+### Function Approximation
+
+当状态空间较大或连续时，我们需要使用函数逼近，与上一节类似，我们用 $V_{\phi}$ 近似 $V^{\pi}$:
 
 $$
 J(\phi) = \mathbb{E}_{s}\left[\frac{1}{2}\left(V^{\pi}(s) - V_{\phi}(s)\right)^2\right]
@@ -47,9 +61,22 @@ $V^{\pi}(s)$ 可以通过两种方式来近似：
 1. **MC 近似**: $V^{\pi}(s) = \mathbb{E}^{\pi}[G_0 \mid s_0 = s] \approx G_0$
 2. **TD 近似**: $V^{\pi}(s) \approx r_t + \gamma V_{\phi}(s_{t+1})$
 
-### DQN (Deep Q-Network)
+TODO: algorithms
 
-DQN 是针对 optimal policy 应用 TD learning. 目标函数为：
+### Deep Q-Network (DQN)
+
+在 TODO 的基础上，DQN 进一步优化了训练的目标函数，用于逼近 optimal Q function:
+
+$$
+\mathcal{L}(\phi) = \mathbb{E}_{(s,a,r,s') \sim \mathcal{D}} \left[ \frac{1}{2} \left( r + \gamma \max_{a'} Q_{\phi^-}(s', a') - Q_{\phi}(s, a) \right)^2 \right]
+$$
+
+其中 $\phi^-$ 为**目标网络（Target Network）**的参数，用于切断数据自举（Bootstrapping）带来的训练正反馈爆炸。
+为了保证求导时 Target 的稳定性，我们必须在代码或公式里明确使用 `stop-gradient` 算子：
+
+$$y = r + \gamma \max_{a'} \mathrm{sg}\left[Q_{\phi^-}(s', a')\right]$$
+
+DQN 针对 optimal policy 应用了 TD learning, 其目标函数为：
 
 $$
 \min_{\phi} \mathcal{L}(\phi) = \mathbb{E}_{(s, a, r, s') \sim \mathcal{D}}\left[\frac{1}{2}\left(Q_{\phi}(s, a) - \left(r + \gamma \max_{a'} Q_{\phi}(s', a')\right)\right)^2\right]
@@ -88,8 +115,6 @@ loss = 0.5 * (q_values - targets) ** 2
 loss = loss.mean()
 ```
 
-### DQN Algorithm
-
 <Algorithm title="DQN with Experience Replay">
 
 1. Initialize replay buffer $\mathcal{D}$ with capacity $N$.
@@ -122,30 +147,6 @@ loss = loss.mean()
      - Every $C$ steps: $\phi^{-} \gets \phi$.
 
 </Algorithm>
-
-### Extensions of DQN
-
-**Double DQN**: 解决 DQN 中 max operator 导致的价值高估 (overestimation) 问题. 使用 online network 选择 action, target network 评估 value:
-
-$$
-y_i = r_i + \gamma \, Q_{\phi^{-}}\left(s', \arg\max_{a'} Q_{\phi}(s', a')\right)
-$$
-
-**Dueling DQN**: 将 Q-function 分解为 value function 和 advantage function:
-
-$$
-Q(s, a) = V(s) + \left(A(s, a) - \frac{1}{|\mathcal{A}|}\sum_{a'} A(s, a')\right)
-$$
-
-### Value-Based Methods v.s. Policy-Based Methods
-
-|          | Value-Based                         | Policy-Based                |
-| :------- | :---------------------------------- | :-------------------------- |
-| 核心思想 | 学习 value/Q-function, 间接得到策略 | 直接优化策略参数            |
-| 代表算法 | DQN, Double DQN, Dueling DQN        | REINFORCE, PPO, TRPO        |
-| 策略形式 | 隐式 (从 Q 值推导)                  | 显式 (参数化策略)           |
-| 适用场景 | 离散动作空间                        | 离散/连续动作空间           |
-| 收敛性   | 较好                                | 需要基线/advantage 降低方差 |
 
 ### Connection with LLM
 
