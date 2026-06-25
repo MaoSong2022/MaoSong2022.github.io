@@ -1,0 +1,29 @@
+import Sidenote from "../../../components/Sidenote.astro";
+
+## Analysis
+
+基于这个梯度，MiniRL [@MiniRL] 提出了一个分析训练推理不一致性的框架。
+注意到我们可以将 importance sampling (IS) 重写为
+
+$$
+\frac{\pi_{\theta}(y\mid x)}{\mu_{\theta_{\mathrm{old}}}(y\mid x) } = \frac{\pi_{\theta_{\mathrm{old}}}(y_t\mid x,y_{<t})}{\mu_{\theta_{\mathrm{old}}}(y_t\mid x,y_{<t})}\cdot \frac{\pi_{\theta}(y_t\mid x,y_{<t})}{\pi_{\theta_{\mathrm{old}}}(y_t\mid x,y_{<t})}
+$$
+
+其中第一项代表了 training-inference discrepancy, 第二项代表了 policy staleness.
+
+- 对于 training-inference discrepancy, 这一点主要是训练和推理精度不一致导致的，比如训练和推理使用了不同的 kernel 和实现方式等.
+- 对于 policy staleness, 这一点主要是我们使用了 micro batch 来提高训练效率。
+
+对于 MoE 模型，我们可以进一步将 IS 重写为
+
+$$
+\frac{\pi_{\theta}(y_t\mid x,y_{<t})}{\mu_{\theta_{\mathrm{old}}}(y_t\mid x,y_{<t}) } = \frac{\pi_{\theta}(y_t\mid x,y_{<t},\textcolor{red}{e_t^{\pi}})}{\mu_{\theta_{\mathrm{old}}}(y_t\mid x,y_{<t},\textcolor{red}{e_{\mathrm{old},t}^{\pi}}) } =\frac{\pi_{\theta_{\mathrm{old}}}(y_t\mid x,y_{<t},\textcolor{red}{e_{\mathrm{old},t}^{\pi}})}{\mu_{\theta_{\mathrm{old}}}(y_t\mid x,y_{<t},\textcolor{red}{e_{\mathrm{old},t}^{\mu}})}\cdot \frac{\pi_{\theta}(y_t\mid x,y_{<t},\textcolor{red}{e_t^{\pi}})}{\pi_{\theta_{\mathrm{old}}}(y_t\mid x,y_{<t},\textcolor{red}{e_{\mathrm{old},t}^{\pi}})}
+$$
+
+这里 $e^\pi$, $e^\mu$ 分别是训练和推理引擎的 routed experts.
+可以看到，现在 importance sampling 在前面的基础上引入了额外的两项：
+
+1. 训练和推理引擎的 expert routing 不一致
+2. policy model $\pi_{\theta}$ 和旧 policy model $\pi_{\theta_{\mathrm{old}}}$ 的 expert routing 不一致
+
+[yao2025offpolicy] 提出了 TODO
