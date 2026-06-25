@@ -1,8 +1,10 @@
-import Note from '../../../components/Note.astro';
-import Definition from '../../../components/Definition.astro'
-import Theorem from '../../../components/Theorem.astro'
+import Note from "../../../components/Note.astro";
+import Definition from "../../../components/Definition.astro";
+import Theorem from "../../../components/Theorem.astro";
 
 ## Bellman Equations
+
+Bellman Equation 构建了 expected return 和 policy 之间的关系。
 
 ### Why Bellman Equation?
 
@@ -10,114 +12,110 @@ import Theorem from '../../../components/Theorem.astro'
 
 但是，expected return 依赖于整条未来轨迹：后续会到达什么状态、采取什么动作、获得什么奖励，都是随机的。直接分析 expected return 往往比较困难。
 
-**核心思想**：将长期回报写成"当前一步的收益 + 下一状态的未来价值"，把一个全局问题转化为递推问题。
+<Note variant="info">
+
+将长期回报写成"当前一步的收益 + 下一状态的未来价值"，把一个全局问题转化为递推问题。即
 
 $$
 \text{long-term return} = \text{immediate reward} + \text{discounted future return}
 $$
 
-### Value Function and Q-Function
+</Note>
+
+### Value Function and Q function
+
+首先，我们介绍两个基本概念，分别是 value function $V^{\pi}(s)$ 和 Q function $Q^{\pi}(s)$.
 
 <Definition term='Value Function'>
 我们定义 value function 如下：
 
 $$
-V^{\pi}(s) = \mathbb{E}^{\pi}[G_0 \mid s_0 = s]
+V^{\pi}(s_t) = \mathbb{E}^{\pi}[G_t \mid S_t = s_t]
 $$
 
-value function 的具体含义为：*agent 从当前状态 $s$ 出发，一直遵循当前策略 $\pi$，最后获取到的 expected discounted return*.
+value function 的具体含义为：**agent 从当前状态 $s_t$ 出发，一直遵循当前策略 $\pi$，最后获取到的 expected discounted return.**
 
 </Definition>
 
 <Definition term='Q Function'>
-Q-function (state-action value function) 定义如下：
+Q function (state-action value function) 定义如下：
 
 $$
-Q^{\pi}(s, a) = \mathbb{E}^{\pi}[G_0 \mid s_0 = s, a_0 = a]
+Q^{\pi}(s_t, a_t) = \mathbb{E}^{\pi}[G_t \mid S_t=s_t, A_t=a_t]
 $$
 
-其具体含义为：*agent 从当前状态 $s$ 出发，先执行 action $a$，再遵循当前策略 $\pi$，最后获取到的 expected discounted return*.
+其具体含义为：**agent 从当前状态 $s_t$ 出发，先执行 action $a_t$，再遵循当前策略 $\pi$，最后获取到的 expected discounted return.**
+
 </Definition>
 
-<Note variant="info" emoji="💡">
-为了方便，我们令 $V^{\pi}(\langle\text{term}\rangle) = 0$, $Q^{\pi}(\langle\text{term}\rangle, a) = 0, \forall a \in \mathcal{A}$.
+<Note variant="info">
+    为了方便，我们令 $V^{\pi}(\langle\text{term}\rangle) = 0$, $Q^{\pi}(\langle\text{term}\rangle, a) = 0, \forall a \in \mathcal{A}$.
 </Note>
 
-### Relationship between Value Function and Q-Function
+Value function 和 Q function 存在如下关系：
+
+<Theorem variant='proposition' title='Relationship between value function and Q function'>
+
+$$
+V^{\pi}(s_t) = \mathbb{E}_{a \sim \pi(\cdot \mid s_t)}[Q^{\pi}(s_t, a)]
+$$
+
+即 value function 是 Q function 的期望。
+
+</Theorem>
+
+<Theorem variant='proof'>
 
 由全概率公式，我们有：
 
 $$
-V^{\pi}(s) = \mathbb{E}_{a \sim \pi(\cdot \mid s)}[Q^{\pi}(s, a)]
-$$
-
-即 value function 是 Q-function 的期望。
-
-**证明**：
-
-$$
 \begin{aligned}
-V^{\pi}(s) &= \mathbb{E}^{\pi}[G_0 \mid s_0 = s] \\
-&= \sum_{a \in \mathcal{A}} \mathbb{E}^{\pi}[G_0 \mid s_0 = s, a_0 = a] \, \pi(a \mid s) \\
-&= \sum_{a \in \mathcal{A}} Q^{\pi}(s, a) \, \pi(a \mid s) = \mathbb{E}_{a \sim \pi(\cdot \mid s)}[Q^{\pi}(s, a)]
+V^{\pi}(s_t) &= \mathbb{E}^{\pi}[G_t \mid S_t = s_t] \\
+&= \sum_{a \in \mathcal{A}} \mathbb{E}^{\pi}[G_t \mid S_t = s_t, A_t = a] \, \pi(a \mid s_t) \\
+&= \sum_{a \in \mathcal{A}} Q^{\pi}(s_t, a) \, \pi(a \mid s_t) = \mathbb{E}_{a \sim \pi(\cdot \mid s_t)}[Q^{\pi}(s_t, a)]
 \end{aligned}
 $$
 
-### Iterative Property
+</Theorem>
 
-Value function 和 Q-function 存在如下递推关系：
+Value function 和 Q function 存在如下递推关系：
+
+<Theorem variant='proposition' title='Iterative property of Value function and Q function'>
 
 $$
 \boxed{
 \begin{aligned}
-V^{\pi}(s) &= \mathbb{E}_{a \sim \pi(\cdot \mid s), \, (r, s') \sim p(\cdot, \cdot \mid s, a)}[r + \gamma V^{\pi}(s') \mid s] \\
-Q^{\pi}(s, a) &= \mathbb{E}_{(r, s') \sim p(\cdot, \cdot \mid s, a), \, a' \sim \pi(\cdot \mid s')}[r + \gamma Q^{\pi}(s', a') \mid s, a]
+V^{\pi}(s_t) &= \mathbb{E}_{a_t \sim \pi(\cdot \mid s_t), \, (r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)}[r_t + \gamma V^{\pi}(s_{t+1}) \mid S_t=s_t] \\
+Q^{\pi}(s_t, a_t) &= \mathbb{E}_{(r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t), \, a_{t+1} \sim \pi(\cdot \mid s_{t+1})}[r_t + \gamma Q^{\pi}(s_{t+1}, a_{t+1}) \mid S_t=s_t, A_t=a_t]
 \end{aligned}
 }
 $$
 
-**证明**（以 value function 为例，利用 Markov property 和重期望定理）：
+</Theorem>
+
+<Theorem variant='proof'>
+
+我们以 value function 为例，利用 [Markov property](#markov_property) 和重期望定理，我们有：
 
 $$
 \begin{aligned}
-V^{\pi}(s) &= \mathbb{E}^{\pi}[G_0 \mid s_0 = s] \\
-&= \mathbb{E}^{\pi}[r_0 + \gamma G_1 \mid s_0 = s] \\
-&= \mathbb{E}_{a \sim \pi(\cdot \mid s), \, (r, s') \sim p(\cdot, \cdot \mid s, a)}\left[\mathbb{E}^{\pi}[r_0 + \gamma G_1 \mid s_0, a_0, r_0, s_1] \mid s_0 = s\right] \\
-&= \mathbb{E}_{a \sim \pi(\cdot \mid s), \, (r, s') \sim p(\cdot, \cdot \mid s, a)}\left[r_0 + \gamma \mathbb{E}^{\pi}[G_1 \mid s_1] \mid s_0 = s\right] \\
-&= \mathbb{E}_{a \sim \pi(\cdot \mid s), \, (r, s') \sim p(\cdot, \cdot \mid s, a)}\left[r_0 + \gamma V^{\pi}(s_1) \mid s_0 = s\right]
+V^{\pi}(s_t) &= \mathbb{E}^{\pi}[G_t \mid S_t = s_t] \\
+&= \mathbb{E}^{\pi}[r_t + \gamma G_{t+1} \mid S_t = s_t] \\
+&= \mathbb{E}_{a_t \sim \pi(\cdot \mid s_t), \, (r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)}\left[\mathbb{E}^{\pi}[r_t + \gamma G_1 \mid s_t, a_t, r_t, s_{t+1}] \mid S_t = s_t\right] \\
+&= \mathbb{E}_{a_t \sim \pi(\cdot \mid s_t), \, (r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)}\left[r_t + \gamma \mathbb{E}^{\pi}[G_{t+1} \mid s_{t+1}] \mid S_t = s_t\right] \\
+&= \mathbb{E}_{a_t \sim \pi(\cdot \mid s_t), \, (r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)}\left[r_t + \gamma V^{\pi}(s_{t+1}) \mid S_t = s_t\right]
 \end{aligned}
 $$
 
-这里第四个等式使用了 Markov property，即 $G_1$ 在已知 $s_1$ 的条件下与 $s_0, a_0, r_0$ 无关。
+这里第四个等式使用了 Markov property，即 $G_{t+1}$ 在已知 $s_{t+1}$ 的条件下与 $s_t, a_t, r_t$ 无关。
 
-Q-function 的证明类似，略过.
+Q function 的证明类似，略过.
 
-### Fixed Point Theorem (Background)
-
-在证明 Bellman equation 的唯一性之前，我们先回顾不动点定理。
-
-<Definition term='Contraction Mapping'>
-> 对于函数 $f: \mathbb{R}^n \to \mathbb{R}^n$, 如果存在点 $x^* \in \mathbb{R}^n$ 满足 $f(x^*) = x^*$, 则称 $x^*$ 是 $f$ 的 **fixed point**.
-
-如果存在 $\gamma \in (0, 1)$ 满足：
-$$
-\|f(x_1) - f(x_2)\| \leq \gamma \|x_1 - x_2\|, \quad \forall x_1, x_2 \in \mathbb{R}^n
-$$
-则我们称 $f$ 是一个 **contraction mapping**.
-</Definition>
-
-对于 contraction mapping, 其满足如下的不动点定理。
-
-<Theorem title='Fixed Point Theorem'>
-
-**Fixed Point Theorem**：给定函数 $f: \mathbb{R}^n \to \mathbb{R}^n$, 如果 $f$ 是一个 contraction mapping, 则：
-
-1. **Existence**: 存在 fixed point $x^*$ 满足 $f(x^*) = x^*$.
-2. **Uniqueness**: fixed point $x^*$ 唯一.
-3. **Algorithm**: 对任意 $x_0 \in \mathbb{R}^n$, 使用迭代 $x_{k+1} = f(x_k)$ 产生的序列 $\{x_k\}_{k=1}^{\infty}$ 收敛到 $x^*$, 且收敛速度为指数级.
 </Theorem>
 
-### Bellman Equation Theorem (Value Function)
+### Bellman Equation Theorem
+
+上面的递推关系说明了 value function 和 Q function 满足一个递推关系，接下来， Bellman Equation Theorem 证明了满足这个递归关系的函数一定是 value function/Q function.
 
 <Theorem title='Bellman Equation Theorem (Value Function)'>
 令 $\pi$ 为一个策略，假设 $\gamma \in (0, 1)$, $|\mathcal{S}| < \infty$ 以及 $|r| \leq R < \infty$, 几乎处处成立 (a.s.). 那么 $\pi$ 对应的 value function $V^{\pi}: \mathcal{S} \to \mathbb{R}$ 存在，且满足 Bellman equation:
@@ -127,7 +125,9 @@ $$
 V^{\pi}(s) = \mathbb{E}_{a \sim \pi(\cdot \mid s), \, (r, s') \sim p(\cdot, \cdot \mid s, a)}\left[r + \gamma V^{\pi}(s') \mid s\right]
 }
 $$
+
 反之，如果存在函数 $V: \mathcal{S} \to \mathbb{R}$ 满足 Bellman equation, 则 $V = V^{\pi}$.
+
 </Theorem>
 
 <Theorem variant='proof'>
@@ -159,28 +159,35 @@ $$
 
 由于 $\gamma < 1$, $\mathcal{T}^{\pi}$ 是一个 contraction mapping.
 
-根据不动点定理，已知 $V^{\pi}$ 是一个不动点（满足 Bellman equation），而不动点唯一，因此 $V = V^{\pi}$. $\blacksquare$
+根据 [不动点定理](#fixed-point-theorem)，已知 $V^{\pi}$ 是一个不动点（满足 Bellman equation），而不动点唯一，因此 $V = V^{\pi}$. $\blacksquare$
 
 </Theorem>
 
-### Bellman Equation Theorem (Q-Function)
+对于 Q function, 我们也有相同的结论：
 
 <Theorem title='Bellman Equation Theorem (Q Function)'>
 
-令 $\pi$ 为一个策略，假设 $\gamma \in (0, 1)$, $|\mathcal{S}| < \infty$, $|\mathcal{A}| < \infty$ 以及 $|r| \leq R < \infty$, 几乎处处成立 (a.s.). 那么 $\pi$ 对应的 Q-function $Q^{\pi}: \mathcal{S} \times \mathcal{A} \to \mathbb{R}$ 存在，且满足 Bellman equation:
+令 $\pi$ 为一个策略，假设 $\gamma \in (0, 1)$, $|\mathcal{S}| < \infty$, $|\mathcal{A}| < \infty$ 以及 $|r| \leq R < \infty$, 几乎处处成立 (a.s.). 那么 $\pi$ 对应的 Q function $Q^{\pi}: \mathcal{S} \times \mathcal{A} \to \mathbb{R}$ 存在，且满足 Bellman equation:
+
 $$
 \boxed{
 Q^{\pi}(s, a) = \mathbb{E}_{(r, s') \sim p(\cdot, \cdot \mid s, a), \, a' \sim \pi(\cdot \mid s')}\left[r + \gamma Q^{\pi}(s', a') \mid s, a\right]
 }
 $$
+
 反之，如果存在函数 $Q: \mathcal{S} \times \mathcal{A} \to \mathbb{R}$ 满足 Bellman equation, 则 $Q = Q^{\pi}$.
+
 </Theorem>
 
-<Theorem variant='proof'>
+<Theorem variant="proof">
+
 证明与 value function 的证明类似，略过.
+
 </Theorem>
 
-### Optimal Policy
+### Bellman Optimality Equation Theorem
+
+我们首先给出 optimal policy 的定义
 
 <Definition term='Optimal Policy'>
 如果策略 $\pi^*$ 满足：
@@ -188,28 +195,35 @@ $$
 V^{\pi^*}(s) \geq V^{\pi}(s), \quad \forall s \in \mathcal{S}, \, \forall \pi
 $$
 则称策略 $\pi^*$ 是 **optimal policy**.
-对应的 $V^{\pi^*}$ 和 $Q^{\pi^*}$ 分别称为 **optimal value function** 和 **optimal Q-function**, 简记为 $V^* = V^{\pi^*}$, $Q^* = Q^{\pi^*}$.
+对应的 $V^{\pi^*}$ 和 $Q^{\pi^*}$ 分别称为 **optimal value function** 和 **optimal Q function**, 简记为 $V^* = V^{\pi^*}$, $Q^* = Q^{\pi^*}$.
 </Definition>
 
 <Note variant="warn" emoji="⚠️">
-optimal policy 与状态 $s$ 无关，并且 optimal policy 是不唯一的，但所有 optimal policy 对应的 optimal value function 是同一个.
+  optimal policy 与状态 $s$ 无关，并且 optimal policy 是不唯一的，但所有 optimal
+  policy 对应的 optimal value function 是同一个.
 </Note>
 
-**Relationship between $V^*$ and $Q^*$**:
+与 $V^{\pi^*}$ 和 $Q^{\pi^*}$ 存在如下关系，
+
+<Theorem variant="proposition" title='Relationship between optimal value function and optimal Q function'>
 
 $$
 \boxed{V^*(s) = \max_{a \in \mathcal{A}} Q^*(s, a)}
 $$
 
-**证明**：
+</Theorem>
 
-先证左边 $\leq$ 右边：
+<Theorem variant="proof">
+
+我们先证左边小于等于右边：
 
 $$
 V^*(s) = \mathbb{E}_{a \sim \pi^*(\cdot \mid s)}[Q^*(s, a)] \leq \mathbb{E}_{a \sim \pi^*(\cdot \mid s)}[\max_{a \in \mathcal{A}} Q^*(s, a)] = \max_{a \in \mathcal{A}} Q^*(s, a)
 $$
 
-再证右边 $\leq$ 左边：令 $a^* \in \arg\max_{a} Q^*(s, a)$, 令策略 $\pi'$ 为确定性策略 $\pi'(a^* \mid s) = 1$, 则：
+再证右边小于等于左边：
+
+令 $a^* \in \arg\max_{a} Q^*(s, a)$, 令策略 $\pi'$ 为确定性策略 $\pi'(a^* \mid s) = 1$, 则：
 
 $$
 \max_{a \in \mathcal{A}} Q^*(s, a^*) = Q^{\pi'}(s, a^*) = V^{\pi'}(s) \leq V^*(s)
@@ -217,7 +231,7 @@ $$
 
 因此两边相等. $\blacksquare$
 
-### Bellman Optimality Equation Theorem
+</Theorem>
 
 > 假设 $\gamma \in (0, 1)$, $|\mathcal{S}| < \infty$, $|\mathcal{A}| < \infty$ 以及 $|r| \leq R < \infty$, 几乎处处成立 (a.s.). 那么 optimal value function $V^*: \mathcal{S} \to \mathbb{R}$ 存在，且满足 Bellman optimality equation:
 >
@@ -230,6 +244,7 @@ $$
 > 反之，如果存在函数 $V: \mathcal{S} \to \mathbb{R}$ 满足 Bellman optimality equation, 则 $V = V^*$.
 >
 > 最后，可以给出一个 optimal deterministic policy:
+>
 > $$
 > \pi^*(s) = \arg\max_{a \in \mathcal{A}} \mathbb{E}_{(r, s') \sim p(\cdot, \cdot \mid s, a)}\left[r + \gamma V^*(s') \mid s, a\right] = \arg\max_{a \in \mathcal{A}} Q^*(s, a)
 > $$
@@ -272,9 +287,9 @@ $$
 > 1. 对任意 $V: \mathcal{S} \to \mathbb{R}$, 有 $\mathcal{T}^{\pi} V(s) \leq \mathcal{T}^* V(s), \, \forall s \in \mathcal{S}$.
 > 2. 对任意 $U, V: \mathcal{S} \to \mathbb{R}$, 如果 $U \leq V$, 则 $\mathcal{T}^* U(s) \leq \mathcal{T}^* V(s), \, \forall s \in \mathcal{S}$.
 
-### Bellman Optimality Equation (Q-Function Version)
+### Bellman Optimality Equation (Q function Version)
 
-> 假设 $\gamma \in (0, 1)$, $|\mathcal{S}| < \infty$, $|\mathcal{A}| < \infty$ 以及 $|r| \leq R < \infty$, 几乎处处成立 (a.s.). 那么 optimal Q-function $Q^*: \mathcal{S} \times \mathcal{A} \to \mathbb{R}$ 存在，且满足 Bellman optimality equation:
+> 假设 $\gamma \in (0, 1)$, $|\mathcal{S}| < \infty$, $|\mathcal{A}| < \infty$ 以及 $|r| \leq R < \infty$, 几乎处处成立 (a.s.). 那么 optimal Q function $Q^*: \mathcal{S} \times \mathcal{A} \to \mathbb{R}$ 存在，且满足 Bellman optimality equation:
 >
 > $$
 > \boxed{
@@ -316,6 +331,6 @@ $$
 
 ### Summary
 
-1. 我们介绍了 value function 和 Q-function 的定义以及它们之间的联系，这是强化学习的核心概念.
+1. 我们介绍了 value function 和 Q function 的定义以及它们之间的联系，这是强化学习的核心概念.
 2. 我们介绍了 Bellman equation 和 Bellman optimality equation，BOE 定理是后续各种算法的核心.
 3. 我们基于 BOE 定理给出了 value iteration algorithm, 这是强化学习的基本算法，后续会对其进行改进.
