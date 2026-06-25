@@ -27,6 +27,15 @@ $$
 
 传统的 EP 基于 All to All Dispatch 将 token 分发给不同 rank 上的专家
 
+DeepSpeed 规定了每个专家最多可以计算的 token 数量，将其记为 $p$, 在传输之前，每个 rank 对处理好的 token 进行处理，整理传输给其他显卡的 $(K, p)$ 个 token, 这里 $K$ 是 topK 专家。
+这样，我们最终需要传输的数据大小就是 $(K, \mathrm{EP}, p, d)$, $d$ 是 hidden size, 这里我们将当前 rank 也纳入考虑。
+
+接下来，我们对于 rank $i$, 我们保留 $(i, k, p)$ 的数据，然后将 $(\neq i, k, p)$ 的数据发送到对应的 EP rank 上。
+
+传输完之后，每个 rank 上的数据大小还是$(K, \mathrm{EP}, p, d)$, 其中 $\mathrm{EP}-1$ 份数据来自其他 EP rank.
+
+计算时，我们直接进行计算，最后再原路发回即可。
+
 ### DeepSeek-V3
 
 - https://github.com/deepseek-ai/profile-data?tab=readme-ov-file#inference
