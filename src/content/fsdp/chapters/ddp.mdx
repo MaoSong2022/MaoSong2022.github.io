@@ -1,0 +1,18 @@
+## Distributed Data Parallelism
+
+```python
+import torch.distributed as dist
+from torch.nn.parallel import DistributedDataParallel as DDP
+
+model = DDP(model, device_ids=[local_rank], output_device=local_rank)
+```
+
+DDP 相比于 DP
+
+DP 中，总共只有一个进程，受到 GIL 限制，master 节点相当于参数服务器，会向其他 GPU 广播参数，梯度反向传播之后，各 GPU 将梯度集中到 master node, master node 对搜集的参数进行平均后更新参数，再将参数统一发送到其他 GPU 上。这种训练方式会导致 master node 的计算，通信量很高，导致网络阻塞，降低训练速度
+
+DDP 相比于 DP,
+
+1. DDP 会有 N 个进程被启动，每个进程在一个 GPU 上加载一个模型
+2. RingAllReduce, 通过 RingAllReduce 与其他 GPU 通信
+3. DP, 通过 AllReduce
