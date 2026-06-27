@@ -34,3 +34,38 @@ agentic RL 相比与 [RLHF](https://maosong.website/blog/RLHF/) / [RLVR](https:/
 10. 工具层面的探索非常重要，会影响模型能力训练上限
 11. 更大模型的 RL 训练泛化效果更好
 12. 做 continue RL, 不一定需要 trick, 而是需要高质量数据
+
+为什么要做 credit assignment:
+
+1. reasoning RL: 10k~30K tokens, 比如 deepseek-R1 在 aime2025 上的平均输出上都为 23k tokens. episode-level 方法对每个 token 都使用相同的 advantage
+2. agentic RL: 10~100 turns, 总 token 数为 100K~500K, 如 SWE-bench 平均为 131k tokens, 64 turns. episode-level 方法对一个错误的工具调用可能会给和三个相同的正确工具调用相同的奖励
+
+agentic RL 本质上是一个 POMDP 问题
+
+| Paradigm                  | reasoning RL            | agentic RL                       |
+| ------------------------- | ----------------------- | -------------------------------- |
+| state                     | context $(y_{<t},x)$    | context, environment observation |
+| action                    | token $y_t$             | complete response at turn $t$    |
+| transition                | concatenation           | stochastic depends on tool use   |
+| reward                    | terminal state          | terminal state                   |
+| horizon                   | 1 turn, 0.5k-30k tokens | 10-100 turns, 100k-1M tokens     |
+| action type               | tokens, homogeneous     | tool, plan heterogeneous         |
+| intermediate verification | possible                | rarely possible                  |
+
+agentic RL 的挑战：
+
+1. 环境的变化是随机的
+2. POMDP
+3. vastly longer horizon
+4. heterogeneous action types
+5. non-verifiable intermediate states
+6. The Bifurcation Point Problem
+
+分类：
+
+1. turn level PRM: agentPRM
+2. hindsight and counterfactual methods: reflection
+3. cretic-free: GiGPO, POAD
+4. hierarchical
+5. information theoretic methods: IGPO
+6. implicit and DPO based methods

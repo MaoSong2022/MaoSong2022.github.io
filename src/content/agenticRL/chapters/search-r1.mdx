@@ -1,0 +1,21 @@
+## Search-R1
+
+让模型在回答过程中自主决定是否需要进行搜索
+
+agentic RAG 问题：
+
+1. multi hop reasoning 能力不行
+2. 正确文档在库里，但是检索不到
+3. 同名实体
+
+解决方案：
+
+1. 实体归一
+2. 重新分块
+3. 去重和时效性处理，去除重复文档，增加时效信息
+4. 混合检索和 reranker:
+
+reward:
+
+1. 结构化短答案: exact match
+2. 自由文本答案：RUBRIC REWARD (LLM-AS-A-JUDGE 会产生 reward hacking, 模型回答很长但实际有事实性错误)
