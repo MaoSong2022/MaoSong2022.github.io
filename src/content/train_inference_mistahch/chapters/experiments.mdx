@@ -1,0 +1,9 @@
+## Experiments
+
+1. 复现 training inference mismatch 问题，分别使用 dense 模型和 moe 模型进行实验，可以对 inference engine 进行量化
+   1. inference: vllm, training: FSDP
+2. 对比不同的方法：
+   1. baseline, DAPO
+   2. TIS
+   3. PPO-IS
+   4. vanilla-IS

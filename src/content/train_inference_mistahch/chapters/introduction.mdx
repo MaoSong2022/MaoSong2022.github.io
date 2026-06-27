@@ -1,5 +1,8 @@
 ## Introduction
 
+- KAT coder v1 pro
+- GEPo
+
 ### What is TIM
 
 现代的 RL 框架比如 verl 会使用不同的框架来完成 inference engine 和 training engine, 比如说使用 megatron [@Megatron] 进行训练，使用 FSDP [@FSDP] 进行训练。
@@ -15,4 +18,6 @@ thinking machine lab, non-deterministic inference, numerical instability.
 1. 训练和推理引擎会使用不同的 kernel 来实现 peak performance
 2. 就算是一个 engine, batch-invariant kernels 也会被禁用来实现 maximum throughput.
 
-#
+### How it occurs
+
+回顾经典的 PPO [@PPO] 和 GRPO 算法 [@GRPO], 他们的核心在于通过一个 $\mathrm{clip}$ 函数来
