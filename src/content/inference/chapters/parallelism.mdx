@@ -1,0 +1,20 @@
+## Parallelism
+
+追求高吞吐，用 EP, 追求低 latency 用 TP
+
+### EP
+
+MoE 的内存访问情况如下表所示
+
+| Stage     | bound               | components                     |
+| --------- | ------------------- | ------------------------------ |
+| Attention | memory bound        | (attention weights + kv cache) |
+| dispatch  | communication bound | (B\*topK + H)                  |
+| MoE       | memory bound        | N \* experts weights           |
+| combine   | communication       | (B\*topK + H)                  |
+
+推理时，一般需要比较大的 EP size, 因为除了 MoE layer 之外，其他阶段耗时随 batch size 增加而减小，为了保证总耗时不变，我们就得增大 EP, 减少 单卡专家数量，降低 MoE 耗时。因此增大 EP 可以降低 MoE 耗时，提高吞吐
+
+TP 和 EP 的对比
+
+### Practices
