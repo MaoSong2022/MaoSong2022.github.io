@@ -1,0 +1,37 @@
+## FSDP2
+
+相比于 FSDP, FSDP2 主要有以下改进：
+
+1. 使用 DTensor 来表示 sharded model parameters, 来支持单独操作参数
+2. 提高内存管理能力
+3. 提供了一个 tensor subclass 来支持定制化 AllGather
+4. 在不需要额外内存的情况下，在一个 communication group 中混合 frozon 和 non-frozon 参数
+
+FSDP 到 FSDP2 的变化
+
+```python
+from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
+with torch.device("cuda"):
+    model = Transformer()
+policy = ModuleWarpPolicy({TransformerBlock})
+def param_init_fn(module: nn.Module) -> None: ...
+model = FSDP(model, auto_warap_policy=policy,param_init_fn=param_init_fn)
+```
+
+新的 `fully_shard()` 使用方法
+
+```python
+from torch.distributed.fsdp import fully_shard
+
+with torch.device("cuda"):
+    model = Transformer()
+for module in model.modules():
+    if isinstance(module, TransformerBlock):
+        full_shard(module)
+fully_shard(model)
+for tensor in itertools.chain(model.parameters(), model.buffers()):
+    assert tensor.device == torch.device("cuda")
+
+model.to_empty(device="cuda")
+model.reset_parameters()
+```

@@ -1,0 +1,125 @@
+import Image from "../../../components/Image.astro";
+import fsdp_workflow from "../../../assets/image/FSDP_workflow.png";
+
+## FSDP
+
+FSDP [@FSDP] 是一个 pytorch 原生，基于 ZeRO [@ZeRO] 的分布式训练框架。
+相比与 DDP (distributed data parallelism), FSDP 通过将模型参数，梯度，优化器状态 shard 到不同的 GPU 上来支持训练更大的模型。
+
+一个包含 2个 DP rank 的 FSDP [@FSDP] 流程如下
+
+<Image src={fsdp_workflow} alt="FSDP workflow (sourced from pytorch blog)" />
+
+FSDP 伪代码
+
+```
+FSDP forward pass:
+    for layer_i in layers:
+        all-gather full weights for layer_i
+        forward pass for layer_i
+        discard full weights for layer_i
+
+FSDP backward pass:
+    for layer_i in layers:
+        all-gather full weights for layer_i
+        backward pass for layer_i
+        discard full weights for layer_i
+        reduce-scatter gradients for layer_i
+```
+
+FSDP sharding 策略
+
+| Strategy             | description                                                              | parameter value |
+| -------------------- | ------------------------------------------------------------------------ | --------------- |
+| `FULL_SHARD`         | ZeRO3, shard parameters,gradients, optimizer states                      | 1               |
+| `SHARD_GRAD_OP`      | ZeRO2, shard gradients, optimizer states                                 | 2               |
+| `NO_SHARD`           | DDP, no sharding                                                         | 3               |
+| `HYBRID_SHARD`       | ZeRO3+DDP, shard parameters, gradients, optimizer states within each GPU | 4               |
+| `HYBRID_SHARD_ZERO2` | ZeRO2+DDP, shard gradients and optimizer states within each GPU          | 5               |
+
+其中 `HYBRID_SHARD` 和 `HYBRID_SHARD_ZERO2` 代表我们在 intra node 使用 ZeRO3, 在 inter node 使用 DDP.
+
+对比如下
+
+| Strategy     | Intra-node               | Inter-node                 |
+| ------------ | ------------------------ | -------------------------- |
+| FULL_SHARD   | ReduceScatter (极快)     | ReduceScatter (跨节点，慢) |
+| HYBRID_SHARD | ReduceScatter (内部切分) | AllReduce (同步梯度)       |
+
+### Use Cases
+
+FSDP 要求 model layers 以一个递归的方式进行封装，这样降低峰值显存，实现计算和通信重叠。
+
+```python
+from torch.distributed.fsdp import FullyShardedDataParallel, CPUOffload
+from torch.distributed.fsdp.wrap import  default_auto_wrap_policy
+import torch.nn as nn
+
+
+class Model(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.layer1 = nn.Linear(8, 4)
+        self.layer2 = nn.Linear(4, 16)
+        self.layer3 = nn.Linear(16, 4)
+
+
+model = DistributedDataParallel(model())
+fsdp_model = FullyShardedDataParallel(model(), fsdp_auto_warap_policy=default_auto_wrap_policy, cpu_offload=CPUOffload(offload_params=True))
+```
+
+这里 `default_auto_wrap_policy` 可以将参数量大于 100M 的 layers 自动进行递归封装。`cpu_offload` 可以在某个封装 layer 不参与计算时将其 offload 到 CPU 上。
+
+我们也可以实现手动封装
+
+```python
+from torch.distributed.fsdp import FullyShardedDataParallel, CPUOffload
+from torch.distributed.fsdp.wrap import enable_warp, warp
+import torch.nn as nn
+
+class Model(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.layer1 = wrap(nn.Linrar(8, 4))
+        self.layer2 = nn.Linear(4, 16)
+        self.layer3 = wrap(nn.Linear(16, 4))
+
+wrapper_kwargs = dict(cpu_offload=CPUOffload(offload_params=True))
+with enable_wrap(wrapper_cls=FullyShardedDataParallel, **warpper_kwargs):
+    fsdp_model = wrap(model())
+```
+
+config
+
+```yaml
+compute_environment: LOCAL_MACHINE
+debug: false
+distributed_type: FSDP
+downcast_bf16: "no"
+fsdp_config:
+  fsdp_auto_wrap_policy: TRANSFORMER_BASED_WRAP
+  fsdp_backward_prefetch_policy: BACKWARD_PRE
+  fsdp_cpu_ram_efficient_loading: true
+  fsdp_forward_prefetch: false
+  fsdp_offload_params: true
+  fsdp_sharding_strategy: 1
+  fsdp_state_dict_type: SHARDED_STATE_DICT
+  fsdp_sync_module_states: true
+  fsdp_transformer_layer_cls_to_wrap: BertLayer
+  fsdp_use_orig_params: true
+machine_rank: 0
+main_training_function: main
+mixed_precision: bf16
+num_machines: 1
+num_processes: 2
+rdzv_backend: static
+same_network: true
+tpu_env: []
+tpu_use_cluster: false
+tpu_use_sudo: false
+use_cpu: false
+```
+
+### Implementations
+
+FSDP 的实现在 [FSDP implementation](https://github.com/pytorch/pytorch/blob/main/torch/distributed/fsdp/fully_sharded_data_parallel.py/) 中。
