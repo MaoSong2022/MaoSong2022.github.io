@@ -1,12 +1,145 @@
 ## Config
 
+static batch size
+
 - data.train_batch_size: 单次训练发送给 rollout engine 的样本数量，即从训练数据集中采样的 prompt 数量
 - actor_rollout_ref.actor.ppo_mini_batch_size, critic.ppo_mini_batch_size: PPO 训练更新中的 mini batch 大小，train_batch_size 收集到的数据将被分割为多个 mini-batch, 每块的大小就是 ppo_mini_batch_size, 每处理完一个 mini-batch, 模型会进行一次参数更新。越大梯度越稳定，更新频率越低
 - actor_rollout_ref.actor.ppo_micro_batch_size_per_gpu, critic.ppo_micro_batch_size_per_gpu: 定义了在单个 GPU 上进行一次 forward/backward 的数据大小，也就是梯度累计。越大梯度累计次数越小，吞吐量越高，显存消耗越大
 
 dynamic batch size:
 
--
+- {actor_rollout_Ref.actor,critic, reward_model}.use_dynamic_bsz: 是否启动 dynamic batch size, 启动的花会忽略基于样本数的 batch size
+- {actor_rollout_ref.actor, critic}.ppo_max_token_len_per_gpu: 定义一个 PPO micro batch size 中，单个 GPU 能处理的最大 token 数，与 use_dynamic_batch_size 一起使用，系统会自动打包样本，直到总 token 量接近这个阈值，形成一个动态的 micro batch size, 从而稳定计算效率，无论长短样本，每个微批次的计算量都相对恒定。通常设置为 n \* (data.max_prompt_length + data.max_response_length)
+- {reward_model, critic, actor_rollout_ref.ref}.forward_max_token_len_per_gpu, 对于只进行 forward 计算的 model 的一个 micro-batch 的最大 token 数量。为这些模型设置一个更大的 batch size 来加速计算
+- {reward_model, actor_rollout_ref.ref}.micro_batch_size_per_gpu, critic.forward_batch_size_per_gpu
+
+rollout sampling
+
+- actor_rollout_ref.rollout.temperature: 温度参数
+- actor_rollout_ref.rollout.top_k
+- actor_rollout_ref.rollout.top_p
+- actor_rollout_ref.rollout.use_fire_sampling: 是否使用 fire sampling
+- actor_rollout.ref.rollout.n: 每个 prompt 生成的 response 数量，对应 GRPO 的 group size
+- actor_rollout_ref.rollout.ignore_eos: 是否忽略 EOS 标记，如果为 True, 即使模型生成了 EOS 标记，也会继续生成到达 max_response_length
+
+resource managements
+
+- actor_rollout_ref.rollout.prompt_length: 最大 prompt 长度
+- actor_rollout_ref.rollout.response_length: 最大 response 长度
+- actor_rollout_ref.rollout.dtype: 模型数据类型，需要与训练阶段的模型类型对齐
+- actor_rollout_ref.rollout.gpu_memory_utilization: SGLang 中模型参数和 KV cache 占显存的比例，0.4.8 以上可以设置到 0.85, 否则设置到 0.5 左右
+- actor_rollout_ref.rollout.free_cache_engine: rollout 之后是否释放引擎缓存清空 kv cache
+- actor_rollout_ref.rollout.load_format: 模型权重加载模式，如 dummy_dtensor, hf, safetensors
+- actor_rollout_ref.rollout.tensor_model_parallel_size: TP_size, 用多少个GPU来共同运行一个 SGLang engine
+- actor_rollout_ref.rollout.max_model_len: 能处理的最大长度，等于 prompt_length + response_length
+- actor_rollout_ref.rollout..max_num_seqs: 引擎能够同时处理的最大请求数量
+- actor_rollout_ref.rollout.enable_chunked_prefill: 是否启用 chunked prefill, 对于 long prompt 可以通过分块处理降低显存峰值
+- actor_rollout_ref.rollout.disable_log_stats: 是否禁用推理引擎的统计日志
+
+SGLang
+
+- actor_rollout_ref.rollout.engine_kwargs.sglang.attention_backend: SGLang 使用的注意力后端，可以选择 flashinfer, triton, flashmla, null等
+
+multi-turn tool calling
+
+- data.tokenizer: tokenizer 的类或路径，如果为 null, 将从模型中自动推断
+- data.use_shm: 是否使用共享内存来加载数据
+- data.train_files: 训练即 parquet 文件，可以是列表或者单个文件，路径可以是本地路径或者 HDFS 路径
+- data.val_files: 验证集 parquet 文件
+- data.prompt_key: 数据集中 prompt 的字段，默认为 prompt
+- data.reward_fn_key: 用于选择奖励函数的字段
+- data.max_prompt_length: 最大提示长度，所有提示将 left padding 到这个长度
+- data.return_raw_input_ids: 是否返回未添加聊天模板的原始 input_ids, 当 reward model 的 chat template 与 policy model 不同时使用
+- data.return_raw_chat: 是否返回未添加聊天模板的原始 response
+- data.return_full_prompt: 是否返回带有聊天模板的原始 prompt
+- data.shuffle: 是否在 data loader 中打乱数据
+- data.validation_shuffle: 是否打断验证集
+- data.filter_overlong_prompts: 是否过滤超长的 prompt
+- data.filter_overlong_prompts_works: 过滤超长 prompt 的进程数，对于大型数据集，使用多进程加速
+- data.truncation: 如果 input_ids 或者 prompt 超过最大长度，则进行截断
+- data.image_key: 多模态数据中表示图像的字段，默认为 images
+- data.video_key: 多模态数据集中表示视频的字段
+- data.trust_remote_code: 是否信任本地的 huggingface cache
+- data.custom_cls.path: 自定义数据集类的路径
+- data.custom_cls.name: 自定义数据集类的名字
+
+model loading
+
+- {reward_model, actor_rollout_ref}.model.use_shm: 是否使用共享内存来加速模型权重的加载
+
+kernels
+
+- actor_rollout_ref.model.use_liger: 是否使用 liger kernel 进行线性层融合
+- actor_rollout_ref.model.use_fused_kernel: 是否使用自定义 fused kernel
+- actor_rollout_ref.model.fused_kernel_options.impl_backend: fused kernel 实现后端，triton 或 pytorch
+
+actor
+
+- actor_rollout_ref.hybrid_engine: 将 actor 和 rollout 模型放在同一资源组上
+- actor_rollout_ref.model.path: huggingface 模型路径
+- actor_rollout_ref.model.external_lib: 用于注册 huggingface 模型/tokenizer 的额外 python package
+- actor_rollout_ref.model.override_config: 用于覆盖模型原始配置，主要用于 dropout
+- actor_rollout_ref.model.enable_gradient_checkpointing: actor 训练过程是否重新计算梯度，以时间换空间
+- actor_rollout_ref.model.enable_activation_offload: actor 训练是否将 activation offload 到 CPU
+- actor_rollout_ref.model.use_remove_padding: 训练是否移除输入的 padding token
+- actor_rollout_ref.model.trust_remote_code: 是否信任本地的 huggingface cache
+- actor_rollout_ref.actor.use_torch_compile: 是否使用 torch.compile()
+
+- actor_rollout_ref.actor.shuffle: 打乱训练数据
+- actor_rollout_ref.actor.ulysses_sequence_parallel_size: ulysses 类的 SP size
+- actor_rollout_ref.actor.entropy_from_logits_with_chunking: 通过分块计算熵来减少显存峰值
+- actor_rollout_ref.actor.entropy_checkpointing: 是否保存 entropy
+- actor_rollout_ref.actor.checkpoint.save_contents: 保存的检查点中包含的内容
+- actor_rollout_ref.actor.checkpoint.load_contents: 从 checkpoint 加载指定的内容
+
+PPO
+
+- actor_rollout_ref.actor.ppo_epochs: PPO 轮数
+- actor_rollout_ref.actor.grad_clip: actor gradient clip ratio
+- actor_rollout_ref.actor.clip_ratio: PPO clip ratio
+- actor_rollout_ref.actor.clip_ratio_low: dual-clip PPO clip ratio
+- actor_rollout_ref.actor.crip_ratio_high: dual-clip PPO clip ratio
+- actor_rollout_ref.actor.clip_ratio_c: dual-clip PPO, clip when advantage < -C
+- actor_rollout_ref.actor.loss_agg_mode: token-mean, seq-mean-token-sum, seq-mean-token-mean
+- actor_rollout_ref.actor.entropy_coeff: PPO entropy coefficient
+- actor_rollout_ref.actor.use_kl_loss: 是否使用 kl loss 代替 kl 奖励惩罚
+- actor_rollout_ref.actor.kl_loss_coef: `use_kl_loss=True` 时对应的 coefficient
+- actor_rollout_ref.actor.kl_loss_ttype: kl loss estimator, kl, abs, mse, low_var_kl, full
+
+optimizer
+
+- actor_rollout_ref.actor.optim.lr: learning rate
+- actor_rollout_ref.actor.optim.lr_warmup_steps: warmup steps
+- actor_rollout_ref.actor.optim.lr_warmup_steps_ratio: warnup steps 的比例
+- actor_rollout_ref.actor.optim.warnup_style: constant 或者 cosine
+- actor_rollout_ref.actor.optim.min_lr_ratio: cosine lr schedule 的最小学习率比例
+- actor_rollout_ref.actor.optim.num_cycles: lr schedule 中的余弦周期函数
+- actor_rollout_ref.actor.optim.total_training_steps: 总训练步数
+- actor_rollout_ref.actor.optim.weight_decay: 权重衰减系数
+
+training backend
+
+- actor_rollout_ref.actor.strategy: 训练 backend, fsdp, fsdp2 或 megatron
+- actor_rollout_ref.actor.fsdp_config.wrap_policy.min_num_params: 触发 FSDP 包装一个层的最小参数数量
+- actor_rollout_ref.actor.fsdp_config.param_offload: 是否将模型参数 offload 到 CPU
+- actor_rollout_ref.actor.fsdp_config.optimizer_offlod: ZeRO1, 是否将优化其状态 offload 到 CPU
+- actor_rollout_ref.actor.fsdp_config.offload_policy: 仅用于 FSDP2, 训练期间 offload 参数，梯度，优化器状态
+- actor_rollout_ref.actor.fsdp_config.reshard_after_forward: 前向传播后重新分片以减少内存占用
+- actor_rollout_ref.actor.fsdp_config.fsdp_size: 每个 FSDP group 中的 GPU 数量，-1 自动分组
+- actor_rollout_ref.actor.fsdp_config.forward_prefetch: 仅用于 FSDP1, 前向计算完成前自动进行下一次前向传播的 AllGather
+
+reward model
+
+- reward_model.enable: 是否启用奖励模型，如果为 False, 则仅使用与偶过户定义的奖励函数计算奖励
+- reward_model.strategy: backend: FSDP, FSDP2 或 megatron
+- reward_model.model.input_tokenizer: 指定 tokenizer, 如果奖励模型的聊天模板和 policy model 不一致需要设置
+- reward_model.model.path: reward model 的路径，仅支持 AutoModelForSequenceClassification
+- reward_model.model.external_lib: 外部模型实现
+- reward_model.model.use_remove_padding: 使用移除填充优化
+- reward_model.reward_manager: 定义计算基于规则的奖励和处理不同奖励源的机制
+- reward_model.launch_reward_fn_async: 是否在 log_prob 期间异步启动自定义奖励函数
+- reward_model.sandbox_fusion.url: 用于 remote reward function 的 url
+- reward_model.sandbox_fusion.max_concurrent: 允许到 sandbox 的最大请求并发数
 
 train profiler
 

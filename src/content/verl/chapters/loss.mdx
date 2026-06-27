@@ -1,0 +1,137 @@
+import Accordion from "../../../components/Accordion.astro";
+
+## Loss
+
+### Loss Aggregation
+
+对于一个大小为 `[batch_size, response_length]` 的 loss 矩阵， loss aggregation 控制如何计算最终的标量 loss, verl 支持以下模式：
+
+1. `token_mean`
+2. `seq-mean-token-mean`
+3. `sequence-mean-token-sum`
+4. `seq-mean-token-sum-norm`
+
+我们假设第 $i$ 个 sequence, 第 $t$ 个 token 的 per-token loss 为 $\ell_{i,t}$, 有效 token 的集合为 $M$, 有效 token 数为 $|o_i|$
+
+对于 `token-mean`, 其计算方式为
+
+$$
+\mathcal{L} = \frac{1}{\sum_{i}|o_i|} \sum_{(i,t)\in M}\ell_{i,t}
+$$
+
+其含义为对整个 batch 里所有有效 token 的 loss 做平均。特点为
+
+1. 长序列贡献更多 token, 在最终 loss 中权重更大
+2. 大多数 GRPO/DAPO 算法均采用这种模式
+3. Dr.GRPO, DAPO 算法推荐此模式
+
+对于 `sequence-mean-token-sum`, 其计算方式为
+
+$$
+\mathcal{L} = \frac{1}{N}\sum_{i}\left(\frac{1}{|o_i|}\sum_{(i,t)\in M} \ell_{i,t}\right)
+$$
+
+这里 $N$ 为 `batch size`, 对应的含义为先对每条序列内部对 token 取平均，再对 batch 内序列层面取平均 (sample level loss)
+
+特点是：
+
+1. 每条序列权重相同，不受长度影响
+2. 在长 CoT 场景下可能不稳定，因此 verl 示例默认改用 token-mean
+3. GSPO/SAPO 在时宪历会强制使用此模式
+
+对于 `sequence-mean-token-sum`, 其计算方式为
+
+$$
+\mathcal{L} = \frac{1}{N}\sum_{i}\sum_{(i,t)\in M} \ell_{i,t}
+$$
+
+含义为先对每条序列的 token loss 求和，然后在 batch 内部 sequence 层面取平均
+
+特点：
+
+1. 序列间权重相等，但是长回复的 loss 更大
+2. 介于 `token-mean` 和 `sequence-mean-token-mean` 之间
+
+对于 `seq-mean-token-sum-norm`, 其计算方式为
+
+$$
+\mathcal{L} = \frac{1}{NC}\sum_{i}\sum_{(i,t)\in M} \ell_{i,t}
+$$
+
+这里 $C$ 是 loss scalar factor, 未设置时，会使用 `max_response_length`. 其含义为在 `sequence-mean-token-sum` 的基础上做归一化。
+
+特点：
+
+1. 用于 DrGRPO, 缓解 GRPO 的长度 bias
+2. 建议将 $C$ 设置为常数，保证训练全程归一化一致
+
+代码
+
+<Accordion title="verl loss aggregation">
+
+```python
+def agg_loss(
+    loss_mat: torch.Tensor,
+    loss_mask: torch.Tensor,
+    loss_agg_mode: str,
+    dp_size: int = 1,
+    batch_num_tokens: Optional[int] = None,
+    global_batch_size: Optional[int] = None,
+    loss_scale_factor: Optional[int] = None,
+):
+    """
+    Aggregate the loss across global batch to ensure the loss is invariant to fsdp/megatron parallelism.
+
+    NOTE: The returned loss has different behaviors for different backend:
+    - FSDP: the loss is directly used for backward.
+    - Megatron: the loss should be scaled by `num_microbatches` and `cp_size` for pp schedule.
+
+    Args:
+        loss_mat: micro batch loss matrix, (bs, response_length)
+        loss_mask: micro batch loss mask, (bs, response_length)
+        loss_agg_mode: method to aggregate the loss matrix into a scalar
+        dp_size: data parallel size
+        batch_num_tokens: number of valid tokens in global batch
+        global_batch_size: global batch size
+        loss_scale_factor: scale factor for "seq-mean-token-sum-norm" mode. If None, uses loss_mask.shape[-1].
+            Set this to a constant value to ensure consistent normalization throughout training.
+
+    Returns:
+        loss: `a scalar torch.Tensor`
+            aggregated loss
+    """
+    if loss_agg_mode == "token-mean":
+        if batch_num_tokens is None:
+            if dp_size > 1:
+                raise ValueError("(global) batch_num_tokens is required when dp_size > 1")
+            batch_num_tokens = loss_mask.sum()
+        loss = verl_F.masked_sum(loss_mat, loss_mask) / batch_num_tokens * dp_size
+    elif loss_agg_mode in ["seq-mean-token-sum", "seq-mean-token-sum-norm"]:
+        seq_losses = torch.sum(loss_mat * loss_mask, dim=-1)  # token-sum
+        seq_mask = (torch.sum(loss_mask, dim=-1) > 0).float()  # exclude fully masked sequences
+        if global_batch_size is None:
+            if dp_size > 1:
+                raise ValueError("global_batch_size is required when dp_size > 1")
+            global_batch_size = seq_mask.sum()
+        loss = verl_F.masked_sum(seq_losses, seq_mask) / global_batch_size * dp_size  # seq-mean
+        if loss_agg_mode == "seq-mean-token-sum-norm":
+            if loss_scale_factor is None:
+                horizon = loss_mask.shape[-1]
+                loss_scale_factor = horizon
+            loss /= loss_scale_factor
+    elif loss_agg_mode == "seq-mean-token-mean":
+        seq_mask = torch.sum(loss_mask, dim=-1)  # per-sequence token count
+        seq_losses = torch.sum(loss_mat * loss_mask, dim=-1) / (seq_mask + 1e-8)  # token-mean
+        seq_mask = (seq_mask > 0).float()  # exclude fully masked sequences
+        if global_batch_size is None:
+            if dp_size > 1:
+                raise ValueError("global_batch_size is required when dp_size > 1")
+            global_batch_size = seq_mask.sum()
+        loss = verl_F.masked_sum(seq_losses, seq_mask) / global_batch_size * dp_size  # seq-mean
+    else:
+        raise ValueError(f"Invalid loss_agg_mode: {loss_agg_mode}")
+
+    return loss
+```
+
+</Accordion>
