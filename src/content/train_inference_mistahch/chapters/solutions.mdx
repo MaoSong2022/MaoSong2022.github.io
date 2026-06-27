@@ -1,21 +1,45 @@
 ## Solutions
 
+### System solutions
+
+[@yao2025offpolicy] 提到，我们可以
+
+1. 获取 inferene engine 真实的采样概率
+2. 解决 inference engine 和 training engine 的数值不一致性
+
+但是这些改进仍然无法解决 off-policy 问题。
+
+AreaL [@AReaL] 使用了 decoupled PPO [@decoupled_ppo] 来构建 rollout generation 和 gradient computation 之间的关系，但是 AreaL 对于相差比较大的 sample, 会直接丢弃。
+
 ### Algorithm Optimizations
 
 #### Truncated Importance Sampling
 
+[@yao2025offpolicy] 提出了使用 truncated importance sampling (TIS) 来优化 [目标函数](#tim_objective) 的梯度， 新的梯度变为
+
 $$
-a
+\htmlId{tis_reinforce_gradient}{\begin{equation}
+  \nabla_{\theta}\mathcal{J}(\theta) = \mathbb{E}_{x\sim\mathcal{D}, y\sim\mu_{\theta_{\mathrm{old}}}(y\mid x)}\left[\min\left(\frac{\pi_{\theta}(y\mid x)}{\mu_{\theta_{\mathrm{old}}}(y\mid x) }, C\right)R(x,y)\nabla_{\theta}\log \pi_{\theta}(y\mid x)\right]
+\end{equation}}
+$$
+
+其中 $C>0$ 是一个超参数。
+
+对于 PPO [@PPO] 算法，其目标函数为
+
+$$
+\mathcal{J}_{PPO}(\theta) =  \mathbb{E}_{x\sim\mathcal{D}, y\sim\mu_{\theta_{\mathrm{old}}}(y\mid x)}\left[\min\left(\frac{\pi_{\theta}(y\mid x)}{\pi_{\theta_{\mathrm{old}}}(y\mid x) }\hat{A}_t,\mathrm{clip}\left(\frac{\pi_{\theta}(y\mid x)}{\pi_{\theta_{\mathrm{old}}}(y\mid x) },1-\epsilon,1+\epsilon\right)\hat{A}_t\right)\right]
+$$
+
+使用 TIS 之后，梯度为
+
+$$
+\htmlId{tis_ppo_gradient}{\begin{equation}
+  \nabla_{\theta}\mathcal{J}_{PPO}(\theta) = \mathbb{E}_{x\sim\mathcal{D}, y\sim\mu_{\theta_{\mathrm{old}}}(y\mid x)}\left[\min\left(\frac{\pi_{\theta}(y\mid x)}{\mu_{\theta_{\mathrm{old}}}(y\mid x) }, C\right)\nabla_{\theta}\min\left(\frac{\pi_{\theta}(y\mid x)}{\pi_{\theta_{\mathrm{old}}}(y\mid x) }\hat{A}_t,\mathrm{clip}\left(\frac{\pi_{\theta}(y\mid x)}{\pi_{\theta_{\mathrm{old}}}(y\mid x) },1-\epsilon,1+\epsilon\right)\hat{A}_t\right)\right]
+\end{equation}}
 $$
 
 #### Masked Importance Sampling
-
-### System solutions
-
-1. 获取真实的采样概率
-2. 解决数值不一致性
-
-但是这些改进仍然无法解决 off-policy 问题。
 
 ### MoE models
 
@@ -26,6 +50,9 @@ MoE RL 训练不稳定性解决：
 #### Router Replay
 
 即在训练阶段，使用推理阶段的 MoE router, 避免 sample 时对 policy gradient 引入噪声。
+
+1. vanilla router replay: R2, 梯度更新时，replay inference engine 选中的专家，减少策略滞后性
+2. rollout router replay: R3, 在训练引擎中重放推理引擎选中的专家，减少训练推理差异
 
 相关工作有
 
