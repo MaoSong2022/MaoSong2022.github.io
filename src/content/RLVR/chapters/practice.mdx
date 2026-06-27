@@ -1,0 +1,31 @@
+## Practice
+
+1. 使用 base model 进行 RL, 应该去掉 kl loss, 因为这会限制模型的 exploration
+2. 不是 base model, 需要加上 kl loss, 系数设置为 0.001
+3. 要提升 base model RL 的表现，可以使用 base RL 做 rejection sampling, 然后对 base model 做 cold start sft, 再继续 RL
+4. 复杂任务的奖励函数不要太单一，否则容易 reward hacking
+5. reward 始终不涨，建议用训练前的模型分析一下 pass@1，看一下是不是奖励都特别低，是的花说明基模的上限就是这样，需要换模型或者对 SFT 模型进行优化
+6. 建议使用 cosine learning rate, 初始值设置为 1e-6, 避免固定学习率导致的后期优化震荡，如果学习率长期不上升，可以尝试在衰减后期加入小幅度的线性升温
+7. RLHF 数据需要覆盖不同场景，如果数据比较单一，可以计入领域覆盖度惩罚
+8. PPO 的学习率需要比 SFT 小一个数量级，过高学习率容易导致模式崩溃
+9. 为防止能力遗忘，可以在 RL prompt 中加入 5%-10% 的通用 SFT 数据，可以在优化特定偏好的同时防止灾难性遗忘
+10. reward model 输出需要做 reward clipping, 这样而可以防止异常 reward 影响训练稳定性
+11. DPO 的偏好数据需要比较明显
+12. value model 的 value loss 不下降或者爆炸，可以尝试降低 value model 的学习率或者增加损失系数
+13. PPO 中, critic 的学习率可以设置的比 Actor model 的学习率更高，如 actor 为 1e-6, critic 可以设置为 5e-6 或 1e-5, 因为 critic 需要更快拟合奖励值，为 actor 提供准确的 advantage 估计
+14. PPO 训练前，需要对 rm 的输出进行归一化
+15. RLHF 需要更大的 batch size
+16. RLHF 遇到 reward hacking 时，解决方案为在奖励函数中加入惩罚项，或者降低某个 reward 的权重，或者将这些 reward hacking 数据作为负样本重新训练奖励模型
+17. GRPO 比 DPO 更适合处理噪声大或者 sub-optimal 的数据，稳健性更高
+18. PPO 的 critic model 应该从 SFT 模型加载，而不是随机初始化
+19. GRPO 训练早期可以使用较小的 group size, 后期可以使用更大的 batch size
+
+问题：
+
+1. reward 持续上升，但 kl 散度爆炸式增长，原因为 kl penalty 系数过小，逐步调大
+2. kl 散度很低，reward 不增长： kl penalty 系数过大
+3. 训练初期输出大量重复内容：学习率过高
+4. 长度很长或者很短：reward model 存在 bias
+5. loss 和 reward 剧烈波动：1. batch size 太小；2. reward 没有归一化；3. ppo clip range 太大
+6. 生成文本质量下降：训练步数过多，过拟合，early stopping
+7. reward 持续上升，单回答存在事实错误：reward model 过拟合
