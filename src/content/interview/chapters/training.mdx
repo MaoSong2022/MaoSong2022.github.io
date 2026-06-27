@@ -1,24 +1,27 @@
 ## training
 
-#### Parallelism
-
-- DP
-  - ZeRO-1
-  - ZeRO-2
-  - ZeRO-3 (FSDP)
-- TP
-- CP
-- PP
-- EP
-
 ### pre-training
 
-#### 训练框架
+大模型训练的时候 loss 为 NaN 是什么原因
+
+训练时 train loss 下降，eval loss 震荡是什么原因
+
+pretraining 训练框架
 
 - megatron
 - FSDP
 - Deepspeed
 - torchtitan
+
+ppl 是什么，pre-training 还有哪些概率计算公式
+
+### mid-train
+
+mid-train 的作用是什么，参数配置与 pre-train 有什么区别
+
+mid-train 的上限在哪
+
+长度外推怎么做
 
 ### post-training
 
@@ -34,7 +37,7 @@ SFT， DPO， PPO 训练数据怎么获取的
 
 **模型训练中遇到过哪些问题，如何解决**
 
-不同领域的数据如何配比
+小模型容易出现复读机现象，怎么解决
 
 模型训练超参数如何选择
 
@@ -90,6 +93,10 @@ SFT 为什么只训一轮，不训 多轮
 sft 如何防止过你和
 
 是否开 thinking 对训练有什么区别？
+
+sft 主要增强模型的什么能力，不训练模型是怎么样的
+
+sft 如何解决灾难性遗忘
 
 #### RL
 
