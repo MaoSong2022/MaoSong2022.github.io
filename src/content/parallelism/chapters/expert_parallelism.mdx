@@ -43,7 +43,7 @@ MoE 实现包括以下步骤：
    2. All to All 回传数据，通过 `dist.all_to_all` 将专家输出和元数据回传到原始设备
    3. 加权求和，根据原数据找到原始 token, 并按照 gating score 加权求和
 
-代码如下
+代码如下 (参考 [firescale](https://github.com/facebookresearch/fairscale))
 
 <Accordion title="MoE with All to All">
 
@@ -233,3 +233,5 @@ Inference
 DeepSeek-V4 [@DeepSeek-V4]
 
 MiniMax-01 [@MiniMax-01] 中进一步提出了 ETP, 用于将 EP 和 TP 结合起来
+
+- [Dualpipe](https://zhuanlan.zhihu.com/p/1910995677451912435)
