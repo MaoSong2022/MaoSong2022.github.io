@@ -1,6 +1,6 @@
-import Definition from '../../../components/Definition.astro'
-import Theorem from '../../../components/Theorem.astro'
-import Image from '../../../components/Image.astro';
+import Definition from "../../../components/Definition.astro";
+import Theorem from "../../../components/Theorem.astro";
+import Image from "../../../components/Image.astro";
 
 ## Probability
 
@@ -28,8 +28,16 @@ $$
 $$
 
 则我们说 $u(X_1,\dots,X_n)$ 是随机变量 $X$ 的一个无偏估计 (unbiased estimator).
+
 </Definition>
 
 ### Law of Total Expectation
 
 TODO
+
+### Importance Sampling
+
+importance sampling 的两个 motivation [@TIS]:
+
+1. 直接从目标分布 $f(x)$ 抽样可能非常困难或计算量巨大
+2. 有时候从 $f(x)$ 抽样很容易，但是算出来的结果波动很大，我们可以挑选一个 $g(x)$ 来降低方差。
