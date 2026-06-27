@@ -1,12 +1,13 @@
 ---
 interface Props {
   term: string;
+  id?: string;
 }
 
-const { term } = Astro.props;
+const { term, id } = Astro.props;
 ---
 
-<figure class="article-definition">
+<figure class="article-definition" id={id}>
   <figcaption class="article-definition__title">Definition: {term}</figcaption>
   <div class="article-definition__body">
     <slot />
