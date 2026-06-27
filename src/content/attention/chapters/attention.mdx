@@ -18,7 +18,7 @@ u_t&= W^O[o_{t,1};o_{t,2};\dots,;o_{t,n_h}]
 \end{aligned}
 $$
 
-其中 $q_t=[q_{t,1};q_{t,2};\dots,;q_{t,n_h}]$,  $k_t=[k_{t,1};k_{t,2};\dots,;k_{t,n_h}]$, $v_t=[v_{t,1};v_{t,2};\dots,;v_{t,n_h}]$.
+其中 $q_t=[q_{t,1};q_{t,2};\dots,;q_{t,n_h}]$, $k_t=[k_{t,1};k_{t,2};\dots,;k_{t,n_h}]$, $v_t=[v_{t,1};v_{t,2};\dots,;v_{t,n_h}]$.
 $W^O\in\mathbb{R}^{d\times d_hn_h}$ 为 output projection 的权重。
 在 inference 阶段，每个 token 需要缓存其 key 以及 value 对应的值，从而每个 token 的 kv cache 占用为 $2n_hd_h\ell$.
 当序列长度过大时，KV cache 会影响整体的 inference efficiency.
@@ -35,13 +35,19 @@ $$
 
 对于现代的 GPU 来说，其一般算力比较强，但是内存访问带宽相对较慢，因此我们希望 MAR 越低越好，以充分发挥 GPU 的算力。
 
+### Implementation
+
+```python
+
+```
+
 ### Analysis
 
 在训练的时候，由于我们知道 ground truth sequence, 因此我们可以并行计算。但是在 inference 的时候，我们只能 token-by-token 进行计算，因此我们分析一下 token-by-token 场景下的 MAR
 
 我们整体的 arithmetic operations 还是 $O(bnd^2)$.
 
-但是，现在我们要调用 $n$ 次 multi-head attention, 因此我们总的内存访问量为 $O(bn^2d + nd^2)$,  第一项是 $K$ 和 $V$ , 第二项是 query, key 和 value layer 的权重。
+但是，现在我们要调用 $n$ 次 multi-head attention, 因此我们总的内存访问量为 $O(bn^2d + nd^2)$, 第一项是 $K$ 和 $V$ , 第二项是 query, key 和 value layer 的权重。
 
 这种情况下，MAR 就变成了
 
