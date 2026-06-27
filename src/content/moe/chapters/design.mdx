@@ -97,7 +97,8 @@ $$
 
 最近的 DeepSeek-V4 [@DeepSeek-V4] 使用了 $\mathrm{Sqrt}(\mathrm{Softplus}(\cdot))$ 作为激活函数。
 
-实验结果显示，sigmoid function 对于超参数更加 robust, 且表现也更好一些。 下面是一些使用不同激活函数的模型例子
+实验结果显示，sigmoid function 对于超参数更加 robust, 且表现也更好一些。
+下面是一些使用不同激活函数的模型例子
 
 |            Activation function            |                   Models                    |
 | :---------------------------------------: | :-----------------------------------------: |
@@ -180,7 +181,10 @@ $$
 
 #### Hash Routing
 
-TODO, 最近的 DeepSeek-V4 [@DeepSeek-V4] 在前三层 MoE layer 中使用了 Hash Routing 策略。
+最近的 DeepSeek-V4 [@DeepSeek-V4] 在前三层 MoE layer 中使用了 Hash Routing 策略。
+其做法就是基于 token id 来分配对应的专家，即
+
+hash routing 的优势是可以完美保持负载均衡，但是其缺陷在于忽略了 context, 导致最终模型表现效果不佳。
 
 #### Overview
 
