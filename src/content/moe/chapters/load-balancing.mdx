@@ -5,7 +5,7 @@ import Algorithm from "../../../components/Algorithm.astro";
 import olmoe_load_balancing_loss from "../../../assets/image/olmoe-load-balancing-loss.png";
 import ollmoe_load_balancing_expert_assignment from "../../../assets/image/ollmoe-load-balancing-expert-assignment.png";
 
-## Load Balancing Loss
+## Load Balancing
 
 我们在 [MoE Design](#moe-design) 中已经介绍了 MoE 模块，MoE 尽管可以在相同的算力下扩大模型的 size, 但是其问题在于训练时容易出现负载不均衡，也就是说只有少数几个专家被激活，其他专家处于闲置状态，从而导致模型性能下降或者退化。
 
@@ -304,3 +304,7 @@ $$
 | 3B         | Loss-Free              | **7.92**              | **0.04**                |
 
 实验结果显示，本文提出的 Loss-Free Balancing 效果更好，且负载均衡更高
+
+### Capacity Factor
+
+https://www.cerebras.ai/blog/moe-guide-router
