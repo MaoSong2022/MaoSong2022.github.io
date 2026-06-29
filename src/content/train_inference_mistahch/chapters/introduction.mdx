@@ -1,23 +1,13 @@
 ## Introduction
 
-- KAT coder v1 pro
-- GEPo
-
-### What is TIM
-
 现代的 RL 框架比如 verl 会使用不同的框架来完成 inference engine 和 training engine, 比如说使用 megatron [@Megatron] 进行训练，使用 FSDP [@FSDP] 进行训练。
 尽管使用的模型一致，但由于 training engine 和 inference engine 的优化目标不同：前者要求数值稳定性和精度， 后者强调最大化 throughput.
-这种优化目标的不一致使得 inference engine 和 training engine 的实现和最终输出不完全一致，最终体现为随着训练进行，gradient norm 会突然爆炸，导致模型训练崩溃。
+这种优化目标的不一致使得 inference engine 和 training engine 的实现和最终输出不完全一致，最终体现为随着训练进行，gradient norm 会突然爆炸，reward 突然下降，模型训练崩溃。
+我们将这个问题称为 training-inference mismatch (TIM) 问题。
 
-因此 training inference mismatch 问题 [@liu-li-2025-rl-collapse].
+之前大家研究的都是 dense model, dense model 由于连续性比较强，即 $f_{\theta}(x+\delta x)\approx f_{\theta}(x)$， 因此 TIM 现象不严重。
 
-### Why TIM
+但是，现在大部分模型都是 MoE 模型，MoE 模型的 MLP 是一个离散架构，由 router 来选取 topK 专家进行计算，然后再进行加权求和得到最终输出。
+由于 router 的不连续性，现在 $f_{\theta}(x+\delta x)$ 和 $f_{\theta}(x)$ 会出现比较大的误差，而这种误差会持续影响模型训练，最终导致训练崩溃。
 
-thinking machine lab, non-deterministic inference, numerical instability.
-
-1. 训练和推理引擎会使用不同的 kernel 来实现 peak performance
-2. 就算是一个 engine, batch-invariant kernels 也会被禁用来实现 maximum throughput.
-
-### How it occurs
-
-回顾经典的 PPO [@PPO] 和 GRPO 算法 [@GRPO], 他们的核心在于通过一个 $\mathrm{clip}$ 函数来
+本文将系统性回顾和整理 TIM 相关的论文，blog, 并通过实现来验证和复现相关现象以及解决方法。

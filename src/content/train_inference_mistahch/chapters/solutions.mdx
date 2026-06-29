@@ -1,5 +1,13 @@
 ## Solutions
 
+- KAT coder v1 pro
+- GEPO
+
+thinking machine lab, non-deterministic inference, numerical instability.
+
+1. 训练和推理引擎会使用不同的 kernel 来实现 peak performance
+2. 就算是一个 engine, batch-invariant kernels 也会被禁用来实现 maximum throughput.
+
 ### System solutions
 
 [@yao2025offpolicy] 提到，我们可以
@@ -19,7 +27,7 @@ AreaL [@AReaL] 使用了 decoupled PPO [@decoupled_ppo] 来构建 rollout genera
 
 $$
 \htmlId{tis_reinforce_gradient}{\begin{equation}
-  \nabla_{\theta}\mathcal{J}(\theta) = \mathbb{E}_{x\sim\mathcal{D}, y\sim\mu_{\theta_{\mathrm{old}}}(y\mid x)}\left[\min\left(\frac{\pi_{\theta}(y\mid x)}{\mu_{\theta_{\mathrm{old}}}(y\mid x) }, C\right)R(x,y)\nabla_{\theta}\log \pi_{\theta}(y\mid x)\right]
+\nabla_{\theta}\mathcal{J}(\theta) = \mathbb{E}_{x\sim\mathcal{D}, y\sim\mu_{\theta_{\mathrm{old}}}(y\mid x)}\left[\min\left(\frac{\pi_{\theta}(y\mid x)}{\mu_{\theta_{\mathrm{old}}}(y\mid x) }, C\right)R(x,y)\nabla_{\theta}\log \pi_{\theta}(y\mid x)\right]
 \end{equation}}
 $$
 
@@ -40,6 +48,33 @@ $$
 $$
 
 #### Masked Importance Sampling
+
+IcePop [@IcePop2025] 提出了基于 mask 的 importance sampling 方法，其目标函数如下所示
+
+$$
+\mathcal{J}_{IcePop}(\theta) =  \mathbb{E}_{x\sim\mathcal{D}, y\sim\mu_{\theta_{\mathrm{old}}}(y\mid x)}\left[\mathcal{M}\left(\frac{\pi_{\theta}(y\mid x)}{\mu_{\theta_{\mathrm{old}}}(y\mid x)},\alpha,\beta\right)\cdot\min\left(\frac{\pi_{\theta}(y\mid x)}{\pi_{\theta_{\mathrm{old}}}(y\mid x) }\hat{A}_t,\mathrm{clip}\left(\frac{\pi_{\theta}(y\mid x)}{\pi_{\theta_{\mathrm{old}}}(y\mid x) },1-\epsilon,1+\epsilon\right)\hat{A}_t\right)\right]
+$$
+
+其中
+
+$$
+\mathcal{M}\left(x,\alpha,\beta\right) = \begin{cases}
+  x, &\text{ if } k\in [\alpha,\beta]\\
+  0, &\text{ otherwise}
+\end{cases}
+$$
+
+但是，随着训练进行， IcePop mask 的 token 数越来越少，导致 TIM 现象仍然存在，为了解决这个问题，KPop 进行了优化，最终目标函数一致，但是 mask 区域变成了
+
+$$
+\mathcal{M}\left(y_t;\phi\right) = \mathbf{1}\left(\mathrm{KL}_B(\pi_{\theta}(y_t\mid y_{<t},x)\mid\mid \mu_{\theta_{\mathrm{old}}}(y_t\mid y_{<t},x))\leq \phi\right)\cdot \mathbf{1}\left(\mathrm{KL}_B(\mu_{\theta_{\mathrm{old}}}(y_t\mid y_{<t},x)\mid\mid \pi_{\theta}(y_t\mid y_{<t},x))\leq \phi\right)
+$$
+
+其中 $\mathrm{KL}_B(P(x)\mid\mid Q(x))$ 是 symmetry binary KL:
+
+$$
+\mathrm{KL}_B(P(x)\mid\mid Q(x)) = P(x)\log \frac{P(x)}{Q(x)} + (1-P(x))\log\frac{1-P(x)}{1-Q(x)}
+$$
 
 ### MoE models
 
