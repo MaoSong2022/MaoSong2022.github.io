@@ -1,0 +1,37 @@
+import HtmlEmbed from "../../../components/HtmlEmbed.astro";
+import Image from "../../../components/Image.astro";
+import MarcronV1Preview from "../../../images/Macron_V1_MoL.png";
+
+## Models
+
+Macaron-V1-Preview [@Macaron-V1-Preview] 是一个基于 [GLM 5.1](https://z.ai/blog/glm-5.1) 和 Mixture of LoRA 的 模型。
+
+Mixture of LoRA (MoL) 通过聚类将任务分成不同的类别，然后相同的类别使用相同的 LoRA [@LoRA] 来进行优化。
+作者将任务分为 5 个类别：
+
+1. LO: default chat and general-purpose use
+2. L1: personal-life tasks
+3. L2: coding tasks
+4. L3: A2UI
+5. L4: OpenClaw-style tasks
+
+MoL 与 MoE, Skills 的对比如下图所示
+
+<Image src={MarcronV1Preview} alt="Mixture of LoRA of Macaron-V1-Preview" />
+
+作者将 LoRA model selection 作为一个 tool call 来执行，默认为 L0, agentic loop 先进行 explicit routing, 让 L0 执行 `change_model` 来调用对应的专家，然后专家完成相应任务之后，执行 `implicit routing` 来返回到默认的专家。
+
+为了避免切换专家导致的 KV cache recomputation, 作者构建了一个 cross-LoRA KV cache reuse 技巧。
+
+作者还进行了如下优化：
+
+1. 使用了 R3 等技巧来解决训练推理不一致性问题
+2. 使用了 MindForge + Harness Context Protocol 来将 harness 融入训练过程
+
+对于 self-evolution, 作者构建了如下 loop:
+
+1. autoresearch: base model 自我提升 prompts, tool-use patterns
+2. trajectory selection: 找出相比与 original prompt 有提升的那些 rollout
+3. context learning: 将这些轨迹蒸馏到模型的能力中
+
+insight: 模型可以从构建好的环境以及 reward 中完成 self-evolution

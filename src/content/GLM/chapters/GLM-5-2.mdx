@@ -1,1 +1,62 @@
 ## GLM-5.2
+
+[GLM-5.2](https://z.ai/blog/glm-5.2) 在
+
+features:
+
+1. 1M context
+2. dynamic thinking
+3. 架构优化：使用了 IndexShare 来减少算力
+4. 开预案不能
+
+### Architecture
+
+#### IndexShare
+
+GLM 5.2 使用了 IndexShare [TODO] 来减少 DSA [@DSA] 中 indexer 的算力消耗。
+具体做法就是，每 4 层 transformer layer 共享一个轻量化的 indexer, 这 4 层里的第一层负责执行计算，然后计算得到的 topk indices 被这 4 层共享。
+
+#### MTP
+
+对于 MTP, 作者主要是最小化 MTP 作为 draft model 的开销和最大化 acceptance rate.
+
+为了最小化开销，作者在 MTP 中也使用了 IndexShare, 作者发现，使用 IndexShare 之后，MTP 只能关注到 target model 产生的 indexer, 避免了关注 MTP 本身产生的（可能错误的）token, 从而提高了 acceptance rate.
+
+作者还引入了其他优化方法：
+
+1.rejection sampling: 在 speculative decoding 时引入 rejection sampling
+使用 end-to-end TV loss 来进行训练
+
+最终，这些表现的方法如下所示
+
+| Method                | Acceptance Length |
+| --------------------- | ----------------- |
+| Baseline              | 4.56              |
+| IndexShare + KV Share | 5.10              |
+| Rejection Sampling    | 5.29              |
+| End-to-end TV Loss    | 5.47 (+20%)       |
+
+### Inference
+
+inference 阶段，作者做了如下优化：
+
+1. 基于 LayerSplit 提出了 细粒度的内存管理策略和并行机制
+2. 对 kernels 进行了优化来对 prefilling 和 decoding 实现更好的 cache transfer
+3. 在 CPU 端优化 cache management, request scheduling, runtime execution path 来减少 bubbles
+
+### Infra
+
+infra 方面， GLM-5.2 使用了 slime 来执行 parallel OPD training, 最终 OPD 训练只需要 2 天
+
+### Reward hacking
+
+对于 long horizon tasks 中的 rollout 过长问题，由于不同 rollout 产生的可训练的 rollout 数量不同，长度高度可变，因此 GRPO [@DeeepSeek-Math] 很容易失效。
+为了解决这个问题，GLM-5.2 回归到了 PPO [@PPO] 的训练框架下，用于解决不同 rollout 长度不同的问题。
+
+对于 coding agent reward hacking, 作者发现 GLM-5.2 会使用 `curl` 去 Github 下载答案，或者通过查看隐藏文件来获取信息。
+作者的解决方法为在训练和评估阶段使用了 anti-hack module, 包括两个阶段
+
+1.  使用一个 rule-based filter 来捕获可能的 reward hacking
+2.  使用一个 LLM judge 来检测模型行为的意图
+
+如果训练过程发现模型出现 reward hacking 行为，就禁止该次工具调用并返回空信息，这样避免了模型产生 reward hacking.

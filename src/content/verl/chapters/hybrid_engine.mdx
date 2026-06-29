@@ -1,0 +1,29 @@
+## Hybrid Engine
+
+verl 使用 Hybrid Engine 来将 actor 和 rollout 共用同一组 GPU, 由 `ActorRolloutRefWorker` 管理。
+
+每个 GPU 上的 worker 同时持有：
+
+1. TrainingWorker
+2. Rollout ServerAdapter
+
+训练时，包括以下步骤：
+
+1. 恢复 rollout engine 的权重内存
+2. 从训练引擎导出完整 HF 格式的 tensor
+3. 将权重写入到 rollout engine
+4. 恢复 KV cache, 准备下一轮 generate
+
+权重同步由 `CheckpointEngineManager` 负责管理，包含 naivr, nccl, nixl, hccl 集中模式，其中
+
+- naive 的 ColocatedCheckpointEngine 本身只是把 generator 存起来再 yield，没有额外网络/集合通信：
+
+| 模式                     | hybrid_engine | checkpoint backend        | 传输方式                                         |
+| ------------------------ | ------------- | ------------------------- | ------------------------------------------------ |
+| Hybrid（同 GPU）         | `true`        | naive（默认）             | 进程内导出 + CUDA IPC / SGLang API               |
+| Fully Async / Off-policy | `false`       | nccl / nixl / mooncake 等 | Trainer ↔ Rollout 跨节点/跨进程 NCCL 或 ring P2P |
+
+写入时，需要做一次跨进程传输，根据推理引擎不同，有不同模式
+
+1. vLLM：ZMQ + CUDA IPC（桶化传输）
+2. SGLang：分桶 + HTTP / 内部 weight sync API
