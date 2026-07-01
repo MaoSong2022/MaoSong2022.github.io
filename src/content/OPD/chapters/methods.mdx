@@ -1,0 +1,49 @@
+import Sidenote from "../../../components/Sidenote.astro";
+
+## On Policy Distillation
+
+OPD 的目标函数如下所示
+
+$$
+\htmlId{opd_objective}{\begin{equation}
+\mathcal{L}_{OPD}(\theta) = \mathbb{E}_{x\sim\mathcal{D},y\sim\pi_{\theta}}\left[\mathrm{KL}(\pi_\theta(y\mid x)\mid\mid \pi_T(y\mid x))\right]
+\end{equation}}
+$$
+
+其中 $\pi_{\theta}$ 是学生模型，$\pi_T$ 是教师模型
+
+通过 probability chain rule, 我们可以将上面的 [目标函数](#opd_objective) 转换为token层面的等价形式
+
+$$
+\begin{equation}
+\mathcal{L}_{OPD}(\theta) = \mathbb{E}_{x\sim\mathcal{D},y\sim\pi_{\theta}}\left[\frac{1}{|y|}\sum_{t=1}^{|y|}\mathrm{KL}(\pi_\theta(y_t\mid y_{<t}, x)\mid\mid \pi_T(y_t\mid y_{<t}, x))\right]
+\end{equation}
+$$
+
+这里 $|y|$ 是 response length, KL divergence 在整个词表 $\mathcal{V}$ 计算：
+
+$$
+\mathrm{KL}(\pi_\theta(y_t\mid y_{<t}, x)\mid\mid \pi_T(y_t\mid y_{<t}, x)) = \sum_{v\in\mathcal{V}} \pi_\theta(v\mid y_{<t}, x) \frac{\pi_\theta(v\mid y_{<t}, x)}{\pi_T(v\mid y_{<t}, x)}
+$$
+
+可以看到，现在教师模型通过给学生模型输出的每个 token 进行打分来提供 dense reward.
+
+与 MiniLLM [@MiniLLM] 一样，我们可以将 MOPD 建模为一个 RL 训练过程，注意到
+
+$$
+\nabla_{\theta} \mathcal{L}_{OPD}(\theta) = \mathbb{E}_{x\sim\mathcal{D},y\sim\pi_{\theta}}\left[\frac{1}{|y|}\sum_{t=1}^{|y|}\frac{\pi_\theta(y_t\mid y_{<t}, x)}{\pi_T(y_t\mid y_{<t}, x)}\nabla_{\theta} \pi_\theta(y_t\mid y_{<t}, x)\right]
+$$
+
+基于 policy gradient, 我们可以将 OPD 的 advantage 表示为
+
+$$
+\hat{A}_{OPD,t} = \mathrm{sg}\left[\log\pi_\theta(y_t\mid y_{<t}, x)-\log\pi_T(y_t\mid y_{<t}, x)\right]
+$$
+
+其中 $\mathrm{sg}(\cdot)$ 是 stop gradient operator.
+
+这样，OPD 等价于下面的 policy optimization problem:
+
+$$
+\mathcal{L}_{OPD}(\theta) = \mathbb{E}_{x\sim\mathcal{D},y\sim\pi_{\theta}}\left[\frac{1}{|y|}\sum_{t=1}^{|y|}\hat{A}_{OPD,t}\log\pi_\theta(y_t\mid y_{<t}, x)\right]
+$$

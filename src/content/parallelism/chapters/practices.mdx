@@ -1,5 +1,10 @@
 ## Practices
 
+- DP: 简单可靠，但是无法支持内存使用超过单卡的模型
+- TP： 降低显存，但是没办法跨节点
+- ZeRO: 频繁通信，节点数量多的时候性能受限
+- PP: 通信量低，适合多节点训练
+
 一般结合 TP, PP, DP, 设置规则：intra node 设置 TP, 然后 inter node 设置 PP, 最后设置 DP, $\mathrm{DP}=\mathrm{num\_GPU}/(\mathrm{TP}\times \mathrm{PP})$
 
 - 模型显存变为原来的 $1/(\mathrm{TP}\times \mathrm{PP})$

@@ -357,7 +357,7 @@ numpages = {67},
   title = {GLM-5.2: Built for Long-Horizon Tasks},
   year = {2026},
   howpublished = {Z.ai},
-  note = https://z.ai/blog/glm-5.2}
+  note = {https://z.ai/blog/glm-5.2}
 }
 
 @InProceedings{MTP,
@@ -1284,18 +1284,40 @@ numpages = {67},
   note         = {Accessed: 2026-05-27}
 }
 
-@inproceedings{MiniLM,
-  author    = {Wang, Wenhui and Wei, Furu and Dong, Li and Bao, Hangbo and Yang, Nan and Zhou, Ming},
-  title     = {MINILM: deep self-attention distillation for task-agnostic compression of pre-trained transformers},
-  year      = {2020},
-  isbn      = {9781713829546},
-  publisher = {Curran Associates Inc.},
-  address   = {Red Hook, NY, USA},
-  booktitle = {Proceedings of the 34th International Conference on Neural Information Processing Systems},
-  articleno = {485},
-  numpages  = {13},
-  location  = {Vancouver, BC, Canada},
-  series    = {NIPS '20}
+
+@inproceedings{MiniLLM,
+  title={Mini{LLM}: Knowledge Distillation of Large Language Models},
+  author={Yuxian Gu and Li Dong and Furu Wei and Minlie Huang},
+  booktitle={The Twelfth International Conference on Learning Representations},
+  year={2024},
+  url={https://openreview.net/forum?id=5h0qf7IBZZ}
+}
+
+@inproceedings{agarwal2024onpolicy,
+  title={On-Policy Distillation of Language Models: Learning from Self-Generated Mistakes},
+  author={Rishabh Agarwal and Nino Vieillard and Yongchao Zhou and Piotr Stanczyk and Sabela Ramos Garea and Matthieu Geist and Olivier Bachem},
+  booktitle={The Twelfth International Conference on Learning Representations},
+  year={2024},
+  url={https://openreview.net/forum?id=3zKtaqxLhW}
+}
+
+@article{lu2025onpolicydistillation,
+  author = {Kevin Lu and Thinking Machines Lab},
+  title = {On-Policy Distillation},
+  journal = {Thinking Machines Lab: Connectionism},
+  year = {2025},
+  note = {https://thinkingmachines.ai/blog/on-policy-distillation},
+  doi = {10.64434/tml.20251026},
+}
+
+@misc{Nemotron-Cascade2,
+  title={Nemotron-Cascade 2: Post-Training LLMs with Cascade RL and Multi-Domain On-Policy Distillation}, 
+  author={Zhuolin Yang and Zihan Liu and Yang Chen and Wenliang Dai and Boxin Wang and Sheng-Chieh Lin and Chankyu Lee and Yangyi Chen and Dongfu Jiang and Jiafan He and Renjie Pi and Grace Lam and Nayeon Lee and Alexander Bukharin and Mohammad Shoeybi and Bryan Catanzaro and Wei Ping},
+  year={2026},
+  eprint={2603.19220},
+  archivePrefix={arXiv},
+  primaryClass={cs.CL},
+  url={https://arxiv.org/abs/2603.19220}, 
 }
 
 @misc{SDFT,
@@ -1346,6 +1368,16 @@ numpages = {67},
   url={https://arxiv.org/abs/2604.13016}, 
 }
 
+
+@misc{MOPD,
+  title={MOPD: Multi-Teacher On-Policy Distillation for Capability Integration in LLM Post-Training}, 
+  author={Wenhan Ma and Jianyu Wei and Liang Zhao and Hailin Zhang and Bangjun Xiao and Lei Li and Qibin Yang and Bofei Gao and Yudong Wang and Rang Li and Jinhao Dong and Zhifang Sui and Fuli Luo},
+  year={2026},
+  eprint={2606.30406},
+  archivePrefix={arXiv},
+  primaryClass={cs.CL},
+  url={https://arxiv.org/abs/2606.30406}, 
+}
 @misc{bethune2025scalinglawsforgettingfinetuning,
   title         = {Scaling Laws for Forgetting during Finetuning with Pretraining Data Injection},
   author        = {Louis Bethune and David Grangier and Dan Busbridge and Eleonora Gualdoni and Marco Cuturi and Pierre Ablin},
@@ -1727,6 +1759,16 @@ numpages = {67},
   url = {https://richardli.xyz/rl-collapse}
 }
 
+@misc{qi2025defeatingtraininginferencemismatchfp16,
+  title={Defeating the Training-Inference Mismatch via FP16}, 
+  author={Penghui Qi and Zichen Liu and Xiangxin Zhou and Tianyu Pang and Chao Du and Wee Sun Lee and Min Lin},
+  year={2025},
+  eprint={2510.26788},
+  archivePrefix={arXiv},
+  primaryClass={cs.LG},
+  url={https://arxiv.org/abs/2510.26788}, 
+}
+
 @misc{InternVL3.5,
   title={InternVL3.5: Advancing Open-Source Multimodal Models in Versatility, Reasoning, and Efficiency}, 
   author={Weiyun Wang and Zhangwei Gao and Lixin Gu and Hengjun Pu and Long Cui and Xingguang Wei and Zhaoyang Liu and Linglin Jing and Shenglong Ye and Jie Shao and Zhaokai Wang and Zhe Chen and Hongjie Zhang and Ganlin Yang and Haomin Wang and Qi Wei and Jinhui Yin and Wenhao Li and Erfei Cui and Guanzhou Chen and Zichen Ding and Changyao Tian and Zhenyu Wu and Jingjing Xie and Zehao Li and Bowen Yang and Yuchen Duan and Xuehui Wang and Zhi Hou and Haoran Hao and Tianyi Zhang and Songze Li and Xiangyu Zhao and Haodong Duan and Nianchen Deng and Bin Fu and Yinan He and Yi Wang and Conghui He and Botian Shi and Junjun He and Yingtong Xiong and Han Lv and Lijun Wu and Wenqi Shao and Kaipeng Zhang and Huipeng Deng and Biqing Qi and Jiaye Ge and Qipeng Guo and Wenwei Zhang and Songyang Zhang and Maosong Cao and Junyao Lin and Kexian Tang and Jianfei Gao and Haian Huang and Yuzhe Gu and Chengqi Lyu and Huanze Tang and Rui Wang and Haijun Lv and Wanli Ouyang and Limin Wang and Min Dou and Xizhou Zhu and Tong Lu and Dahua Lin and Jifeng Dai and Weijie Su and Bowen Zhou and Kai Chen and Yu Qiao and Wenhai Wang and Gen Luo},
@@ -1968,3 +2010,12 @@ numpages = {67},
   note = {https://macaron.im/mindlab/research/macaron-v1-preview}
 }
 
+@misc{shen2026firstprinciplesderivationllmpolicy,
+  title={A First-Principles Derivation of LLM Policy Optimization: From Expected Reward to GRPO and Its Structural Extensions}, 
+  author={Jianghan Shen and Siqi Luo and Yue Li and Jiyao Liu and Wanying Qu and Yi Zhang and Ziyan Huang and Tianbin Li and Ming Hu and Xiaohong Liu and Yirong Chen and Junjun He},
+  year={2026},
+  eprint={2606.16733},
+  archivePrefix={arXiv},
+  primaryClass={cs.AI},
+  url={https://arxiv.org/abs/2606.16733}, 
+}

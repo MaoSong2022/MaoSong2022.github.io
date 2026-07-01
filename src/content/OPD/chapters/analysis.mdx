@@ -1,5 +1,16 @@
-
 ## Analysis on OPD
+
+OPD 效果好的原因主要有以下几点：
+
+1. cheaper sampling: 教师模型只需要执行一次prefill 就可以完成一次指导，而prefill效率与开销要远低于decoding.
+2. on-policy: on policy 让学生模型可以不停改进自己的策略
+3. Reverse KL: 我们在 [KL divergence](https://maosong.website/blog/kl-divergence/) 中已经介绍了forward KL 与 reverse KL的不同之处，前者是mean seeking, 后者是mode seeking. 而mode seeking能够保证模型取得更好的表现。
+
+OPD 的优势 [@MOPD]：
+
+1. dense training signal, 直接集成 teacher model 的模型
+2. 由 student model 进行 rollout, 避免 exposure bias
+3. per-prompt routing 而不是 weight-space fusion.
 
 ### Comparison of different methods
 
@@ -40,3 +51,71 @@ MiMo-V2-Flash [@MiMo-V2-Flash]
 - creative writing and knowledge-heavy tasks: distillation
 
 总结： RL 和 OPD 效果比 SFT 更好的原因是因为 on-policy [@chen2025retainingdoingroleonpolicy].
+
+will brown [@will2026opd] 从梯度的角度对不同训练范式进行了分析。
+
+首先是RLVR, RLVR的reward基于最终的答案是否正确，而给出 1 (correct) 或者 0 (otherwise) 的奖励。
+对于 GRPO [@DeepSeek-Math] 而言，一个sequence中的每个token共享advantage, 因此大部分token可能对答案的正确性并没有太多贡献，它们只是恰好在正确的sequence里而已。
+而我们在RL中使用larg batch size, low learning rate的原因是这些相关性比较低的token可以互相抵消，RL可以凭借sparse reward来提升模型的表现。
+
+对SFT而言，每个token都有一个one-hot label, 因此其reward是dense的。
+但是，SFT的梯度并不是zero-mean的，这意味着随着训练进行，模型会逐渐靠近$\pi_T$或者训练数据分布，这也就降低了模型的泛化能力。
+尽管SFT的梯度不是zero-mean, 但是由于数据的多样性，能够保证模型不会被OOD sample带偏，并且SFT本质上是强化模型已经掌握或者半掌握的知识，这也就避免了模型训练的崩塌。
+总的来说，SFT是一个biased but unconcentrated method.
+
+对于 OPD 来说，与OPD一样，其reward 也是 dense 的。
+但是在OPD中，学生模型倾向于从输出差异比较大的哪些 'pivot token' 中进行学习，因此，一小部分token占据了大部分的training signal.
+
+最终，不同方法的对比如下所示
+
+| Method | Density | Bias                    | Concentration               | Uses                            |
+| ------ | ------- | ----------------------- | --------------------------- | ------------------------------- |
+| RL     | sparse  | unbiased                | diffuse                     | large batches, patient          |
+| SFT    | dense   | biased toward data      | diffuse                     | data is on-distribution         |
+| OPD    | dense   | biased toward teacher   | diffuse                     | teacher is same-family          |
+| OPSD   | dense   | biased toward self+hint | concentrated on pivot token | aggressive clipping is in place |
+
+### Unified Framework
+
+我们还可以使用一个统一的公式来统一这些方法
+
+$$
+\nabla_\theta J(\theta) = \mathbb{E}_{x\sim\mathcal{D}, \hat{y}\sim \mu_\alpha(\cdot\mid x)}\left[\sum_{i}A_t(x,\hat{y})\nabla_\theta\log \pi_\theta(\hat{y}_t\mid \hat{y}\mid \hat{y}_{<t})\right]
+$$
+
+其中
+
+$$
+\begin{aligned}
+\mu_\alpha &= \alpha \pi_\theta + (1-\alpha)\pi_{data}\\
+A_t &= \lambda\cdot\left[\log \pi_T(\hat{y}_t\mid c_T)-\log \pi_\theta(\hat{y}_t\mid \hat{y}_{<t})\right] + (1-\lambda) [R(\hat{y})-b(x)]
+\end{aligned}
+$$
+
+这里
+
+- $\alpha\in[0,1]$ 表示数据分布on-policy的程度
+- $\lambda\in[0,1]$ 表示advantage在sequence-level和token-level之间的一个trade-off.
+
+这样，不同的方法就是不同的参数配置
+
+| Method | $A$ | $\lambda$ | $\pi_T$                    | Note                          |
+| ------ | --- | --------- | -------------------------- | ----------------------------- |
+| SFT    | $0$ | $1$       | $\delta$                   | teacher is the ground truth   |
+| RL     | $1$ | $0$       | None                       | on-policy                     |
+| OPD    | $1$ | $1$       | external same-family model | tokenizer + recipe match      |
+| OPSD   | $1$ | $1$       | self conditioned on $y^*$  | teacher choice is what shifts |
+
+<Sidenote>
+  关于GRPO的细节可以参考 [Policy Optimization
+  Methods](/blog/policy-optimization/).
+</Sidenote>
+
+### Find a teacher
+
+五种策略：
+
+1. 单任务prompt optimization: 针对某个具体任务，寻找一个合适的prompt作为教师模型
+2. 训练一个模型，专门把复杂的包含答案的hard hint改写成minimal hint
+3. online RL: 让教师模型和学生模型一起进化
+4. RL + OPD: 同时使用教师的KL信号和环境的奖励信号

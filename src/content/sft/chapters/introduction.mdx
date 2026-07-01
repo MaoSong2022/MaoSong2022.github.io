@@ -1,0 +1,22 @@
+import Sidenote from "../../../components/Sidenote.astro";
+
+## Introduction
+
+我们在本文中探讨 SFT 阶段的一些方法，虽然也有一些工作尝试直接从 base model 直接进行 RL 的训练，比如 DeepSeek-R1 [@DeepSeek-R1], 但是模型最终的表现较差。
+
+<Sidenote>需要参考文献</Sidenote>
+
+在 SFT 阶段，我们一般会使用一个教师模型生产的数据来训练我们的 student model,
+通过让 student model 模仿teacher model的行为，我们可以提高student model的指令跟随能力。
+但是，随着训练的进行，模型会开始过拟合，因此大部分模型的SFT只训练 1 epoch.
+
+一个比较简单的做法是在SFT的基础上加入 rejection sampling (RS), 即先让student model进行rollout, 只保留rollout正确的那些样本来训练。
+RS-SFT 的效果比SFT更好，但是，这并没有解决compounding问题。
+
+与SFT相反，在RL训练过程中，student model 进行rollout, verifier 给予奖励，然后student model更新策略来进行提升，模型的上限取决于我们的verifier.
+虽然RL的性能更强，但是其需要的算力也更多，而SFT训练起来则非常高效。
+
+| Method  | Pros                                                                                | Cons                                                                                                                         |
+| ------- | ----------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| **SFT** | - 训练高效，易于实现<br/>- 对算力需求较低<br/>                                      | - 容易过拟合<br/>- 依赖高质量教师数据<br/>- 难以通过反馈进一步提升模型能力                                                   |
+| **RL**  | - 能够通过反馈信号进一步提升模型<br/>- 可以针对特定奖励/指标进行优化<br/>- 鲁棒性强 | - 算力消耗大，训练成本高<br/>- 实现复杂度高<br/>- 调试困难，易出现不稳定或退化<br/>- reward 设计挑战大，鲁棒性依赖于verifier |

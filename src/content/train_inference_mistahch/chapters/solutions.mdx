@@ -1,23 +1,59 @@
 ## Solutions
 
+解决 TIM 的方法可以分为两类：
+
+1. infra 上进行优化，解决 training engine 和 inference engine 实现不一致的问题
+2. algorithm 上进行优化，通过设计算法来解决不收敛的问题
+
 - KAT coder v1 pro
 - GEPO
+- DeepSeek-V3 [@DeepSeek-V3]
+- GSPO [@GSPO]
+- MiniRL
 
-thinking machine lab, non-deterministic inference, numerical instability.
+thinking machine lab, non-deterministic inference, numerical instability. 但是其问题在于
 
 1. 训练和推理引擎会使用不同的 kernel 来实现 peak performance
 2. 就算是一个 engine, batch-invariant kernels 也会被禁用来实现 maximum throughput.
 
-### System solutions
+Ring-Flash-Linear-2.0 手动对齐了不同的 kernels,
+
+[@qi2025defeatingtraininginferencemismatchfp16] 提出了使用 FP16 精度来进行训练。
+作者认为 BF16 精度在 post-training 阶段的精度太低，会影响最终结果。
+FP16 进行训练时需要使用 dynamic scaling factor.
+
+### Infra Optimizations
+
+MiniMax-M1 [@MiniMax-M1] 提出了使用 FP32 的 lm head.
+但是仍然比较难避免训练崩溃。
+
+Thinking Machine labs 提出了 batch-invariant inference kernels, 但是会导致训练效率vjiangdi
 
 [@yao2025offpolicy] 提到，我们可以
 
-1. 获取 inferene engine 真实的采样概率
+1. 获取 inference engine 真实的采样概率
 2. 解决 inference engine 和 training engine 的数值不一致性
-
-但是这些改进仍然无法解决 off-policy 问题。
+3. deterministic kernel implementations
 
 AreaL [@AReaL] 使用了 decoupled PPO [@decoupled_ppo] 来构建 rollout generation 和 gradient computation 之间的关系，但是 AreaL 对于相差比较大的 sample, 会直接丢弃。
+
+[@DeepSeek-V3.2] 提出了 sampling mask replay 来解决因为 top-p 和 top-k sampling 导致的 action space 不一致的问题
+
+[] 提出了使用 FP16 来进行 RL 的训练，这是因为 FP16 的指数位更多，所能表示的精度更高。
+
+#### Router Replay
+
+在训练阶段，使用推理阶段的 MoE router, 避免 sample 时对 policy gradient 引入噪声。
+
+1. vanilla router replay: R2, 梯度更新时，replay inference engine 选中的专家，减少策略滞后性
+2. rollout router replay: R3, 在训练引擎中重放推理引擎选中的专家，减少训练推理差异。相关工作有 DeepSeek-V3.2 [@DeepSeek-V3.2], [@ma2025stabilizingmoereinforcementlearning]
+
+#### Kernel Optimization
+
+1. 利用 `torch.compile` 来固化 RoPE 实现，底层消除算子行为差异
+2. 通过 `enable_batch_invariant_mode` 来强制训练端采用与 SGLang 一致的算子，消除 batch size 对计算结果的影响
+3. training 和 inference 都使用 FlashAttention3 作为 backend, 来实现 bitwise equal
+4. 使用 DeepGEMM 进行矩阵乘法
 
 ### Algorithm Optimizations
 
@@ -49,6 +85,39 @@ $$
 
 #### Masked Importance Sampling
 
+[@liu-li-2025-rl-collapse] 提出了 sequence level 的 MIS
+
+$$
+\mathcal{J}_{seq-mis}(\theta) =  \mathbb{E}_{x\sim\mathcal{D}, y\sim\mu_{\theta_{\mathrm{old}}}(y\mid x)}\left[\rho\cdot\mathbf{1}\left(\rho \leq C\right)\cdot\min\left(\frac{\pi_{\theta}(y\mid x)}{\pi_{\theta_{\mathrm{old}}}(y\mid x) }\hat{A}_t,\mathrm{clip}\left(\frac{\pi_{\theta}(y\mid x)}{\pi_{\theta_{\mathrm{old}}}(y\mid x) },1-\epsilon,1+\epsilon\right)\hat{A}_t\right)\right]
+$$
+
+其中
+
+$$
+\rho = \frac{\pi_{\theta}(y\mid x)}{\mu_{\theta_{\mathrm{old}}}(y\mid x)}
+$$
+
+DeepSeek-V3.2 [@DeepSeek-V3.2] 提出了针对 rollout 的的 binary mask
+
+$$
+\mathcal{J}_{GRPO}(\theta) =  \mathbb{E}_{x\sim\mathcal{D}, y_i\sim\mu_{\theta_{\mathrm{old}}}(y\mid x),i=1,\dots,G}\left[\frac{1}{G}\sum_{i=1}^G\frac{1}{|y_i|}\sum_{t=1}^{|y_i|}\mathcal{M}_{i,t}\cdot\min\left(r_{i,t}(\theta)\hat{A}_{i,t},\mathrm{clip}\left(r_{i,t}(\theta),1-\epsilon,1+\epsilon\right)\hat{A}_t\right)\right]
+$$
+
+其中
+
+$$
+r_{i,t}(\theta) = \frac{\pi_{\theta}(y_{i,t}\mid y_{i,<t},x)}{\pi_{\theta_{old}}(y_{i,t}\mid y_{i,<t},x)}
+$$
+
+$M_{i,t}$ 是针对 advantage 为负的 sequence 的 masking
+
+$$
+\mathcal{M}_{i,t} = \begin{cases}
+  0, &\text{ if } \hat{A}_{i,t}<0,\frac{1}{|y_i|}\sum_{i=1}^{|y_i|}\log r_{i,t}>\delta\\
+  1, &\text{ otherwise}
+\end{cases}
+$$
+
 IcePop [@IcePop2025] 提出了基于 mask 的 importance sampling 方法，其目标函数如下所示
 
 $$
@@ -64,7 +133,7 @@ $$
 \end{cases}
 $$
 
-但是，随着训练进行， IcePop mask 的 token 数越来越少，导致 TIM 现象仍然存在，为了解决这个问题，KPop 进行了优化，最终目标函数一致，但是 mask 区域变成了
+但是，随着训练进行， IcePop mask 的 token 数越来越少，导致 TIM 现象仍然存在，为了解决这个问题，KPop [@KPop] 进行了优化，最终目标函数一致，但是 mask 区域变成了
 
 $$
 \mathcal{M}\left(y_t;\phi\right) = \mathbf{1}\left(\mathrm{KL}_B(\pi_{\theta}(y_t\mid y_{<t},x)\mid\mid \mu_{\theta_{\mathrm{old}}}(y_t\mid y_{<t},x))\leq \phi\right)\cdot \mathbf{1}\left(\mathrm{KL}_B(\mu_{\theta_{\mathrm{old}}}(y_t\mid y_{<t},x)\mid\mid \pi_{\theta}(y_t\mid y_{<t},x))\leq \phi\right)
@@ -75,33 +144,3 @@ $$
 $$
 \mathrm{KL}_B(P(x)\mid\mid Q(x)) = P(x)\log \frac{P(x)}{Q(x)} + (1-P(x))\log\frac{1-P(x)}{1-Q(x)}
 $$
-
-### MoE models
-
-MoE RL 训练不稳定性解决：
-
-- MiniRL
-
-#### Router Replay
-
-即在训练阶段，使用推理阶段的 MoE router, 避免 sample 时对 policy gradient 引入噪声。
-
-1. vanilla router replay: R2, 梯度更新时，replay inference engine 选中的专家，减少策略滞后性
-2. rollout router replay: R3, 在训练引擎中重放推理引擎选中的专家，减少训练推理差异
-
-相关工作有
-
-- DeepSeek-V3 [@DeepSeek-V3]
-- Wenhan et.al [@ma2025stabilizingmoereinforcementlearning]
-- GSPO [@GSPO]
-- IcePop TODO
-- KPop [@KPop]
-
-TODO: https://openreview.net/pdf?id=8MHqvb4lK9
-
-#### Kernel Optimization
-
-1. 利用 `torch.compile` 来固化 RoPE 实现，底层消除算子行为差异
-2. 通过 `enable_batch_invariant_mode` 来强制训练端采用与 SGLang 一致的算子，消除 batch size 对计算结果的影响
-3. training 和 inference 都使用 FlashAttention3 作为 backend, 来实现 bitwise equal
-4. 使用 DeepGEMM 进行矩阵乘法

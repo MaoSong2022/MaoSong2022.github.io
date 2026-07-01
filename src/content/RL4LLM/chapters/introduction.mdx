@@ -139,23 +139,17 @@ $$
 
 其中 $x$ 是输入的 prompt, $y_{<i}$ 是已经生成的部分，$y_i$ 是下一个要生成的 token.
 
-RL 和 LLM 的对应关系如下：
+RL 和 LLM 的对应关系如下 [@shen2026firstprinciplesderivationllmpolicy]：
 
-|         RL          |                   LLM                    |
-| :-----------------: | :--------------------------------------: |
-|    policy $\pi$     | LLM $\mathrm{LLM}(\cdot \mid y_{<i}, x)$ |
-| initial state $s_0$ |                prompt $x$                |
-|    action $a_t$     |           current token $y_i$            |
-|     state $s_t$     |          context $(y_{<i}, x)$           |
-
-<Note variant="warn">
-
-注意到我们并没有对 environment 和 reward 进行建模，可以这样理解：
-
-1. LLM 中的 environment 仅仅是对 token 进行简单拼接：$s_{t+1} = \mathrm{concat}(y_i, s_t)$.
-2. Reward 由 verifier, reward model (PRM, ORM) 或者 human feedback 给定.
-
-</Note>
+|                 RL                  |                  LLM                  |             Description             |
+| :---------------------------------: | :-----------------------------------: | :---------------------------------: |
+|         initial state $s_0$         |                  $x$                  |               prompt                |
+|             state $s_t$             |             $(y_{<i}, x)$             |     prompt and generated prefix     |
+| policy $\pi_{\theta}(a_t\mid s_t)$  |  $\mathrm{LLM}(y_i \mid y_{<i}, x)$   | next token prediction distribution  |
+|            action $a_t$             |                 $y_i$                 | next token selected from vocabulary |
+|          trajectory $\tau$          |             $(y_{1:T},x)$             |    complete prompt-response pair    |
+|          Return $R(\tau)$           |               $R(x,y)$                |   reward model or verifier score    |
+| transition $P(s_{t+1}\mid s_t,a_t)$ | $s_{t+1} = \mathrm{concat}(y_i, s_t)$ | deterministic string concatenation  |
 
 对于 LLM, 我们有
 
