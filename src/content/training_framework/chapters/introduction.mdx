@@ -1,5 +1,9 @@
 ## Introduction
 
+异步 RL 的问题： sample staleness, 一条 rollout 可能由多个 model version 生成，算法上有挑战
+
+如果不解决 sample staleness, staleness 越大，模型表现会越来越差
+
 ### Acknowledgements
 
 1. [Support FSDP2 as A Training Backend for slime](https://zhuanlan.zhihu.com/p/1979141713449742500)

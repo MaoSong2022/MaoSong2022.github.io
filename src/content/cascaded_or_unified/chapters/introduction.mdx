@@ -19,3 +19,13 @@
 6. RLVR 会自然诱导模型产生自我判别能力，即使没有明确的奖励模型监督
 
 结论：multi-task RL 可以有效提高模型的泛化能力
+
+| Paradigm      | models               |
+| ------------- | -------------------- |
+| Multi-task RL | Qwen3                |
+| CasCaded RL   | Nemotron-cascade     |
+| MOPD          | MiMo-V2, DeepSeek-V4 |
+| model merge   |                      |
+
+Nemotron-cascade2 也尝试将不同的范式结合起来，对于前后依赖关系必要多的，使用 cascaded RL, 比如 instruction following 最先进行训练。
+对于 domain 之间竞争比较小的，使用 multi-task RL, 比如 STEM, agentic tool calling, structured output.
