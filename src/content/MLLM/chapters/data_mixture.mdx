@@ -1,4 +1,6 @@
 import Image from "../../../components/Image.astro";
+import HtmlEmbed from "../../../components/HtmlEmbed.astro";
+
 import llava_v1_5_sft_mixture from "../../../assets/image/llava_v1_5_sft_mixture.png";
 import apollo from "../../../assets/image/apollo.png";
 import cambrain_7m from "../../../assets/image/cambrain-7M.png";
@@ -171,3 +173,11 @@ SFT数据配比
 - [MM1.5](http://arxiv.org/abs/2409.20566)
 - [InternVL2.5](http://arxiv.org/abs/2412.05271)
 - [MiniCPM V](http://arxiv.org/abs/2408.01800)
+
+DataComp-VLM [@DataComp-VLM]
+
+<HtmlEmbed
+  src="embeds/d3-pie-domain.html"
+  title="DCLM data mixtures"
+  data="DCLM_mllm_mixture.json"
+/>
