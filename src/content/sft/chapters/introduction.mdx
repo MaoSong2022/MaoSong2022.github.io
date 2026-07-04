@@ -4,7 +4,12 @@ import Sidenote from "../../../components/Sidenote.astro";
 
 我们在本文中探讨 SFT 阶段的一些方法，虽然也有一些工作尝试直接从 base model 直接进行 RL 的训练，比如 DeepSeek-R1 [@DeepSeek-R1], 但是模型最终的表现较差。
 
-<Sidenote>需要参考文献</Sidenote>
+SFT 阶段的目标：
+
+1. instruction following
+2. desired format or style
+3. tool use [@Kimi-K2]
+4. early reasoning [@DeepSeek-R1]
 
 在 SFT 阶段，我们一般会使用一个教师模型生产的数据来训练我们的 student model,
 通过让 student model 模仿teacher model的行为，我们可以提高student model的指令跟随能力。
