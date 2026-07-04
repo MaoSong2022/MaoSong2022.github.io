@@ -1,6 +1,7 @@
 import Definition from "../../../components/Definition.astro";
 import Theorem from "../../../components/Theorem.astro";
 import Image from "../../../components/Image.astro";
+import Note from "../../../components/Note.astro";
 
 ## Probability
 
@@ -33,7 +34,56 @@ $$
 
 ### Law of Total Expectation
 
-TODO
+在介绍 Law of total expectation 之前，我们先给出 conditional expectation 的定义（为了方便，我们仅考虑离散随机变量）：
+
+<Definition term='Conditional Expectation' id='conditional_expectation'>
+
+令 $X\in\mathcal{X},Y\in\mathcal{Y}$ 为两个离散随机变量，则给定 $Y=y$, 随机变量 $X$ 的 conditional expectation $\mathbb{E}[X\mid Y=y]$ 定义为
+
+$$
+\mathbb{E}[X\mid Y=y]=\sum_{x\sim \mathcal{X}}x\mathrm{Pr}(X=x\mid Y=y)
+$$
+
+</Definition>
+
+注意到 $\mathbb{E}[X\mid Y=y]$ 是一个关于 $y$ 的函数，因此其也是一个随机变量。
+
+基于 conditional expectation, 我们可以给出 law of total expectation theorem:
+
+<Theorem title='Law of Total Expectation'>
+
+令 $X\in\mathcal{X},Y\in\mathcal{Y}$ 为两个离散随机变量，则
+
+$$
+\mathbb{E}[X] = \mathbb{E}_y[\mathbb{E}[X\mid Y=y]]
+$$
+
+</Theorem>
+
+<Theorem variant="proof">
+
+我们对 $\mathbb{E}[\mathbb{E}[X\mid Y]]$ 进行展开得到
+
+$$
+\begin{aligned}
+    \mathbb{E}[\mathbb{E}[X\mid Y]] &= \mathbb{E}_y\left[\sum_{x\sim \mathcal{X}}x\mathrm{Pr}(X=x\mid Y=y)\right]\\
+    &= \sum_{y\sim \mathcal{Y}}\sum_{x\sim \mathcal{X}}x\mathrm{Pr}(X=x\mid Y=y)\mathrm{Pr}(Y=y)\\
+    &= \sum_{y\sim \mathcal{Y}}\sum_{x\sim \mathcal{X}}x\mathrm{Pr}(X=x, Y=y)\\
+    &= \sum_{x\sim \mathcal{X}}x\sum_{y\sim \mathcal{Y}}\mathrm{Pr}(X=x, Y=y)\\
+    &= \sum_{x\sim \mathcal{X}}x\sum_{y\sim \mathcal{Y}}\mathrm{Pr}(X=x)\\
+    &= \mathbb{E}[X]
+\end{aligned}
+$$
+
+即等式成立。
+
+</Theorem>
+
+<Note variant="info">
+
+Law of Total Expectation 的核心思想在于：先部分求平均，再整体求平均。比如我们想统计一个学校某个年级的平均分，我们可以直接计算，即 $\mathbb{E}[X]$, 也可以先计算每个班级的平均分，即 $\mathbb{E}[X\mid Y]$ ($Y$ 代表班级)，再计算整个年级的平均分 $\mathbb{E}[\mathbb{E}[X\mid Y]]$.
+
+</Note>
 
 ### Importance Sampling
 
