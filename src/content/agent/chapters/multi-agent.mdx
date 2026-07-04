@@ -1,0 +1,11 @@
+## Multi-Agent
+
+[Walden Yan](https://cognition.com/blog/dont-build-multi-agents) 认为构造可靠的 multi-agent 有两个原则：
+
+1. share context, and share full agent traces, not just individual messages.
+2. actions carry implicit decisions, and conflicting decision carry bad results.
+
+作者建议使用更稳妥的方案：单线程与上下文压缩
+
+1. 默认使用单线程 agent: 让一个 agent 连续处理所有任务，确保上下文连贯，Claude Code 等成熟工具也遵循了这种极简路线，即使调用 sub-agent, 也是顺序调用且只用于回答问题，而不涉及代码修改
+2. 对于长上下文：作者认为应该引入一个专门的 context compression 模型。
