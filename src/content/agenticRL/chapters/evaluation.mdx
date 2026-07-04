@@ -1,0 +1,52 @@
+## Evaluation
+
+five dimensions:
+
+1. agents are expected to work with many different tools
+2. agents are expected to work for many different use cases
+3. agents are expected to work under vaguely specified instructions
+4. agents are expected to work under many software systems
+5. agents are expected to be robust
+
+off-the-shelf benchmarks: (1) and (2)
+
+- agentic coding:
+  1. SWEBench
+  2. TerminalBench
+  3. AIDER
+- ToolCalling
+  1. TauBench
+  2. BFCL
+  3. ComplexFuncBench
+- Knowledge
+  1. HLE
+  2. BrowserComp
+
+Agent Harness: (4)
+
+- SWEBench:
+  1. OpenHands
+  2. MiniSWE
+  3. OpenSWE
+  4. Aider-SWEBench
+- HLE:
+  1. with search harness
+  2. without search
+
+focused unit-test evaluations: (3) and (5)
+
+1. structured output adherence, structeval
+2. instruction following, w/ conditional instructions, IFBench
+3. Long Trajectories: NexusBench
+
+好的评估：
+
+1. 多任务，多 verifier
+2. 当改变 harness 时，可以以不同的方式让 agent 在 sandbox 中探索
+3. 每个任务应该都包含多个 tools
+
+benchmark 的质量：
+
+1. hardness
+2. separability
+3. diversity
