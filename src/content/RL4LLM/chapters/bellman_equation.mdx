@@ -11,8 +11,10 @@ Bellman Equation 构建了 expected return 和 policy 之间的关系。
 
 在强化学习中，我们关心的是 agent 从当前状态出发，在未来持续决策后能够获得的 expected return.
 但是，expected return 依赖于整条未来轨迹：后续会到达什么状态、采取什么动作、获得什么奖励，都是随机的。
+
 我们直接分析 expected return 往往比较困难，在本节中，我们将构建一些关于 policy 的定理，后序章节我们基于本节的定义来一步步构建高效的 RL 算法。
-这里的核心思想在于：
+
+本节的核心思想在于：
 
 <Note variant="info">
 
@@ -62,7 +64,7 @@ $$
 V^{\pi}(s_t) = \mathbb{E}_{a \sim \pi(\cdot \mid s_t)}[Q^{\pi}(s_t, a)]
 $$
 
-即 value function 是 Q function 的期望。
+即 **value function 是 Q function 关于 action $a_t$ 的期望。**
 
 </Theorem>
 
@@ -119,7 +121,7 @@ Q function 的证明类似，略过.
 
 上面的递推关系说明了 value function 和 Q function 满足一个递推关系，接下来， Bellman Equation Theorem 证明了满足这个递归关系的函数一定是 value function/Q function.
 
-<Theorem title='Bellman Equation Theorem (Value Function)'>
+<Theorem title='Bellman Equation Theorem (Value Function)' id='bellman_equation_value'>
 令 $\pi$ 为一个策略，假设 $\gamma \in (0, 1)$, $|\mathcal{S}| < \infty$ 以及 $|r| \leq R < \infty$, 几乎处处成立 ($a.s.$). 那么 $\pi$ 对应的 value function $V^{\pi}: \mathcal{S} \to \mathbb{R}$ 存在，且满足 Bellman equation:
 
 $$
@@ -136,7 +138,8 @@ $$
 
 由 [iterative property](#iterative_property) 我们知道 value function 满足 Bellman equation，接下来我们证明唯一性.
 
-假设存在函数 $V: \mathcal{S} \to \mathbb{R}$ 满足 Bellman equation. 定义 Bellman 算子 $\mathcal{T}^{\pi}$ 为：
+假设存在函数 $V: \mathcal{S} \to \mathbb{R}$ 满足 Bellman equation.
+我们定义 Bellman 算子 $\mathcal{T}^{\pi}$ 为：
 
 $$
 \htmlId{bellman_operator}{\begin{equation}
@@ -144,7 +147,7 @@ $$
 \end{equation}}
 $$
 
-我们证明该算子是一个 contraction mapping. 考虑范数 $\|V\|_{\infty} = \max_{s \in \mathcal{S}} |V(s)|$:
+我们证明该算子是一个 contraction mapping, 考虑范数 $\|V\|_{\infty} = \max_{s \in \mathcal{S}} |V(s)|$:
 
 $$
 \begin{aligned}
@@ -163,13 +166,13 @@ $$
 
 由于 $\gamma < 1$, $\mathcal{T}^{\pi}$ 是一个 contraction mapping.
 
-根据 [不动点定理](#fixed-point-theorem)，已知 $V^{\pi}$ 是一个不动点（满足 Bellman equation），而不动点唯一，因此 $V = V^{\pi}$. $\blacksquare$
+根据 [不动点定理](https://maosong.website/blog/math/#fixed-point-theorem)，已知 $V^{\pi}$ 是一个不动点（满足 Bellman equation），而不动点唯一，因此 $V = V^{\pi}$.
 
 </Theorem>
 
 对于 Q function, 我们也有相同的结论：
 
-<Theorem title='Bellman Equation Theorem (Q Function)'>
+<Theorem title='Bellman Equation Theorem (Q Function)' id='bellman_equation_Q'>
 
 令 $\pi$ 为一个策略，假设 $\gamma \in (0, 1)$, $|\mathcal{S}| < \infty$, $|\mathcal{A}| < \infty$ 以及 $|r| \leq R < \infty$, 几乎处处成立 ($a.s.$). 那么 $\pi$ 对应的 Q function $Q^{\pi}: \mathcal{S} \times \mathcal{A} \to \mathbb{R}$ 存在，且满足 Bellman equation:
 
@@ -191,9 +194,11 @@ $$
 
 ### Bellman Optimality Equation Theorem
 
+上一节我们介绍了针对一般 policy 的 Bellman equation, 这一节我们给出针对 optimal policy 的 Bellman Optimal Equation.
+
 我们首先给出 optimal policy 的定义
 
-<Definition term='Optimal Policy'>
+<Definition term='Optimal Policy' id='optimal_policy'>
 如果策略 $\pi^*$ 满足：
 $$
 V^{\pi^*}(s) \geq V^{\pi}(s), \quad \forall s \in \mathcal{S}, \, \forall \pi
@@ -207,13 +212,15 @@ $$
   policy 对应的 optimal value function 是同一个.
 </Note>
 
-与 value function $V^\pi$ 和 Q function $Q^\pi$ 之间存在联系一样，optimal value function $V^{\pi^*}$ 和 optimal Q function $Q^{\pi^*}$ 也存在类似关系
+与 value function $V^\pi$ 和 Q function $Q^\pi$ 之间存在联系一样，optimal value function $V^{*}$ 和 optimal Q function $Q^{*}$ 也存在类似关系
 
 <Theorem variant="proposition" title='Relationship between optimal value function and optimal Q function'>
 
 $$
 \boxed{V^*(s_t) = \max_{a \in \mathcal{A}} Q^*(s_t, a)}
 $$
+
+即 **$V^*$ 就是 $Q^*$ 的最优动作对应的 return.**
 
 </Theorem>
 
@@ -239,7 +246,7 @@ $$
 
 接下来，我们给出关于 optimal value function $V^*$ 对应的 Bellman optimality equation.
 
-<Theorem title='Bellman Optimality Equation Theorem (value function)'>
+<Theorem title='Bellman Optimality Equation Theorem (value function)' id='BOE_value'>
 
 假设 $\gamma \in (0, 1)$, $|\mathcal{S}| < \infty$, $|\mathcal{A}| < \infty$ 以及 $|r| \leq R < \infty$, 几乎处处成立 (a.s.). 那么 optimal value function $V^*: \mathcal{S} \to \mathbb{R}$ 存在，且满足 Bellman optimality equation:
 
@@ -265,7 +272,7 @@ $$
 
 证明需要用到下面的引理
 
-<Theorem variant="lemma" title='Monotonicity of Bellman operator'>
+<Theorem variant="lemma" title='Monotonicity of Bellman operator' id='monotonicity_bellman_operator'>
 
 令 $\pi$ 为一个策略，$\mathcal{T}^{\pi}$ 和 $\mathcal{T}^*$ 分别是 [Bellman operator](#bellman_operator) 和 Bellman optimality operator, 其中
 
@@ -278,7 +285,7 @@ $$
 我们有：
 
 1. 对任意 $V: \mathcal{S} \to \mathbb{R}$, 有 $\mathcal{T}^{\pi} V(s) \leq \mathcal{T}^* V(s), \, \forall s \in \mathcal{S}$.
-1. 对任意 $U, V: \mathcal{S} \to \mathbb{R}$, 如果 $U \leq V$, 则 $\mathcal{T}^* U(s) \leq \mathcal{T}^* V(s), \, \forall s \in \mathcal{S}$.
+2. 对任意 $U, V: \mathcal{S} \to \mathbb{R}$, 如果 $U \leq V$, 则 $\mathcal{T}^* U(s) \leq \mathcal{T}^* V(s), \, \forall s \in \mathcal{S}$.
 
 </Theorem>
 
@@ -309,7 +316,31 @@ $$
 \pi^*(s_t) = \arg\max_{a \in \mathcal{A}} \mathbb{E}_{(r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)}\left[r + \gamma V^*(s_{t+1}) \mid S_t=s_t, A_t=a_t\right]
 $$
 
-然后我们可以验证 $V^* = V^{\pi^*}$ (TODO), 且 $\pi^*$ 是最优策略 (对任意 $\pi$, 有 $V^{\pi} \leq V^* = V^{\pi^*}$).
+此时，我们有
+
+$$
+\begin{aligned}
+    V^*(s_t) &= \mathbb{E}^{\pi^*}\left[r_t+\gamma V^*(s_{t+1})\mid s_t\right]\\
+    &= \mathbb{E}^{\pi^*}\left[r_t+\gamma \mathbb{E}^{\pi^*}\left[r_{t+1}+\gamma V^*(s_{t+2})\mid s_{t+1}\right]\mid s_t\right]\\
+    &= \mathbb{E}^{\pi^*}\left[\mathbb{E}^{\pi^*}\left[r_t+\gamma (r_{t+1}+\gamma V^*(s_{t+2}))\mid s_{t+1}\right]\mid s_t\right]\\
+    &= \mathbb{E}^{\pi^*}\left[r_t+\gamma r_{t+1}+\gamma^2 V^*(s_{t+2})\mid s_t\right]\\
+    &= \mathbb{E}^{\pi^*}\left[r_t+\gamma r_{t+1}+\gamma^2r_{t+2}+\cdots\mid s_t\right]= V^{\pi^*}(s_t)
+\end{aligned}
+$$
+
+即 $V^*=V^{\pi^*}$, 这里第四个等式使用了 [Law of Total Expectation](https://maosong.website/blog/math/#law-of-total-expectation).
+
+现在我们证明 $\pi^*$ 是最优策略，令 $\pi$ 为任意一个策略，我们有
+
+$$
+V^\pi=\mathcal{T}^{\pi}V \le \mathcal{T}^*V
+\leq (\mathcal{T}^*)^2(V^\pi)
+\leq \cdots
+\leq (\mathcal{T}^*)^k(V^\pi)
+\xrightarrow[k\to\infty]{\text{fixed-point / contraction}} V^*.
+$$
+
+即 $V^\pi\leq V^*$, 这里第一个等式和第二个等式利用了 [Lemma](#monotonicity_bellman_operator), 由于 $V^\pi$ 是任意的，我们有 $V^*=V^{\pi^*}$.
 
 </Theorem>
 
