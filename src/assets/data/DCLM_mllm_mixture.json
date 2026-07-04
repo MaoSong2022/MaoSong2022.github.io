@@ -1,0 +1,50 @@
+{
+  "title": "DCVLM",
+  "total": 3900000000,
+  "domains": [
+    {
+      "name": "Chart & Table",
+      "count": 50600000
+    },
+    {
+      "name": "General QA",
+      "count": 24700000
+    },
+    {
+      "name": "OCR",
+      "count": 20200000
+    },
+    {
+      "name": "OCR-QA",
+      "count": 11200000
+    },
+    {
+      "name": "Caption & Knowledge",
+      "count": 6500000
+    },
+    {
+      "name": "Science",
+      "count": 4100000
+    },
+    {
+      "name": "Grounding & Counting",
+      "count": 3000000
+    },
+    {
+      "name": "Math",
+      "count": 2200000
+    },
+    {
+      "name": "Text",
+      "count": 730000000
+    },
+    {
+      "name": "Captioning",
+      "count": 2900000000
+    },
+    {
+      "name": "MM Docs",
+      "count": 145000
+    }
+  ]
+}
