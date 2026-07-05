@@ -3,13 +3,14 @@ import Note from "../../../components/Note.astro";
 import Definition from "../../../components/Definition.astro";
 import Theorem from "../../../components/Theorem.astro";
 import Image from "../../../components/Image.astro";
+import Sidenote from "../../../components/Sidenote.astro";
 
 import Matrix_Solve from "../../../assets/image/policy_evaluation_matrix_solve.png";
 
 ## Policy Evaluation
 
-在 [Bellman Equation Theorem](##bellman-equation-theorem) 一节中，我们已经知道 $V^{\pi}$ 满足 Bellman equation.
-在本节中，我们将关注
+在 [Bellman Equation Theorem](##bellman-equation-theorem) 一节中，我们介绍了 [value iteration](#value-iteration) 算法.
+[value iteration](#value-iteration) 算法的关键在于求解 policy 对应的 value function. 这就是我们本节关注的问题，即
 
 <Note variant="info">
 
@@ -17,7 +18,7 @@ import Matrix_Solve from "../../../assets/image/policy_evaluation_matrix_solve.p
 
 </Note>
 
-我们将从上一节介绍的 [value iteration](#value-iteration) 开始，一步步进行优化，最终扩展到现代 RL 算法所使用的方法。
+我们将嫌介绍一个 ToyLLM 环境，然后一步步从准确解法过渡到现代 RL 所使用的函数逼近算法。
 
 ### A ToyLLM Environment
 
@@ -34,9 +35,13 @@ $$
 
 因此，我们的 action space $\mathcal{A}=V$, $\mathcal{S}=V^T$, 这里 $T$ 是最大输出长度 `max_len`. 为了后续表达方便，我们用 $N:=|V|^T$ 来表示状态空间大小。
 
-### Revisiting Value Iteration
+### Tabular Learning
 
-我们在上一节介绍了一个基于 contraction mapping 求解 value function 的方法，对于离散的 state space 来说，我们可以将 [Bellman Equation](#bellman_equation_value) 写为如下的矩阵形式
+这一节我们介绍针对离散场景下的求解和优化方案。
+
+#### Tabular Learning with Matrix Solve
+
+对于离散状态空间来说，我们可以将 [value iteration](#value-iteration) 算法中的 [Bellman Equation](#bellman_equation_value) 写为如下的矩阵形式
 
 $$
 V_{\pi} = R_{\pi} + \gamma P_{\pi} V_{\pi}
@@ -111,9 +116,7 @@ $$
 可以看到，随着词表大小 $N$ 的增加， 因为矩阵求逆是一个 $\mathcal{O}(N^3)$ 复杂度的算法，其所需时间急剧上升。
 而迭代解法虽然比矩阵求逆效率更高，但是仍然需要枚举全部状态，当状空间增大之后，迭代解法的时间也无法接受。
 
-为了解决这个问题，我们会利用 Bellman equation、采样和函数逼近，高效地估计或拟合给定策略对应的 value function $V^{\pi}$.
-
-### Monte Carlo
+#### Tabular Learning with MC
 
 首先，由 $V^{\pi}$ 定义，我们有：
 
@@ -133,23 +136,163 @@ $$
 V^{\pi}(s_0) = \mathbb{E}^{\pi}[R(\tau) \mid s_0] \approx \frac{1}{N} \sum_{i=1}^{N} R(\tau^{(i)})
 $$
 
-如果 $\mathcal{S}$ 比较小，我们可以遍历 $s \in \mathcal{S}$ 来估计 $V^{\pi}$. 但是，如果 $\mathcal{S}$ 比较大，这种方法的计算复杂度较高.
+对应的算法如下所示
 
-<Note variant="info" emoji="💡">
+<Algorithm title="Tabular Learning with MC">
 
-- **优点**: 简单、直观、无需环境模型
-- **缺点**: 必须等轨迹结束后才能得到一次完整的估计
+**Input**: policy $\pi$, discount factor $\gamma$, episodes $M$, state space $\mathcal{S}$, initial state distribution $p_0$
 
+1. $V(s)=0, \mathrm{ReturnSum}(s)=0, \mathrm{ReturnCount}(s)=0, s\in\mathcal{S}$
+2. **For** $\mathrm{episode}=1,2,\dots,M$:
+   1. $s_0\sim p_0$, $\tau=[]$
+   2. **While** not $\mathrm{done}$:
+      - $a\sim\pi(\cdot\mid s)$
+      - $(s', r, \mathrm{done}) \gets \mathrm{STEP}(s, a)$
+      - $\tau.\mathrm{append}((s,r))$
+      - $s\gets s'$
+   3. $\mathrm{Visited}=\emptyset$, $G\gets0$ // only first visit
+   4. **For** $(s,r)$ in $\mathrm{reversed}(\tau)$
+      - $G\gets r + \gamma G$
+      - **If** $s\not\in \mathrm{Visited}$
+        - $\mathrm{Visited}.\mathrm{add}(s)$
+        - $\mathrm{ReturnSum}(s) \gets \mathrm{ReturnSum}(s) +G$
+        - $\mathrm{ReturnCount}(s) \gets \mathrm{ReturnCount}(s)+ 1$
+        - $V(s)\gets \mathrm{ReturnSum}(s) / \mathrm{ReturnCount}(s)$
+3. return $V$
+
+</Algorithm>
+
+<Note variant="remark" emoji="💡">
+  注意这里我们没有使用前面公式版本的 MC 方法，而是使用了一种数据使用效率更高的
+  First-Visit
+  策略，即对于采样到的一条轨迹，我们可以将其拆分为多条唯一轨迹（我们用 $\mathrm
+  {Visited}$ 表示），然后再应用 MC 方法。
 </Note>
+
+#### Tabular Learning with TD
+
+MC 的优点是其估计量 ([estimator](https://maosong.website/blog/math/#estimator)) 的一个无偏估计，其缺点在于我们必须完整采样完一条轨迹才能得到这个估计，对于 long-horizon task, MC 方法效率很低。
+
+为了解决这个问题，我们可以使用 Temporal difference (TD) learning 方法。
+Temporal difference (TD) learning 通过相邻两步的转换关系来近似 value function. 其核心思想在于
+
+<Note variant="info">通过新的信息和新的预测来更新旧的预测</Note>
+
+注意到：
+
+$$
+V^{\pi}(s_t) = \mathbb{E}^{\pi}[r_t + \gamma V^{\pi}(s_{t+1}) \mid S_t=s_t]
+$$
+
+我们首先定义 TD target 和 TD error 如下
+
+<Definition term='TD target and TD error' variant='info'>
+
+对于 value function $V^{\pi}(s_t)$, 我们定义 **TD target** 为:
+
+$$
+\overline{V}_t = r_t + \gamma V^{\pi}(s_{t+1})
+$$
+
+定义 **TD error** 为
+
+$$
+\delta_t = V^{\pi}(s_t) - \left(r_t + \gamma V^{\pi}(s_{t+1})\right)
+$$
+
+</Definition>
+
+接下来，基于 TD erorr, 我们可以构造关于 $V_\pi$ 的近似 $V_t$:
+
+$$
+V_{t+1}(s_t) = \begin{cases}
+   V_t(s_t) - \alpha_t(s_t)\delta_t,&\text{ if }s=s_t\\
+   V_t(s_t),&\text{ otherwise}
+\end{cases}
+$$
+
+其中 $\alpha_t(s_t)$ 是 learning rate.
+
+<Sidenote>
+
+See Chapter 7 of [Mathematical Foundations of Reinforcement Learning](https://github.com/MathFoundationRL/Book-Mathematical-Foundation-of-Reinforcement-Learning) for more details.
+
+</Sidenote>
+
+接下来我们来分析一下算法的正确性。首先，$\overline{V}_t$ 被称为 TD target 的原因为
+
+$$
+\begin{aligned}
+   |V_{t+1}(s_t)-\overline{V}_t(s_t)| &= |V_t(s_t) - \alpha_t(s_t)\delta_t-\overline{V}_t(s_t)|\\
+   &= |1-\alpha_t(s_t)||V_{t}(s_t)-\overline{V}_t(s_t)|\\
+   &< |V_{t}(s_t)-\overline{V}_t(s_t)|
+\end{aligned}
+$$
+
+这里我们假设 $\alpha_t(s_t)<1$ 是一个较小的正数。可以看到**函数序列 $\{V_t\}$ 收敛到 $\overline{V}_t$.**
+
+另一方面，我们有
+
+$$
+\begin{aligned}
+   \mathbb{E}[\delta_t\mid S_t=s_t] &= \mathbb{E}[V^{\pi}(S_t)-\left(r_t + \gamma V^{\pi}(s_{t+1})\right)\mid S_t=s_t]\\
+   &= V^{\pi}(s_t) - \mathbb{E}[r_t + \gamma V^{\pi}(s_{t+1})\mid S_t=s_t]\\
+   &=0
+\end{aligned}
+$$
+
+因此 TD error $\delta_t$ **衡量了当前的估计 $V_t$ 与 $V^\pi$ 之间的差距。**
+
+TD learning 对应的算法如下所示
+
+<Algorithm title="Tabular Learning with TD" id='policy_evaluation_td_learning'>
+
+**Input**: policy $\pi$, discount factor $\gamma$, learning rate $\alpha$, episodes $M$, state space $\mathcal{S}$, initial state distribution $p_0$
+
+1. $V(s)=0, s\in\mathcal{S}$
+2. **For** $\mathrm{episode}=1,2,\dots,M$:
+   1. $s_0\sim p_0$
+   2. **While** not $\mathrm{done}$:
+      - $a\sim\pi(\cdot\mid s)$
+      - $(s', r, \mathrm{done}) \gets \mathrm{STEP}(s, a)$
+      - **If** $\mathrm{done}$
+        - $y\gets r$
+      - **Else**
+        - $v \gets r + \gamma \cdot V(s')$
+      - $V(s)\gets V(s) + \alpha\cdot(y-V(s))$
+      - $s\gets s'$
+3. return $V$
+
+</Algorithm>
+
+算法的正确性由如下定理给定
+
+<Theorem title='Convergence of TD Learning'>
+
+给定策略 $\pi$, 基于 [TD learning 算法](#policy_evaluation_td_learning), 对任意 $s\in\mathcal{S}$, 如果 $\sum_t\alpha_t(s)=\infty$, $\sum_t\alpha_t^2(s)<\infty$, 则 $V_t(s)$ $a.s.$ 收敛到 $V^{\pi}(s)$, $t\to\infty$.
+
+</Theorem>
+
+<Theorem variant='proof'>
+
+See Theorem 7.1 of [Mathematical Foundations of Reinforcement Learning](https://github.com/MathFoundationRL/Book-Mathematical-Foundation-of-Reinforcement-Learning) for more details.
+
+</Theorem>
+
+#### Tabular Learning Experiments
+
+TODO: add experiments on MC and TD.
 
 ### Function Approximation
 
-MC 方法虽然简单直观，但是其适用于$\mathcal{S}$ 比较小的场景。
-当状态空间 $\mathcal{S}$ 较大或连续时，我们可以使用函数逼近的方法来近似 $V^{\pi}$.
-这里我们使用 $V_{\phi}$ 来近似 $V^{\pi}$, 其中 $\phi$ 是函数的参数，我们使用最小二乘误差作为损失函数：
+上面我们介绍了 MC 和 TD 两种加速 value function 求解的方法，但是当动作空间和状态空间特别大（见[Connection with LLMs](#connection-with-llm)）时，Tabular learning 仍然存在计算复杂度高的问题。
+
+为了解决这个扩展性不足的问题，当状态空间 $\mathcal{S}$ 较大或连续时，我们可以使用函数逼近的方法来近似 $V^{\pi}$.
+
+这里我们使用 $V_{\phi}:\mathcal{S}\to\mathbb{R}$ 来近似 $V^{\pi}$, 其中 $\phi$ 是函数的参数，我们使用最小二乘误差 (MSE) 作为损失函数：
 
 $$
-\min_{\phi} \mathcal{L}(\phi) = \mathbb{E}_{s_0 \sim p_0}^{\pi}\left[\frac{1}{2}\left(V_{\phi}(s_0) - V^{\pi}(s_0)\right)^2\right]
+\mathcal{L}(\phi) = \mathbb{E}_{s_0 \sim p_0}^{\pi}\left[\frac{1}{2}\left(V_{\phi}(s_0) - V^{\pi}(s_0)\right)^2\right]
 $$
 
 对目标函数求导得到：
@@ -162,6 +305,8 @@ $$
 &= \mathbb{E}_{s_0 \sim p_0}^{\pi}\left[\left(V_{\phi}(s_0) - R(\tau)\right)\nabla_{\phi} V_{\phi}(s_0) \mid s_0\right]
 \end{aligned}
 $$
+
+#### Function Approximation with MC
 
 现在我们可以使用 MC 方法来估计梯度：
 
@@ -186,48 +331,13 @@ $$
 
 </Algorithm>
 
-### Temporal Difference Learning
+#### Function Approximation with TD
 
-MC 的优点是梯度是一个无偏估计，其缺点在于我们必须完整采样完一条轨迹才能得到这个估计，对于 long-horizon task, MC 方法效率很低。
-为了解决这个问题，我们可以使用 Temporal difference (TD) learning 方法。
-
-Temporal difference (TD) learning 通过相邻两步的转换关系来近似 value function. 其核心思想在于
-
-<Note variant="info">通过新的信息和新的预测来更新旧的预测</Note>
-
-注意到：
+与离散形式一样，我们基于 TD eror 来构造目标函数：
 
 $$
-V^{\pi}(s_t) = \mathbb{E}^{\pi}[r_t + \gamma V^{\pi}(s_{t+1}) \mid S_t=s_t]
+\mathcal{L}(\phi) = \mathbb{E}_{s_0 \sim p_0}^\pi\left[\frac{1}{2}\left(V_{\phi}(s_0) - r_0 - \gamma V^{\pi}(s_1)\right)^2\right]
 $$
-
-我们定义 TD target 和 TD error 如下
-
-<Definition term='TD target and TD error'>
-
-对于 value function $V^{\pi}(s_t)$, 我们定义 **TD target** 为:
-
-$$
-\overline{V}_t = r_t + \gamma V^{\pi}(s_{t+1})
-$$
-
-定义 **TD error** 为
-
-$$
-\delta_t = V^{\pi}(s_t) - \left(r_t + \gamma V^{\pi}(s_{t+1})\right)
-$$
-
-</Definition>
-
-TODO: add explanation on TD error
-
-当 $\mathcal{S}$ 比较大或连续时，我们构造损失函数：
-
-$$
-\min_{\phi} \mathcal{L}(\phi) = \mathbb{E}_{s_0 \sim p_0}^\pi\left[\frac{1}{2}\left(V_{\phi}(s_0) - r_0 - \gamma V^{\pi}(s_1)\right)^2\right]
-$$
-
-TODO: explain why we use TD error as objective
 
 对应的梯度为：
 
@@ -235,13 +345,14 @@ $$
 \nabla_{\phi} \mathcal{L}(\phi) = \mathbb{E}_{s_0 \sim p_0}^{\pi}\left[\left(V_{\phi}(s_0) - r_0 - \gamma \boxed{V^{\pi}(s_1)}\right)\nabla_{\phi} V_{\phi}(s_0) \mid s_0\right]
 $$
 
-这里梯度力包含了一个未知量 $V^{\pi}(s_1)$. 为了解决这个问题，一个自然的想法是使用当前的 value function $V_{\phi}(s_1)$ 来进行代替：
+这里梯度包含了一个未知量 $V^{\pi}(s_1)$.
+为了解决这个问题，一个自然的想法是使用当前的 value function $V_{\phi}(s_1)$ 来进行代替：
 
 $$
-\nabla_{\phi} \mathcal{L}(\phi) \approx \mathbb{E}_{s_0 \sim p_0}^{\pi}\left[\left(V_{\phi}(s_0) - r_0 - \gamma V_{\phi}(s_1)\right)\nabla_{\phi} V_{\phi}(s_0) \mid s_0\right]
+\nabla_{\phi} \mathcal{L}(\phi) \approx g:= \mathbb{E}_{s_0 \sim p_0}^{\pi}\left[\left(V_{\phi}(s_0) - r_0 - \gamma V_{\phi}(s_1)\right)\nabla_{\phi} V_{\phi}(s_0) \mid s_0\right]
 $$
 
-这样，我们就得到了一个结合 TD 和 SGD 的 naive TD learning 算法：
+从而我们得到了一个结合 TD 和 SGD 的 TD learning 算法：
 
 <Algorithm title="Value function approximation with TD (not correct)">
 
@@ -279,8 +390,6 @@ $$
 &\neq g
 \end{aligned}
 $$
-
-这显然与 $g$ 不相等.
 
 为了解决这个问题，我们可以使用 **stop-gradient** 技巧来避免 $V_{\phi}(s')$ 参与反向传播，此时目标函数变为：
 
@@ -332,12 +441,12 @@ loss.backward()
 
 </Algorithm>
 
-<Note variant="warn" emoji="⚠️">
+<Note variant="remark" emoji="⚠️">
   上述做法其实是 **semi-gradient methods**,
   这类方法在参数更新时，只计算部分梯度。虽然这种方法牺牲了严格的梯度下降性质，但是其能够保证更好的表现.
 </Note>
 
-### k-step TD
+#### k-step TD
 
 实际上，我们可以进一步推广 TD 到多步场景，注意到：
 
@@ -391,17 +500,7 @@ $$
 
 一般来说，$k = 5$ 是一个常用的选择.
 
-### MC v.s. TD
-
-| 方法 | 特点                                            |
-| :--: | :---------------------------------------------- |
-|  MC  | 需要完整的一次采样，无偏但 variance 高          |
-|  TD  | 通过 bootstrap 提高采样效率，有偏但 variance 低 |
-
-TD 本质上是 bootstrap: 当需要使用 $V^{\pi}$ 时，用 $V_{\phi}$ 来代替.
-当 $V_{\phi}$ 与 $V^{\pi}$ 差距较大时，bootstrap 会导致训练不稳定，而 MC 则相对稳定.
-
-### Q-Function Evaluation
+#### Q-Function Evaluation
 
 对于 Q-function, 我们也可以设计类似的算法.
 
@@ -411,10 +510,10 @@ $$
 Q^{\pi}(s_0, a_0) = \mathbb{E}^{\pi}\left[\sum_{t=0}^{T-1} \gamma^t r_t \mid s_0, a_0 \right] \approx \frac{1}{N} \sum_{i=1}^{N} \sum_{t=0}^{T^{(i)}-1} \gamma^t r_t^{(i)}
 $$
 
-当使用模型来近似时，目标函数为：
+当使用函数来近似时，目标函数为：
 
 $$
-\min_{\phi} \mathcal{L}(\phi) = \mathbb{E}_{s_0 \sim p_0, \, a_0 \sim \pi(\cdot \mid s_0)}\left[\frac{1}{2}\left(Q_{\phi}(s_0, a_0) - Q^{\pi}(s_0, a_0)\right)^2\right]
+\mathcal{L}(\phi) = \mathbb{E}_{s_0 \sim p_0, \, a_0 \sim \pi(\cdot \mid s_0)}\left[\frac{1}{2}\left(Q_{\phi}(s_0, a_0) - Q^{\pi}(s_0, a_0)\right)^2\right]
 $$
 
 对应的梯度：
@@ -438,9 +537,17 @@ $$
 4. $g = \left(Q_{\phi}(s_0, a_0) - \sum_{t=0}^{T-1} \gamma^t r_t\right) \nabla_{\phi} Q_{\phi}(s_0, a_0)$.
 5. Update $\phi$ using $g$ with an optimizer.
 
+Return $Q_\phi$
+
 </Algorithm>
 
-对于TD learning, 与 value function 的算法类似，我们也由对应版本的算法：
+对于 TD learning, 我们的目标函数为
+
+$$
+\mathcal{L}(\phi) = \mathbb{E}_{s_0 \sim p_0, \, a_0 \sim \pi(\cdot \mid s_0)}\left[\frac{1}{2}\left(Q_{\phi}(s_0, a_0) - r_0-\gamma Q^\pi (s_1,a_1)\right)^2\right]
+$$
+
+与 value function 的算法类似，我们也由对应版本的算法：
 
 <Algorithm title="Q-function approximation with TD">
 
@@ -456,6 +563,8 @@ $$
 3. $g = \left(Q_{\phi}(s_0, a_0) - y\right) \nabla_{\phi} Q_{\phi}(s_0, a_0)$.
 4. Update $\phi$ using $g$ with an optimizer.
 
+Return $Q_\phi$
+
 </Algorithm>
 
 <Algorithm title="Q-function approximation with k-step TD">
@@ -470,7 +579,11 @@ $$
 4. $g = (Q_{\phi}(s_0, a_0) - y) \nabla_{\phi} Q_{\phi}(s_0, a_0)$
 5. Update $\phi$ using $g$ with an optimizer.
 
+Return $Q_\phi$
+
 </Algorithm>
+
+#### Function Approximation Experiments
 
 ### Policy Iteration Methods
 
@@ -498,3 +611,17 @@ $$
 </Theorem>
 
 <Theorem variant="proof">TODO</Theorem>
+
+### MC v.s. TD
+
+| 方法 | 特点                                            |
+| :--: | :---------------------------------------------- |
+|  MC  | 需要完整的一次采样，无偏但 variance 高          |
+|  TD  | 通过 bootstrap 提高采样效率，有偏但 variance 低 |
+
+TD 本质上是 bootstrap: 当需要使用 $V^{\pi}$ 时，用 $V_{\phi}$ 来代替.
+当 $V_{\phi}$ 与 $V^{\pi}$ 差距较大时，bootstrap 会导致训练不稳定，而 MC 则相对稳定.
+
+### Takeaway
+
+TODO

@@ -31,13 +31,17 @@ on-policy 和 off-policy 对比如下表所示
 |    compute cost    |                high                |           low           |
 |      best for      |       exploration is needed        | reused past experiences |
 
+### Objective
+
+我们的目标与前面一致，仍然是最大化累计奖励，问题形式为
+
+$$
+\max_{\pi}\mathcal{J}(\theta)=\mathbb{E}_{\tau\sim(p_0,\pi_\theta, p)}\left[G_0(\tau)\right]
+$$
+
+我们先来证明目标函数有几种不同的等价形式
+
 ### Policy Gradient Theorem
-
-我们的目标与前面一致，仍然是最大化累计奖励，目标函数为
-
-$$
-\max_{\pi}\mathcal{J}(\theta)=\mathbb{E}_{s_0\sim p_0}\left[V^{\pi_\theta}(s_0)\right]=\mathbb{E}_{s_0\sim p_0}^{\pi_\theta}\left[\sum_{t=0}^{T-1}\gamma^tr_t\right]
-$$
 
 我们首先将采集到的轨迹数据 $\tau$ 进行展开
 
@@ -51,58 +55,28 @@ $$
 p_\theta(\tau) = p_0(s_0)\prod_{t=0}^{T-1} p(r_t,s_{t+1}\mid s_t,a_t)\pi_\theta(a_t\mid s_t)
 $$
 
-我们使用 cumulative return 的定义，就得到
-
-<Wide>
-$$
-\mathcal{J}(\theta)=\mathbb{E}_{s_0\sim p_0}^\pi\left[\sum_{t=0}^{T-1}\gamma^tr_t\right] = \mathbb{E}_{s_0\sim p_0,a_t\sim\pi_\theta(\cdot\mid s_t), (r_t,s_{t+1})\sim p(\cdot,\cdot\mid s_t,a_t)}^\pi\left[\sum_{t=0}^{T-1}\gamma^tr_t\right] = \mathbb{E}_{\tau\sim(p_0,\pi_\theta, p)}\left[G_0(\tau)\right]
-$$
-</Wide>
-
-此时，目标函数的梯度为
+对 $p_\theta(\tau)$ 求梯度得到
 
 $$
-\begin{align}
+\begin{aligned}
+  \nabla_\theta p_\theta(\tau)&=p_\theta(\tau)\nabla_\theta \log p_\theta(\tau)\\
+  &= p_\theta(\tau)\nabla_\theta \log \left[p_0(s_0)\prod_{t=0}^{T-1} p(r_t,s_{t+1}\mid s_t,a_t)\pi_\theta(a_t\mid s_t)\right]\\
+  &= p_\theta(\tau)\sum_{t=0}^{T-1}\log\pi_\theta(a_t\mid s_t)
+\end{aligned}
+$$
+
+这样，目标函数的梯度为
+
+$$
+\begin{aligned}
 \nabla_\theta \mathcal{J}(\theta)&=\nabla_\theta\mathbb{E}_{\tau\sim(p_0,\pi_\theta, p)}\left[G_0(\tau)\right]\\
 &= \sum_\tau G_0(\tau)\nabla_\theta p_\theta(\tau)\\
-&= \sum_\tau p_\theta(\tau)G_0(\tau) \nabla_\theta \log p_\theta(\tau)\\
-&= \mathbb{E}_{\tau\sim(p_0,\pi_\theta, p)}\left[G_0(\tau)\nabla_\theta \log p_\theta(\tau)\right]\\
+&= \sum_\tau G_0(\tau)p_\theta(\tau)\sum_{t=0}^{T-1}\log\pi_\theta(a_t\mid s_t) \\
 &= \mathbb{E}_{\tau\sim(p_0,\pi_\theta, p)}\left[ \sum_{t=0}^{T-1}\nabla_\theta\log\pi_\theta(a_t\mid s_t)G_0(\tau)\right]
-\end{align}
+\end{aligned}
 $$
 
-这里我们使用了如下不等式
-
-$$
-\nabla_\theta p_\theta(\tau)=p_\theta(\tau)\nabla_\theta \log p_\theta(\tau)
-$$
-
-以及
-
-$$
-\nabla_\theta \log p_\theta(\tau) = \nabla_\theta \log \left[p_0(s_0)\prod_{t=0}^{T-1} p(r_t,s_{t+1}\mid s_t,a_t)\pi_\theta(a_t\mid s_t)\right] = \sum_{t=0}^{T-1}\log\pi_\theta(a_t\mid s_t)
-$$
-
-一些教材上还有另一种表达形式，使用了 Q-function, 即
-
-$$
-\nabla_\theta \mathcal{J}(\theta) = \mathbb{E}_{\tau\sim(p_0,\pi_\theta, p)}\left[ \sum_{t=0}^{T-1}\nabla_\theta\log\pi_\theta(a_t\mid s_t)Q^\pi(s_t,a_t)\right]
-$$
-
-我们可以对其进行证明，证明需要用到 [Expectation](Expectation.md) 中的全概率公式。注意到
-
-$$
-\begin{align}
-\nabla_\theta \mathcal{J}(\theta)&=\mathbb{E}_{\tau\sim(p_0,\pi_\theta, p)}\left[\sum_{t=0}^{T-1}G_0(\tau)\nabla_\theta \log \pi_\theta(a_t\mid s_t)\right]\\
-&= \sum_{t=0}^{T-1}\mathbb{E}_{\tau\sim(p_0,\pi_\theta, p)}\left[G_0(\tau)\nabla_\theta \log\pi_\theta(a_t\mid s_t)\right]\\
-&=\sum_{t=0}^{T-1}\mathbb{E}_{\tau_{:t}\sim(p_0,\pi_\theta, p)}\left[\mathbb{E}_{\tau_{:t}\sim(p_0,\pi_\theta, p)}\left[G_0(\tau)\nabla_\theta \log\pi_\theta(a_t\mid s_t)\mid \tau_{:t}\right]\right]\\
-&=\sum_{t=0}^{T-1}\mathbb{E}_{\tau_{:t}\sim(p_0,\pi_\theta, p)}\left[\nabla_\theta \log\pi_\theta(a_t\mid s_t)\mathbb{E}_{\tau_{:t}\sim(p_0,\pi_\theta, p)}\left[G_0(\tau)\mid \tau_{:t}\right]\right]\\
-&=\sum_{t=0}^{T-1}\mathbb{E}_{\tau_{:t}\sim(p_0,\pi_\theta, p)}\left[\nabla_\theta \log\pi_\theta(a_t\mid s_t)\mathbb{E}_{\tau_{:t}\sim(p_0,\pi_\theta, p)}\left[G_0(\tau)\mid s_t,a_t\right]\right]\\
-&=\sum_{t=0}^{T-1}\mathbb{E}_{\tau_{:t}\sim(p_0,\pi_\theta, p)}\left[\nabla_\theta \log\pi_\theta(a_t\mid s_t)Q^\pi(s_t,a_t)\right]
-\end{align}
-$$
-
-这里第三个等式使用了全概率公式，第四个等式是因为 $\nabla_\theta \log\pi_\theta(a_t\mid s_t)$ 相对于 $\tau_{:t}$ 来说是一个常数，第五个等式是因为 Markov property, 最后一个等式使用了 Q-function 的定义。
+这就是 policy gradient theorem 的表达式。
 
 ### Vanilla Policy Gradient Methods
 
@@ -112,36 +86,40 @@ $$
 \hat{g} := \sum_{t=0}^{T-1}\nabla_\theta\log\pi_\theta(a_t\mid s_t)G_0(\tau)
 $$
 
-由 $\nabla_\theta \mathcal{J}(\theta)$ 定义，我们知道 $\hat{g}$ 是 $\nabla_\theta \mathcal{J}(\theta)$ 的一个无偏估计。
+由 policy gradient theorem, 我们知道 $\hat{g}$ 是 $\nabla_\theta \mathcal{J}(\theta)$ 的一个无偏估计。
 
 基于 MC 思想，我们可以得到最简单的 policy gradient algorithm, 也就是 REINFORCE 算法
 
 <Algorithm title="Policy Gradient with MC (REINFORCE)">
 
-1. Initialize policy parameters $\theta_0$.
-2. **for** $k=0,1,\dots$:
-   - Sample $M$ trajectories $\{\tau_i\}$ according to policy $\pi_{\theta_k}$.
-   - Estimate the gradient via MC:
-     $$
-     \hat{g}=\frac{1}{M}\sum_{i=1}^M\sum_{t=0}^{T_i-1}\nabla_\theta\log\pi_{\theta_k}(a_t\mid s_t)G_0(\tau_i)
-     $$
-   - Update $\theta_k$ using $\hat{g}$ with an optimizer.
+**Initialize**: policy parameters $\theta_0$.
+
+**For** $k=0,1,\dots$:
+
+- Sample $M$ trajectories $\{\tau_i\}$ according to policy $\pi_{\theta_k}$.
+- Estimate the gradient via MC:
+  $$
+  \hat{g}=\frac{1}{M}\sum_{i=1}^M\sum_{t=0}^{T_i-1}\nabla_\theta\log\pi_{\theta_k}(a_t\mid s_t)G_0(\tau_i)
+  $$
+- Update $\theta_k$ using $\hat{g}$ with an optimizer.
+
+**Return** $\pi_{\theta_k}$
 
 </Algorithm>
 
 ### Variance Reduction
 
-$g$ 虽然是 $\nabla_\theta \mathcal{J}(\theta)$ 的一个无偏估计，但是使用 $g$ 作为估计会出现比较大的方差，TODO why?
+虽然 $g$ 是 $\nabla_\theta \mathcal{J}(\theta)$ 的一个无偏估计，但是使用 $g$ 作为估计会出现比较大的方差，TODO
 
-我们本节主要介绍如何减少 $g$ 作为估计的方差，这里需要用到 policy gradient baseline invariance 的性质
+因此我们本节主要介绍如何减少 $g$ 作为估计的方差，即 variance reduction.
+
+我们首先介绍 policy gradient 的 baseline invariance 性质。
 
 #### Baseline Invariance
 
-首先我们介绍 policy gradient 的 baseline invariance 性质
+<Theorem variant='proposition' title='Baseline Invariance of Policy Gradient'>
 
-<Theorem variant='Property' title="Baseline Invairance of Policy Gradient">
-
-我们有如下等式
+针对 policy gradient theorem, 我们有如下等式
 
 $$
 \begin{aligned}
@@ -150,7 +128,7 @@ $$
 \end{aligned}
 $$
 
-其中 $b$ 是一个仅与状态有关的函数或者常数。
+其中 $b(s_t)$ 是一个仅与状态有关的函数或者常数，我们将其称为 **baseline**.
 
 </Theorem>
 
@@ -174,12 +152,55 @@ $$
 \end{aligned}
 $$
 
-因此， policy gradient 满足 baseline invairance property.
+因此，policy gradient 满足 baseline invariance property.
 
 </Theorem>
 
-上述等式说明我们可以通过改变 $b$ 来调整 policy gradient 的 variance,
-我们将 $b(s_t)$ 称为 **baseline**.
+另一方面，Rao–Blackwell Theorem 说明了我们可以通过构造一个新的无偏估计，这个新的无偏估计相对于原始的无偏估计，有更小的方差。
+
+<Theorem title="Rao-Blackwell Theorem">
+
+令 $X$ 和 $Y$ 为随机变量， 令 $\hat{I}_1(X,Y)$ 为 $I$ 的一个无偏估计，即
+
+$$
+I = \mathbb{E}_{XY}[\hat{I}_1(XY)]
+$$
+
+令 $\hat{I}_2(Y)=\mathbb{E}_{X\mid Y}[\hat{I}_1(X,Y)\mid Y]$, 则 $\hat{I}_2$ 也是 $I$ 的一个无偏估计，并且
+
+$$
+\mathrm{var}[\hat{I}_2]\leq\mathrm{var}[\hat{I}_1]
+$$
+
+$\hat{I}_2$ 被称为 $\hat{I}_1(X,Y)$ 的**Rao-Blackwellized estimator**.
+
+</Theorem>
+
+<Theorem variant='proof'>
+
+由 [Expectation](Expectation.md) 中的 law of total expectation, 我们有
+
+$$
+\mathbb{E}_{XY}[\hat{I}_2(XY) ]=\mathbb{E}_{Y}[\mathbb{E}_{X\mid Y}[\hat{I}_1(X,Y)\mid Y]]=\mathbb{E}_{XY}[\hat{I}_1(XY) ]=I
+$$
+
+其次，我们有
+
+$$
+\begin{align}
+\mathrm{var}[\hat{I}_2]&=\mathbb{E}_{Y}[(I-\hat{I}_2(Y))^2]\\
+&= \mathbb{E}_{Y}[\left(\mathbb{E}_{X\mid Y}\left[I-\hat{I}_1(X,Y)\mid Y\right]\right)^2]\\
+&\leq\mathbb{E}_{Y}[\left(\mathbb{E}_{X\mid Y}\left[(I-\hat{I}_1(X,Y))^2\mid Y\right]\right)]\\
+&= \mathbb{E}_{Y}[(I-\hat{I}_1(X,Y))^2]\\
+&=\mathrm{var}[\hat{I}_1]
+\end{align}
+$$
+
+这里不等式使用了 Jensen's inequality. 证毕。$\blacksquare$
+
+</Theorem>
+
+基于 Rao–Blackwell Theorem, 我们可以通过改变 $b(s_t)$ 来调整 policy gradient 的 variance.
 
 #### Reward to Go
 
@@ -267,13 +288,16 @@ $$
 </Theorem>
 </Wide>
 
-基于上述引理，我们可以得到关于 baseline invariance 中的最优 basline:
+基于上述引理，我们可以得到关于 baseline invariance 中的最优 baseline:
 
 $$
 b^*(s) =\frac{\mathbb{E}_{a_t\sim\pi_\theta(\cdot\mid s_t)}\left[(\nabla_\theta\log\pi_\theta(a_t\mid s_t))^2Q^{\pi_\theta}(s,a)\mid s\right]}{\mathbb{E}_{a_t\sim\pi_\theta(\cdot\mid s_t)}\left[\nabla_\theta\log\pi_\theta(a_t\mid s_t))^2\mid s\right]}
 $$
 
-理论上我们可以使用 $b^*(s_t)$ 作为 baseline,但是实际上有趣其表达式太复杂，我们一般使用其简化版本，简化版本移除了 $b^*(s)$ 中的 $\nabla_\theta\log\pi_\theta(a_t\mid s_t)$, 这样我们的一个估计就是
+#### Advantage
+
+理论上我们可以使用 $b^*(s_t)$ 作为 baseline,但是实际上由于其表达式太复杂，我们一般使用其简化版本。
+简化版本移除了 $b^*(s)$ 中的 $\nabla_\theta\log\pi_\theta(a_t\mid s_t)$, 这样我们的估计就是
 
 $$
 b(s) = \frac{\mathbb{E}_{a_t\sim\pi_\theta(\cdot\mid s_t)}\left[Q^{\pi_\theta}(s,a)\mid s\right]}{\mathbb{E}_{a_t\sim\pi_\theta(\cdot\mid s_t)}\left[1\mid s\right]} = V^{\pi_\theta}(s)
@@ -281,7 +305,7 @@ $$
 
 $b(s)=V^{\pi_\theta}(s)$ 并不是最优 baseline, 但是其性质比较好。
 
-我们将 $b(s)=V^{\pi_\theta}(s)$ 带入就得到经典的 policy gradient 表达式
+我们将 $b(s)=V^{\pi_\theta}(s)$ 带入到目标函数中就得到经典的 policy gradient 表达式
 
 $$
 \nabla_\theta \mathcal{J}(\theta)=\mathbb{E}_{\tau\sim(p_0,\pi_\theta, p)}\left[ \sum_{t=0}^{T-1}\nabla_\theta\log\pi_\theta(a_t\mid s_t)\left(Q^{\pi_\theta}(s_t,a_t)-V^{\pi_\theta}(s_t)\right)\right]
@@ -330,54 +354,6 @@ $$
    - Update $\theta_k$ using $\hat{g}$ with an optimizer.
 
 </Algorithm>
-
-### Rao–Blackwell Theorem
-
-我们在前面介绍了不同的降低 variance 的方法，但是我们还没有在理论上回答为什么可以降低 variance, 本节我们将基于 Rao-Blackwell theorem 来回答这个问题
-
-<Theorem title="Rao-Blackwell Theorem">
-
-令 $X$ 和 $Y$ 为随机变量， 令 $\hat{I}_1(X,Y)$ 为 $I$ 的一个无偏估计，即
-
-$$
-I = \mathbb{E}_{XY}[\hat{I}_1(XY)]
-$$
-
-令 $\hat{I}_2(Y)=\mathbb{E}_{X\mid Y}[\hat{I}_1(X,Y)\mid Y]$, 则 $\hat{I}_2$ 也是 $I$ 的一个无偏估计，并且
-
-$$
-\mathrm{var}[\hat{I}_2]\leq\mathrm{var}[\hat{I}_1]
-$$
-
-$\hat{I}_2$ 被称为 $\hat{I}_1(X,Y)$ 的**Rao-Blackwellized estimator**.
-
-</Theorem>
-
-<Theorem variant='proof'>
-
-由 [Expectation](Expectation.md) 中的 law of total expectation, 我们有
-
-$$
-\mathbb{E}_{XY}[\hat{I}_2(XY) ]=\mathbb{E}_{Y}[\mathbb{E}_{X\mid Y}[\hat{I}_1(X,Y)\mid Y]]=\mathbb{E}_{XY}[\hat{I}_1(XY) ]=I
-$$
-
-其次，我们有
-
-$$
-\begin{align}
-\mathrm{var}[\hat{I}_2]&=\mathbb{E}_{Y}[(I-\hat{I}_2(Y))^2]\\
-&= \mathbb{E}_{Y}[\left(\mathbb{E}_{X\mid Y}\left[I-\hat{I}_1(X,Y)\mid Y\right]\right)^2]\\
-&\leq\mathbb{E}_{Y}[\left(\mathbb{E}_{X\mid Y}\left[(I-\hat{I}_1(X,Y))^2\mid Y\right]\right)]\\
-&= \mathbb{E}_{Y}[(I-\hat{I}_1(X,Y))^2]\\
-&=\mathrm{var}[\hat{I}_1]
-\end{align}
-$$
-
-这里不等式使用了 Jensen's inequality. 证毕。$\blacksquare$
-
-</Theorem>
-
-Rao–Blackwell Theorem 说明了我们可以通过构造一个新的无偏估计，这个新的无偏估计相对于原始的无偏估计，有更小的方差。
 
 ### Overview
 

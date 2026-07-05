@@ -17,7 +17,7 @@ import Note from "../../../components/Note.astro";
 在 Bellman Equation 中，我们介绍了 value iteration 的基本思路：通过 Bellman optimality operator 迭代求解 $V^*$ 和 $Q^*$.
 本节将 value iteration 的思想与函数逼近、TD learning 等技术结合，得到实用的 value-based 算法.
 
-### SARSA and Q-Learning
+### Table Learning
 
 当动作空间较小时，我们可以 TODO
 
@@ -148,6 +148,6 @@ loss = loss.mean()
 
 </Algorithm>
 
-### Connection with LLM
+### Experiments
 
-对于 LLM，action space 很大 (词表大小 $\sim 10^5$), 直接应用 value-based 方法中的 $\max_{a'} Q(s', a')$ 操作计算代价极高. 因此，在 RL for LLM 中，policy-based methods (如 PPO, GRPO) 更为常用. 但 value-based 方法的思想（如 advantage estimation, TD learning）仍然是 policy-based 方法的重要组成部分.
+TODO
