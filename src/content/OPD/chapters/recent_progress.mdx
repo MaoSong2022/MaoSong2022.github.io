@@ -1,7 +1,5 @@
 ## Recent progress
 
-### multi teacher OPD
-
 DeepSeek-V4 [@DeepSeek-V4] 训练了十几个 specialist, 然后使用加权的方式来训练模型。
 MiniCPM-5 [@MiniCPM5] 训练了不同的 specialist, 然后再进行 OPD.
 
@@ -11,7 +9,7 @@ MiMo-V2-flash [@MiMo-V2-Flash]: multi-teacher OPD
 
 优势：
 
-1. OPD 可以保持 teacher model 的表现, 并且有 token level credit assignment, fast covergence, 避免了 exposure bias, distribution mismatch
+1. OPD 可以保持 teacher model 的表现, 并且有 token level credit assignment, fast convergence, 避免了 exposure bias, distribution mismatch
 2. modular and scalable: 每个专家可以独自进行优化，还可以与 ORM 进行结合
 3. 可以让 teacher 和 student 一起进化
 
