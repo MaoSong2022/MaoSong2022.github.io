@@ -1,1 +1,69 @@
 ## AceReason-nemotron
+
+AceReason-nemotron [@AceReason-Nemotron] 是 Nvidia 开源的一个通过大规模 RL 训练来提高小模型 reasoning 能力的 training recipe.
+
+## Method
+
+models: DeepSeek-R1-Qwen-Distilled-7B/14B [@DeepSeek-R1]
+
+algorithm: on policy GRPO [@DeepSeek-Math] with DAPO [@DAPO]
+
+$$
+\mathcal{J}_{GRPO}(\theta) = \mathbb{E}_{(q,a)\sim\mathcal{D},\{o_i\}_{i=1}^G\sim\pi_{\theta}(\cdot\mid q)}\left[\frac{1}{\sum_{i=1}^G|o_i|}\sum_{i=1}^G\sum_{i=1}^{|o_i|}\hat{A}_{i,t}\right]
+$$
+
+reward function:
+
+- math problems: AceMath, 仅 correctness
+- code problems: local sandbox verifier, 仅通过所有 unit test 时有 reward
+
+### Data
+
+math data: DeepScaler, NuminaMath
+
+filtering:
+
+- rule-based: n-gram, MCQ, non-english, overly long answers, references to figures, excessively brief prompts
+- model-based: DeepSeek-R1 [@DeepSeek-R1] rollout, filter problems with less than 2000 tokens.
+
+Dataset: 49,000 math problems.
+
+code data: competitive programming platforms, includes function calling and standard input/outpu formats
+
+filtering:
+
+- rule-based: multi-solution 问题，需要 special judges 的问题，需要 platform-specific templates 的问题
+- augmentation: 针对题目限制构造了 extreme cases
+- model-based: DeepSeek-R1 [@DeepSeek-R1] rollout, 过滤太难的
+
+### Training
+
+math RL:
+
+1. strict on-policy training
+2. length extension: 8K -> 16K -> 24K -> 32K
+3. harder problems to push the model.
+
+code RL:
+
+- Stage 1: 24k, 中等难度问题, temperature=0.6, G=8
+- Stage 2: 32k, 过滤，temperature=1.0, G=16
+
+training process:
+
+- Stage 1: math-only RL, 8k->24k
+- Stage 2: code-only RL, 24k->32k
+- Stage 3: math-only RL, 32K
+
+### Experiments
+
+reward function speed:
+
+1. AceMath verifier: 64 workers, 1024 instances in 3.9s.
+2. Code verifier: 64 workers, 1024 instances in 552.4s.
+
+结论：
+
+1. RL 训练时模型表现先下降后上升，原因：模型学会压缩 cot 来适应 context length, 但是一段时间之后模型表现就会恢复。
+2. 上下文扩展策略可以有效提高模型表现
+3. 基于 math-RL checkpoint 可以有效提高模型表现
