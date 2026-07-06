@@ -1,5 +1,30 @@
 ## Introduction
 
+现代的 LLM post-training 通常包含以下阶段：
+
+1. SFT: 提高模型的 instruction following 能力
+2. RLHF: 提高模型的 alignment performance
+3. RLVR: 提高模型的 reasoning 能力，包括 math, coding, logical 等 domain
+4. Agentic RL: 提高模型处理 complex, long horizon task 的能力
+
+但是，不同阶段的训练并不是相辅相成的，甚至某一阶段训练之后，模型在其他任务上的表现性能所有下降。
+比如：
+
+1. 在经过 math domain RLVR 训练之后，模型在 open-ended writing 任务上表现下降
+2. 在经过 RLHF 训练之后，模型的指令跟随能力下降
+3. 经过 agentic RL 训练之后，模型在 STEM domain 上的表现下降
+
+为了解决这个问题，已有方法从多个方面来进行优化
+
+1. cascaded RL
+2. multi-task RL
+3. MOPD
+4. model merging
+
+## Related Work
+
+### Analysis
+
 [@wang2026mix] 探究了对于 multi-domain RL 训练，是 multi-task RL 训练范式好还是 model merging 效果更好，作者使用了 Qwen3-4B 作为训练模型来进行实验，数据集为 [Nemotron 3 Nano](https://maosong.website/blog/nemotron/#nemotron-3-nano), 包含以下四个 domain:
 
 | domain                | dataset                    |
@@ -20,6 +45,8 @@
 
 结论：multi-task RL 可以有效提高模型的泛化能力
 
+### Models
+
 | Paradigm      | models               |
 | ------------- | -------------------- |
 | Multi-task RL | Qwen3                |
@@ -27,5 +54,23 @@
 | MOPD          | MiMo-V2, DeepSeek-V4 |
 | model merge   |                      |
 
-Nemotron-cascade2 也尝试将不同的范式结合起来，对于前后依赖关系必要多的，使用 cascaded RL, 比如 instruction following 最先进行训练。
+GLM-5 [@GLM5], DeepSeek-V4 [@DeepSeek-V4] 和 MiMo-V2-Flash [@MiMo-V2-Flash] 将 MOPD 作为 post-training 的最后一个阶段来进行 consolidation
+
+Nemotron-cascade [@Nemotron-cascade] 采用了 cascaded RL 策略，作者认为 multi-task RL 在训练时，由于不同 domain 的数据 rollout 长度， verification 时间不一致，最终训练效率会比较低。
+作者的解决方法是研究不同 domain RL 之间的依赖关系，严格保证 后续 domain RL 的训练建立在前面 domain RL 的结果之上。
+
+Nemotron-cascade2 [@Nemotron-Cascade2] 才了一个混合策略，对于前后依赖关系必要多的，使用 cascaded RL, 比如 instruction following 最先进行训练。
 对于 domain 之间竞争比较小的，使用 multi-task RL, 比如 STEM, agentic tool calling, structured output.
+作者通过实验发现对 domain 进行 group 之后，有两个好处：
+
+1. 模型的泛化性没有明显下降
+2. rollout 的长度和 verification 时间基本差不多
+
+对于 MOPD, Nemotron-cascade2 使用了三个教师模型，包括 math teacher, RLHF teacher, multi-domain teacher.
+
+## Comparison:
+
+| method        | Cascaded RL | multi-task RL  | MOPD   | model merging |
+| ------------- | ----------- | -------------- | ------ | ------------- |
+| forgetting    | yes         | no             | no     | yes           |
+| training cost | high        | extremely high | medium | low           |
