@@ -9,6 +9,12 @@
 - Alignment: AlpacaEval, ArenaHard, MixEval
 - Tool Calling: Tau-Bench
 
+| Benchmark    | domain               | format | num samples | num domains | metric |
+| ------------ | -------------------- | ------ | ----------- | ----------- | ------ |
+| MMLU         | knowledge            | MCQ    | 14,079      | 57          | EM     |
+| MMLU-Pro     | knowledge            | MCQ    | 12,000      | -           | EM     |
+| GPQA-diamond | scientific reasoning | 198    | 3           | pass@1      |
+
 ### Leaderboard
 
 以下是将您提供的基准测试数据转换为 Markdown 表格的版本（注意：原数据中 `HLE w/ Tools` 的 `53.1*` 和 `51.4*` 保留了星号，`Terminal-Bench 2.0` 的二级表头处理为合并单元格样式，`Vending Bench 2` 的数值前保留美元符号）：
