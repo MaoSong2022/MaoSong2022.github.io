@@ -6,6 +6,8 @@ import Image from "../../../components/Image.astro";
 import Sidenote from "../../../components/Sidenote.astro";
 
 import Matrix_Solve from "../../../assets/image/policy_evaluation_matrix_solve.png";
+import policy_evaluation_benchmark from "../../../assets/image/policy_evaluation_benchmark.png";
+import rollouts_to_target_error_vs_vocab from "../../../assets/image/rollouts_to_target_error_vs_vocab.png";
 
 ## Policy Evaluation
 
@@ -281,7 +283,30 @@ See Theorem 7.1 of [Mathematical Foundations of Reinforcement Learning](https://
 
 #### Tabular Learning Experiments
 
-TODO: add experiments on MC and TD.
+我们对比 TD, MC 和之前的方法，我们使用不同的 vocab size 进行实验，对于 MC 和 TD, 我们将 episodes 设置为 $10,000$, TD 的 lr 设置为 $0.1$.
+
+结果如下图所示
+
+<Image
+  src={policy_evaluation_benchmark}
+  alt="Comparison of Exact solution and MC/TD"
+/>
+
+可以看到，一方面，相比 matrix exact/iterative solve 方法，MC/TD 显然效率更高。
+尽管随 state space 增大，MC/TD 算法不收敛，但是 MC/TD 复杂度主要与 rollout 相关。
+
+另一方面，当 vocab size 持续扩大之后，MC/TD 的误差也变得不可接受，这是因为我们的奖励比较稀疏，采样不一定能够采到 target sequence, 因此，我们额外补充一个不同 vocab size 下，MC 和 TD 到达指定误差所需要的 episodes 的实验。我们将 maximum episodes 设置为 $10,000$, error 设置为 $0.01$, 实验结果如下图所示
+
+<Image
+  src={rollouts_to_target_error_vs_vocab}
+  alt="Number of rollouts required to reach the target error"
+/>
+
+可以看到，整体上 MC 的 sample efficiency 比 TD 更高。
+
+但是，当 vocab size 超过 30 之后，MC 和 TD 仍然因为 state space 过大导致不收敛。
+
+因此，我们需要一个新的方法来解决 state space 过大的问题。
 
 ### Function Approximation
 
@@ -333,7 +358,7 @@ $$
 
 #### Function Approximation with TD
 
-与离散形式一样，我们基于 TD eror 来构造目标函数：
+与离散形式一样，我们基于 TD error 来构造目标函数：
 
 $$
 \mathcal{L}(\phi) = \mathbb{E}_{s_0 \sim p_0}^\pi\left[\frac{1}{2}\left(V_{\phi}(s_0) - r_0 - \gamma V^{\pi}(s_1)\right)^2\right]
