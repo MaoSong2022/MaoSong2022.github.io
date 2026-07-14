@@ -1,0 +1,13 @@
+## AceReason-Nemotron 1.1
+
+作者主要探究了 SFT 和 RL 两个阶段训练之间的协同作用。
+
+### Data
+
+SFT data 包含 math 和 coding 两个 domain:
+
+- math: AceMath, NuminaMath, OpenMathReasoning
+- coding: TACO, APPs, OpenCoder-Stage2, OpenCodeReasoning
+
+response 使用 DeepSeek-R1 [@DeepSeek-R1] 生成。
+通过过滤较短的 response 之后，数据集包含 247k math prompts, 136k code prompts.
