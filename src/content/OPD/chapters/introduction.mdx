@@ -2,27 +2,27 @@ import Sidenote from "../../../components/Sidenote.astro";
 
 ## Introduction
 
-使用 OPD 的大模型系列：
+[SFT](https://maosong.website/blog/sft) (Supervised fine tuning) 是现代用于提升 LLM/MLLM 基本能力的一个微调方法。
+其具体做法是收集标注好的数据集，形成 prompt-response pair 数据集，然后基于 next token prediction loss 进行训练。
 
-1. Qwen3
-2. GLM5
-3. MimoV2
-4. DeepSeek-V4
+但是，SFT 的问题在于容易过拟合，导致模型出现灾难性遗忘现象。
+为了解决这个问题，我们在本文中介绍现在主流的做法： OPD (on policy distillation).
+OPD 通过使用 reverse KL 作为损失函数，将 off-policy 的 imitation learning 变成了 on-policy 的 guided learning [@lu2025onpolicydistillation;@MiniLLM].
 
-现代LLM的训练一般划分为多个阶段：
+OPD 相比于 SFT 来说，可以更大程度保留模型本身的能力，相比于 RL 来说，训练开销更小。
+因此，已经得到了广泛的应用。
+下面是使用 OPD 的一些模型：
 
-1. pre-train: 用于帮助模型掌握世界知识
-2. mid-train: 弥补 pre-train 和 SFT 之间的鸿沟，提高模型的 long context 能力以及初步的指令跟随能力 [@zhang2025interplaypretrainingmidtrainingrl].
-3. SFT: 提高模型的指令跟随能力，拥有初步的推理能力
-4. RL: 通过 RLHF [@ouyang2022traininglanguagemodelsfollow] 进行对齐或者通过 RLVR [@DeepSeek-R1] 来提高模型的 reasoning 能力。
+| Method     | Description            | Models                            |
+| ---------- | ---------------------- | --------------------------------- |
+| OPD        | Strong to Weak         | Qwen3                             |
+| MOPD       | Multi expert to single | DeepSeek-V4, GLM-5, MiMo-V2-Flash |
+| Async MOPD | asynchronous MOPD      | Nemotron 3 Super                  |
 
-本文中，我们将介绍一种结合 RL 和 SFT 各自优势的 On Policy Distillation (OPD) 方法。
+### Why OPD
 
-- MiniLLM [@MiniLLM]
-- GLM5 [@GLM5]
-- DeepSeek-V4 [@DeepSeek-V4]
-- Qwen3 [@Qwen3]
-- MiMo-V2-Flash [@MiMo-V2-Flash]
-- GKD [@agarwal2024onpolicy]
-- On-policy distillation [@lu2025onpolicydistillation]
-- Nemotron-Cascade2 [@Nemotron-Cascade2]
+OPD 效果好的原因主要有以下几点：
+
+1. cheaper sampling: 教师模型只需要执行一次 prefill 就可以完成一次指导，而 prefill 效率与开销要远低于 decoding.
+2. on-policy: on policy 让学生模型可以不停改进自己的策略，避免了学生模型因为 imitation learning 产生灾难性遗忘。
+3. Reverse KL: 我们在 [KL divergence](https://maosong.website/blog/kl-divergence/) 中已经介绍了forward KL 与 reverse KL的不同之处，前者是 mean seeking, 后者是 mode seeking. 而 mode seeking 能够保证模型取得更好的表现。
