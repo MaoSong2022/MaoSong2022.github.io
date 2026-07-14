@@ -1,16 +1,63 @@
-## Recent progress
+## Recent Progress
+
+这一节我们介绍当前一些针对 OPD 的改进以及工业级应用。
+
+### Mechanism and Optimization
+
+为什么 OPD 的 student model 会超过 teacher model:
+
+1. teacher model 基于 student model 的输出给予建议，student model 可以学习
+2. KL matching 并不是 reward maximization, KL matching 有更高的 bias
+
+MiMo-V2-Flash [@MiMo-V2-Flash]
+
+- 数学和代码领域：RL 更好
+- creative writing and knowledge-heavy tasks: distillation
+
+总结： RL 和 OPD 效果比 SFT 更好的原因是因为 on-policy [@chen2025retainingdoingroleonpolicy].
+
+但是在 OPD 中，学生模型倾向于从输出差异比较大的那些 'pivot token' 中进行学习，因此，一小部分token占据了大部分的training signal.
+
+### MOPD
+
+MOPD [@MOPD] 在 OPD 的基础上使用了多个专家来指导学生模型，每个 teacher model 可以单独进行训练和优化，降低了 pipeline RL 或者 multi-task RL 训练优化的难度，现在已经称为了大模型后训练的一个主流范式。
+
+MOPD 有以下优势：
+
+1. OPD 可以保持 student model 的表现, 并且有 token level credit assignment, fast convergence, 避免了 exposure bias, distribution mismatch
+2. modular and scalable: 每个专家可以独自进行优化，还可以与 ORM 进行结合
+3. 可以让 teacher 和 student 一起进化
+
+使用 MOPD 的模型
+
+| Model            | #teachers | #teachers per sample | Descriptions              |
+| ---------------- | --------- | -------------------- | ------------------------- |
+| MiMo-V2-flash    | unknown   | 1                    | uses task reward          |
+| DeepSeek-V4      | ~10       | all                  | weighted sum over experts |
+| Nemotron-3-Super | >10       | 1                    | multi-round MOPD          |
+
+MiMo-V2-flash [@MiMo-V2-Flash] 采用了 [policy gradient](##connection-with-rl) 的建模方式，其 advantage 如下所示
+
+$$
+A_{OPD,t} = \mathrm{sg}\left[\log\pi_\theta(y_t\mid y_{<t}, x)-\log\pi_{T_i}(y_t\mid y_{<t}, x)\right] + \alpha A_{ORM}
+$$
+
+这里 $T_i$ 是 $x$ 对应的 domain expert.
+作者还使用了 truncated importance sampling 策略来解决 training inference mismatch 问题，
 
 DeepSeek-V4 [@DeepSeek-V4] 训练了十几个 specialist, 然后使用加权的方式来训练模型。
 MiniCPM-5 [@MiniCPM5] 训练了不同的 specialist, 然后再进行 OPD.
 
 KAT-Coder-V2 [@KAT-Coder-V2] 采用了先训练不同 specialist 然后进行 OPD 来训练模型的做法，与 DeepSeek-V4 不同，KAT-Coder-V2 每次只选取对应任务的专家作为 teacher.
 
-MiMo-V2-flash [@MiMo-V2-Flash]: multi-teacher OPD
+### OPSD
 
-优势：
+OPD 的问题在于，其要求教师模型满足 same-family, 而实际上，对于 flagship model, 我们可能没有一个更强的教师模型，比如 DeepSeek-R1 [@DeepSeek-R1].
+为了解决这个问题, 我们可以使用 self-distillation, 即我们的教师模型和学生模型是同一个，我们通过 prompt engineering 或者 in context learning 来将一个模型转换为 teacher model, 相关工作有 SDFT [@SDFT] 以及 OPSD [@OPSD] 等。
 
-1. OPD 可以保持 teacher model 的表现, 并且有 token level credit assignment, fast convergence, 避免了 exposure bias, distribution mismatch
-2. modular and scalable: 每个专家可以独自进行优化，还可以与 ORM 进行结合
-3. 可以让 teacher 和 student 一起进化
+最近研究发现 OPSD 会让模型更关注 style token, 而不是 reasoning token.
+这个问题的解决方法是使用 per-token clipping 机制。
 
-OPD 将 reverse KL 写成了 RL objective 的形式，用于统一 ORM
+1. SFT 的 reward signal 更 dense, 但是这会影响模型原有表现
+2. RL 的更新与数据相关，数据 diverse, 更新就慢，数据 consistent, 更新就快
+3. RL 更新更稀疏，只有一部分网络参数会被更新，SFT 更新更加 dense

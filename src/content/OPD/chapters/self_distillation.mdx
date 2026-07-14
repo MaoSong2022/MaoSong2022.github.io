@@ -1,4 +1,0 @@
-## Self Distillation
-
-OPD的问题在于，其要求教师模型满足same-family, 而实际上，很多教师模型是black box model, 比如人类或者different family, 比如 DeepSeek-R1 [@DeepSeek-R1] 与 Qwen3 [Qwen3]
-针对different family OPD, 我们可以使用self-distillation, 即我们的教师模型和学生模型是同一个，我们通过prompt engineering或者in context learning 来将模型转换为teacher model, 相关工作有 SDFT [@SDFT] 以及 OPSD [OPSD] 等。

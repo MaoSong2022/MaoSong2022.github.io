@@ -1,0 +1,62 @@
+## Implementation
+
+基于前面的分析，我们有两种 OPD 的实现方式：
+
+1. 将 OPD 作为一种 policy gradient methods 进行实现
+2. 将 OPD 作为一种 distillation 的方式进行实现，即 GKD [@agarwal2024onpolicy] 的实现方式
+
+在 verl 中，对于第一种方案，我们的配置为
+
+```yaml
+use_policy_gradient=true
+loss_mode=k1
+```
+
+对应的 reward 如 [公式](#opd_reward) 所示。
+
+对于第二种方案，我们的配置为
+
+```yaml
+use_policy_gradient=false
+loss_mode=forward_kl_topk
+```
+
+verl 中的 OPD 实现方式为：
+
+1. student 进行 rollout
+2. Agent Loop 调用 `_compute_teacher_logprobs` 来给 student model 生成的 rollout 计算 logprobs
+3. 计算时，使用 `AsyncTeacherLLMServerManager` 来管理 teacher model:
+   1. 单教师的话，忽略 routing key
+   2. 多教师的花，使用 `sample[teacher_key]` (默认为 `data_source`) 来选取对应的教师
+4. 对应的 teacher model 进行 prefill, `max_tokens=1`, `prompt_logprobs=topk|0`, 对整段 prompt + response 进行打分，不生成新内容
+5. 将teacher model 的结果写入 `teacher_ids/teacher_logprobs`, 随 `DataProto` 进行训练
+
+最终 loss 计算有以下几种方式：
+
+1. topK mode (GKD)
+2. estimator mode (k1, k2, k3)
+3. aggregation mode
+4. task reward mode
+
+topK mode [@MOPD;@li2026rethinkingonpolicydistillationlarge] 的基本思想是解决 vocabulary size 过大导致 loss 计算带来的显存占用过高问题，其做法是，记录 teacher model prefill 时每个 token 上 topK token 对应的 logprobs, 然后计算 KL divergence 时，使用如下近似
+
+$$
+\begin{aligned}
+    \mathrm{KL}(\pi_\theta(y_t\mid y_{<t}, x)\mid\mid \pi_T(y_t\mid y_{<t}, x)) &= \sum_{v\in\mathcal{V}} \pi_\theta(v\mid y_{<t}, x) \frac{\pi_\theta(v\mid y_{<t}, x)}{\pi_T(v\mid y_{<t}, x)}\\
+    &\approx \sum_{v\in\mathrm{topK}(v)} \pi_\theta(v\mid y_{<t}, x) \frac{\pi_\theta(v\mid y_{<t}, x)}{\pi_T(v\mid y_{<t}, x)}
+\end{aligned}
+$$
+
+计算完之后，再通过 clamp 进行截断，并记录 student model 和 teacher model 在 topK 上的 mass 以及 overlap [@li2026rethinkingonpolicydistillationlarge] 用于诊断.
+
+estimator mode 则是使用 KL divergence 的不同估计， 详情见 [KL divergence](https://maosong.website/blog/kl-divergence/).
+
+aggregation mode 则是在 policy gradient 场景下将 per token loss matrix 压缩为标量的方法。这一点见 verl.
+
+task reward mode 则是在 KL divergence 的基础上加上任务相关奖励，即最终的目标函数为
+
+$$
+\mathcal{L} = \mathcal{L}_{PPO} + \lambda \mathcal{L}_{OPD}
+$$
+
+这里 $\lambda$ 为 `distillation_loss_coef`, 这个模式默认启用，可以使用 `use_task_rewards=false` 来关闭。

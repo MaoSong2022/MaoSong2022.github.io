@@ -1,85 +1,59 @@
 import Sidenote from "../../../components/Sidenote.astro";
 
-## Analysis on OPD
+## Analysis
 
-OPD 效果好的原因主要有以下几点：
+### Connection with SFT
 
-1. cheaper sampling: 教师模型只需要执行一次prefill 就可以完成一次指导，而prefill效率与开销要远低于decoding.
-2. on-policy: on policy 让学生模型可以不停改进自己的策略
-3. Reverse KL: 我们在 [KL divergence](https://maosong.website/blog/kl-divergence/) 中已经介绍了forward KL 与 reverse KL的不同之处，前者是mean seeking, 后者是mode seeking. 而mode seeking能够保证模型取得更好的表现。
+对于 OPD 的目标函数，我们可以将其写为如下形式
 
-OPD 的优势 [@MOPD]：
+$$
+\begin{aligned}
+\mathcal{L}_{OPD}(\theta) &= \mathbb{E}_{x\sim\mathcal{D}, y_t\sim\pi_\theta(\cdot\mid y_{<t},x)}\left[\sum_{t=1}^T\mathrm{KL}(\pi_\theta(\cdot\mid y_{<t},x)\mid\mid \pi_T(\cdot\mid y_{<t},x))\right]\\
+&=\mathbb{E}_{x\sim\mathcal{D}, y_t\sim\pi_\theta(\cdot\mid y_{<t},x)}\left[\sum_{t=1}^T\sum_{y\in\mathcal{V}}\pi_{\theta}(y\mid y_{<t},x)\log\frac{\pi_{\theta}(y\mid y_{<t},x)}{\pi_{T}(y\mid y_{<t},x)}\right]\\
+&= \mathbb{E}_{x\sim\mathcal{D}, y_t\sim\pi_\theta(\cdot\mid y_{<t},x)}\left[-\sum_{t=1}^T\sum_{y\in\mathcal{V}}\pi_{\theta}(y\mid y_{<t},x)\log\pi_{T}(y\mid y_{<t},x)\right] \\
+&+ \mathbb{E}_{x\sim\mathcal{D}, y_t\sim\pi_\theta(\cdot\mid y_{<t},x)}\left[\sum_{t=1}^T\sum_{y\in\mathcal{V}}\pi_{\theta}(y\mid y_{<t},x)\log \pi_{\theta}(y\mid y_{<t},x)\right]\\
+&= \mathrm{CE}(\pi_{\theta}, \pi_T) - \mathcal{H}(\pi_\theta)
+\end{aligned}
+$$
 
-1. dense training signal, 直接集成 teacher model 的模型
-2. 由 student model 进行 rollout, 避免 exposure bias
-3. per-prompt routing 而不是 weight-space fusion.
+其中 $\mathrm{CE}(\pi_{\theta}, \pi_T)$ 是 cross entropy loss, $\mathcal{H}(\pi_\theta)$ 是 entropy.
 
-### Comparison of different methods
+可以看到，与 SFT 只最小化 cross entropy loss 不一样，OPD 的损失函数同时优化了两个目标：
 
-#### SFT
+1. 最小化 cross entropy loss: 用于拉近学生模型和教师模型的分布
+2. 最小化 entropy: 惩罚高熵状态，鼓励学生模型变得 confident 和 sharp.
 
-在 SFT 中， 我们使用了采集好的数据集，这个数据集形成了一个数据分布，SFT 要求模型的分布完全能 cover 数据分布。
-这就导致了灾难性遗忘。
-但是另一方面，这种性质可以让模型快速学习到新知识，因此 SFT 适合作为 cold start.
+这种优化目标的不一致让 OPD 可以保持学生模型本身的能力。
 
-#### RL
+### Connection with RL
 
-RL 的数据来源模型本身，当 verifier 或者 reward model 设计比较好的时候，我们可以很好的提高模型的表现。
+MiniLLM [@MiniLLM] 提出我们可以将 OPD 建模为一个 RL 训练过程，注意到
 
-#### OPD
+$$
+\nabla_{\theta} \mathcal{L}_{OPD}(\theta) = \mathbb{E}_{x\sim\mathcal{D},y\sim\pi_{\theta}}\left[\frac{1}{|y|}\sum_{t=1}^{|y|}\frac{\pi_\theta(y_t\mid y_{<t}, x)}{\pi_T(y_t\mid y_{<t}, x)}\nabla_{\theta} \log\pi_\theta(y_t\mid y_{<t}, x)\right]
+$$
 
-reading notes on the blog [@sft_rl_opd]
+基于 policy gradient, 我们可以将 OPD 的 reward 表示为
 
-对于 OPD 来说， OPD 继承了 RL 的 on-policy 性质，同时像 SFT 一样，模型又能够接收 teacher signal.
-但是与 RL 基于 advantage 对 rollout 进行加权不同， OPD 使用 log ratio 来实现加权。
+$$
+\htmlId{opd_reward}{\begin{equation}
+    A_{OPD,t} = \mathrm{sg}\left[\log\pi_\theta(y_t\mid y_{<t}, x)-\log\pi_T(y_t\mid y_{<t}, x)\right]
+\end{equation}}
+$$
 
-OPSD 进一步使用模型本身作为 teacher model, 但是最近研究发现 OPSD 会让模型更关注 style token, 而不是 reasoning token.
-这个问题的解决方法是使用 per-token clipping 机制。
+其中 $\mathrm{sg}(\cdot)$ 是 stop gradient operator.
 
-1. SFT 的 reward signal 更 dense, 但是这会影响模型原有表现
-2. RL 的更新与数据相关，数据 diverse, 更新就慢，数据 consistent, 更新就快
-3. RL 更新更稀疏，只有一部分网络参数会被更新，SFT 更新更加 dense
+这样，OPD 等价于下面的 policy optimization problem:
 
-RL 会学习与当前 policy 最近的 optimal policy. 而 SFT 对应的 target policy 可能非常远
+$$
+\mathcal{L}_{OPD}(\theta) = \mathbb{E}_{x\sim\mathcal{D},y\sim\pi_{\theta}}\left[\frac{1}{|y|}\sum_{t=1}^{|y|}A_{OPD,t}\log\pi_\theta(y_t\mid y_{<t}, x)\right]
+$$
 
-为什么 OPD 的 student model 会超过 teacher model:
-
-1. teacher model 基于 student model 的输出给予建议，student model 可以学习
-2. KL matching 并不是 reward maximization, KL matching 有更高的biias
-
-MiMo-V2-Flash [@MiMo-V2-Flash]
-
-- 数学和代码领域：RL 更好
-- creative writing and knowledge-heavy tasks: distillation
-
-总结： RL 和 OPD 效果比 SFT 更好的原因是因为 on-policy [@chen2025retainingdoingroleonpolicy].
-
-will brown [@will2026opd] 从梯度的角度对不同训练范式进行了分析。
-
-首先是RLVR, RLVR的reward基于最终的答案是否正确，而给出 1 (correct) 或者 0 (otherwise) 的奖励。
-对于 GRPO [@DeepSeek-Math] 而言，一个sequence中的每个token共享advantage, 因此大部分token可能对答案的正确性并没有太多贡献，它们只是恰好在正确的sequence里而已。
-而我们在RL中使用larg batch size, low learning rate的原因是这些相关性比较低的token可以互相抵消，RL可以凭借sparse reward来提升模型的表现。
-
-对SFT而言，每个token都有一个one-hot label, 因此其reward是dense的。
-但是，SFT的梯度并不是zero-mean的，这意味着随着训练进行，模型会逐渐靠近$\pi_T$或者训练数据分布，这也就降低了模型的泛化能力。
-尽管SFT的梯度不是zero-mean, 但是由于数据的多样性，能够保证模型不会被OOD sample带偏，并且SFT本质上是强化模型已经掌握或者半掌握的知识，这也就避免了模型训练的崩塌。
-总的来说，SFT是一个biased but unconcentrated method.
-
-对于 OPD 来说，与OPD一样，其reward 也是 dense 的。
-但是在OPD中，学生模型倾向于从输出差异比较大的哪些 'pivot token' 中进行学习，因此，一小部分token占据了大部分的training signal.
-
-最终，不同方法的对比如下所示
-
-| Method | Density | Bias                    | Concentration               | Uses                            |
-| ------ | ------- | ----------------------- | --------------------------- | ------------------------------- |
-| RL     | sparse  | unbiased                | diffuse                     | large batches, patient          |
-| SFT    | dense   | biased toward data      | diffuse                     | data is on-distribution         |
-| OPD    | dense   | biased toward teacher   | diffuse                     | teacher is same-family          |
-| OPSD   | dense   | biased toward self+hint | concentrated on pivot token | aggressive clipping is in place |
+基于上面这个目标函数，我们可以用 RL 的实现来进行 OPD 的训练。
 
 ### Unified Framework
 
-我们还可以使用一个统一的公式来统一这些方法
+我们还可以使用一个统一的公式来统一这些方法 [@sft_rl_opd]
 
 $$
 \nabla_\theta J(\theta) = \mathbb{E}_{x\sim\mathcal{D}, \hat{y}\sim \mu_\alpha(\cdot\mid x)}\left[\sum_{i}A_t(x,\hat{y})\nabla_\theta\log \pi_\theta(\hat{y}_t\mid \hat{y}\mid \hat{y}_{<t})\right]
@@ -114,11 +88,24 @@ $$
 
 </Sidenote>
 
-### Find a teacher
+### Comparison
 
-五种策略：
+will brown [@will2026opd] 从梯度的角度对不同训练范式进行了分析。
 
-1. 单任务prompt optimization: 针对某个具体任务，寻找一个合适的prompt作为教师模型
-2. 训练一个模型，专门把复杂的包含答案的hard hint改写成minimal hint
-3. online RL: 让教师模型和学生模型一起进化
-4. RL + OPD: 同时使用教师的KL信号和环境的奖励信号
+对 SFT 而言，每个 token 都有一个 one-hot label, 因此其 reward 是 dense 的。
+但是，SFT 的梯度并不是 zero-mean, 这意味着随着训练进行，模型会逐渐靠近 $\pi_T$ 的数据分布，这也就降低了模型的泛化能力。
+尽管 SFT 的梯度不是 zero-mean, 但是由于数据的多样性，能够保证模型不会被 OOD sample 带偏，并且 SFT 本质上是强化模型已经掌握或者半掌握的知识，这也就避免了模型训练的崩塌。
+总的来说，SFT 是一个 biased but unconcentrated method.
+
+对 RLVR 来说，RLVR 的 reward 基于最终的答案是否正确，而给出 1 (correct) 或者 0 (otherwise) 的奖励。
+对于 GRPO [@DeepSeek-Math] 而言，一个 sequence 中的每个 token 共享 advantage, 因此大部分 token 可能对答案的正确性并没有太多贡献，它们只是恰好在正确的 sequence 里而已。
+而我们在 RL 中使用 large batch size, low learning rate 的原因是这些相关性比较低的 token 可以互相抵消，RL 可以凭借 sparse reward 来提升模型的表现。
+
+[@sft_rl_opd] 认为， 对于 OPD 来说， OPD 继承了 RL 的 on-policy 性质，同时像 SFT 一样，模型又能够接收 teacher signal.
+但是与 RL 基于 advantage 对 rollout 进行加权不同， OPD 使用 log ratio 来实现加权。
+
+| Method | on-policy  | signal | performance | Cost   | Bias            | Uses                   |
+| ------ | ---------- | ------ | ----------- | ------ | --------------- | ---------------------- |
+| SFT    | off-policy | dense  | low         | medium | towards data    | high quality data      |
+| OPD    | on-policy  | dense  | medium      | medium | towards teacher | teacher is same-family |
+| RLVR   | on-policy  | sparse | high        | high   | unbiased        | verifiable             |
