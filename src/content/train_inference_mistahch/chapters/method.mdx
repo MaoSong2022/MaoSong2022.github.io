@@ -10,6 +10,7 @@ $$
 \mathcal{J}(\theta) = \mathbb{E}_{x\sim\mathcal{D},y\sim\pi_{\theta}(\cdot\mid x)}[R(x,y)]
 $$
 
+其中 $\pi_{\theta}$ 是优化的 policy, $R(x,y)$ 是 reward function.
 对应的梯度为
 
 <Sidenote>
@@ -20,22 +21,12 @@ $$
 \nabla_{\theta}\mathcal{J}(\theta) =\mathbb{E}_{x\sim\mathcal{D},y\sim\pi_{\theta}(\cdot\mid x)}[R(x,y)\nabla_{\theta}\log\pi_{\theta}(\theta)]
 $$
 
-由于 training engine 和 inference engine 的不同，我们的采样的输出 $y$ 实际上来源是 $\mu_{\theta_{\mathrm{old}}}$, 这里 $\mu_{\theta_{\mathrm{old}}}$ 是 inference engine 对 policy $\pi_{\theta_{\mathrm{old}}}$ 的实现，如 vllm 和 SGLang.
+对于现代 RL 训练框架如 verl [@verl] 来说，由于 training engine 和 inference engine 的不同，我们的采样的输出 $y$ 实际上来源是 $\mu_{\theta}$, 这里 $\mu_{\theta}$ 是 inference engine 对 policy $\pi_{\theta}$ 的实现，如 vllm 和 SGLang.
 
-<Sidenote>TODO：Explain</Sidenote>
-
-我们使用 importance sampling 对目标函数进行改写得到
+此时，我们的梯度实际上是
 
 $$
-\htmlId{tim_objective}{\begin{equation}
-  \mathcal{J}(\theta) = \mathbb{E}_{x\sim\mathcal{D}, y\sim\mu_{\theta_{\mathrm{old}}}(y\mid x)}\left[\frac{\pi_{\theta}(y\mid x)}{\mu_{\theta_{\mathrm{old}}}(y\mid x) }R(x,y)\right]
-\end{equation}}
-$$
-
-对应的梯度为
-
-$$
-\nabla_{\theta}\mathcal{J}(\theta) =\mathbb{E}_{x\sim\mathcal{D}, y\sim\mu_{\theta_{\mathrm{old}}}(y\mid x)}\left[\frac{\pi_{\theta}(y\mid x)}{\mu_{\theta_{\mathrm{old}}}(\cdot\mid x) }R(x,y)\nabla_{\theta}\log \pi_{\theta}(y\mid x)\right]
+\nabla_{\theta}\mathcal{J}_{\text{biased}}(\theta) =\mathbb{E}_{x\sim\mathcal{D},y\sim\mu_{\theta}(\cdot\mid x)}[R(x,y)\nabla_{\theta}\log\pi_{\theta}(\theta)]
 $$
 
 ### Quantization

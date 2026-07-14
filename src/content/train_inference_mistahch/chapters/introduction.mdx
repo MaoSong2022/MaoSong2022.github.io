@@ -11,3 +11,9 @@
 由于 router 的不连续性，现在 $f_{\theta}(x+\delta x)$ 和 $f_{\theta}(x)$ 会出现比较大的误差，而这种误差会持续影响模型训练，最终导致训练崩溃。
 
 本文将系统性回顾和整理 TIM 相关的论文，blog, 并通过实现来验证和复现相关现象以及解决方法。
+
+| Method       | Description              | Models                        |
+| ------------ | ------------------------ | ----------------------------- |
+| FP32 lm head |                          | MiniMax-M1                    |
+| R3           | replay routing (default) | MAI-thinking-1, MiMo-V2-Flash |
+| IcePop, Kpop | TIS                      | Ling-2.6                      |
