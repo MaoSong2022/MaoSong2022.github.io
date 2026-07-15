@@ -5,3 +5,23 @@
 1. train for longer: 保持 entropy balance, 控制模型的 verbosity increase
 2. train on more difficult prompts and tasks: 使用困难的题目进行训练
 3. train on more diverse responses, with high quality reward feedback: 保持问题和输出的多样性
+
+agentic RL 解决的任务可以定义为一个 partially Observable Markov Decision Process (POMDP) 问题，
+
+一个 POMDP 问题由一个 tuple $(\mathcal{S},\mathcal{A},\mathcal{T},\mathcal{R},\Omega,\mathcal{O}, \gamma)$ 确定，其中：
+
+1. $\mathcal{S}$ 是状态空间
+2. $\mathcal{A}$ 是动作空间
+3. $\Omega$ 是 observation, 是状态空间的部分描述
+4. $\mathcal{T}:\mathcal{S}\times\mathcal{A}\to\mathcal{S}$ 是状态转换函数
+5. $\mathcal{R}:\mathcal{S}\times\mathcal{A}\to\mathbb{R}$ 是 reward function
+
+在 agentic 场景下，我们假设模型的输入为一个 task prompt $s_0$, 模型与环境交互之后，会产生一个状态
+
+$$
+\tau=(s_0,a_0, o_0,r_0, s_1, a_1,\dots,a_{T-1}, o_{T-1}, r_{T-1}, s_T)
+$$
+
+agent $\pi_{\theta}$ 从 action space 进行采样得到 $a_t,o_t\sim\pi_{\theta}(\cdot,\cdot\mid s_t)$, 这里 $a_t=(a_t^1,a_t^2,\dots,a_t^{<eos>})$ 是一个 token sequence, 按照自回归的方式生成，即 $a_t^i\sim\pi_{\theta}(\cdot\mid s_t,a_t^{<t})$, $o_t$ 是执行 $a_t$ 之后，环境给予的观测信息，然后环境给予奖励 $r_t=\mathcal{R}(s_t,a_t)$ 并更新状态 $s_{t+1}\sim \mathcal{T}(s_t,a_t)$.
+
+agent 的目标是最大化 expected return $\mathbb{E}[\sum_t \gamma^tr_t]$.

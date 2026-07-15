@@ -1,0 +1,80 @@
+## Agentic RL
+
+verl 通过 async AgentLoop 在线手机 agentic RL 的 multi-turn 轨迹，工具/环境交互拼进同一条 token 序列，用 response_mask 区分模型生成和工具观测，最后封装程 DataProto 交给 PPO/GRPO 进行训练。
+
+agentic RL 包含 3 个模块
+
+| Components      | Role                                                                      |
+| --------------- | ------------------------------------------------------------------------- |
+| AgentLoop       | Client, implements Agent functions                                        |
+| LLMServerClient | Inference gateway, provides generate interface for AgentLoop              |
+| AsyncServer     | Serve, each instance is connected to one DP group of the inference engine |
+
+运行逻辑为
+
+1. `RayPPOTrainer.fit()`
+2. `AgentLoopManager.generate_sequence()`
+3. `AgentLoopWorker` (asyncio 并发)
+4. `ToolAgentLoop.run()`: generate -> tool -> generate
+5. `AgentLoopOutput` -> `pad` -> `DataProto`
+6. `reward/advantage/actor` update
+
+Agent 运行过程
+
+对应的状态由 `AgentState` 决定，包括以下几个状态
+
+1. pending: 使用 `apply_chat_template` 得到初始 `prompt_ids`
+2. generating: 使用 `server_manager.generate(...)` 追加模型 token, `response_mask += [1] * len(...)` 并解析 tool call
+3. processing tools: 执行 tool, tokenizer 观测的 token, `response_mask += [0] *len(...)`, 再回到 generating 状态
+4. terminated: 超长/超轮数/无 tool call.
+
+函数定义为
+
+```python
+class AgentState(Enum):
+    PENDING = "pending"
+    GENERATING = "generating"
+    PROCESSING_TOOLS = "processing_tools"
+    TERMINATED = "terminated"
+```
+
+训练时，verl 使用 `AgentLoopOutput` 来进行训练:
+
+```python
+class AgentLoopOutput(BaseModel):
+    """Agent loop output."""
+
+    prompt_ids: list[int]
+    """Prompt token ids."""
+    response_ids: list[int]
+    """Response token ids including LLM generated token, tool response token."""
+    response_mask: list[int]
+    """Response mask, 1 for LLM generated token, 0 for tool response token."""
+    response_logprobs: Optional[list[float]] = None
+    """Log probabilities for the response tokens."""
+    routed_experts: Optional[Any] = None
+    """Routed experts for the total tokens."""
+    multi_modal_data: Optional[dict[str, Any]] = None
+    """Multi-modal data for multi-modal tools."""
+    reward_score: Optional[float] = None
+    """Reward score for the trajectory."""
+    num_turns: int = 0
+    """Number of chat turns, including user, assistant, tool."""
+    metrics: AgentLoopMetrics
+    """Auxiliary performance metrics"""
+    extra_fields: dict[str, Any] = {}
+    """Extra fields for dynamic addition."""
+    mm_processor_kwargs: Optional[dict[str, Any]] = None
+    """Processor/backend kwargs that must stay aligned across rollout and training paths."""
+```
+
+实际使用时，需要：
+
+1. 设置 `actor_rollout_ref.rollout.mode=async` 表明走 AgentLoop
+2. 设置 `data.return_raw_chat=True` 表明数据集给原始 messages
+
+在运行过程中，verl 遵循了 TITO (token in token out) 原则：即
+
+> Never re-encode tokens you've decoded.
+
+基于这个原则，verl 将交互分配给 `AgentLoop`, 将轨迹管理分配给 token API.
