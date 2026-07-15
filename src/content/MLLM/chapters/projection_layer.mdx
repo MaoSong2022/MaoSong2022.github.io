@@ -3,13 +3,6 @@ import deepstack_architecture from "../../../assets/image/DeepStack-architecture
 
 ## Projection Layer
 
-1. QFormer: Qwen-VL, BLIP
-2. percever resampler: FLAMINGO
-3. MLP + patch merger/pixel shuffle: 大多数
-4. linear layer: smol-vl
-
-### layer types
-
 #### Q-former
 
 #### MLP
@@ -52,12 +45,14 @@ def forward(H0, Xstack, lstart, n, vis_pos):
 
 作者还在 ViT 上应用了 DeepStack 策略，结果发现 ViT 的效果也有所提升
 
-作者还发现，模型表现提升是因为加入了 high-reoslution image token 信息
+作者还发现，模型表现提升是因为加入了 high-resolution image token 信息
 
-### Token Compression
+不同的 projection layer 以及对应的模型如下表所示 [@xiao2026visionencodersurvey]
 
-为了防止 token 数量过多，通常在经过 projection layer 之前，会接入 pixel shuffle 或 perceiver resampler 层，来减少视觉 token 数量
-
-#### Perceiver Resampler
-
-#### Pixel Shuffle
+| Layer Type             | Models                                       |
+| ---------------------- | -------------------------------------------- |
+| Q-Former               | BLIP-2, InstructBLIP, MiniGPT-4, Intern-VL   |
+| linear                 | LLaVA, PaliGemma 1/2, SmolVL                 |
+| MLP                    | LLaVA-Next, InternVL 2.0+, Qwen2-VL          |
+| Perceiver              | Flamingo, Idefics, Qwen-VL, LLaMA 3.2-Vision |
+| visual embedding table | Ovis series                                  |
