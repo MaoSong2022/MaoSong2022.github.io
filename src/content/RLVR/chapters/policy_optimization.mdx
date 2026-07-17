@@ -54,6 +54,8 @@ $$
 
 通过这种方式，我们让长回答的 loss 贡献更大，从而提高模型学习长回答的能力。另一方面，现在每个 token 对整体 loss 的贡献是相同的，一些关键 token 的 loss 也会被放大，从而提高模型的表现。
 
+GLM-4.5 [@GLM-4.5] 验证了这一点, 结果显示 token-weighted mean loss 比 sequence-mean loss 效果更好。
+
 **overlong reward shaping**
 与 [Kimi-k1.5](Kimi-k1.5.md) 类似，DAPO 也增加了 length penalty，用于惩罚过长的回答。作者首先使用了一个 overlong filtering 技巧，来 mask 掉 truncated samples 的 loss，作者发现通过这个技巧，可以提升模型的训练稳定性以及表现。
 作者还提出了 soft overlong punishment， 用于 reshape truncated samples 的 reward，表达式如下：

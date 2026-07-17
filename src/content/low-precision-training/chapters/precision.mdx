@@ -2,9 +2,29 @@
 
 ### Float
 
+| Property                 | FP16                           | BF16                          |
+| :----------------------- | :----------------------------- | :---------------------------- |
+| Exponent Bits            | 5                              | 8                             |
+| Mantissa Bits            | 10                             | 7                             |
+| Smallest Positive Normal | $\approx 6.1 \times 10^{-5}$   | $\approx 1.2 \times 10^{-38}$ |
+| Largest Value            | $\approx 6.6 \times 10^{4}$    | $\approx 3.4 \times 10^{38}$  |
+| Next Representable > 1   | $1 + 2^{-10} \approx 1.000977$ | $1 + 2^{-7} \approx 1.007812$ |
+
 ### MXFP8
 
 见 MXFP8 [@MXFP8].
+
+### MXFP4
+
+MXFP4 是一个 4 位的浮点数，结构为 E2M1, 包括 1 sign bit, 2 exponent bits 和 1 mantissa bits.
+
+由于 E2M1 粒度比较粗，因此 MXFP4 使用了 blockwise scaling:
+
+- vectors 按照 32 个元素为一个 block
+- 每个 block 共享一个 scale 用于 dequantizing.
+- 每个 block 里， 元素用 MXFP4 进行表示.
+
+关于 MXFP4 quantization 的实现逻辑见 [MXFP4 quantization](https://github.com/huggingface/transformers/blob/0997c2f2ab08c32c8e2f90aaad06e29a7108535b/src/transformers/quantizers/quantizer_mxfp4.py) 和 [MXFP4 integration](https://github.com/huggingface/transformers/blob/0997c2f2ab08c32c8e2f90aaad06e29a7108535b/src/transformers/quantizers/quantizer_mxfp4.py).
 
 ### NVFP4
 

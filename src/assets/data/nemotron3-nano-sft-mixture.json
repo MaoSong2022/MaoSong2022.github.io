@@ -1,0 +1,34 @@
+{
+    "title": "Nemotron-3 Nano SFT Mixture",
+    "total": 14121873,
+    "domains": [
+        {
+            "name": "Formal Proofs",
+            "count": 335122
+        },
+        {
+            "name": "Math",
+            "count": 1878601
+        },
+        {
+            "name": "Math w/ Tools",
+            "count": 1071924
+        },
+        {
+            "name": "Science",
+            "count": 2263340
+        },
+        {
+            "name": "Code",
+            "count": 3927984
+        },
+        {
+            "name": "Chat",
+            "count": 4309780
+        },
+        {
+            "name": "Conversational Agent",
+            "count": 335122
+        }
+    ]
+}
