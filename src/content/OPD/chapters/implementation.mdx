@@ -49,7 +49,8 @@ $$
 
 计算完之后，再通过 clamp 进行截断，并记录 student model 和 teacher model 在 topK 上的 mass 以及 overlap [@li2026rethinkingonpolicydistillationlarge] 用于诊断.
 
-estimator mode 则是使用 KL divergence 的不同估计， 详情见 [KL divergence](https://maosong.website/blog/kl-divergence/).
+estimator mode 则是使用 KL divergence 的不同估计，详情见 [KL divergence](https://maosong.website/blog/kl-divergence/).
+但是，最近的工作包括 DeepSeek-V4 [@DeepSeek-V4] 倾向于使用 KL divergence 定义来计算，避免近似产生误差，但在全量词表上进行计算会提高显存占用，因此需要适当进行优化。
 
 aggregation mode 则是在 policy gradient 场景下将 per token loss matrix 压缩为标量的方法。这一点见 verl.
 

@@ -16,11 +16,11 @@ MiMo-V2-Flash [@MiMo-V2-Flash]
 
 总结： RL 和 OPD 效果比 SFT 更好的原因是因为 on-policy [@chen2025retainingdoingroleonpolicy].
 
-但是在 OPD 中，学生模型倾向于从输出差异比较大的那些 'pivot token' 中进行学习，因此，一小部分token占据了大部分的training signal.
+但是在 OPD 中，学生模型倾向于从输出差异比较大的那些 'pivot token' 中进行学习，因此，一小部分 token 占据了大部分的 training signal.
 
 ### MOPD
 
-MOPD [@MOPD] 在 OPD 的基础上使用了多个专家来指导学生模型，每个 teacher model 可以单独进行训练和优化，降低了 pipeline RL 或者 multi-task RL 训练优化的难度，现在已经称为了大模型后训练的一个主流范式。
+MOPD (Multi-teacher On Policy Distillation) [@MOPD] 在 OPD 的基础上使用了多个专家来指导学生模型，每个 teacher model 可以单独进行训练和优化，降低了 pipeline RL 或者 multi-task RL 训练优化的难度，现在已经称为了大模型后训练的一个主流范式。
 
 MOPD 有以下优势：
 
@@ -30,11 +30,12 @@ MOPD 有以下优势：
 
 使用 MOPD 的模型
 
-| Model            | #teachers | #teachers per sample | Descriptions              |
-| ---------------- | --------- | -------------------- | ------------------------- |
-| MiMo-V2-flash    | unknown   | 1                    | uses task reward          |
-| DeepSeek-V4      | ~10       | all                  | weighted sum over experts |
-| Nemotron-3-Super | >10       | 1                    | multi-round MOPD          |
+| Model             | #teachers | #teachers per sample | Descriptions              |
+| ----------------- | --------- | -------------------- | ------------------------- |
+| MiMo-V2-flash     | unknown   | 1                    | uses task reward          |
+| DeepSeek-V4       | ~10       | all                  | weighted sum over experts |
+| Nemotron-3-Super  | >10       | 1                    | multi-round MOPD          |
+| Mach-mind-4-flash | 10        | 1                    | multi-round MOPD          |
 
 MiMo-V2-flash [@MiMo-V2-Flash] 采用了 [policy gradient](##connection-with-rl) 的建模方式，其 advantage 如下所示
 
@@ -43,12 +44,20 @@ A_{OPD,t} = \mathrm{sg}\left[\log\pi_\theta(y_t\mid y_{<t}, x)-\log\pi_{T_i}(y_t
 $$
 
 这里 $T_i$ 是 $x$ 对应的 domain expert.
-作者还使用了 truncated importance sampling 策略来解决 training inference mismatch 问题，
+作者还使用了 truncated importance sampling 策略来解决 [training inference mismatch](https://maosong.website/blog/train_inference_mistahch/) 问题，
 
 DeepSeek-V4 [@DeepSeek-V4] 训练了十几个 specialist, 然后使用加权的方式来训练模型。
 MiniCPM-5 [@MiniCPM5] 训练了不同的 specialist, 然后再进行 OPD.
 
 KAT-Coder-V2 [@KAT-Coder-V2] 采用了先训练不同 specialist 然后进行 OPD 来训练模型的做法，与 DeepSeek-V4 不同，KAT-Coder-V2 每次只选取对应任务的专家作为 teacher.
+
+Mach-Mind-4-Flash [@Mach-Mind-4-Flash] 将 teacher models 分为了三类
+
+| Category  | Domains                          |
+| --------- | -------------------------------- |
+| Reasoning | Math, Code,STEM                  |
+| General   | IF, Writing, Safe                |
+| Agentic   | Code, Tool Use, DeepSearch, Claw |
 
 ### OPSD
 

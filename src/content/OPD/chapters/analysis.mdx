@@ -16,12 +16,12 @@ $$
 \end{aligned}
 $$
 
-其中 $\mathrm{CE}(\pi_{\theta}, \pi_T)$ 是 cross entropy loss, $\mathcal{H}(\pi_\theta)$ 是 entropy.
+其中 $\mathrm{CE}(\pi_{\theta}, \pi_T)$ 是 cross entropy loss, $\mathcal{H}(\pi_\theta)$ 是 [entropy](https://maosong.website/blog/math/#entropy).
 
 可以看到，与 SFT 只最小化 cross entropy loss 不一样，OPD 的损失函数同时优化了两个目标：
 
-1. 最小化 cross entropy loss: 用于拉近学生模型和教师模型的分布
-2. 最小化 entropy: 惩罚高熵状态，鼓励学生模型变得 confident 和 sharp.
+1. 最小化 cross entropy loss: 用于拉近学生模型和教师模型的分布 (imitation learning).
+2. 最小化 entropy: 惩罚高熵状态，鼓励学生模型变得 confident 和 sharp (mode seeking).
 
 这种优化目标的不一致让 OPD 可以保持学生模型本身的能力。
 
@@ -30,10 +30,10 @@ $$
 MiniLLM [@MiniLLM] 提出我们可以将 OPD 建模为一个 RL 训练过程，注意到
 
 $$
-\nabla_{\theta} \mathcal{L}_{OPD}(\theta) = \mathbb{E}_{x\sim\mathcal{D},y\sim\pi_{\theta}}\left[\frac{1}{|y|}\sum_{t=1}^{|y|}\frac{\pi_\theta(y_t\mid y_{<t}, x)}{\pi_T(y_t\mid y_{<t}, x)}\nabla_{\theta} \log\pi_\theta(y_t\mid y_{<t}, x)\right]
+\nabla_{\theta} \mathcal{L}_{OPD}(\theta) = \mathbb{E}_{x\sim\mathcal{D},y\sim\pi_{\theta}}\left[\sum_{t=1}^{|y|}\frac{\pi_\theta(y_t\mid y_{<t}, x)}{\pi_T(y_t\mid y_{<t}, x)}\nabla_{\theta} \log\pi_\theta(y_t\mid y_{<t}, x)\right]
 $$
 
-基于 policy gradient, 我们可以将 OPD 的 reward 表示为
+基于 [policy gradient theorem](https://maosong.website/blog/RL4LLM/#policy-gradient-theorem), 我们可以将 OPD 的 reward 表示为
 
 $$
 \htmlId{opd_reward}{\begin{equation}
@@ -53,10 +53,10 @@ $$
 
 ### Unified Framework
 
-我们还可以使用一个统一的公式来统一这些方法 [@sft_rl_opd]
+我们还可以使用一个统一的公式来统一 SFT, OPD 和 RL [@sft_rl_opd]
 
 $$
-\nabla_\theta J(\theta) = \mathbb{E}_{x\sim\mathcal{D}, \hat{y}\sim \mu_\alpha(\cdot\mid x)}\left[\sum_{i}A_t(x,\hat{y})\nabla_\theta\log \pi_\theta(\hat{y}_t\mid \hat{y}\mid \hat{y}_{<t})\right]
+\nabla_\theta J(\theta) = \mathbb{E}_{x\sim\mathcal{D}, y\sim \mu_\alpha(\cdot\mid x)}\left[A_t(x,y)\nabla_\theta\log \pi_\theta(y\mid x)\right]
 $$
 
 其中
@@ -64,33 +64,28 @@ $$
 $$
 \begin{aligned}
 \mu_\alpha &= \alpha \pi_\theta + (1-\alpha)\pi_{data}\\
-A_t &= \lambda\cdot\left[\log \pi_T(\hat{y}_t\mid c_T)-\log \pi_\theta(\hat{y}_t\mid \hat{y}_{<t})\right] + (1-\lambda) [R(\hat{y})-b(x)]
+A_t &= \lambda\cdot\left[\log \pi_\theta(y\mid x)-\log \pi_T(y\mid x)\right] + (1-\lambda) [R(y)-b(x)]
 \end{aligned}
 $$
 
 这里
 
-- $\alpha\in[0,1]$ 表示数据分布on-policy的程度
-- $\lambda\in[0,1]$ 表示advantage在sequence-level和token-level之间的一个trade-off.
+- $\alpha\in[0,1]$ 表示数据分布 on-policy 的程度
+- $\lambda\in[0,1]$ 表示 advantage 在 sequence-level 和 token-level 之间的一个 trade-off
+- $b(x)$ 是一个用于减少 variance 的 baseline.
 
 这样，不同的方法就是不同的参数配置
 
-| Method | $A$ | $\lambda$ | $\pi_T$                    | Note                          |
-| ------ | --- | --------- | -------------------------- | ----------------------------- |
-| SFT    | $0$ | $1$       | $\delta$                   | teacher is the ground truth   |
-| RL     | $1$ | $0$       | None                       | on-policy                     |
-| OPD    | $1$ | $1$       | external same-family model | tokenizer + recipe match      |
-| OPSD   | $1$ | $1$       | self conditioned on $y^*$  | teacher choice is what shifts |
-
-<Sidenote>
-
-关于GRPO的细节可以参考 [Policy OptimizationMethods](/blog/policy-optimization/).
-
-</Sidenote>
+| Method | $A$ | $\lambda$ |          $\pi_T$           |             Note              |
+| :----: | :-: | :-------: | :------------------------: | :---------------------------: |
+|  SFT   | $0$ |    $1$    |     indicator function     |  teacher is the ground truth  |
+|   RL   | $1$ |    $0$    |            None            |           on-policy           |
+|  OPD   | $1$ |    $1$    | external same-family model |   tokenizer + recipe match    |
+|  OPSD  | $1$ |    $1$    | same model with privilege  | teacher choice is what shifts |
 
 ### Comparison
 
-will brown [@will2026opd] 从梯度的角度对不同训练范式进行了分析。
+[@will2026opd] 从梯度的角度对不同训练范式进行了分析。
 
 对 SFT 而言，每个 token 都有一个 one-hot label, 因此其 reward 是 dense 的。
 但是，SFT 的梯度并不是 zero-mean, 这意味着随着训练进行，模型会逐渐靠近 $\pi_T$ 的数据分布，这也就降低了模型的泛化能力。
@@ -103,6 +98,8 @@ will brown [@will2026opd] 从梯度的角度对不同训练范式进行了分析
 
 [@sft_rl_opd] 认为， 对于 OPD 来说， OPD 继承了 RL 的 on-policy 性质，同时像 SFT 一样，模型又能够接收 teacher signal.
 但是与 RL 基于 advantage 对 rollout 进行加权不同， OPD 使用 log ratio 来实现加权。
+
+不同方法对比效果如下：
 
 | Method | on-policy  | signal | performance | Cost   | Bias            | Uses                   |
 | ------ | ---------- | ------ | ----------- | ------ | --------------- | ---------------------- |
