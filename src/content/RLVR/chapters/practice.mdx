@@ -1,5 +1,7 @@
 ## Practice
 
+Ring-Zero [@Ring-Zero] 认为 Zero-RL 训练时，应该使用 sequence wise loss, 因为 base model 的输出会更短，需要鼓励模型输出更长。
+
 1. 使用 base model 进行 RL, 应该去掉 kl loss, 因为这会限制模型的 exploration
 2. 不是 base model, 需要加上 kl loss, 系数设置为 0.001
 3. 要提升 base model RL 的表现，可以使用 base RL 做 rejection sampling, 然后对 base model 做 cold start sft, 再继续 RL

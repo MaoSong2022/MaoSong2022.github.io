@@ -1,10 +1,13 @@
+import Image from "../../../components/Image.astro";
+import policy_optimization_comparison from "../../../assets/image/policy_optimization_comparison.png";
+
 ## Policy Optimization
 
 ### PPO
 
 ### GRPO
 
-#### GRPO variants
+下面是一些与 GRPO 类似的 policy optimization algorithms.
 
 ##### DAPO
 
@@ -110,4 +113,13 @@ M_{i,t} = \begin{cases}
 \end{cases}
 $$
 
-### MiniRL
+Ring-Zero [@Ring-Zero] 采取了这种方法来进行训练。
+
+Ring-Zero [@Ring-Zero] 在 1T 的模型上对比了 GRPO, DAPO, CISPO 和 GSPO, 试验结果如下
+
+<Image
+  src={policy_optimization_comparison}
+  alt="Comparison of different policy optimization methods"
+/>
+
+试验结果说明，相比于 vanilla GRPO, CISPO 和 DAPO 可以有效降低 all-failed group ratio, 但是相应地，训练稳定性变得更差，CISPO 会导致 entropy collapse.
