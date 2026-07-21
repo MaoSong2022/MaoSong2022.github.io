@@ -25,7 +25,7 @@ FP16 进行训练时需要使用 dynamic scaling factor.
 ### Infra Optimizations
 
 MiniMax-M1 [@MiniMax-M1] 提出了使用 FP32 的 lm head.
-但是仍然比较难避免训练崩溃。
+Ring-Zero [@Ring-Zero] 进一步使用了 FP32 精度来计算 attention 部分的 softmax.
 
 Thinking Machine labs 提出了 batch-invariant inference kernels, 但是会导致训练效率vjiangdi
 
