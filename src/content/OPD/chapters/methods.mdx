@@ -10,14 +10,41 @@ $$
 \end{equation}}
 $$
 
-其中 $\pi_{\theta}$ 是学生模型，$\pi_T$ 是教师模型, $x\sim\mathcal{D}$ 为给定的 prompt.
+其中 $\pi_{\theta}$ 是学生模型，$\pi_T$ 是教师模型, $x\sim\mathcal{D}$ 为给定的 prompt, $\mathrm{KL}(\cdot\mid\mid\cdot)$ 是 [KL divergence](https://maosong.website/blog/kl-divergence/).
 
-通过 probability chain rule, 我们可以将上面的 [目标函数](#opd_objective) 转换为token层面的等价形式
+由 KL divergence 定义，我们有
 
 $$
-\begin{equation}
-\mathcal{L}_{OPD}(\theta) = \mathbb{E}_{x\sim\mathcal{D},y\sim\pi_{\theta}}\left[\frac{1}{|y|}\sum_{t=1}^{|y|}\mathrm{KL}(\pi_\theta(y_t\mid y_{<t}, x)\mid\mid \pi_T(y_t\mid y_{<t}, x))\right]
-\end{equation}
+\mathrm{KL}(\pi_\theta(y\mid x)\mid\mid \pi_T(y\mid x)) = \mathbb{E}_{y\in\pi_{\theta}(\cdot\mid x)}\left[\log\frac{\pi_\theta(y\mid x)}{\pi_T(y\mid x)}\right]
+$$
+
+对于自回归语言模型，由 chain rule, 我们可以得到
+
+$$
+\pi_\theta(y\mid x) = \prod_{t=1}^{|y|} \pi_{\theta}(y_t\mid y_{<t}, x)
+$$
+
+我们有
+
+$$
+\log\frac{\pi_\theta(y\mid x)}{\pi_T(y\mid x)}=\log \frac{\prod_{t=1}^{|y|} \pi_{\theta}(y_t\mid y_{<t}, x)}{\prod_{t=1}^{|y|} \pi_T(y_t\mid y_{<t}, x)}=\sum_{t=1}^{|y|}\log \frac{\pi_{\theta}(y_t\mid y_{<t}, x)}{\pi_T(y_t\mid y_{<t}, x)}
+$$
+
+带入上式，我们有
+
+$$
+\begin{aligned}
+\mathrm{KL}(\pi_\theta(y\mid x)\mid\mid \pi_T(y\mid x)) &= \mathbb{E}_{y\sim\pi_{\theta}(\cdot\mid x)}\left[\log\frac{\pi_\theta(y\mid x)}{\pi_T(y\mid x)}\right]\\
+&=\mathbb{E}_{y\sim\pi_{\theta}(\cdot\mid x)}\left[\sum_{t=1}^{|y|}\log \frac{\pi_{\theta}(y_t\mid y_{<t}, x)}{\pi_T(y_t\mid y_{<t}, x)}\right]\\
+&=\mathbb{E}_{y\sim\pi_{\theta}(\cdot\mid x)}\left[\sum_{t=1}^{|y|}\mathbb{E}_{y_t\sim\pi_{\theta}(\cdot\mid y_{<t},x)}\left[\log \frac{\pi_{\theta}(y_t\mid y_{<t}, x)}{\pi_T(y_t\mid y_{<t}, x)}\right]\right]\\
+&= \mathbb{E}_{y\sim\pi_{\theta}(\cdot\mid x)}\left[\sum_{t=1}^{|y|}\mathrm{KL}(\pi_\theta(y_t\mid y_{<t}, x)\mid\mid \pi_T(y_t\mid y_{<t}, x))\right]
+\end{aligned}
+$$
+
+这样，我们就得到了 [目标函数](#opd_objective) 在 token 层面的等价形式
+
+$$
+\mathcal{L}_{OPD}(\theta) = \mathbb{E}_{x\sim\mathcal{D},y\sim\pi_{\theta}(\cdot\mid x)}\left[\sum_{t=1}^{|y|}\mathrm{KL}(\pi_\theta(y_t\mid y_{<t}, x)\mid\mid \pi_T(y_t\mid y_{<t}, x))\right]
 $$
 
 这里 $|y|$ 是 response length, KL divergence 在整个词表 $\mathcal{V}$ 计算：
