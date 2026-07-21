@@ -1,3 +1,7 @@
 ## Dynamic Thinking
 
 HiPO [HiPO] 通过数据构造，reward design 实现了 dynamic thinking
+
+Ring-Zero [@Ring-Zero] 将训练数据按照难度分为不同的 tiers (low, medium, high), 然后为不同的 tiers 设置 maximum token length, 最后进行训练，通过这种方式让模型学会动态思考。
+
+Ring-Zero [@Ring-Zero] 同时也发现 RL 的训练会导致模型出现 `length inertia` 现象，即模型的输出会越来越长，即使这个问题在模型训练早期可以使用较少的 token 来进行回答。
