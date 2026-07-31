@@ -18,6 +18,14 @@ MiMo-V2-Flash [@MiMo-V2-Flash]
 
 但是在 OPD 中，学生模型倾向于从输出差异比较大的那些 'pivot token' 中进行学习，因此，一小部分 token 占据了大部分的 training signal.
 
+[@li2026rethinkingonpolicydistillationlarge] 发现 teacher model 并不是越强越好，teacher model 和 student model 差距过大会导致两者的 distribution gap 很大难以跨越。
+
+[@jiang2026trajectoryrefineddistillation] 发现一旦 student model 输出了一个错误的 token, teacher model 便很难纠正这个错误的路径。
+
+发现对于 OPSD, 因为教师模型有更多的 priviledge information, student model 学习到的是通用的解决问题的方法，对于特定任务，student model 可能会随着训练进行逐渐丧失这些能力，也就是 thinking collapse.
+
+发现由于 OPD 提供了细粒度的 supervision signal, student model 会产生 thinking collapse.
+
 ### MOPD
 
 MOPD (Multi-teacher On Policy Distillation) [@MOPD] 在 OPD 的基础上使用了多个专家来指导学生模型，每个 teacher model 可以单独进行训练和优化，降低了 pipeline RL 或者 multi-task RL 训练优化的难度，现在已经称为了大模型后训练的一个主流范式。
@@ -36,6 +44,7 @@ MOPD 有以下优势：
 | DeepSeek-V4       | ~10       | all                  | weighted sum over experts |
 | Nemotron-3-Super  | >10       | 1                    | multi-round MOPD          |
 | Mach-mind-4-flash | 10        | 1                    | multi-round MOPD          |
+| Kimi-k3           | 9         | 1                    |                           |
 
 MiMo-V2-flash [@MiMo-V2-Flash] 采用了 [policy gradient](##connection-with-rl) 的建模方式，其 advantage 如下所示
 
