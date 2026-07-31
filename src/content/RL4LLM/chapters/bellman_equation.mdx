@@ -5,20 +5,22 @@ import HtmlEmbed from "../../../components/HtmlEmbed.astro";
 
 ## Bellman Equation Theorem
 
-Bellman Equation 构建了 expected return 和 policy 之间的关系。
+Bellman equation 将 return 的递推结构转化为 value function 的递推结构。
+本章我们先研究固定 policy 的 value function, 再研究 optimal policy 中的 optimal value function, 前者通向 policy evaluation, 后者通向 value based methods.
 
 ### Why Bellman Equation?
 
 在强化学习中，我们关心的是 agent 从当前状态出发，在未来持续决策后能够获得的 expected return.
 但是，expected return 依赖于整条未来轨迹：后续会到达什么状态、采取什么动作、获得什么奖励，都是随机的。
 
-我们直接分析 expected return 往往比较困难，在本节中，我们将构建一些关于 policy 的定理，后序章节我们基于本节的定义来一步步构建高效的 RL 算法。
-
+直接分析完整 trajectory 的 expected return 往往比较困难。
+本节将建立关于 policy value 的基本定理，后续算法可以据此只处理相邻时间步之间的关系。
 本节的核心思想在于：
 
 <Note variant="info">
 
-将长期回报写成"当前一步的收益 + 下一状态的未来价值"，把一个全局问题转化为递推问题。即
+将长期回报写成"当前一步的收益 + 下一状态的未来价值"，把一个全局问题转化为递推问题。
+即
 
 $$
 \text{long-term return} = \text{immediate reward} + \text{discounted future return}
@@ -28,7 +30,7 @@ $$
 
 ### Value Function and Q function
 
-首先，我们介绍两个基本概念，分别是 value function $V^{\pi}(s_t)$ 和 Q function $Q^{\pi}(s_t)$.
+首先，我们介绍两个基本概念，分别是 value function $V^{\pi}(s_t)$ 和 Q function $Q^{\pi}(s_t, a_t)$.
 
 <Definition term='Value Function'>
 我们定义 value function 如下：
@@ -37,7 +39,7 @@ $$
 V^{\pi}(s_t) = \mathbb{E}^{\pi}[G_t \mid S_t = s_t]
 $$
 
-value function 的具体含义为：**agent 从当前状态 $s_t$ 出发，一直遵循当前策略 $\pi$，最后获取到的 expected discounted return.**
+value function 的具体含义为：**agent 从当前状态 $s_t$ 出发，一直遵循当前策略 $\pi$，最后获取到的 return.**
 
 </Definition>
 
@@ -48,7 +50,7 @@ $$
 Q^{\pi}(s_t, a_t) = \mathbb{E}^{\pi}[G_t \mid S_t=s_t, A_t=a_t]
 $$
 
-其具体含义为：**agent 从当前状态 $s_t$ 出发，先执行 action $a_t$，再遵循当前策略 $\pi$，最后获取到的 expected discounted return.**
+其具体含义为：**agent 从当前状态 $s_t$ 出发，先执行 action $a_t$，再遵循当前策略 $\pi$，最后获取到的 return.**
 
 </Definition>
 
@@ -113,7 +115,7 @@ $$
 
 这里第四个等式使用了 [Markov property](#markov_property)，即 $G_{t+1}$ 在已知 $s_{t+1}$ 的条件下与 $s_t, a_t, r_t$ 无关。
 
-Q function 的证明类似，略过.
+Q function 的证明类似，略过。
 
 </Theorem>
 
@@ -164,7 +166,7 @@ $$
 \left\|\mathcal{T}^{\pi} V_1 - \mathcal{T}^{\pi} V_2\right\|_{\infty} \leq \gamma \left\|V_1 - V_2\right\|_{\infty}
 $$
 
-由于 $\gamma < 1$, $\mathcal{T}^{\pi}$ 是一个 contraction mapping.
+由于 $\gamma < 1$, 因此 $\mathcal{T}^{\pi}$ 是一个 contraction mapping.
 
 根据 [不动点定理](https://maosong.website/blog/math/#fixed-point-theorem)，已知 $V^{\pi}$ 是一个不动点（满足 Bellman equation），而不动点唯一，因此 $V = V^{\pi}$.
 
@@ -188,7 +190,7 @@ $$
 
 <Theorem variant="proof">
 
-证明与 value function 的证明类似，略过.
+证明与 value function 的证明类似，略过。
 
 </Theorem>
 
@@ -208,8 +210,9 @@ $$
 </Definition>
 
 <Note variant="warn" emoji="⚠️">
-  optimal policy 与状态 $s$ 无关，并且 optimal policy 是不唯一的，但所有 optimal
-  policy 对应的 optimal value function 是同一个.
+
+optimal policy 通常依赖于状态 $s$，并且可能不唯一；但所有 optimal policy 对应同一个 optimal value function $V^*$.
+
 </Note>
 
 与 value function $V^\pi$ 和 Q function $Q^\pi$ 之间存在联系一样，optimal value function $V^{*}$ 和 optimal Q function $Q^{*}$ 也存在类似关系
@@ -248,7 +251,7 @@ $$
 
 <Theorem title='Bellman Optimality Equation Theorem (value function)' id='BOE_value'>
 
-假设 $\gamma \in (0, 1)$, $|\mathcal{S}| < \infty$, $|\mathcal{A}| < \infty$ 以及 $|r| \leq R < \infty$, 几乎处处成立 (a.s.). 那么 optimal value function $V^*: \mathcal{S} \to \mathbb{R}$ 存在，且满足 Bellman optimality equation:
+假设 $\gamma \in (0, 1)$, $|\mathcal{S}| < \infty$, $|\mathcal{A}| < \infty$ 以及 $|r| \leq R < \infty$, 几乎处处成立 (a.s.). 那么 optimal value function $V^*:\mathcal{S} \to \mathbb{R}$ 存在，且满足 Bellman optimality equation:
 
 $$
 \boxed{
@@ -263,8 +266,7 @@ $$
 $$
 \htmlId{optimal_deterministic_policy}{\begin{align}
   \pi^*(s_t) &= \arg\max_{a \in \mathcal{A}} \mathbb{E}_{(r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)}\left[r_t + \gamma V^*(s_{t+1}) \mid S_t=s_t, A_t=a_t\right]\\
-  &=\arg\max_{a \in \mathcal{A}} V^*(s_t)\\
-  &= \arg\max_{a \in \mathcal{A}} Q^*(s_t, a_t)
+  &= \arg\max_{a \in \mathcal{A}} Q^*(s_t, a)
 \end{align}}
 $$
 
@@ -274,7 +276,7 @@ $$
 
 <Theorem variant="lemma" title='Monotonicity of Bellman operator' id='monotonicity_bellman_operator'>
 
-令 $\pi$ 为一个策略，$\mathcal{T}^{\pi}$ 和 $\mathcal{T}^*$ 分别是 [Bellman operator](#bellman_operator) 和 Bellman optimality operator, 其中
+令 $\pi$ 为一个策略，$\mathcal{T}^{\pi}$ 和 $\mathcal{T}^*$ 分别是 [Bellman operator](#bellman_operator) 和 Bellman optimality operator, 其中 Bellman optimality operator 定义为
 
 $$
 \htmlId{bellman_optimality_operator}{\begin{equation}
@@ -308,7 +310,7 @@ $$
 
 因此 $\|\mathcal{T}^* V_1 - \mathcal{T}^* V_2\|_{\infty} \leq \gamma \|V_1 - V_2\|_{\infty}$, $\mathcal{T}^*$ 是 contraction mapping.
 
-根据[不动点定理](#fixed-point-theorem)，$\mathcal{T}^*$ 存在唯一不动点 $V^*$.
+根据[不动点定理](https://maosong.website/blog/math/#fixed-point-theorem)，$\mathcal{T}^*$ 存在唯一不动点 $V^*$.
 
 我们定义：
 
@@ -316,7 +318,7 @@ $$
 \pi^*(s_t) = \arg\max_{a \in \mathcal{A}} \mathbb{E}_{(r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)}\left[r + \gamma V^*(s_{t+1}) \mid S_t=s_t, A_t=a_t\right]
 $$
 
-此时，我们有
+此时，我们有 TODO
 
 $$
 \begin{aligned}
@@ -362,40 +364,14 @@ $$
 
 <Theorem variant="proof">
 
-证明与 value function 类似，略过.
+证明与 value function 类似，略过。
 
 </Theorem>
 
-### Value Iteration
-
-根据 BOE Theorem 的证明，$\mathcal{T}^*$ 是一个 contraction mapping, 因此我们可以构造函数序列：
-
-$$
-V, \mathcal{T}^* V, (\mathcal{T}^*)^2 V, \cdots
-$$
-
-由不动点定理，该序列收敛到 $V^*$. 这就是 value iteration algorithm:
-
-$$
-\begin{aligned}
-V^{k+1} &= \mathcal{T}^* V^k \\
-V^{k+1}(s_t) &= \max_{a \in \mathcal{A}} \mathbb{E}_{(r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)}\left[r + \gamma V^k(s_{t+1}) \mid S_t=s_t, A_t=a_t\right] \\
-\pi^{k+1}(s_t) &= \arg\max_{a \in \mathcal{A}} \mathbb{E}_{(r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)}\left[r + \gamma V^k(s_{t+1}) \mid S_t=s_t, A_t=a_t\right]
-\end{aligned}
-$$
-
-类似地，我们还有 Q value iteration algorithm:
-
-$$
-\begin{aligned}
-Q^{k+1} &= \mathcal{T}^* Q^k \\
-Q^{k+1}(s_t, a_t) &= \mathbb{E}_{(r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)}\left[r + \gamma \max_{a_{t+1} \in \mathcal{A}} Q^k(s_{t+1}, a_{t+1}) \mid S_t=s_t,A_t=a_t\right] \\
-\pi^{k+1}(s_t) &= \arg\max_{a \in \mathcal{A}} Q^k(s_t, a_t)
-\end{aligned}
-$$
+下一章我们将从这个精确但不可扩展的起点出发，逐步引入 sampling 和 function approximation 来完成 policy evaluation.
 
 ### Takeaway
 
-1. 我们介绍了 value function 和 Q function 的定义以及它们之间的联系，这是强化学习的核心概念.
-2. 我们介绍了 Bellman equation 和 Bellman optimality equation，BOE 定理是后续各种算法的核心.
-3. 我们基于 BOE 定理给出了 value iteration algorithm, 这是强化学习的基本算法，后续会对其进行改进.
+1. $G_t=r_t+\gamma G_{t+1}$ 使 return 可以递归分解；对它取条件期望便得到 Bellman equation.
+2. Bellman equation 回答“固定 policy 的价值是什么”，Bellman optimality equation 回答“所有 policy 中的最优价值是什么”。
+3. 对 LLM，value 描述从 `(prompt, token prefix)` 继续生成后的期望最终得分； Bellman recursion 则承担将稀疏 terminal reward 传回早期 token 的 credit assignment.

@@ -11,8 +11,8 @@ import rollouts_to_target_error_vs_vocab from "../../../assets/image/rollouts_to
 
 ## Policy Evaluation
 
-在 [Bellman Equation Theorem](##bellman-equation-theorem) 一节中，我们介绍了 [value iteration](#value-iteration) 算法.
-[value iteration](#value-iteration) 算法的关键在于求解 policy 对应的 value function. 这就是我们本节关注的问题，即
+在 [Bellman Equation Theorem](#bellman-equation-theorem) 一节中，我们看到 $V^\pi$ 是 Bellman operator $\mathcal T^\pi$ 的唯一不动点。
+Bellman optimality equation 直接寻找最优价值，而本章先解决一个更基础的 **evaluation** 问题：
 
 <Note variant="info">
 
@@ -20,26 +20,15 @@ import rollouts_to_target_error_vs_vocab from "../../../assets/image/rollouts_to
 
 </Note>
 
-我们将嫌介绍一个 ToyLLM 环境，然后一步步从准确解法过渡到现代 RL 所使用的函数逼近算法。
+我们将先从完整 MDP 模型的精确解法，逐步过渡到只依赖 rollout 的 MC/TD 方法和现代 RL 使用的函数逼近方法。
+这条路径同时回答两个问题：
 
-### A ToyLLM Environment
-
-后续章节中，我们将使用一个非常简单的 `ToyLLM` 环境来对比不同的方法。
-
-`ToyLLM` 的定义与 [Connection with LLMs](#connection-with-llm) 一致，我们给定一个词表 $V$, 一个 target sequence $s$, 我们的 policy model 从 `<bos>` token 开始，每次生成一个新的 token 直到采样到 `<eos>` token 或者到达 `max_len` 形成一个 rollout $\tau$, 最终的 return 定义为
-
-$$
-R(\tau)=\begin{cases}
-   1.0,&\text{ if }\tau = s \\
-   0,&\text{ otherwise}
-\end{cases}
-$$
-
-因此，我们的 action space $\mathcal{A}=V$, $\mathcal{S}=V^T$, 这里 $T$ 是最大输出长度 `max_len`. 为了后续表达方便，我们用 $N:=|V|^T$ 来表示状态空间大小。
+1. 为什么 Bellman equation 在小环境中可直接求解
+2. 精确求解方法对于 LLM 来说存在什么问题
 
 ### Tabular Learning
 
-这一节我们介绍针对离散场景下的求解和优化方案。
+这一节我们介绍针对离散小空间场景下的求解和优化方案。
 
 #### Tabular Learning with Matrix Solve
 
@@ -53,27 +42,27 @@ $$
 
 $$
 \begin{aligned}
-   V_\pi &= [V_{\pi}(s_1),\dots, V_{\pi}(s_N)]^T\in\mathbb{R}^N\\
-   R_\pi &=[R_{\pi}(s_1),\dots, R_{\pi}(s_N)]^T\in\mathbb{R}^N\\
-   P_\pi &=[P_\pi(s_j\mid s_i)]\in\mathbb{R}^{N\times N}
+   V_\pi &= [V_{\pi}(s_1),\dots, V_{\pi}(s_S)]^T\in\mathbb{R}^S\\
+   R_\pi &=[R_{\pi}(s_1),\dots, R_{\pi}(s_S)]^T\in\mathbb{R}^S\\
+   P_\pi &=[P_\pi(s_j\mid s_i)]\in\mathbb{R}^{S\times S}
 \end{aligned}
 $$
 
 可以看到，上面这个其实是一个线性方程组，即
 
 $$
-(\mathbf{I}_N - \gamma P_{\pi})V_{\pi}  = R_{\pi}
+(\mathbf{I}_S - \gamma P_{\pi})V_{\pi}  = R_{\pi}
 $$
 
 对于这个线性方程组，我们可以用矩阵求逆或者迭代解法求解。
-算法如下所示
+精确算法如下所示
 
 <Algorithm title="Value function Matrix Exact Solve">
 
-**Input**: policy $\pi$, discount factor $\gamma$, state space $\mathcal{S}$ with size $N$
+**Input**: policy $\pi$, discount factor $\gamma$, state space $\mathcal{S}$ with size $S$
 
-1. assign index $i(s)$ for $s\in\mathcal{S}, i=1,\dots,N$
-2. $P=\mathbf{0}_{N\times N}$, $R=\mathbf{0}_{N}$
+1. assign index $i(s)$ for $s\in\mathcal{S}, i=1,\dots,S$
+2. $P=\mathbf{0}_{S\times S}$, $R=\mathbf{0}_{S}$
 3. **For** each $s\in\mathcal{S}$
    1. $i\gets i(s)$
    2. **For** each $a\in\mathcal{A}$
@@ -82,10 +71,12 @@ $$
       - **If** NOT $\mathrm{done}$
         - $j\gets i(s')$
         - $P[i,j]\gets P[i,j]+\pi(a\mid s)$
-4. $V\gets \mathrm{SOLVE}(I-\gamma P, R)$
+4. $V\gets \mathrm{SOLVE}(I_S-\gamma P, R)$
 5. return $V$
 
 </Algorithm>
+
+迭代算法则是给定随机初始化的 $V_0$, 我们通过迭代计算得到序列 $\{V_k\}$, 其中 $V_{k+1}=R_{\pi} + \gamma P_{\pi}V_k$, 我们可以证明这个序列收敛到 $V_{\pi}$.
 
 <Algorithm title="Value function Matrix Iterative Solve">
 
@@ -108,34 +99,35 @@ $$
 
 </Algorithm>
 
-下面是对应的求解时间变化曲线
+下面是两种算法在不同规模下对应的求解时间变化曲线
 
 <Image
   src={Matrix_Solve}
   alt="Comparison of matrix solve and iterative solve"
 />
 
-可以看到，随着词表大小 $N$ 的增加， 因为矩阵求逆是一个 $\mathcal{O}(N^3)$ 复杂度的算法，其所需时间急剧上升。
-而迭代解法虽然比矩阵求逆效率更高，但是仍然需要枚举全部状态，当状空间增大之后，迭代解法的时间也无法接受。
+可以看到，由于稠密线性方程组的直接求解通常需要 $\mathcal{O}(S^3)$ 时间和 $\mathcal{O}(S^2)$ 空间，随着状态数 $S$ 的增加，其所需时间急剧上升。
+而迭代解法虽然比矩阵直接求解效率更高，但是仍然需要枚举全部状态，当状态空间增大之后，迭代解法的时间也无法接受。
+因此，我们需要计算更加高效的算法。
 
 #### Tabular Learning with MC
 
-首先，由 $V^{\pi}$ 定义，我们有：
+由 $V^{\pi}$ 定义，我们有：
 
 $$
 V^{\pi}(s_0) = \mathbb{E}^{\pi}\left[R(\tau) \mid s_0\right]
 $$
 
-这是一个随机变量，由我们可以利用 Monte Carlo (MC) 方法来得到一个 [Unbiased Estimator](https://maosong.website/blog/math/#probability)，即从 $s_0$ 出发，独立随机采样 (i.i.d.) $N$ 条轨迹：
+由于 return 是一个随机变量，我们可以利用 Monte Carlo (MC) 方法得到一个 [Unbiased Estimator](https://maosong.website/blog/math/#probability)，即从 $s_0$ 出发，独立随机采样 (i.i.d.) $M$ 条轨迹：
 
 $$
-\{\tau^{(i)} = (s_0, a_0^{(i)}, r_0^{(i)}, \dots, a_{T^{(i)}-1}^{(i)}, r_{T^{(i)}-1}^{(i)}, s_{T^{(i)}}^{(i)})\}, \quad i = 1, \dots, N
+\{\tau^{(i)} = (s_0, a_0^{(i)}, r_0^{(i)}, \dots, a_{T^{(i)}-1}^{(i)}, r_{T^{(i)}-1}^{(i)}, s_{T^{(i)}}^{(i)})\}, \quad i = 1, \dots, M
 $$
 
-然后我们使用样本平均来近似期望：
+然后我们使用样本平均 (sample mean) 来近似期望：
 
 $$
-V^{\pi}(s_0) = \mathbb{E}^{\pi}[R(\tau) \mid s_0] \approx \frac{1}{N} \sum_{i=1}^{N} R(\tau^{(i)})
+V^{\pi}(s_0) = \mathbb{E}^{\pi}[R(\tau) \mid s_0] \approx \frac{1}{M} \sum_{i=1}^{M} R(\tau^{(i)})
 $$
 
 对应的算法如下所示
@@ -152,9 +144,12 @@ $$
       - $(s', r, \mathrm{done}) \gets \mathrm{STEP}(s, a)$
       - $\tau.\mathrm{append}((s,r))$
       - $s\gets s'$
-   3. $\mathrm{Visited}=\emptyset$, $G\gets0$ // only first visit
+   3. $\mathrm{Returns}=[]$, $G\gets0$
    4. **For** $(s,r)$ in $\mathrm{reversed}(\tau)$
       - $G\gets r + \gamma G$
+      - $\mathrm{Returns}.\mathrm{prepend}((s,G))$
+   5. $\mathrm{Visited}=\emptyset$
+   6. **For** $(s,G)$ in $\mathrm{Returns}$
       - **If** $s\not\in \mathrm{Visited}$
         - $\mathrm{Visited}.\mathrm{add}(s)$
         - $\mathrm{ReturnSum}(s) \gets \mathrm{ReturnSum}(s) +G$
@@ -165,20 +160,24 @@ $$
 </Algorithm>
 
 <Note variant="remark" emoji="💡">
-  注意这里我们没有使用前面公式版本的 MC 方法，而是使用了一种数据使用效率更高的
-  First-Visit
-  策略，即对于采样到的一条轨迹，我们可以将其拆分为多条唯一轨迹（我们用 $\mathrm
-  {Visited}$ 表示），然后再应用 MC 方法。
+
+上面的伪代码使用了 First-Visit MC：在一个 episode 内，同一个状态可能出现多次，但我们只用它第一次出现位置之后的 return 来更新该状态。
+
 </Note>
 
 #### Tabular Learning with TD
 
-MC 的优点是其估计量 ([estimator](https://maosong.website/blog/math/#estimator)) 的一个无偏估计，其缺点在于我们必须完整采样完一条轨迹才能得到这个估计，对于 long-horizon task, MC 方法效率很低。
+MC 的优点是 [estimator](https://maosong.website/blog/math/#estimator) 是一个 unbiased estimator, 其缺点在于我们必须完整采样完一条轨迹才能得到这个估计，对于 long-horizon task, MC 方法效率很低。
 
 为了解决这个问题，我们可以使用 Temporal difference (TD) learning 方法。
-Temporal difference (TD) learning 通过相邻两步的转换关系来近似 value function. 其核心思想在于
+Temporal difference (TD) learning 通过相邻两步的转换关系来近似 value function.
+其核心思想在于
 
-<Note variant="info">通过新的信息和新的预测来更新旧的预测</Note>
+<Note variant="info">
+
+通过新的信息和新的预测来更新旧的预测
+
+</Note>
 
 注意到：
 
@@ -190,64 +189,38 @@ $$
 
 <Definition term='TD target and TD error' variant='info'>
 
-对于 value function $V^{\pi}(s_t)$, 我们定义 **TD target** 为:
+给定当前 estimator $V_t$，我们定义 one-step **TD target** 为
 
 $$
-\overline{V}_t = r_t + \gamma V^{\pi}(s_{t+1})
+\overline{V}_t =
+\begin{cases}
+r_t,&\text{if }s_{t+1}\text{ is terminal},\\
+r_t+\gamma V_t(s_{t+1}),&\text{otherwise}.
+\end{cases}
 $$
 
 定义 **TD error** 为
 
 $$
-\delta_t = V^{\pi}(s_t) - \left(r_t + \gamma V^{\pi}(s_{t+1})\right)
+\delta_t = \overline{V}_t - V_t(s_t).
 $$
 
 </Definition>
 
-接下来，基于 TD erorr, 我们可以构造关于 $V_\pi$ 的近似 $V_t$:
+接下来，我们基于 TD error 更新 $V_t$：
 
 $$
-V_{t+1}(s_t) = \begin{cases}
-   V_t(s_t) - \alpha_t(s_t)\delta_t,&\text{ if }s=s_t\\
-   V_t(s_t),&\text{ otherwise}
+V_{t+1}(s) = \begin{cases}
+   V_t(s_t) + \alpha_t(s_t)\delta_t,&\text{if }s=s_t,\\
+   V_t(s),&\text{otherwise}.
 \end{cases}
 $$
 
-其中 $\alpha_t(s_t)$ 是 learning rate.
-
-<Sidenote>
-
-See Chapter 7 of [Mathematical Foundations of Reinforcement Learning](https://github.com/MathFoundationRL/Book-Mathematical-Foundation-of-Reinforcement-Learning) for more details.
-
-</Sidenote>
-
-接下来我们来分析一下算法的正确性。首先，$\overline{V}_t$ 被称为 TD target 的原因为
-
-$$
-\begin{aligned}
-   |V_{t+1}(s_t)-\overline{V}_t(s_t)| &= |V_t(s_t) - \alpha_t(s_t)\delta_t-\overline{V}_t(s_t)|\\
-   &= |1-\alpha_t(s_t)||V_{t}(s_t)-\overline{V}_t(s_t)|\\
-   &< |V_{t}(s_t)-\overline{V}_t(s_t)|
-\end{aligned}
-$$
-
-这里我们假设 $\alpha_t(s_t)<1$ 是一个较小的正数。可以看到**函数序列 $\{V_t\}$ 收敛到 $\overline{V}_t$.**
-
-另一方面，我们有
-
-$$
-\begin{aligned}
-   \mathbb{E}[\delta_t\mid S_t=s_t] &= \mathbb{E}[V^{\pi}(S_t)-\left(r_t + \gamma V^{\pi}(s_{t+1})\right)\mid S_t=s_t]\\
-   &= V^{\pi}(s_t) - \mathbb{E}[r_t + \gamma V^{\pi}(s_{t+1})\mid S_t=s_t]\\
-   &=0
-\end{aligned}
-$$
-
-因此 TD error $\delta_t$ **衡量了当前的估计 $V_t$ 与 $V^\pi$ 之间的差距。**
+其中 $\alpha_t(s_t) \in (0, 1)$ 是 learning rate.
 
 TD learning 对应的算法如下所示
 
-<Algorithm title="Tabular Learning with TD" id='policy_evaluation_td_learning'>
+<Algorithm title="Tabular Learning with TD">
 
 **Input**: policy $\pi$, discount factor $\gamma$, learning rate $\alpha$, episodes $M$, state space $\mathcal{S}$, initial state distribution $p_0$
 
@@ -260,18 +233,48 @@ TD learning 对应的算法如下所示
       - **If** $\mathrm{done}$
         - $y\gets r$
       - **Else**
-        - $v \gets r + \gamma \cdot V(s')$
+        - $y \gets r + \gamma \cdot V(s')$
       - $V(s)\gets V(s) + \alpha\cdot(y-V(s))$
       - $s\gets s'$
 3. return $V$
 
 </Algorithm>
 
+接下来我们来分析一下算法的正确性。
+首先，$\overline{V}_t$ 被称为 TD target 的原因为
+
+<Sidenote>
+
+See Chapter 7 of [Mathematical Foundations of Reinforcement Learning](https://github.com/MathFoundationRL/Book-Mathematical-Foundation-of-Reinforcement-Learning) for more details.
+
+</Sidenote>
+
+$$
+\begin{aligned}
+   |V_{t+1}(s_t)-\overline{V}_t(s_t)| &= |V_t(s_t) - \alpha_t(s_t)\delta_t-\overline{V}_t(s_t)|\\
+   &= |1-\alpha_t(s_t)||V_{t}(s_t)-\overline{V}_t(s_t)|\\
+   &< |V_{t}(s_t)-\overline{V}_t(s_t)|
+\end{aligned}
+$$
+
+可以看到**函数序列 $\{V_t\}$ 收敛到 $\overline{V}_t$**.
+另一方面，我们有
+
+$$
+\begin{aligned}
+   \mathbb{E}[\delta_t\mid S_t=s_t] &= \mathbb{E}[V^{\pi}(S_t)-\left(r_t + \gamma V^{\pi}(s_{t+1})\right)\mid S_t=s_t]\\
+   &= V^{\pi}(s_t) - \mathbb{E}[r_t + \gamma V^{\pi}(s_{t+1})\mid S_t=s_t]\\
+   &=0
+\end{aligned}
+$$
+
+因此 TD error $\delta_t$ **衡量了当前的估计 $V_t$ 与 $V^\pi$ 之间的差距。**
+
 算法的正确性由如下定理给定
 
 <Theorem title='Convergence of TD Learning'>
 
-给定策略 $\pi$, 基于 [TD learning 算法](#policy_evaluation_td_learning), 对任意 $s\in\mathcal{S}$, 如果 $\sum_t\alpha_t(s)=\infty$, $\sum_t\alpha_t^2(s)<\infty$, 则 $V_t(s)$ $a.s.$ 收敛到 $V^{\pi}(s)$, $t\to\infty$.
+给定策略 $\pi$, 基于 [TD learning algorithm](#tabular-learning-with-td), 对任意 $s\in\mathcal{S}$, 如果 $\sum_t\alpha_t(s)=\infty$, $\sum_t\alpha_t^2(s)<\infty$, 则 $V_t(s)$ $a.s.$ 收敛到 $V^{\pi}(s)$, $t\to\infty$.
 
 </Theorem>
 
@@ -283,8 +286,8 @@ See Theorem 7.1 of [Mathematical Foundations of Reinforcement Learning](https://
 
 #### Tabular Learning Experiments
 
-我们对比 TD, MC 和之前的方法，我们使用不同的 vocab size 进行实验，对于 MC 和 TD, 我们将 episodes 设置为 $10,000$, TD 的 lr 设置为 $0.1$.
-
+我们在不同 vocab size 下对比 matrix solve, MC 和 TD.
+对于 MC 和 TD, 我们将 episodes 设置为 $10,000$, TD 的 learning rate 设置为 $0.1$.
 结果如下图所示
 
 <Image
@@ -292,42 +295,62 @@ See Theorem 7.1 of [Mathematical Foundations of Reinforcement Learning](https://
   alt="Comparison of Exact solution and MC/TD"
 />
 
-可以看到，一方面，相比 matrix exact/iterative solve 方法，MC/TD 显然效率更高。
-尽管随 state space 增大，MC/TD 算法不收敛，但是 MC/TD 复杂度主要与 rollout 相关。
+可以看到，matrix exact/iterative solve 每次都需要枚举状态，而 MC/TD 的单条数据成本主要由
+rollout 长度决定，因此我们可以在不枚举整个状态空间的情况下更新被访问的状态。
+不过，固定 rollout budget 并不保证所有状态都得到充分访问，因此随着状态空间的增大，MC/TD 方法的误差也逐渐增高。
 
-另一方面，当 vocab size 持续扩大之后，MC/TD 的误差也变得不可接受，这是因为我们的奖励比较稀疏，采样不一定能够采到 target sequence, 因此，我们额外补充一个不同 vocab size 下，MC 和 TD 到达指定误差所需要的 episodes 的实验。我们将 maximum episodes 设置为 $10,000$, error 设置为 $0.01$, 实验结果如下图所示
+我们采样成功的概率为
+
+$$
+p_{\mathrm{success}}=\prod_{t=0}^{m-1}\pi(a_t^*\mid a_{<t}^*).
+$$
+
+如果 policy 接近均匀分布，该概率大致按 $|\mathcal V|^{-m}$ 下降。
+因此，我们额外统计不同 vocab size 下，MC 和 TD 达到指定误差所需的 episodes.
+我们将 maximum episodes 设置为 $100,000$，目标 error 设置为 $0.01$，结果如下：
 
 <Image
   src={rollouts_to_target_error_vs_vocab}
   alt="Number of rollouts required to reach the target error"
 />
 
-可以看到，整体上 MC 的 sample efficiency 比 TD 更高。
+可以看到，在当前 terminal binary reward、固定超参数和误差指标下，MC 比 TD 更快达到目标误差。
+当 vocab size 超过 30 后，两者在 rollout budget 内都很难观察到足够多的正样本。
 
-但是，当 vocab size 超过 30 之后，MC 和 TD 仍然因为 state space 过大导致不收敛。
+这里暴露出两个不同的问题：
 
-因此，我们需要一个新的方法来解决 state space 过大的问题。
+1. tabular learning 方法不能在相似 prefix 之间共享信息
+2. 稀疏 verifier reward 导致有效样本极少。
+
+函数逼近主要缓解前一个问题；后一个问题还需要更好的 exploration, reward shaping 或更强的初始 policy.
 
 ### Function Approximation
 
-上面我们介绍了 MC 和 TD 两种加速 value function 求解的方法，但是当动作空间和状态空间特别大（见[Connection with LLMs](#connection-with-llm)）时，Tabular learning 仍然存在计算复杂度高的问题。
-
+上面我们介绍了 MC 和 TD 两种 value function 估计方法，但是当动作空间和状态空间特别大时，tabular learning 仍然存在扩展性问题。
 为了解决这个扩展性不足的问题，当状态空间 $\mathcal{S}$ 较大或连续时，我们可以使用函数逼近的方法来近似 $V^{\pi}$.
 
-这里我们使用 $V_{\phi}:\mathcal{S}\to\mathbb{R}$ 来近似 $V^{\pi}$, 其中 $\phi$ 是函数的参数，我们使用最小二乘误差 (MSE) 作为损失函数：
+这里我们使用 $V_{\phi}:\mathcal{S}\to\mathbb{R}$ 近似 $V^{\pi}$，其中 $\phi$ 是参数。
+令 $d^\pi$ 表示策略 $\pi$ 在 rollout 中诱导的状态访问分布，我们使用 mean squared value (MSE) error:
+
+<Sidenote>
+
+See Chapter 7 of [Mathematical Foundations of Reinforcement Learning](https://github.com/MathFoundationRL/Book-Mathematical-Foundation-of-Reinforcement-Learning) for more details on $d^\pi$.
+
+</Sidenote>
 
 $$
-\mathcal{L}(\phi) = \mathbb{E}_{s_0 \sim p_0}^{\pi}\left[\frac{1}{2}\left(V_{\phi}(s_0) - V^{\pi}(s_0)\right)^2\right]
+\mathcal{L}(\phi) = \mathbb{E}_{s \sim d^\pi}\left[\frac{1}{2}\left(V_{\phi}(s) - V^{\pi}(s)\right)^2\right].
 $$
 
-对目标函数求导得到：
+$V^\pi(s)$ 满足 $V^\pi(s)=\mathbb E^\pi[G\mid S=s]$, 因此：
 
 $$
 \begin{aligned}
-\nabla_{\phi} \mathcal{L}(\phi) &= \mathbb{E}_{s_0 \sim p_0}^{\pi}\left[\left(V_{\phi}(s_0) - V^{\pi}(s_0)\right)\nabla_{\phi} V_{\phi}(s_0)\right] \\
-&= \mathbb{E}_{s_0 \sim p_0}^{\pi}\left[\left(V_{\phi}(s_0) - \mathbb{E}^{\pi}[R(\tau) \mid s_0]\right)\nabla_{\phi} V_{\phi}(s)\right] \\
-&= \mathbb{E}_{s_0 \sim p_0}^{\pi}\left[\mathbb{E}^{\pi}\left[\left(V_{\phi}(s_0) - R(\tau)\right)\nabla_{\phi} V_{\phi}(s_0) \mid s_0\right]\right] \\
-&= \mathbb{E}_{s_0 \sim p_0}^{\pi}\left[\left(V_{\phi}(s_0) - R(\tau)\right)\nabla_{\phi} V_{\phi}(s_0) \mid s_0\right]
+\nabla_{\phi} \mathcal{L}(\phi)
+&= \mathbb{E}_{s \sim d^\pi}
+\left[\left(V_{\phi}(s)-V^\pi(s)\right)\nabla_{\phi}V_{\phi}(s)\right]\\
+&= \mathbb{E}_{s \sim d^\pi,\,G\sim\pi(\cdot\mid s)}
+\left[\left(V_{\phi}(s)-G\right)\nabla_{\phi}V_{\phi}(s)\right].
 \end{aligned}
 $$
 
@@ -336,7 +359,9 @@ $$
 现在我们可以使用 MC 方法来估计梯度：
 
 $$
-\nabla_{\phi} \mathcal{L}(\phi) \approx g := \frac{1}{N}\sum_{i=1}^{N} \left(V_{\phi}(s^{(i)}) - R(\tau^{(i)})\right)\nabla_{\phi} V_{\phi}(s^{(i)})
+\nabla_{\phi} \mathcal{L}(\phi) \approx g
+:= \frac{1}{M}\sum_{i=1}^{M}
+\left(V_{\phi}(s^{(i)})-G^{(i)}\right)\nabla_{\phi}V_{\phi}(s^{(i)}).
 $$
 
 结合 MC 和 SGD 的算法如下：
@@ -345,46 +370,56 @@ $$
 
 **while** not converged:
 
-1. $s_0 \sim p_0$, $t = 0$.
+1. $s_0 \sim p_0$, $t = 0$, $\tau=[]$.
 2. **while** $s_t \neq \langle\text{term}\rangle$:
    - $a_t \sim \pi(\cdot \mid s_t)$
    - $(r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)$
+   - $\tau.\mathrm{append}((s_t,r_t))$
    - $t \gets t + 1$
 3. Set $T = t$.
-4. $g \gets \left(V_{\phi}(s_0) - \sum_{t=0}^{T-1} \gamma^t r_t\right)\nabla_{\phi} V_{\phi}(s_0)$.
-5. Update $\phi$ using $g$ with an optimizer.
+4. For every $t=0,\ldots,T-1$, compute
+   $G_t=\sum_{k=t}^{T-1}\gamma^{k-t}r_k$.
+5. $g\gets\frac{1}{T}\sum_{t=0}^{T-1}
+   (V_\phi(s_t)-G_t)\nabla_\phi V_\phi(s_t)$.
+6. Update $\phi$ using $g$ with an optimizer.
 
 </Algorithm>
 
 #### Function Approximation with TD
 
-与离散形式一样，我们基于 TD error 来构造目标函数：
+如果能够访问真实的 $V^\pi(s')$，我们可以将一步使用 TD target 当作监督信号：
 
 $$
-\mathcal{L}(\phi) = \mathbb{E}_{s_0 \sim p_0}^\pi\left[\frac{1}{2}\left(V_{\phi}(s_0) - r_0 - \gamma V^{\pi}(s_1)\right)^2\right]
+\mathcal{L}(\phi) = \mathbb{E}_{s \sim d^\pi}^\pi
+\left[\frac{1}{2}\left(V_{\phi}(s)-\left(\textcolor{red}{r+\gamma V^{\pi}(s')}\right)\right)^2\right].
 $$
 
 对应的梯度为：
 
 $$
-\nabla_{\phi} \mathcal{L}(\phi) = \mathbb{E}_{s_0 \sim p_0}^{\pi}\left[\left(V_{\phi}(s_0) - r_0 - \gamma \boxed{V^{\pi}(s_1)}\right)\nabla_{\phi} V_{\phi}(s_0) \mid s_0\right]
+\nabla_{\phi} \mathcal{L}(\phi)
+=\mathbb{E}_{s \sim d^\pi}^{\pi}
+\left[\left(V_{\phi}(s)-r-\gamma \textcolor{red}{V^{\pi}(s')}\right)
+\nabla_{\phi}V_{\phi}(s)\right].
 $$
 
-这里梯度包含了一个未知量 $V^{\pi}(s_1)$.
-为了解决这个问题，一个自然的想法是使用当前的 value function $V_{\phi}(s_1)$ 来进行代替：
+这里梯度包含了一个未知量 $V^{\pi}(s')$.
+为了解决这个问题，一个自然的想法是使用当前的 value function $V_{\phi}(s')$ 来进行代替：
 
 $$
-\nabla_{\phi} \mathcal{L}(\phi) \approx g:= \mathbb{E}_{s_0 \sim p_0}^{\pi}\left[\left(V_{\phi}(s_0) - r_0 - \gamma V_{\phi}(s_1)\right)\nabla_{\phi} V_{\phi}(s_0) \mid s_0\right]
+g:=\mathbb{E}_{s \sim d^\pi}^{\pi}
+\left[\left(V_{\phi}(s)-r-\gamma V_{\phi}(s')\right)
+\nabla_{\phi}V_{\phi}(s)\right].
 $$
 
-从而我们得到了一个结合 TD 和 SGD 的 TD learning 算法：
+对应的数学更新为：
 
 <Algorithm title="Value function approximation with TD (not correct)">
 
-**while** not converged:
+**While** not converged:
 
 1. $s_0 \sim p_0$, $a_0 \sim \pi(\cdot \mid s_0)$, $(r_0, s_1) \sim p(\cdot, \cdot \mid s_0, a_0)$.
-2. computer TD target
+2. compute TD target
    $$
    y = \begin{cases}
    r_0 + \gamma V_{\phi}(s_1), & \text{if } s_1 \neq \langle\text{term}\rangle \\
@@ -411,7 +446,8 @@ loss.backward()
 $$
 \begin{aligned}
 &\nabla_{\phi}\left[\frac{1}{2}\left(V_{\phi}(s) - (r + \gamma V_{\phi}(s'))\right)^2\right] \\
-&= (V_{\phi}(s) - (r + \gamma V_{\phi}(s')))(\nabla_{\phi} V_{\phi}(s) - \nabla_{\phi} V_{\phi}(s'))\\
+&= (V_{\phi}(s) - (r + \gamma V_{\phi}(s')))
+(\nabla_{\phi} V_{\phi}(s) - \gamma\nabla_{\phi} V_{\phi}(s'))\\
 &\neq g
 \end{aligned}
 $$
@@ -451,10 +487,10 @@ loss.backward()
 
 <Algorithm title="Value function approximation with TD">
 
-**while** not converged:
+**While** not converged:
 
 1. $s_0 \sim p_0$, $a_0 \sim \pi(\cdot \mid s_0)$, $(r_0, s_1) \sim p(\cdot, \cdot \mid s_0, a_0)$.
-2. computer TD target
+2. compute TD target
    $$
    y = \begin{cases}
    r_0 + \gamma \, \mathrm{sg}[V_{\phi}(s_1)], & \text{if } s_1 \neq \langle\text{term}\rangle \\
@@ -467,8 +503,11 @@ loss.backward()
 </Algorithm>
 
 <Note variant="remark" emoji="⚠️">
-  上述做法其实是 **semi-gradient methods**,
-  这类方法在参数更新时，只计算部分梯度。虽然这种方法牺牲了严格的梯度下降性质，但是其能够保证更好的表现.
+  上述做法是 **semi-gradient method**：bootstrap target
+  依赖当前参数，但更新时不对 target
+  求导。因此它一般不是某个固定监督损失的完整梯度。若不使用 stop-gradient，
+  得到的是 sampled Bellman-residual loss 的梯度；它对应另一个目标，而且对随机
+  transition 的 Bellman residual 构造无偏梯度通常还会遇到 double-sampling 问题。
 </Note>
 
 #### k-step TD
@@ -479,14 +518,8 @@ $$
 \begin{aligned}
 V^{\pi}(s_0) &= \mathbb{E}^{\pi}[r_0 + \gamma V^{\pi}(s_1) \mid s_0] \\
 &= \mathbb{E}^{\pi}[r_0 + \gamma \mathbb{E}^{\pi}[r_1 + \gamma V^{\pi}(s_2) \mid s_1] \mid s_0] \\
-&= \mathbb{E}^{\pi}[\mathbb{E}^{\pi}[r_0 + \gamma r_1 + \gamma^2 V^{\pi}(s_2) \mid s_1] \mid s_0]
+&= \mathbb{E}^{\pi}[r_0 + \gamma r_1 + \gamma^2 V^{\pi}(s_2) \mid s_0].
 \end{aligned}
-$$
-
-由 [Law of Total Expectation](https://maosong.website/blog/math/#law-of-total-expectation):
-
-$$
-\mathbb{E}^{\pi}[\mathbb{E}^{\pi}[X \mid s_1] \mid s_0 = s] = \mathbb{E}^{\pi}[X \mid s_0]
 $$
 
 因此：
@@ -495,7 +528,7 @@ $$
 V^{\pi}(s_0) = \mathbb{E}^{\pi}[r_0 + \gamma r_1 + \gamma^2 V^{\pi}(s_2) \mid s_0]
 $$
 
-重复这个过程 k 次，我们就可以得到 k 步展开：
+重复这个过程 $k$ 次，我们就可以得到 $k$ step TD:
 
 $$
 V^{\pi}(s_0) = \mathbb{E}^{\pi}\left[\sum_{i=0}^{k-1} \gamma^i r_i + \gamma^k V^{\pi}(s_k) \mid s_0\right]
@@ -508,14 +541,14 @@ $$
 **while** not converged:
 
 1. $s_0 \sim p_0$, set $t = 0$.
-2. **for** $t = 0, \ldots, k-1$:
+2. **for** $t = 0, \ldots, k-1$, stopping early if the episode terminates:
    - $a_t \sim \pi(\cdot \mid s_t)$
    - $(r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)$
-3. compute k-step TD target
+3. Let $n\leq k$ be the number of collected transitions and compute
    $$
    y = \begin{cases}
-   \sum_{t=0}^{k-1} \gamma^t r_t + \gamma^k \, \mathrm{sg}[V_{\phi}(s_k)], & \text{if } s_k \neq \langle\text{term}\rangle \\
-   \sum_{t=0}^{k-1} \gamma^t r_t, & \text{otherwise}
+   \sum_{t=0}^{n-1} \gamma^t r_t + \gamma^n \, \mathrm{sg}[V_{\phi}(s_n)], & \text{if } s_n \neq \langle\text{term}\rangle, \\
+   \sum_{t=0}^{n-1} \gamma^t r_t, & \text{otherwise}.
    \end{cases}
    $$
 4. $g \gets (V_{\phi}(s_0) - y) \nabla_{\phi} V_{\phi}(s_0)$.
@@ -523,28 +556,30 @@ $$
 
 </Algorithm>
 
-一般来说，$k = 5$ 是一个常用的选择.
-
 #### Q-Function Evaluation
 
-对于 Q-function, 我们也可以设计类似的算法.
-
-对于 MC, 有：
+对于 Q-function, 我们也可以和 value function 一样设计类似的算法。对于 MC, 有：
 
 $$
-Q^{\pi}(s_0, a_0) = \mathbb{E}^{\pi}\left[\sum_{t=0}^{T-1} \gamma^t r_t \mid s_0, a_0 \right] \approx \frac{1}{N} \sum_{i=1}^{N} \sum_{t=0}^{T^{(i)}-1} \gamma^t r_t^{(i)}
+Q^{\pi}(s_0, a_0)
+=\mathbb{E}^{\pi}\left[\sum_{t=0}^{T-1}\gamma^t r_t\mid s_0,a_0\right]
+\approx\frac{1}{M}\sum_{i=1}^{M}\sum_{t=0}^{T^{(i)}-1}\gamma^t r_t^{(i)}.
 $$
 
 当使用函数来近似时，目标函数为：
 
 $$
-\mathcal{L}(\phi) = \mathbb{E}_{s_0 \sim p_0, \, a_0 \sim \pi(\cdot \mid s_0)}\left[\frac{1}{2}\left(Q_{\phi}(s_0, a_0) - Q^{\pi}(s_0, a_0)\right)^2\right]
+\mathcal{L}(\phi) = \mathbb{E}_{s \sim d^\pi,\,a\sim\pi(\cdot\mid s)}
+\left[\frac{1}{2}\left(Q_{\phi}(s,a)-Q^{\pi}(s,a)\right)^2\right].
 $$
 
 对应的梯度：
 
 $$
-\nabla_{\phi} \mathcal{L}(\phi) = \mathbb{E}_{s_0 \sim p_0, \, a_0 \sim \pi(\cdot \mid s_0)}^{\pi}\left[\left(Q_{\phi}(s_0, a_0) - \sum_{t=0}^{T-1} \gamma^t r_t\right)\nabla_{\phi} Q_{\phi}(s_0, a_0)\right]
+\nabla_{\phi} \mathcal{L}(\phi)
+=\mathbb{E}^{\pi}\left[
+\left(Q_{\phi}(s_t,a_t)-G_t\right)\nabla_{\phi}Q_{\phi}(s_t,a_t)
+\right].
 $$
 
 对应的算法如下
@@ -553,14 +588,17 @@ $$
 
 **while** not converged:
 
-1. $s_0 \sim p_0$, $a_0 \sim \pi(\cdot \mid s_0)$, set $t = 0$.
+1. $s_0 \sim p_0$, set $t = 0$, $\tau=[]$.
 2. **while** $s_t \neq \langle\text{term}\rangle$:
    - $a_t \sim \pi(\cdot \mid s_t)$
    - $(r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)$
+   - $\tau.\mathrm{append}((s_t,a_t,r_t))$
    - $t \gets t + 1$
 3. Set $T = t$.
-4. $g = \left(Q_{\phi}(s_0, a_0) - \sum_{t=0}^{T-1} \gamma^t r_t\right) \nabla_{\phi} Q_{\phi}(s_0, a_0)$.
-5. Update $\phi$ using $g$ with an optimizer.
+4. For every $t$, compute $G_t=\sum_{k=t}^{T-1}\gamma^{k-t}r_k$.
+5. $g=\frac{1}{T}\sum_{t=0}^{T-1}
+   (Q_\phi(s_t,a_t)-G_t)\nabla_\phi Q_\phi(s_t,a_t)$.
+6. Update $\phi$ using $g$ with an optimizer.
 
 Return $Q_\phi$
 
@@ -569,20 +607,23 @@ Return $Q_\phi$
 对于 TD learning, 我们的目标函数为
 
 $$
-\mathcal{L}(\phi) = \mathbb{E}_{s_0 \sim p_0, \, a_0 \sim \pi(\cdot \mid s_0)}\left[\frac{1}{2}\left(Q_{\phi}(s_0, a_0) - r_0-\gamma Q^\pi (s_1,a_1)\right)^2\right]
+\mathcal{L}(\phi) = \mathbb{E}_{s \sim d^\pi,\,a\sim\pi(\cdot\mid s)}
+\left[\frac{1}{2}\left(Q_{\phi}(s,a)-r-\gamma Q^\pi(s',a')\right)^2\right],
 $$
 
-与 value function 的算法类似，我们也由对应版本的算法：
+其中非终止状态下 $a'\sim\pi(\cdot\mid s')$.
+与 value function 类似，使用 bootstrap target 可以得到 on-policy 的 Expected SARSA/SARSA 风格 policy evaluation：
 
 <Algorithm title="Q-function approximation with TD">
 
-**while** not converged:
+**While** not converged:
 
-1. $s_0 \sim p_0$, $a_0 \sim \pi(\cdot \mid s_0)$, $(r_0, s_1) \sim p(\cdot, \cdot \mid s_0, a_0)$, $a_1 \sim \pi(\cdot \mid s_1)$.
+1. $s_0 \sim p_0$, $a_0 \sim \pi(\cdot \mid s_0)$, $(r_0, s_1) \sim p(\cdot, \cdot \mid s_0, a_0)$.
 2. $$
    y = \begin{cases}
-   r_0 + \gamma \, \mathrm{sg}[Q_{\phi}(s_1, a_1)], & \text{if } s_1 \neq \langle\text{term}\rangle \\
-   r_0,                                               & \text{otherwise}
+   r_0 + \gamma \, \mathrm{sg}[Q_{\phi}(s_1, a_1)],
+      \quad a_1\sim\pi(\cdot\mid s_1), & \text{if } s_1 \neq \langle\text{term}\rangle, \\
+   r_0, & \text{otherwise}.
    \end{cases}
    $$
 3. $g = \left(Q_{\phi}(s_0, a_0) - y\right) \nabla_{\phi} Q_{\phi}(s_0, a_0)$.
@@ -594,21 +635,24 @@ Return $Q_\phi$
 
 <Algorithm title="Q-function approximation with k-step TD">
 
-**while** not converged:
+**While** not converged:
 
 1. $s_0 \sim p_0$, set $t = 0$.
-2. **for** $t = 0, \ldots, k-1$:
+2. **For** $t = 0, \ldots, k-1$, stopping early on termination:
    - $a_t \sim \pi(\cdot \mid s_t)$
    - $(r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)$
-3. $y = \sum_{t=0}^{k-1} \gamma^t r_t + \gamma^k \, \mathrm{sg}[Q_{\phi}(s_k, a_k)]$
-4. $g = (Q_{\phi}(s_0, a_0) - y) \nabla_{\phi} Q_{\phi}(s_0, a_0)$
-5. Update $\phi$ using $g$ with an optimizer.
+3. Let $n\leq k$ be the number of collected transitions.
+4. **If** $s_n$ is non-terminal
+   1. sample $a_n\sim\pi(\cdot\mid s_n)$
+   2. set $y=\sum_{t=0}^{n-1}\gamma^t r_t+\gamma^n\mathrm{sg}[Q_\phi(s_n,a_n)]$;
+5. **Else**
+   1. set $y=\sum_{t=0}^{n-1}\gamma^t r_t$.
+6. $g = (Q_{\phi}(s_0, a_0) - y) \nabla_{\phi} Q_{\phi}(s_0, a_0)$
+7. Update $\phi$ using $g$ with an optimizer.
 
 Return $Q_\phi$
 
 </Algorithm>
-
-#### Function Approximation Experiments
 
 ### Policy Iteration Methods
 
@@ -635,18 +679,56 @@ $$
 
 </Theorem>
 
-<Theorem variant="proof">TODO</Theorem>
+<Theorem variant="proof">
+
+由 $\pi^{k+1}$ 的 greedy 定义，对每个状态 $s$ 都有
+
+$$
+(\mathcal T^{\pi^{k+1}}V^{\pi^k})(s)
+=(\mathcal T^*V^{\pi^k})(s)
+\geq(\mathcal T^{\pi^k}V^{\pi^k})(s)
+=V^{\pi^k}(s).
+$$
+
+反复应用单调的 Bellman operator $\mathcal T^{\pi^{k+1}}$，并利用其 contraction
+性质，得到
+
+$$
+V^{\pi^{k+1}}
+=\lim_{n\to\infty}
+(\mathcal T^{\pi^{k+1}})^nV^{\pi^k}
+\geq V^{\pi^k}.
+$$
+
+有限 MDP 只有有限个 deterministic policies.
+若 value 尚未最优，policy improvement 会产生严格改进；采用一致的 tie-breaking 后不会在等价 policy之间循环。
+因此有限次迭代后到达满足 Bellman optimality equation 的 policy, 其 value 即为 $V^*$.
+
+</Theorem>
 
 ### MC v.s. TD
 
-| 方法 | 特点                                            |
-| :--: | :---------------------------------------------- |
-|  MC  | 需要完整的一次采样，无偏但 variance 高          |
-|  TD  | 通过 bootstrap 提高采样效率，有偏但 variance 低 |
+MC 必须等待 episode 结束，然后用真实 return 监督每个已访问状态。
+对固定状态而言，sample return 是 $V^\pi$ 的无偏估计，但长轨迹中的 variance 可能很高。
 
-TD 本质上是 bootstrap: 当需要使用 $V^{\pi}$ 时，用 $V_{\phi}$ 来代替.
-当 $V_{\phi}$ 与 $V^{\pi}$ 差距较大时，bootstrap 会导致训练不稳定，而 MC 则相对稳定.
+TD 使用 $V_\phi(s_{t+1})$ bootstrap，不需要等待完整 episode，通常 variance 更低，但 target 会受到当前 value approximation error 的影响。
+这里所谓的 “TD 有偏” 主要是指有限训练阶段的 bootstrap target；在满足收敛条件的 tabular on-policy 场景中，TD 仍然可以收敛到真实的 $V^\pi$.
+
+k-step TD 在两者之间插值：
+
+$$
+\text{TD(0)}
+\xleftarrow{\quad k\to0\quad}
+\text{k-step TD}
+\xrightarrow{\quad k\to T\quad}
+\text{MC}.
+$$
 
 ### Takeaway
 
-TODO
+- LLM generation 的 state 是 `(prompt, token prefix)`, 状态空间随 horizon (context length) 指数增长
+- Matrix solve 和 dynamic programming 能提供小规模环境 ( $< 20$) 的精确基线，但无法扩展到真实 LLM 的场景下 ($\sim15k$)
+- MC 使用完整 return, low bias, high variance; TD 使用 bootstrap, low variance, high bias; k-step return 在两者之间实现一个 trade off.
+- Function approximation 让不同 prefix 共享信息，一条 rollout 可以监督多个 prefix
+- 在 binary verifier reward 下，$V^\pi(x,y_{<t})$ 可以解释为当前 policy 最终通过 verifier 的概率
+- Policy evaluation 解决的是“当前 policy 有多好”；下一步 policy improvement 才解决“如何让 policy 变得更好”

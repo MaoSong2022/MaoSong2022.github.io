@@ -2,12 +2,19 @@ import Algorithm from '../../../components/Algorithm.astro';
 
 ## TRPO
 
-在本文中，我们探讨如何提高 policy gradient methods 的 sample efficiency.
+前面的 policy gradient 和 actor-critic 给出了更新方向，但没有回答一个关键问题：
+**一次可以把 policy 更新多远？** 如果新旧 policy 差异过大，旧 policy 生成的
+trajectory 很快失效，近似目标也可能不再可靠。
 
-在上一节中介绍的 REINFORCE 算法中，我们每次都需要基于当前策略 $\pi_\theta$ 来进行采样。因此，算法的效率受策略 $\pi_\theta$ 采样效率影响。
+TRPO (Trust Region Policy Optimization) [@TRPO] 使用旧策略
+$\pi_{\theta_{\mathrm{old}}}$ 的 rollout 构造 surrogate objective，并通过 KL
+constraint 限制新旧策略的距离。它仍然主要是 on-policy 方法；重点不是把
+policy gradient 变成一般的 off-policy learning，而是在一个受控的 trust region
+内安全地复用当前批次。
 
-一个自然的想法是，我们能否利用已有的数据集来进行训练，也就是 off-policy 版本的 policy gradient algorithm.
-这就是 Trust Region Policy Optimization (TRPO) [@TRPO] 算法的核心。
+这一思想对 LLM 尤其重要：生成 rollout 成本很高，但在同一批 rollout 上执行过多
+gradient steps 又会造成 policy drift。TRPO 首先形式化这一稳定性约束，后续 PPO
+会给出更容易实现的一阶近似。
 
 我们的目标函数为
 
