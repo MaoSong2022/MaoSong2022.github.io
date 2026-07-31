@@ -1,12 +1,13 @@
 import Algorithm from "../../../components/Algorithm.astro";
 import Note from "../../../components/Note.astro";
 
-## Value-Based Methods
+## Value Based Methods
 
-在 [policy evaluation](#policy_evaluation) 一节中，我们介绍了在固定策略 $\pi$ 的情况下，如何求解对应的 value function 或者 Q function.
-我们虽然给出了一个 policy iteration algorithm, 但是其严重依赖初始策略 $\pi^0$.
-为了解决这个问题，我们可以想办法直接找到最优策略 $\pi^*$ 对应的 optimal value function $V^*$ 或者 optimal Q function $V^*$.
-这也是 Value-based methods 的核心思想：
+在 [Policy Evaluation](#policy-evaluation) 一节中，策略 $\pi$ 是固定的，我们只估计 $V^\pi$ 或 $Q^\pi$.
+Value-based methods 更进一步：学习能够区分动作优劣的 value function，并据此改进策略。
+
+一种直接思路是寻找 optimal value function $V^*$ 或 optimal Q function $Q^*$，再从中恢复最优策略。
+这也是 value based methods 的核心思想：
 
 <Note variant="info">
 
@@ -14,15 +15,50 @@ import Note from "../../../components/Note.astro";
 
 </Note>
 
-在 Bellman Equation 中，我们介绍了 value iteration 的基本思路：通过 Bellman optimality operator 迭代求解 $V^*$ 和 $Q^*$.
+### Value Iteration
+
+Value iteration 的基本思路为：通过 Bellman optimality operator 迭代求解 $V^*$ 和 $Q^*$, 然后得到最优策略。
+根据 [BOE Theorem](#BOE_value) 的证明，$\mathcal{T}^*$ 是一个 contraction mapping, 因此我们可以构造函数序列：
+
+$$
+V, \mathcal{T}^* V, (\mathcal{T}^*)^2 V, \cdots
+$$
+
+由不动点定理，该序列收敛到 $V^*$.
+这就是 value iteration algorithm:
+
+$$
+\begin{aligned}
+V^{k+1} &= \mathcal{T}^* V^k \\
+V^{k+1}(s_t) &= \max_{a \in \mathcal{A}} \mathbb{E}_{(r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)}\left[r + \gamma V^k(s_{t+1}) \mid S_t=s_t, A_t=a_t\right] 
+\end{aligned}
+$$
+
+类似地，我们还有 Q value iteration algorithm:
+
+$$
+\begin{aligned}
+Q^{k+1} &= \mathcal{T}^* Q^k \\
+Q^{k+1}(s_t, a_t) &= \mathbb{E}_{(r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)}\left[r + \gamma \max_{a_{t+1} \in \mathcal{A}} Q^k(s_{t+1}, a_{t+1}) \mid S_t=s_t,A_t=a_t\right]
+\end{aligned}
+$$
+
+最终，我们的最优策略为
+
+$$
+\pi^{*}(s_t) = \arg\max_{a \in \mathcal{A}} Q^*(s_t,a)
+$$
+
+其中 $Q^*=\lim_{k\to\infty}Q^k$.
+
 本节将 value iteration 的思想与函数逼近、TD learning 等技术结合，得到实用的 value-based 算法.
 
-### Table Learning
+### Tabular Learning
 
-当动作空间较小时，我们可以 TODO
+当 state 和 action space 足够小时，我们可以直接维护一张 Q-table.
 
-在 Model-Free 设定下，我们无法直接计算转移概率 $\mathbb{E}_{s' \sim p}$。
-我们必须通过与环境交互产生的轨迹样本 $(s, a, r, s', a')$ 来更新价值。
+在 Model-Free 设定下，我们无法直接计算转移概率 $\mathbb{E}_{s' \sim p}$.
+此时，我们必须通过与环境交互产生的轨迹样本 $(s, a, r, s', a')$ 来更新价值。
 
 #### SARSA
 
@@ -61,11 +97,11 @@ $V^{\pi}(s)$ 可以通过两种方式来近似：
 1. **MC 近似**: $V^{\pi}(s) = \mathbb{E}^{\pi}[G_0 \mid s_0 = s] \approx G_0$
 2. **TD 近似**: $V^{\pi}(s) \approx r_t + \gamma V_{\phi}(s_{t+1})$
 
-TODO: algorithms
-
 ### Deep Q-Network (DQN)
 
-在 TODO 的基础上，DQN 进一步优化了训练的目标函数，用于逼近 optimal Q function:
+将 function approximation 与 Q-learning 结合，可以用 neural network
+逼近 optimal Q function。DQN 进一步引入 replay buffer 和 target network
+来改善训练稳定性：
 
 $$
 \mathcal{L}(\phi) = \mathbb{E}_{(s,a,r,s') \sim \mathcal{D}} \left[ \frac{1}{2} \left( r + \gamma \max_{a'} Q_{\phi^-}(s', a') - Q_{\phi}(s, a) \right)^2 \right]
@@ -148,6 +184,15 @@ loss = loss.mean()
 
 </Algorithm>
 
-### Experiments
+### Why LLMs Usually Do Not Use DQN
 
-TODO
+Value-based control 建立了从 Bellman optimality equation 到可训练算法的桥梁，
+但 DQN 通常不是 LLM post-training 的最终选择：
+
+1. LLM action space 是整个 vocabulary，每个 prefix 都要对大量 token 计算并比较 $Q(s,a)$
+2. $\arg\max_a Q(s,a)$ 产生的 greedy policy 不等于我们希望保留和微调的 autoregressive policy distribution
+3. LLM reward 常在完整 response 后给出，早期 token 的 Q target 具有严重的 credit-assignment 和 exploration 问题
+4. 预训练 LLM 已经提供了强 policy prior，直接优化 $\pi_\theta$ 通常比从 Q function 重新构造生成策略更自然
+
+因此，本章的主要作用是解释 **evaluation 如何变成 control**, 并为 TD, off-policy learning 和 bootstrap 建立直觉。
+下一章将转向 policy-based methods：直接对 LLM policy 的 expected return 求梯度。

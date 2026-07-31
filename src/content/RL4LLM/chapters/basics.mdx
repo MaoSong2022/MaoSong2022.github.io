@@ -1,0 +1,247 @@
+import Image from "../../../components/Image.astro";
+import FullWidth from "../../../components/FullWidth.astro";
+import Definition from "../../../components/Definition.astro";
+import Note from "../../../components/Note.astro";
+
+import RL4LLM_process from "../../../assets/image/RL-process.png";
+
+## RL Basics
+
+本章的目标是建立全文统一使用的语言：我们先用 MDP 描述 agent 与 environment 的交互，再定义 trajectory, return 和优化目标。
+最后我们把 auto-regressive generation 写成一个 token-level MDP.
+后续章节我们会一直使用这里定义的 LLM state, action 和 reward.
+
+RL 的基本思想是**让 agent 通过与环境交互，学习能够最大化期望回报的策略。**
+其定义为：
+
+<Note variant="info">
+
+强化学习是一个通过构建可以与 environment 进行交互的 agent 来解决控制和决策任务的学习框架，交互的方式为 agent 执行 action, 然后 environment 给予反馈。
+
+</Note>
+
+RL 的执行过程如下所示
+
+<Image src={RL4LLM_process} alt="The RL process (source from Sutton)" />
+
+RL 的数学建模依赖于 Markov Decision Process, 下面我们先介绍相关概念。
+
+### Markov Decision Process (MDP)
+
+<Definition term='Markov Decision Process'>
+
+MDP 是一个可以用于描述强化学习的数学模型，形式化为：
+
+1. **状态 (State)**: $s_t \in \mathcal{S}$, $\mathcal{S}$ 为状态空间。
+2. **动作 (Action)**: $a_t \in \mathcal{A}$, $\mathcal{A}$ 为动作空间。
+3. **奖励 (Reward)**: $r_t \in \mathbb{R}$, 环境对 agent 执行动作 $a_t$ 的反馈。
+4. **终止时间 (Terminal Time)**: $T$，且定义 $s_T = \langle\text{term}\rangle$ 为终止状态。
+5. **初始状态分布 (Initial State)**: $s_0 \sim p_0$.
+6. **状态转移概率 (Transition Probability)**: $(r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)$.
+7. **马尔可夫性 (Markov Property)**:
+
+$$
+\htmlId{markov_property}{\begin{equation}
+  p(s_{t+1} \mid s_t, a_t, \ldots) = p(s_{t+1} \mid s_t, a_t),\ p(r_t \mid s_t, a_t, \ldots) = p(r_t \mid s_t, a_t).
+\end{equation}}
+$$
+
+</Definition>
+
+为了简化，我们采用以下约定：
+
+1. 当 $r_t$ 完全由 $(s_t,a_t)$ 决定时，记为 $r_t = r(s_t, a_t)$.
+2. 状态转移函数是平稳的 (stationary), 即 $p_t(r,s'\mid s,a) = p(r,s'\mid s,a)$.
+3. $a_t$ 由策略 $\pi$ 决定，确定性策略记为 $a_t = \pi(s_t)$, 随机策略记为 $a_t \sim \pi(\cdot \mid s_t)$.
+4. 通常我们使用神经网络表示策略，即 $\pi = \pi_\theta$, 其中 $\theta$ 为网络参数。
+5. 我们用 $S_t$, $A_t$ 代表 $t$ 时刻的状态和动作，这是一个随机变量，用 $S_t=s_t$, $A_t=a_t$ 代表当前状态为 $s_t$， 当前动作为 $a_t$.
+
+### Trajectory
+
+接下来，我们介绍 trajectory, 也就是 RL 算法所需要的数据的定义
+
+<Definition term='Trajectory' id='trajectory_def'>
+
+Trajectory (rollout) 定义为 agent 与环境完整的一次交互过程：
+
+$$
+\tau = (s_0, a_0, r_0, s_1, a_1, r_1, \ldots, s_{T-1}, a_{T-1}, r_{T-1}, s_T)
+$$
+
+其概率分布为
+
+$$
+p(\tau \mid s_0, \pi, p) = p_0(s_0) \prod_{t=0}^{T-1} \pi(a_t \mid s_t) \, p(r_t, s_{t+1} \mid s_t, a_t)
+$$
+
+</Definition>
+
+<Note variant="info">
+- 轨迹的概率分布由初始状态分布、策略以及环境模型共同决定，记为 $\tau \sim (p_0, \pi, p)$.
+- 轨迹的概率分布使用了 [Markov property](#markov_property).
+- 本教程仅考虑 finite horizon MDP, 即 $T < \infty$.
+</Note>
+
+### Return
+
+接下来，我们介绍 RL 算法的优化目标 (discounted) return.
+
+<Definition term='Discounted Return'>
+
+一条 trajectory 上的 (discounted) return 定义为：
+
+$$
+R(\tau) = \sum_{t=0}^{T-1} \gamma^t r_t
+$$
+
+其中 $\gamma \in (0, 1]$ 是 **discount factor**，用于将未来的奖励折现到当前时刻。
+
+从时刻 $t$ 开始的 return 记为：
+
+$$
+G_t = \sum_{k=t}^{T-1} \gamma^{k-t} r_k
+$$
+
+$G_t$ 存在如下递推关系：
+
+$$
+G_t = r_t + \gamma G_{t+1}
+$$
+
+易知
+
+$$
+R(\tau) = G_0.
+$$
+
+</Definition>
+
+### Objective of RL
+
+RL 的最终目标为最大化 expected return, 形式化为：
+
+$$
+\htmlId{rl_objective}{\begin{equation}
+\max_{\pi} \quad \mathbb{E}_{\tau \sim (p_0, \pi, p)} \, R(\tau) = \max_{\pi} \quad \mathbb{E}_{\tau \sim (p_0, \pi, p)} \left[ \sum_{t=0}^{T-1} \gamma^t r_t \right]
+\end{equation}}
+$$
+
+这里期望 $\mathbb{E}^\pi$ 对应的随机变量为 $a_t \sim \pi(\cdot \mid s_t)$, $(r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)$.
+
+这个目标函数源于强化学习的核心假设
+
+<Note variant="info">
+  **Reward Hypothesis**: 所有的目标都可以被描述为最大化 expected return.
+</Note>
+
+由于实际问题中，初始状态 $s_0$ 和状态转移函数 $p$ 一般保持不变，因此我们一般省略目标函数中的 $s_0$ 和 $p$, 将目标函数简化为
+
+$$
+\max_{\pi} \quad \mathbb{E}_{\tau\sim\pi} \, R(\tau)
+$$
+
+### Connection with LLM
+
+这一节我们介绍如何用 RL 的定义来建模 auto-regressive LLM.
+LLM 定义如下：
+
+$$
+y_t \sim \mathrm{LLM}(\cdot \mid y_{<t}, x)
+$$
+
+其中 $x$ 是输入的 prompt, $y_{<t}$ 是已经生成的部分 (generated prefix), $y_t$ 是下一个要生成的 token.
+
+RL 和 LLM 的对应关系如下 [@shen2026firstprinciplesderivationllmpolicy]：
+
+|                 RL                  |                  LLM                  |             Description             |
+| :---------------------------------: | :-----------------------------------: | :---------------------------------: |
+|         initial state $s_0$         |                  $x$                  |               prompt                |
+|             state $s_t$             |           $s_t=(y_{<t}, x)$           |     prompt and generated prefix     |
+|            action $a_t$             |                 $y_t$                 | next token selected from vocabulary |
+|      policy $\pi(a_t\mid s_t)$      |     $\mathrm{LLM}(y_t \mid s_t)$      | next token prediction distribution  |
+|          trajectory $\tau$          |             $(y_{1:T},x)$             |    complete prompt-response pair    |
+|          Return $R(\tau)$           |               $R(x,y)$                |   reward model or verifier score    |
+| transition $P(s_{t+1}\mid s_t,a_t)$ | $s_{t+1} = \mathrm{concat}(y_t, s_t)$ | deterministic string concatenation  |
+
+#### Running Example: ToyLLM
+
+为了让后续公式可以被直接计算和实验验证，我们使用一个 finite-horizon
+episodic MDP `ToyLLM` 作为示例。
+它保留 autoregressive generation 的核心结构，同时将 vocabulary 和最大生成长度控制在可以枚举的范围内。
+
+给定一个固定 prompt $x$, 最大 response 长度 $T$ 和 target response $y^*=(y_0^*,\ldots,y_{L-1}^*)$, 其中 $L\leq T$.
+对于普通 token 词表 $\overline{\mathcal V}$, 我们令 $\mathcal V=\overline{\mathcal V}\cup\{\langle\mathrm{eos}\rangle\}$.
+
+时刻 $t$ 的 state 是 prompt 和已经生成的 prefix, action 是下一个 token：
+
+$$
+s_t=(x,y_{<t}),\quad
+y_{<t}=(a_0,\ldots,a_{t-1}),\quad
+a_t=y_t\in\mathcal V.
+$$
+
+普通 token 会被确定性地追加到 prefix；生成 `<eos>` 或已经生成 $T$ 个普通 token 时，episode 终止。
+去掉 `<eos>` 后的完整 response 记为 $y$，环境只在 episode 结束时给出 exact-match reward：
+
+$$
+R(y)=\begin{cases}
+   1,&\text{if }y=y^*,\\
+   0,&\text{otherwise}.
+\end{cases}
+$$
+
+对这个固定 prompt, action space 和非终止状态空间分别为
+
+$$
+\mathcal A=\mathcal V,\qquad \mathcal S_{\mathrm{non-terminal}}=\bigcup_{t=0}^{T-1}\{x\}\times\overline{\mathcal V}^{\,t}.
+$$
+
+令 $K=|\overline{\mathcal V}|$.
+如果所有结束后的 response 共用一个 terminal state, 则状态总数为
+
+$$
+S:=|\mathcal S|=1+\sum_{t=0}^{T-1}K^t.
+$$
+
+因此，即使 transition 是确定性的，prefix state space 仍然随 horizon 指数增长。
+真实 LLM 的 vocabulary 通常包含数万到数十万个 token, 使 action space 也非常大。
+
+`ToyLLM` 还有一个重要性质：初始状态的 value 存在解析解。令成功所需的 action sequence 为
+
+$$
+a^*=
+\begin{cases}
+(y_0^*,\ldots,y_{L-1}^*,\langle\mathrm{eos}\rangle),&L<T,\\
+(y_0^*,\ldots,y_{T-1}^*),&L=T,
+\end{cases}
+$$
+
+并令 $m=|a^*|$. 如果 reward 在最后一个 action 后产生，则
+
+$$
+V^\pi(s_0)
+=\gamma^{m-1}\prod_{t=0}^{m-1}
+\pi(a_t^*\mid x,a_{<t}^*).
+$$
+
+这个解析解可以作为后续 matrix solve, Monte Carlo 和 temporal-difference learning 实现的 ground truth.
+若 policy 接近 uniform distribution, 成功概率大致按 $|\mathcal V|^{-m}$ 下降，也直接展示了 terminal verifier reward 带来的 sparse-reward 问题。
+
+<Note variant="remark" emoji="💡">
+
+`ToyLLM` 的 exact-match reward 是 verifier 的最简单形式。
+真实 RLVR 通常从 prompt distribution $x\sim\mathcal D$ 采样问题，并用 $\operatorname{Verifier}(x,y)$ 接受多种等价的正确答案。
+ToyLLM 暂时固定一个 prompt 和 target，以便隔离并研究 policy evaluation 与 policy improvement.
+
+</Note>
+
+在 [Policy Evaluation](#policy-evaluation) 一章中，我们将比较依赖完整环境模型的精确解法、只依赖 rollout 的 MC/TD 方法，以及能够在不同 prefix 之间共享信息的 function approximation.
+
+### Takeaway
+
+- RL 的基础是 MDP, 其核心假设是 Markov property, 即未来的状态和奖励只与当前状态和动作有关，与历史无关。
+- trajectory return 是随机变量；RL 目标是最大化它在 policy 和环境随机性下的期望。
+- 从 RL 角度看，LLM 本身是一个 policy, 其初始状态为 prompt, 动作空间为 vocabulary 中的 token index, 奖励由多方面给定，environment 仅对 token 进行简单拼接。
+- ToyLLM 将作为贯穿示例，帮助我们把 Bellman equation、policy evaluation 和 policy
+  optimization 映射回 token generation。
+- 虽然 action space 和 state space 是离散的，但是其数量级非常大，因此我们通常使用函数逼近来近似 value function 和 Q-function.

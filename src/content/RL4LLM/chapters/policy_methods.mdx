@@ -5,51 +5,63 @@ import Wide from "../../../components/Wide.astro";
 
 ## Policy Based Methods
 
-policy-based methods 的 motivation 很好理解，我们想要找到一个 optimal policy, 那我们就直接对当前 policy 进行优化。
+Value-based methods 先学习 $Q^*$，再通过 $\arg\max_a Q^*(s,a)$ 间接得到策略。
+对 LLM 而言，我们已经有一个参数化的 autoregressive policy $\pi_\theta(y_t\mid x,y_{<t})$, 因此更自然的选择是直接调整 $\theta$，提高高回报 response 的生成概率。
+这就是 policy-based methods 的核心思想。
 
 <Note title="Core idea" emoji="💡" variant="info">
-  我们基于某个策略采集一些数据，通过直接优化的方法来不停改进当前策略 $\pi$,
-  直到当前策略达到最优
+
+使用 policy  $\pi_\theta$ 生成 trajectory, 通过 trajectory reward 构造 gradient estimator，再直接改进当前策略 $\pi_\theta$.
+
 </Note>
 
-根据采样策略的不同，policy-based methods 一般会被分为两类：
+根据采样策略 (behavior policy) 的不同，policy-based methods 一般会被分为两类：
 
 1. on-policy: 采集数据的 policy 和训练更新的 policy 一致
 2. off-policy: 采集数据的 policy 和训练更新的 policy 不一致
 
-这两者的核心区别在于：我们更新模型所使用的数据是否由当前模型产生？如果回答是，则说明算法是 On-policy, 反之则说明是 Off-policy.
+这两者的核心区别在于：我们更新模型所使用的数据是否由当前模型产生？ 如果是，则说明算法是 On-policy, 反之则说明是 Off-policy.
 
 on-policy 和 off-policy 对比如下表所示
 
 |      Category      |             on-policy              |       off-policy        |
 | :----------------: | :--------------------------------: | :---------------------: |
-|      examples      |             PPO, TRPO              |        DQN, DDPG        |
-|    sampled from    |           current policy           |    arbitrary policy     |
-|    exploration     |                yes                 |           no            |
+|      examples      |             PPO, GRPO              |        DQN, DDPG        |
+|    sampled from    |           current policy           |    behavior policy     |
+| data exploration   |    controlled by current policy    | controlled by behavior policy |
 |  infra efficiency  | low (needs to generate new sample) |          high           |
-| training stability |              unstable              |       more stable       |
+| training stability | sensitive to policy update size     | sensitive to distribution shift |
 |    compute cost    |                high                |           low           |
-|      best for      |       exploration is needed        | reused past experiences |
+|      best for      | fresh rollout and direct policy optimization | reusing past or external data |
+
+目前，主流针对 LLM 的 RL 算法基本都是
 
 ### Objective
 
-我们的目标与前面一致，仍然是最大化累计奖励，问题形式为
+我们的目标与前面一致，仍然是[最大化 return](#rl_objective), 问题形式为
 
 $$
-\max_{\pi}\mathcal{J}(\theta)=\mathbb{E}_{\tau\sim(p_0,\pi_\theta, p)}\left[G_0(\tau)\right]
+\max_{\pi}\mathcal{J}(\theta)=\mathbb{E}_{\tau\sim\pi_\theta}\left[G_0(\tau)\right]
 $$
 
-我们先来证明目标函数有几种不同的等价形式
 
 ### Policy Gradient Theorem
 
-我们首先将采集到的轨迹数据 $\tau$ 进行展开
+我们先来求解目标函数的梯度，梯度由下面的 policy gradient theorem 给出。
+
+<Theorem title='Policy Gradient Theorem' id='policy_gradient_theorem'>
+
+目标函数 [最大化 return](#rl_objective) 的梯度为
 
 $$
-\tau = (s_0,a_0,r_0,\dots,s_{T-1}, a_{T-1}, r_{T-1}, s_T)
+\nabla_\theta \mathcal{J}(\theta) = \mathbb{E}_{\tau\sim\pi_\theta}\left[ \sum_{t=0}^{T-1}\nabla_\theta\log\pi_\theta(a_t\mid s_t)G_0(\tau)\right]
 $$
 
-$\tau$ 的概率分布可以写为
+</Theorem>
+
+<Theorem variant='proof'>
+
+由 [trajectory definition](#trajectory_def), trajectory $\tau$ 的概率分布可以写为
 
 $$
 p_\theta(\tau) = p_0(s_0)\prod_{t=0}^{T-1} p(r_t,s_{t+1}\mid s_t,a_t)\pi_\theta(a_t\mid s_t)
@@ -69,18 +81,22 @@ $$
 
 $$
 \begin{aligned}
-\nabla_\theta \mathcal{J}(\theta)&=\nabla_\theta\mathbb{E}_{\tau\sim(p_0,\pi_\theta, p)}\left[G_0(\tau)\right]\\
+\nabla_\theta \mathcal{J}(\theta)&=\nabla_\theta\mathbb{E}_{\tau\sim\pi_\theta}\left[G_0(\tau)\right]\\
 &= \sum_\tau G_0(\tau)\nabla_\theta p_\theta(\tau)\\
 &= \sum_\tau G_0(\tau)p_\theta(\tau)\sum_{t=0}^{T-1}\log\pi_\theta(a_t\mid s_t) \\
-&= \mathbb{E}_{\tau\sim(p_0,\pi_\theta, p)}\left[ \sum_{t=0}^{T-1}\nabla_\theta\log\pi_\theta(a_t\mid s_t)G_0(\tau)\right]
+&= \mathbb{E}_{\tau\sim\pi_\theta}\left[ \sum_{t=0}^{T-1}\nabla_\theta\log\pi_\theta(a_t\mid s_t)G_0(\tau)\right]
 \end{aligned}
 $$
 
-这就是 policy gradient theorem 的表达式。
+证毕。
+
+</Theorem>
+
+注意 policy gradient theorem 将梯度也写成了期望的形式，这方面我们使用 MC 方法来进行估计和优化。
 
 ### Vanilla Policy Gradient Methods
 
-令
+接下来，我们介绍最简单的 policy gradient methods, 令
 
 $$
 \hat{g} := \sum_{t=0}^{T-1}\nabla_\theta\log\pi_\theta(a_t\mid s_t)G_0(\tau)

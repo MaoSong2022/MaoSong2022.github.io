@@ -1,180 +1,43 @@
-import Image from "../../../components/Image.astro";
-import FullWidth from "../../../components/FullWidth.astro";
-import Definition from "../../../components/Definition.astro";
 import Note from "../../../components/Note.astro";
 
-import RL4LLM_process from "../../../assets/image/RL-process.png";
 
-## RL Basics
 
-RL 的基本思想是让 agent 通过与环境交互，学习到最优策略。
+## Introduction
+
+
+本文围绕一个核心问题展开：
 
 <Note variant="info">
 
-强化学习是一个通过构建可以与环境进行交互的 agent 来解决控制和决策任务的学习框架，交互的方式为 agent 执行 action, 然后环境给予反馈。
+我们是如何使用强化学习来提高大语言模型的能力上限的？
 
 </Note>
 
-RL 的执行过程如下所示
+为了解决这个问题，我们需要回答：
 
-<Image src={RL4LLM_process} alt="The RL process (source from Sutton)" />
+1. 强化学习是如何建模的？
+2. 强化学习有哪些算法？哪些强化学习算法适用/不适用于大语言模型？这些算法背后的原理是什么？
+3. 现代大语言模型使用的强化学习算法是什么？
 
-RL 的数学建模依赖于 Markov Decision Process, 下面我们先介绍相关概念。
+我们将按照下面的学习路径组织：
 
-### Markov Decision Process (MDP)
+1. **Foundations**： 我们将从基本的 [定义](#rl-basics) (MDP, return) 出发，建立 LLM generation 与 RL 的对应关系，再用 [Bellman Equation](#bellman-equation-theorem) 将长期回报转化为递推问题。
+2. **Evaluation and Improvement**： 这一部分，我们先回答“当前 policy 有多好” ([policy evaluation](#policy-evaluation)), 再介绍 [value-based methods](#value-based-methods), 该部分会解释为什么 Q-learning/DQN 对理解 RL 很重要，但通常不是优化 LLM policy 的最终选择。
+3. **Policy Optimization**： 这一部分，我们从 [policy gradient methods](#policy-based-methods) 逐步过渡到 [actor-critic methods](#actor-critic-methods), 在这个过程中，我们将逐步优化 policy model 和 value model 的训练与使用。这也是后续 PPO 算法的核心。
+4. **Modern RL Algorithms for LLM**： 我们将从 [TRPO](#trpo) 开始, 逐步介绍 [PPO](#ppo), [GRPO](#grpo) 所做的改进，到这一步，我们就接触到了现代 RL 算法的核心部分。
 
-<Definition term='Markov Decision Process'>
+前两部分建立后续推导所需的共同语言；如果读者已经熟悉经典 RL，可以先阅读
+[LLM as an MDP](#connection-with-llm)，再从 [Policy Evaluation](#policy-evaluation)
+进入算法主线。
 
-MDP 是一个可以用于描述强化学习的数学模型，形式化为：
+### Course materials
 
-1. **状态 (State)**: $s_t \in \mathcal{S}$, $\mathcal{S}$ 为状态空间。
-2. **动作 (Action)**: $a_t \in \mathcal{A}$, $\mathcal{A}$ 为动作空间。
-3. **奖励 (Reward)**: $r_t \in \mathbb{R}$，环境对 agent 执行动作 $a_t$ 的反馈。
-4. **终止时间 (Terminal Time)**: $T$，且定义 $s_T = \langle\text{term}\rangle$ 为终止状态。
-5. **初始状态分布 (Initial State)**: $s_0 \sim p_0$.
-6. **状态转移概率 (Transition Probability)**: $(r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)$.
-7. **马尔可夫性 (Markov Property)**:
+- [Video series (bilibili)](https://space.bilibili.com/188482974/lists/7902575?type=season)
+- [Slides and code (Github)](https://github.com/MaoSong2022/LLM-Systems-Tutorial)
 
-$$
-\htmlId{markov_property}{\begin{equation}
-  p(s_{t+1} \mid s_t, a_t, \ldots) = p(s_{t+1} \mid s_t, a_t),\ p(r_t \mid s_t, a_t, \ldots) = p(r_t \mid s_t, a_t).
-\end{equation}}
-$$
+### Acknowledgements
 
-</Definition>
+这个 tutorial 主要参考了以下两位老师的课程和材料：
 
-为了简化，我们采用以下约定：
-
-1. 当 $r_t$ 完全由 $(s_t,a_t)$ 决定时，记为 $r_t = r(s_t, a_t)$.
-2. 假设状态转移函数是平稳的 (stationary), 即 $p_t(r,s'\mid s,a) = p(r,s'\mid s,a)$.
-3. $a_t$ 由策略 $\pi$ 决定，确定性策略记为 $a_t = \pi(s_t)$, 随机策略记为 $a_t \sim \pi(\cdot \mid s_t)$.
-4. 通常我们使用神经网络表示策略，即 $\pi = \pi_\theta$, 其中 $\theta$ 为网络参数。
-5. 我们用 $S_t$, $A_t$ 代表 $t$ 时刻的状态和动作，这是一个随机变量，用 $S_t=s_t$, $A_t=a_t$ 代表当前状态为 $s_t$， 当前动作为 $a_t$.
-
-### Trajectory
-
-接下来，我们介绍 trajectory, 也就是 RL 算法所需要的数据的定义
-
-<Definition term='Trajectory'>
-
-Trajectory (rollout) 定义为 agent 与环境完整的一次交互过程：
-
-$$
-\tau = (s_0, a_0, r_0, s_1, a_1, r_1, \ldots, s_{T-1}, a_{T-1}, r_{T-1}, s_T)
-$$
-
-其概率分布为
-
-$$
-p(\tau \mid s_0, \pi, p) = p_0(s_0) \prod_{t=0}^{T-1} \pi(a_t \mid s_t) \, p(r_t, s_{t+1} \mid s_t, a_t)
-$$
-
-</Definition>
-
-<Note variant="info">
-- 轨迹的概率分布由初始状态分布、策略以及环境模型共同决定，记为 $\tau \sim (p_0, \pi, p)$.
-- 轨迹的概率分布使用了 [Markov property](#markov_property).
-- 本教程仅考虑 finite horizon MDP, 即 $T < \infty$.
-</Note>
-
-### Expected Return
-
-接下来，我们介绍 RL 算法的优化目标。
-
-<Definition term='Expected Return'>
-
-Expected (discounted) return 定义为：
-
-$$
-R(\tau) = \sum_{t=0}^{T-1} \gamma^t r_t
-$$
-
-其中 $\gamma \in (0, 1]$ 是 **discount factor**, 用于将未来的奖励折现到当前时刻。
-
-我们还会使用另一个符号 $G_0$ 来表示 expected return：
-
-$$
-G_t = \sum_{s=t}^{T-1} \gamma^s r_s
-$$
-
-$G_t$ 存在如下递推关系：
-
-$$
-G_t = r_t + \gamma G_{t+1}
-$$
-
-易知
-
-$$
-R(\tau) = G_0
-$$
-
-</Definition>
-
-### Objective of RL
-
-<Note variant="info">
-  **Reward Hypothesis**: 所有的目标都可以被描述为最大化 expected return.
-</Note>
-
-RL 的最终目标为最大化 expected return, 形式化为：
-
-$$
-\htmlId{rl_objective}{\begin{equation}
-\max_{\pi} \quad \mathbb{E}_{\tau \sim (p_0, \pi, p)} \, R(\tau) = \max_{\pi} \quad \mathbb{E}_{\tau \sim (p_0, \pi, p)} \left[ \sum_{t=0}^{T-1} \gamma^t r_t \right]
-\end{equation}}
-$$
-
-这里期望 $\mathbb{E}^\pi$ 对应的随机变量为 $a_t \sim \pi(\cdot \mid s_t)$, $(r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)$.
-
-由于实际问题中，初始状态$s_0$ 和状态转移函数 $p$ 一般保持不变，因此我们一般省略目标函数中的 $s_0$ 和 $p$, 将问题简化为
-
-$$
-\max_{\pi} \quad \mathbb{E}_{\tau\sim\pi} \, R(\tau)
-$$
-
-### Connection with LLM
-
-这一节我们介绍如何用 RL 的定义来理解 LLM, LLM 的定义如下：
-
-$$
-y_t \sim \mathrm{LLM}(\cdot \mid y_{<t}, x)
-$$
-
-其中 $x$ 是输入的 prompt, $y_{<t}$ 是已经生成的部分，$y_t$ 是下一个要生成的 token.
-
-RL 和 LLM 的对应关系如下 [@shen2026firstprinciplesderivationllmpolicy]：
-
-|                 RL                  |                  LLM                  |             Description             |
-| :---------------------------------: | :-----------------------------------: | :---------------------------------: |
-|         initial state $s_0$         |                  $x$                  |               prompt                |
-|             state $s_t$             |             $(y_{<t}, x)$             |     prompt and generated prefix     |
-|      policy $\pi(a_t\mid s_t)$      |  $\mathrm{LLM}(y_t \mid y_{<t}, x)$   | next token prediction distribution  |
-|            action $a_t$             |                 $y_t$                 | next token selected from vocabulary |
-|          trajectory $\tau$          |             $(y_{1:T},x)$             |    complete prompt-response pair    |
-|          Return $R(\tau)$           |               $R(x,y)$                |   reward model or verifier score    |
-| transition $P(s_{t+1}\mid s_t,a_t)$ | $s_{t+1} = \mathrm{concat}(y_t, s_t)$ | deterministic string concatenation  |
-
-对于 LLM, 我们有
-
-- action $a_t$ = token index $y_t$ $\Rightarrow$ Action space = vocabulary of the LLM
-- state $s_t$ = context $(y_{<t}, x)$ $\Rightarrow$ State space = all possible contexts of the LLM
-
-| 模型类别 |     模型名称      |   词表大小    |
-| :------: | :---------------: | :-----------: |
-| 商业闭源 |       GPT-5       | $\sim$200,000 |
-|          | Claude Sonnet 3.7 | $\sim$100,000 |
-|          |    Gemini 3.0     | $\sim$256,144 |
-| 主流开源 |      Qwen 3       |    151,936    |
-|          |    DeepSeek-V3    |    129,280    |
-|          |   MiniMax-M2.5    |    200,064    |
-|          |       GLM-5       |    154,880    |
-
-可以看到，LLM 中，action space ($|V|$) 非常大，state space ($|V|^T$) 更大。
-
-### Takeaway
-
-- RL 的基础是 MDP, 其核心假设是 Markov property, 即未来的状态和奖励只与当前状态和动作有关，与历史无关。
-- RL 通过 Reward Hypothesis, 将目标转化为最大化 expected return.
-- 从 RL 角度看，LLM 本身是一个 policy, 其初始状态为 prompt, 动作空间为 vocabulary 中的 token index, 奖励由多方面给定，environment 仅对 token 进行简单拼接。
-- 虽然 action space 和 state space 是离散的，但是其数量级非常大，因此我们通常使用函数逼近来近似 value function 和 Q-function.
+- 西湖大学赵世钰老师的 [Mathematical Foundations of Reinforcement Learning](https://sites.google.com/site/shiyuzhaohomepage/opencourse)
+- UCLA Ernest K. Ryu 老师的 [Reinforcement Learning of Large Language Models](https://ernestryu.com/courses/RL-LLM.html)
