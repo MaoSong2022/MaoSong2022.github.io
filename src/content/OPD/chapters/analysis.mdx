@@ -46,10 +46,11 @@ $$
 这样，OPD 等价于下面的 policy optimization problem:
 
 $$
-\mathcal{L}_{OPD}(\theta) = \mathbb{E}_{x\sim\mathcal{D},y\sim\pi_{\theta}}\left[\frac{1}{|y|}\sum_{t=1}^{|y|}A_{OPD,t}\log\pi_\theta(y_t\mid y_{<t}, x)\right]
+\mathcal{L}_{OPD}(\theta) = \mathbb{E}_{x\sim\mathcal{D},y\sim\pi_{\theta}}\left[\sum_{t=1}^{|y|}A_{OPD,t}\log\pi_\theta(y_t\mid y_{<t}, x)\right]
 $$
 
 基于上面这个目标函数，我们可以用 RL 的实现来进行 OPD 的训练。
+实际计算中，和 PPO 一样，我们会对 Advantage 进行 clip.
 
 ### Unified Framework
 

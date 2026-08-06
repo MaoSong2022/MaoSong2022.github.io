@@ -2,7 +2,7 @@
 
 这一节我们介绍当前一些针对 OPD 的改进以及工业级应用。
 
-### Mechanism and Optimization
+### Mechanism
 
 为什么 OPD 的 student model 会超过 teacher model:
 
@@ -18,13 +18,23 @@ MiMo-V2-Flash [@MiMo-V2-Flash]
 
 但是在 OPD 中，学生模型倾向于从输出差异比较大的那些 'pivot token' 中进行学习，因此，一小部分 token 占据了大部分的 training signal.
 
-[@li2026rethinkingonpolicydistillationlarge] 发现 teacher model 并不是越强越好，teacher model 和 student model 差距过大会导致两者的 distribution gap 很大难以跨越。
+[@li2026rethinkingonpolicydistillationlarge;@MOPD] 发现 teacher model 并不是越强越好，teacher model 和 student model 差距过大会导致两者的 distribution gap 很大难以跨越。
 
 [@jiang2026trajectoryrefineddistillation] 发现一旦 student model 输出了一个错误的 token, teacher model 便很难纠正这个错误的路径。
 
-发现对于 OPSD, 因为教师模型有更多的 priviledge information, student model 学习到的是通用的解决问题的方法，对于特定任务，student model 可能会随着训练进行逐渐丧失这些能力，也就是 thinking collapse.
+发现对于 OPSD, 因为教师模型有更多的 privilege information, student model 学习到的是通用的解决问题的方法，对于特定任务，student model 可能会随着训练进行逐渐丧失这些能力，也就是 thinking collapse.
 
 发现由于 OPD 提供了细粒度的 supervision signal, student model 会产生 thinking collapse.
+
+### Optimization
+
+MOPD [@MOPD] 认为 OPD advantage 仅使用了采样 token 的概率来计算 KL divergence, 这会导致较大的方差，因此作者使用了 teachers' topK token 来进行计算，最终的损失函数为
+
+$$
+\mathcal{L}_{OPD}(\theta) = \mathbb{E}_{x\sim\mathcal{D},y\sim\pi_{\theta}(\cdot\mid x)}\left[\frac{1}{|y|}\sum_{t=1}^{|y|}\sum_{v\in\mathcal{T}_{t}}\pi_{\theta}(v)\left(\log\frac{\pi_{\theta}(v)}{\pi_{T}(v)}-1-\frac{\pi_{\theta}(v)}{\pi_{T}(v)}\right)\right]
+$$
+
+这里 $\mathcal{T}_t=\mathrm{TopK}(\pi_{T}(\cdot\mid x, y_{<t}))$ 是教师模型在位置 $t$ 出的 topK token 的概率。KL divergence 使用了 [k3 estimator](https://maosong.website/blog/kl-divergence/#reverse-kl-estimation).
 
 ### MOPD
 
@@ -67,6 +77,8 @@ Mach-Mind-4-Flash [@Mach-Mind-4-Flash] 将 teacher models 分为了三类
 | Reasoning | Math, Code,STEM                  |
 | General   | IF, Writing, Safe                |
 | Agentic   | Code, Tool Use, DeepSearch, Claw |
+
+Nemotron-3-Super 和 MOPD 尝试进行 multi-round MOPD 来提高模型的表现，实验发现 MOPD 可以持续提高教师模型的表现。
 
 ### OPSD
 
