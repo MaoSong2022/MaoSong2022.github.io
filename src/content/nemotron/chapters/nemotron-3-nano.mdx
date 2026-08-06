@@ -1,11 +1,119 @@
+import HtmlEmbed from "../../../components/HtmlEmbed.astro";
+
 ## Nemotron 3 Nano
 
-Nvidia 在 25 年 12 月发布了 Nemotron 3 Nano [@Nemotron3Nano]
+Nvidia 在 25 年 12 月发布了 Nemotron 3 Nano [@Nemotron3Nano], 一个基于 Mamba-2 [@Mamba-2] 和 GQA [@GQA] 混合注意力，以及 MoE 架构的大语言模型。
+其中，MoE 模块包含 128 个专家，激活 6 个专家，参数量为 31.6B-A3.2B.
+
+### Architecture
+
+Nemotron 3 Nano 的架构基于 Nemotron-H 和 Nemotron 2 Nano,
 
 ### Data
 
+#### Pre-training Data
+
+Pre-training data 包括以下几个部分：
+
+1. Nemotron-CC-Code-v1: 基于 Nemotron-CC-Math pipeline 构建了高质量 code pre-training corpus, 使用了 Lynx + LLM pipeline 来进行过滤和优化，最终包含 428B tokens.
+2. Nemotron-Pretraining-Code-v2: 基于 [Nemotron 2 Nano](#namotron-2-nano) 从 Github 构建了 source-code corpus. 还基于 Nemotron-H 的策略使用 Qwen3-32B 来合成 QA pairs. 作者还是用了 code-rewriting 来提高代码数据的质量
+3. Nemotron-CC-v2.1: 基于 Nemotron-CC recipe 来构建 CC web crawl data, 加入了 2.1T 新 token.
+4. Nemotron-Pretraining-Specialized-v1: 包括 Wikipedia, Math Textbook, Scientific Coding, cross-domain code, STEAM reasoning 和一些 SFT 风格的数据，作者使用了 Nemo Data Designer 来实现 data generation pipeline.
+
+最终，pre-training 2 个 phase 的数据配比如下图所示，其中 phase 1 的数据占比为 $94\%$.
+
+<HtmlEmbed
+  src="embeds/d3-pie-domain.html"
+  title="Nemotron 3 Nano Pre-training Phase 1"
+  data="nemotron-3-nano-pretraining-phase-1.json"
+/>
+
+<HtmlEmbed
+  src="embeds/d3-pie-domain.html"
+  title="Nemotron 3 Nano Pre-training Phase 2"
+  data="nemotron-3-nano-pretraining-phase-2.json"
+/>
+
+#### SFT
+
+SFT 阶段的数据包含以下部分：
+
+1. math and code: 基于 Nemotron 2 Nano
+2. tool use
+3. long context: 128k
+4. formal proof: 基于社区数据，包含 300k samples
+5. multilingual: 基于 Nemotron 2 Nano
+6. terminal use: 基于 Terminal Bench 构造，作者还使用了 SWE-Smith 的数据
+7. general chat: LMSYS 和 WildChat
+8. instruction following: 基于 Tulu3 和 IFEval, IFBench
+9. safety: Nemotron Content Safety v2, Gretel Safety Alignment v1, Harmful Tasks 和 Red-Team-2K
+10. SWE: 使用 SWE-Gym 和 R2E-Gym 数据集，基于 OpenHands, SWE-Agent 和 Mini-SWE-Agent 来蒸馏轨迹
+11. Science: 基于 Nemotron 2 Nano
+12. GenSelect
+13. CUDA: 基于 HuggingFace Transformers 和 Kernelbook 进行合成
+
+最终 SFT 阶段一共包括 **18M samples**, 数据配比如下图所示
+
+<HtmlEmbed
+  src="embeds/d3-pie-domain.html"
+  title="Nemotron 3 Nano SFT"
+  data="nemotron-3-nano-sft.json"
+/>
+
+为了提高模型的动态思考能力，作者采用了与 Nemotron 2 Nano 类似的方法：将 $10\%$ reasoning 数据的 CoT 丢弃掉，将 $3\%$ reasoning 数据根据不同的 reasoning budget 进行截断。
+
+#### RL
+
+作者使用了 unified RL 的训练方式，数据包括：
+
+- math: DAPO [@DAPO] 和 Skyworks math, 分别有 17K tasks 和 104K tasks
+- coding: OpenCodeReasoning, 22K tasks
+- QA: 135K tasks
+- structured output: 9k tasks, 提高模型的 json schema adherence 能力
+- instruction following: 基于 IFEval 和 IFBench, 46K tasks
+- long context: multi-document QA, 32k context length, 12K tasks
+- agentic tool use: 包含两个个环境，一个是 multi-step verifiable tool-calling env, 使用了 Workplace Assistance, 26 tools, 690 tasks. 另一个是 multi-turn env, 包含 1k tasks.
+
+RLHF 的训练数据主要来原始 HelpSteer3
+
 ### Training
+
+#### Pre-training
+
+Pre-training 阶段作者使用了 Warm-Stable-Decay learning rate (8.4B warmup, 20T stable, 5T decay), context length 为 8192, batch size 为 3072.
+
+与 [Nemotron 2 Nano](#namotron-2-nano) 一致，作者加入了一个 long-context phase 来提高模型的长上下文能力，该阶段的数据配比为, document QA: long context data: phase 2 data = 20: 1: 79. 这个阶段使用了 121B tokens.
 
 #### Post-training
 
+Post-training 分为 SFT 和 RL 两个阶段。
+作者将 reasoning flow 进行了如下修改：
+
+1. 对于 multi-step 场景，保留模型的 reasoning token
+2. 对于 multi-turn 场景，一旦用户输入了新的内容，则会将之前的 reasoning content 丢弃掉
+
+这个上下文管理方式与 DeepSeek-V3.2 一致。
+
+对于工具调用，作者使用了 XML 风格的 tags 来减少 character escaping.
+
+RL 阶段训练时，作者使用了 LLaMA-Nemotron 动态调整问题难度的方法。作者将 pass-rate 建模为一个 Gaussian function, 随训练进行逐渐调整问题难度。
+
+RL 的算法为 synchronous GRPO 算法，作者还是用了 MIS 来解决训练推理不一致性。
+
+对于 RLHF, 作者使用了 GenRM 来训练 reward model. 训练时的 reward 包括 ranking difference, helpfulness score, format score.
+
+训练时，作者提出了 group relative length control 机制来减少 redundant thinking.
+
+作者还提出了 PTQ 来进行量化，作者发现基于 post-training reasoning SFT dataset 来进行 calibration 效果更好。
+
+作者通过实验发现，self-attention layers 最敏感，因此作者使用了 BF16 精度。对于 model weights, activations, KV cache, 作者使用了 FP8 精度。
+
 ### Infra
+
+RL 的训练基于 Nemo RL 和 Nemo Gym.
+
+### Experiments
+
+- 第一个结果是 RLVR 的上限要比 SFT 更高
+- 第二个结果是 FP8 quantization 的表现与 BF16 精度表现差不多
+- FP8 KV cache 对 throughput 提升最明显，其他的 quantization 均会损害模型的性能

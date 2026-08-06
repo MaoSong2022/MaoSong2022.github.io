@@ -1,0 +1,43 @@
+{
+    "title": "Nemotron-3 Nano SFT",
+    "total": 1.0,
+    "type": "percentage",
+    "domains": [
+        {
+            "name": "Math",
+            "percentage": 4.9
+        },
+        {
+            "name": "Math w/ Tools",
+            "percentage": 4.9
+        },
+        {
+            "name": "Code",
+            "percentage": 3.0
+        },
+        {
+            "name": "SWE",
+            "percentage": 2.0
+        },
+        {
+            "name": "Conversational Agent",
+            "percentage": 2.0
+        },
+        {
+            "name": "Chat",
+            "percentage": 28.6
+        },
+        {
+            "name": "Multilingual",
+            "percentage": 7.4
+        },
+        {
+            "name": "Formal Proofs",
+            "percentage": 2.0
+        },
+        {
+            "name": "GenSelect",
+            "percentage": 3.0
+        }
+    ]
+}

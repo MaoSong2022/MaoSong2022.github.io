@@ -1,0 +1,47 @@
+{
+    "title": "Nemotron-3 Nano Pretraining Phase 2",
+    "total": 1.0,
+    "type": "percentage",
+    "domains": [
+        {
+            "name": "crawl-medium-high",
+            "percentage": 6.5
+        },
+        {
+            "name": "crawl-high",
+            "percentage": 20.4
+        },
+        {
+            "name": "syn-crawl-high",
+            "percentage": 12.5
+        },
+        {
+            "name": "math",
+            "percentage": 1.3
+        },
+        {
+            "name": "general-sft",
+            "percentage": 0.4
+        },
+        {
+            "name": "multilingual",
+            "percentage": 5.0
+        },
+        {
+            "name": "academic",
+            "percentage": 2.0
+        },
+        {
+            "name": "code",
+            "percentage": 14.0
+        },
+        {
+            "name": "stem-sft",
+            "percentage": 22.3
+        },
+        {
+            "name": "syn-crawl-high",
+            "percentage": 6.7
+        }
+    ]
+}
