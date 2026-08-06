@@ -208,7 +208,13 @@
 
       function render(data) {
         const { inner } = updateSize();
-        const domains = data.domains.map(d => d.name);
+        const dataType = String(data.type || 'count').toLowerCase();
+        const isPercentage = dataType === 'percentage';
+        const valueKey = isPercentage ? 'percentage' : 'count';
+        const values = (Array.isArray(data.domains) ? data.domains : [])
+          .map(d => ({ name: String(d.name || 'Unknown'), value: Number(d[valueKey]) }))
+          .filter(d => Number.isFinite(d.value) && d.value > 0);
+        const domains = values.map(d => d.name);
         const getColors = (n) => { try { if (window.ColorPalettes && typeof window.ColorPalettes.getColors === 'function') return window.ColorPalettes.getColors('categorical', n); } catch (_) { } return (window.d3 && d3.schemeTableau10) ? d3.schemeTableau10.slice(0, n) : ['#4e79a7', '#f28e2b', '#e15759', '#76b7b2', '#59a14f', '#edc948', '#b07aa1', '#ff9da7', '#9c755f', '#bab0ab'].slice(0, n); };
         const palette = getColors(domains.length);
         const color = d3.scaleOrdinal().domain(domains).range(palette);
@@ -216,8 +222,13 @@
 
         makeLegend(domains, colorOf);
 
-        const values = data.domains.map(d => ({ name: d.name, value: d.count })).filter(d => d.value > 0);
-        const total = data.total || d3.sum(values, d => d.value);
+        const valueSum = d3.sum(values, d => d.value);
+        const declaredTotal = Number(data.total);
+        const total = isPercentage
+          ? (Number.isFinite(declaredTotal) && declaredTotal > 0 ? (declaredTotal <= 1 ? declaredTotal * 100 : declaredTotal) : valueSum)
+          : (Number.isFinite(declaredTotal) && declaredTotal > 0 ? declaredTotal : valueSum);
+        const ratioOf = value => isPercentage ? value / valueSum : value / total;
+        const formatValue = value => isPercentage ? `${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}%` : value.toLocaleString();
 
         const radius = Math.max(60, Math.min(inner, 120));
         const innerR = Math.round(radius * DONUT_INNER_RATIO);
@@ -233,14 +244,14 @@
           .attr('stroke-width', 1)
           .attr('data-domain', d => d.data.name)
           .on('mouseenter', (ev, d) => {
-            const pct = (d.data.value / total) * 100;
+            const pct = ratioOf(d.data.value) * 100;
             container.classList.add('hovering');
             gRoot.selectAll('path.slice').classed('ghost', s => (s && s.data && s.data.name) !== d.data.name);
             try { const items = legend.querySelectorAll('.item'); items.forEach(it => it.classList.toggle('ghost', it.dataset.domain !== d.data.name)); } catch (_) { }
             const colorSw = colorOf(d.data.name);
             tipInner.innerHTML = `<div style="display:flex;align-items:center;gap:8px;white-space:nowrap;"><span class=\"swatch\" style=\"background:${colorSw}\"></span><strong>${d.data.name}</strong></div>` +
-              `<div>Examples</div>` +
-              `<div style="display:flex;align-items:center;gap:6px;white-space:nowrap;"><strong>Count</strong><span style="margin-left:auto;text-align:right;">${d.data.value.toLocaleString()} (${pct.toFixed(1)}%)</span></div>`;
+              `<div>${isPercentage ? 'Data mixture' : 'Examples'}</div>` +
+              `<div style="display:flex;align-items:center;gap:6px;white-space:nowrap;"><strong>${isPercentage ? 'Percentage' : 'Count'}</strong><span style="margin-left:auto;text-align:right;">${formatValue(d.data.value)}${isPercentage ? '' : ` (${pct.toFixed(1)}%)`}</span></div>`;
             tip.style.opacity = '1';
           })
           .on('mousemove', (ev) => { const [mx, my] = d3.pointer(ev, container); tip.style.transform = `translate(${Math.round(mx + 12)}px, ${Math.round(my + 12)}px)`; })
@@ -258,15 +269,15 @@
         // Center total text
         gRoot.selectAll('.center-total').remove();
         gRoot.selectAll('.center-label').remove();
-        gRoot.append('text').attr('class', 'center-total').attr('dy', -8).text(total.toLocaleString());
-        gRoot.append('text').attr('class', 'center-label').attr('dy', 12).text('examples');
+        gRoot.append('text').attr('class', 'center-total').attr('dy', -8).text(formatValue(total));
+        gRoot.append('text').attr('class', 'center-label').attr('dy', 12).text(isPercentage ? 'mixture' : 'examples');
 
         // Percentage labels (>= 3%)
-        const labels = gRoot.selectAll('text.slice-label').data(pieData.filter(d => (d.data.value / total) >= 0.03), d => d.data.name);
+        const labels = gRoot.selectAll('text.slice-label').data(pieData.filter(d => ratioOf(d.data.value) >= 0.03), d => d.data.name);
         labels.enter().append('text').attr('class', 'slice-label').attr('text-anchor', 'middle')
           .merge(labels)
           .attr('transform', d => `translate(${arcLabel.centroid(d)})`)
-          .text(d => `${((d.data.value / total) * 100).toFixed(1)}%`);
+          .text(d => isPercentage ? formatValue(d.data.value) : `${(ratioOf(d.data.value) * 100).toFixed(1)}%`);
         labels.exit().remove();
       }
 
