@@ -1,6 +1,7 @@
 {
   "title": "DCVLM",
   "total": 3900000000,
+  "type": "count",
   "domains": [
     {
       "name": "Chart & Table",
