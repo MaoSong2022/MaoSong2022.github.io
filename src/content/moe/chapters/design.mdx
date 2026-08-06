@@ -202,10 +202,26 @@ hash routing 的优势是可以完美保持负载均衡，但是其缺陷在于�
 
 ### Upcycling
 
-upsampling 是一个将 dense model 转化为 MoEmodel 的方法，具体做法就是我们复制 dense model 中的 FFN layer 得到对应 MoE layer 中的 Expert，然后我们再结合 router 训练，这样可以提高整体的训练效率。相关模型有 MiniCPM [@MiniCPM], Qwen1.5 [@Qwen1.5] 和 Mixtral MoE[@jiang2024mixtralexperts] (疑似)
+upsampling 是一个将 dense model 转化为 MoEmodel 的方法，具体做法就是我们复制 dense model 中的 FFN layer 得到对应 MoE layer 中的 Expert，然后我们再结合 router 训练，这样可以提高整体的训练效率。
+相关模型有 MiniCPM [@MiniCPM], Qwen1.5 [@Qwen1.5] 和 Mixtral MoE[@jiang2024mixtralexperts] (疑似)
 
 OLMoE [@OLMoE] 给出的实验结果如下图所示
 
 <Image src={olmoe_sparse_upcycling} alt="Olmoe sparse upcycling" />
 
-从已有的结果来看，MoE 模型会被 dense 模型的一些超参数所限制，且训练不是很稳定。因此，现在一般不采用这种方法
+从已有的结果来看，MoE 模型会被 dense 模型的一些超参数所限制，且训练不是很稳定。
+因此，现在一般不采用这种方法
+
+### LatentMoE
+
+LatentMoE [@LatentMoE] 是 NVIDIA 提出的一个 软硬件结合的 MoE 架构。
+
+在原始的 MoE 架构中，一次计算中，我们需要执行一次 All-to-All Dispatch 和一次 All-to-All Combine
+
+最终 LatentMoE 架构的定义如下所示
+
+$$
+\mathrm{LatentMoE}(x) = W_{\mathrm{up}}\left(\sum_{i\in\mathcal{T}}\mathrm{Normalize}(G_{e_i}(x)) E_{e_i}\left(W_{\mathrm{down}}x\right)\right)
+$$
+
+其中 $W_{\mathrm{down}}\in\mathbb{R}^{\ell\times d}$ $W_{\mathrm{up}}^{d\times \ell}$, $\ell<d$ 是 latent space dimension.
