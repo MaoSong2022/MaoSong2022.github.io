@@ -36,6 +36,8 @@ $$
 
 这里 $\mathcal{T}_t=\mathrm{TopK}(\pi_{T}(\cdot\mid x, y_{<t}))$ 是教师模型在位置 $t$ 出的 topK token 的概率。KL divergence 使用了 [k3 estimator](https://maosong.website/blog/kl-divergence/#reverse-kl-estimation).
 
+为了避免 [training-inference mismatch](https://maosong.website/blog/train_inference_mistahch/), Nemotron Cascaded 2 [@Nemotron-Cascade2] 使用了 TIS 策略。
+
 ### MOPD
 
 MOPD (Multi-teacher On Policy Distillation) [@MOPD] 在 OPD 的基础上使用了多个专家来指导学生模型，每个 teacher model 可以单独进行训练和优化，降低了 pipeline RL 或者 multi-task RL 训练优化的难度，现在已经称为了大模型后训练的一个主流范式。
