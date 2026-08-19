@@ -21,40 +21,6 @@
 3. MOPD
 4. model merging
 
-## Related Work
-
-### Analysis
-
-[@wang2026mix] 探究了对于 multi-domain RL 训练，是 multi-task RL 训练范式好还是 model merging 效果更好，作者使用了 Qwen3-4B 作为训练模型来进行实验，数据集为 [Nemotron 3 Nano](https://maosong.website/blog/nemotron/#nemotron-3-nano), 包含以下四个 domain:
-
-| domain                | dataset                    |
-| --------------------- | -------------------------- |
-| math                  | DAPO;skyworks              |
-| coding                | CodeContests; Open-R1      |
-| Science               | OpenScienceReasoning-2     |
-| instruction following | WildChat-1M; Open-Instruct |
-
-结果：
-
-1. multi-task RL 比 model merging 效果更好
-2. 不同领域的权重偏移有相似性，佐证了跨领域的相互影响
-3. 如果两个领域的专家模型比较相近，则 model merging 可以提高表现
-4. model merging 继承单任务模型原有的能力，与原有模型一致性较高
-5. multi-task RL 与单任务训练有较大分歧，表现出更强的探索能力
-6. RLVR 会自然诱导模型产生自我判别能力，即使没有明确的奖励模型监督
-
-结论：multi-task RL 可以有效提高模型的泛化能力
-
-### Models
-
-| Paradigm      | models                             |
-| ------------- | ---------------------------------- |
-| Multi-task RL | Qwen3                              |
-| CasCaded RL   | Nemotron-cascade, Nemotron-3-Super |
-| MOPD          | MiMo-V2, DeepSeek-V4               |
-| SFT           | GLM-5.4                            |
-| model merge   |                                    |
-
 GLM-5 [@GLM5], DeepSeek-V4 [@DeepSeek-V4] 和 MiMo-V2-Flash [@MiMo-V2-Flash] 将 MOPD 作为 post-training 的最后一个阶段来进行 consolidation
 
 Nemotron-cascade [@Nemotron-cascade] 采用了 cascaded RL 策略，作者认为 multi-task RL 在训练时，由于不同 domain 的数据 rollout 长度， verification 时间不一致，最终训练效率会比较低。
@@ -67,39 +33,13 @@ Nemotron-cascade2 [@Nemotron-Cascade2] 才了一个混合策略，对于前后�
 1. 模型的泛化性没有明显下降
 2. rollout 的长度和 verification 时间基本差不多
 
-对于 MOPD, Nemotron-cascade2 使用了三个教师模型，包括 math teacher, RLHF teacher, multi-domain teacher.
+对于 MOPD, Nemotron-cascade2 [@Nemotron-Cascade2] 使用了三个教师模型，包括 math teacher, RLHF teacher, multi-domain teacher.
 
-## Comparison:
+不同方法使用的合版策略如下表所示
 
-| method        | Cascaded RL | multi-task RL  | MOPD   | model merging |
-| ------------- | ----------- | -------------- | ------ | ------------- |
-| forgetting    | yes         | no             | no     | yes           |
-| training cost | high        | extremely high | medium | low           |
-
-training cost [@wang2026mix]
-
-| Methods    | batch size | #rollout | #step | GPU Hours |
-| ---------- | ---------- | -------- | ----- | --------- |
-| Math       | 128        | 16       | 400   | 4782.3    |
-| Coding     | 128        | 16       | 400   | 6404.4    |
-| Science    | 128        | 16       | 400   | 1140.8    |
-| IF         | 128        | 16       | 400   | 1180.0    |
-| Agent      | 128        | 16       | 400   | 2271.0    |
-| Multi-Task | 128        | 16       | 1000  | 10050.6   |
-| MT-OPD     | 256        | 4        | 200   | 967.9     |
-
-## Unified RL
-
-## Model Merging
-
-Qwen3-4B [@wang2026mix]
-
-| Methods   | AIME'24 | AIME'25 | LCB v5 | LCB v6 | HLE  | GPQA-D | IFEval (strict) | IFBench | MMLU-Redux | Avg.  |
-| :-------- | :------ | :------ | :----- | :----- | :--- | :----- | :-------------- | :------ | :--------- | :---- |
-| Average   | 66.72   | 61.82   | 60.35  | 53.71  | 5.93 | 53.03  | 81.70           | 39.80   | 79.72      | 55.86 |
-| SCE       | 71.93   | 66.93   | 58.02  | 50.29  | 6.58 | 58.46  | 88.17           | 50.68   | 79.95      | 59.00 |
-| Ties      | 71.67   | 66.72   | 57.80  | 53.14  | 5.70 | 56.19  | 89.83           | 53.74   | 79.91      | 59.41 |
-| Ties+DARE | 71.35   | 67.71   | 57.08  | 50.86  | 6.35 | 55.05  | 89.09           | 52.38   | 79.93      | 58.87 |
-| TA        | 74.27   | 67.29   | 50.58  | 45.14  | 6.02 | 55.56  | 85.40           | 58.16   | 78.19      | 57.85 |
-| TA+DARE   | 75.26   | 67.55   | 57.08  | 48.00  | 6.12 | 55.05  | 88.72           | 53.74   | 78.63      | 58.91 |
-| MT-OPD    | 71.41   | 65.00   | 57.50  | 53.14  | 6.44 | 56.82  | 90.76           | 54.08   | 78.19      | 59.26 |
+| Paradigm      | models                             |
+| ------------- | ---------------------------------- |
+| Multi-task RL | Qwen3                              |
+| CasCaded RL   | Nemotron-cascade, Nemotron-3-Super |
+| MOPD          | MiMo-V2, DeepSeek-V4               |
+| SFT           | GLM-5.4                            |
