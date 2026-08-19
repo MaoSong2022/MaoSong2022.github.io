@@ -1,4 +1,5 @@
 import Image from "../../../components/Image.astro";
+import Accordion from "../../../components/Accordion.astro";
 
 import moe_ep_pipeline from "../../../assets/image/MoE-EP-pipeline.png";
 
@@ -6,32 +7,85 @@ import moe_ep_pipeline from "../../../assets/image/MoE-EP-pipeline.png";
 
 SonicMoE [@SonicMoE] 和 LatentMoE [@LatentMoE] 基于 [roofline model](https://maosong.website/blog/performance-and-scalability/) 从 memory 和 communication 两个方面对 MoE 模型进行了分析.
 与 [roofline model](https://maosong.website/blog/performance-and-scalability/) 一致，我们使用 $T_{\mathrm{mem}}$ 和 $T_{\mathrm{comm}}$ 分别代表 GPU 的内存访问 (HBM) 和 GPU 通信 (NVLink) 效率。
-我们还假设负载均衡，即每个专家处理的 token 个数是一致的，使用与 [load balancing](#load-balancing) 相同的记号，则每个专家处理的 token 个数为 $BK/N$.
-MoE module 我们使用 SwiGLU FFN.
+我们还假设负载均衡，即每个专家处理的 token 个数是一致的，使用与 [load balancing](#load-balancing) 相同的记号，则每个专家处理的 token 个数为 $n=BK/N$.
+MoE module 我们使用 SwiGLU FFN, 其代码如下所示
 
-### Memory Analysis
+<Accordion title="MoE Experts Implementation">
+
+```python
+class Qwen3MoeExperts(nn.Module):
+    """Collection of expert weights stored as 3D tensors."""
+
+    def __init__(self, config):
+        super().__init__()
+        self.num_experts = config.num_experts
+        self.hidden_dim = config.hidden_size
+        self.intermediate_dim = config.moe_intermediate_size
+        self.gate_up_proj = nn.Parameter(torch.empty(self.num_experts, 2 * self.intermediate_dim, self.hidden_dim))
+        self.down_proj = nn.Parameter(torch.empty(self.num_experts, self.hidden_dim, self.intermediate_dim))
+        self.act_fn = ACT2FN[config.hidden_act]
+
+    def forward(
+        self,
+        hidden_states: torch.Tensor,
+        top_k_index: torch.Tensor,
+        top_k_weights: torch.Tensor,
+    ) -> torch.Tensor:
+        final_hidden_states = torch.zeros_like(hidden_states)
+        with torch.no_grad():
+            expert_mask = torch.nn.functional.one_hot(top_k_index, num_classes=self.num_experts)
+            expert_mask = expert_mask.permute(2, 1, 0)
+            expert_hit = torch.greater(expert_mask.sum(dim=(-1, -2)), 0).nonzero()
+
+        for expert_idx in expert_hit:
+            expert_idx = expert_idx[0]
+            if expert_idx == self.num_experts:
+                continue
+            top_k_pos, token_idx = torch.where(expert_mask[expert_idx])
+            current_state = hidden_states[token_idx]
+            gate, up = nn.functional.linear(current_state, self.gate_up_proj[expert_idx]).chunk(2, dim=-1)
+            current_hidden_states = self.act_fn(gate) * up
+            current_hidden_states = nn.functional.linear(current_hidden_states, self.down_proj[expert_idx])
+            current_hidden_states = current_hidden_states * top_k_weights[token_idx, top_k_pos, None]
+            final_hidden_states.index_add_(0, token_idx, current_hidden_states.to(final_hidden_states.dtype))
+
+        return final_hidden_states
+```
+
+</Accordion>
+
+对应的计算为
+
+$$
+\begin{aligned}
+    H_e &= \mathrm{up\_projection}(x)=xW_{\mathrm{up}}\\
+    A_e &= \mathrm{SwiGLU}(H_e)\\
+    Y_e &= \mathrm{down\_projection}(A_e) = A_eW_{\mathrm{down}}
+\end{aligned}
+$$
+
+### Roofline Analysis
 
 假设精度为 $p$, 则 expert 部分的计算开销为
 
 $$
-C_{\mathrm{exp}} = p * BK/N * 3 * d * d_{ff}
+C_{\mathrm{exp}} = p * n * 3 * d * d_{ff}
 $$
 
-单个 expert 的内存读/存数据包括 weights, inputs, activation, 总的内存访问量为
+up projection 部分的内存访问量为 $p * n * d + p * 2 * d * d_{ff} + p * n * d_{ff}$, 分别代表读取输入，读取权重和保存输出，注意由于算子优化，这里的输出指的是 $A_e$ 而不是 $H_e$.
+同理 down projection 部分的内存访问量为 $p * n * d_{ff} + p * d * d_{ff} + p * n * d$, 从而总的内存访问量为
 
 $$
-M_{\mathrm{exp}} = p * 3 * d * d_{ff} + p * BK/N * d + p * (d+3m)
+M_{\mathrm{exp}} = 2 * p * n * d + 3 * p * d * d_{ff} + 2 * p * n * d_{ff}
 $$
-
-其中，gate 和 up projection 的 activation 为 $p*2m$, SwiGLU 的 activation 为 $p*m$, down projection 的 activation 为 $p*d$.
 
 因此 Arithmetic Density 为
 
 $$
-I = \frac{C_{\mathrm{exp}}}{M_{\mathrm{exp}}} = \frac{BK/N * 3 * d * d_{ff}}{3 * d * d_{ff}+BK/N * d+d+3m}
+I = \frac{C_{\mathrm{exp}}}{M_{\mathrm{exp}}} = \frac{p * n * 3 * d * d_{ff}}{2 * p * n * d + 3 * p * d * d_{ff} + 2 * p * n * d_{ff}}=\frac{3}{\frac{2}{d_{ff}}+\frac{3}{n}+\frac{2}{d}}
 $$
 
-### Communication Analysis
+对于固定的 model size 来说， $d$ 和 $d_{ff}$ 一般是常数，因此，当我们提升 granularity, 即增大 $d/n$ 时，MoE module 的 arithmetic intensity 会降低
 
 针对 MoE 模型的 infra 主要涉及 expert parallelism (EP), EP 将 MoE layer 的计算分为了三个阶段：
 
@@ -42,3 +96,17 @@ $$
 其框架图如下所示
 
 <Image src={moe_ep_pipeline} alt="Pipeline of Expert Parallelism (EP)" />
+
+这样，每个 GPU 接收和发送 $n$ 个 token, 对应的通信量为
+
+$$
+p_1 * n * d + p_2 * n * d = (p_1 + p_2) * n * d
+$$
+
+这里 $p_1$ 和 $p_2$ 分别代表 dispatch 和 combine 时的精度，比如 DeepSeek-V3 [@DeepSeek-V3] 使用了 FP8 精度进行 dispatch, BF16 精度进行 combine.
+
+这样，MoE module 的 arithmetic intensity (communication) 就是
+
+$$
+I_{comm} = \frac{p * n * 3 * d * d_{ff}*K}{(p_1 + p_2) * n * d} = \frac{3*K*p*d_{ff}}{p_1+p_2}
+$$
