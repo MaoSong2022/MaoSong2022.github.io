@@ -1,0 +1,71 @@
+{
+    "title": "Nemotron-3 Super Pretraining Phase 1",
+    "total": 1.0,
+    "type": "percentage",
+    "domains": [
+        {
+            "name": "crawl-medium",
+            "percentage": 1.8
+        },
+        {
+            "name": "crawl-medium-high",
+            "percentage": 5.7
+        },
+        {
+            "name": "crawl-high",
+            "percentage": 6.5
+        },
+        {
+            "name": "syn-crawl-high",
+            "percentage": 22.4
+        },
+        {
+            "name": "math",
+            "percentage": 6.4
+        },
+        {
+            "name": "wiki",
+            "percentage": 0.6
+        },
+        {
+            "name": "code",
+            "percentage": 14.0
+        },
+        {
+            "name": "academic",
+            "percentage": 1.7
+        },
+        {
+            "name": "code-sft",
+            "percentage": 3.3
+        },
+        {
+            "name": "stem-sft",
+            "percentage": 11.1
+        },
+        {
+            "name": "general-sft",
+            "percentage": 0.2
+        },
+        {
+            "name": "multilingual",
+            "percentage": 5.0
+        },
+        {
+            "name": "crawl++",
+            "percentage": 1.8
+        },
+        {
+            "name": "nemotron-cc-code",
+            "percentage": 2.1
+        },
+        {
+            "name": "syn-crawl-medium-high",
+            "percentage": 11.3
+        },
+        {
+            "name": "finepdfs",
+            "percentage": 6.1
+        }
+    ]
+}

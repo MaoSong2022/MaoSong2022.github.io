@@ -1,0 +1,98 @@
+import HtmlEmbed from "../../../components/HtmlEmbed.astro";
+
+## Nemotron 3 Super
+
+NVIDIA 在 2026年 4 月 提出了 Nemotron 3 Super, 一个基于 Mamba-2 [@Mamba-2] 和 GQA [@GQA] 混合注意力，以及 MoE 架构的大语言模型。
+其中，MoE 模块包含 512 个专家，激活 24 个专家，参数量为 120B-A12B.
+
+相比于 Nemotron 3 Nano, Nemotron 3 Super 主要有三点改进：
+
+1. 基于 [NVFP4](https://maosong.website/blog/low-precision/#nvfp4) 精度进行预训练
+2. MoE 架构采用了 [LatentMoE](https://maosong.website/blog/moe/#latentmoe)
+3. 使用了 MTP 来实现 speculative decoding
+
+### ArchitectUre
+
+### Data
+
+#### Pre-training Data
+
+预训练数据在 [Nemotron 3 Nano](#nemotron-3-nano) 的基础上额外增加了
+
+1. code concepts, 基于 HumanEval 提取 91 code concepts, 然后使用 GPT-oss 来生成相应的编程问题，得到 14M problems, 再生成多样化的答案，得到 23M problem-solution pairs, 最后对数据进行过滤得到 15M problems.
+2. unconditional algorithmic data, 作者使用一些简单的问题来让模型生成 leetcode 风格的问题以及答案，最终得到 0.2B tokens
+3. economics, 合成了一批 MCQ 数据
+4. formal logic
+5. MCQ, 合成了 3.5M MMLU-style 的 MCQ samples, 大约有 1.6B tokens.
+
+最终，pre-training 2 个 phase 的数据配比如下图所示，其中 phase 1 的数据占比为 $80\%$.
+
+<HtmlEmbed
+  src="embeds/d3-pie-domain.html"
+  title="Nemotron 3 Super Pre-training Phase 1"
+  data="nemotron-3-super-pretraining-phase-1.json"
+/>
+
+<HtmlEmbed
+  src="embeds/d3-pie-domain.html"
+  title="Nemotron 3 Super Pre-training Phase 2"
+  data="nemotron-3-super-pretraining-phase-2.json"
+/>
+
+#### Post-training Data
+
+SFT 阶段的数据也基于 Nemotron 3 Nano
+
+1. SWE, 从 SWE-Gym, R2E-Gym 和 SWE-rebench 数据集中收集 issue, 使用 Qwen3-Coder 在 Openhands agent harness 中来收集轨迹
+2. agentic programming, NeMo Data Designer 收集 20k queries, 使用 GPT-oss 120b 过滤任务，得到 15k tasks, 增加了 3k 的 SWE 相关任务和 10k web development 相关任务
+3. long context, concatenate documents 并合成 multi-hop reasoning QA
+4. financial reasoning, 565 seed questions
+5. CUDA, 100K samples
+6. safety, 在 Nemotron 3 Nano 的基础上使用了一个两阶段的 response
+7. search, 基于 wikidata knowledge graph, 然后合成 search problems
+8. terminal use, 基于 Nemotron-Terminal 合成了 84k samples.
+9. SQL, 96.5k records
+10. conversational tool use, 279k samples
+11. general tool use, 1.5M samples
+
+最终 SFT 阶段包括 7M samples, 80B tokens, 其中 stage 1 占比 $85\%$, 数据配比如下所示
+
+<HtmlEmbed
+  src="embeds/d3-pie-domain.html"
+  title="Nemotron 3 Super SFT"
+  data="nemotron-3-super-sft.json"
+/>
+
+### Training
+
+#### Pre-training
+
+作者在预训练阶段探究了使用 model merge 来提高模型的表现，结果发现在 WSD stable stage, 使用 model merge 可以有效提高模型的表现，但是在 decay stage, model merge 的效果提升有限。
+
+在 Phase 2 结果之后，与 [Nemotron 3 Nano](#nemotron-3-nano) 一样，作者也加入了一个 long-context phase, 训练数据中 QA 数据占比 $20\%$, 来源于 LC data, 其余 $80\%$ 来自 phase 2 data, 最终一共训练了 17B tokens.
+
+#### Post-traning
+
+Post-training 分为 SFT, RL, MTP healing 三个阶段。
+
+在 SFT 阶段，作者将训练分为了两个 phase, 其中, phase 1 主要是提高模型的 reasoning 能力， phase 2 用于提高模型的对话质量，防止出现过长的输出。
+
+phase 1 的损失函数为 token level NLL loss:
+
+$$
+\mathcal{L}_{tok} = \frac{\sum_{c\in\mathcal{B}}\sum_{t\in\mathcal{O}_c}\ell_t}{\sum_{c\in\mathcal{B}}|\mathcal{O}_c|}
+$$
+
+phase 2 的损失函数为 sample level NLL loss:
+
+$$
+\mathcal{L}_{sam} = \frac{1}{|\mathcal{B}|}\sum_{c\in\mathcal{B}}\sum_{t\in\mathcal{O}_c}\frac{1}{|\mathcal{O}_c|}\ell_t
+$$
+
+其中 $\mathcal{B}$ 为 global batch, $\mathcal{O}_c$ 为 response token, $\ell_t=-\log p_{\theta}(y_t\mid x,y_{<t})$ 为 NLL loss.
+
+训练时，作者使用了三个 reasoning modes: reasoning-off, regular 和 low-effort, reasoning-off samples 通过 strip CoT 得到。
+
+RL 的训练
+
+### Performance
