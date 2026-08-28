@@ -1,0 +1,7 @@
+## FP4
+
+[@nvidia2026pretraininglargelanguagemodels] 首先提出了应用 FP4 精度来进行预训练
+
+Nemotron 3 [@Nemotron3] 随后基于 NVFP4 精度进行完整的 pre-training, post-training 过程
+
+Nemotron 3 Super [@Nemotron3Super] 发现，使用 NVFP4 精度进行预训练会导致模型会将一些较小的值给 underflow 到 0, 但是最终模型 zero-value weight numbers 和 BF16 精度训练出来的模型基本一致。

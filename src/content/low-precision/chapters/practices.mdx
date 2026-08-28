@@ -1,0 +1,13 @@
+## Practices
+
+Nemotron 3 Super [@Nemotron3Super]
+
+| Layer Type                               | Format | Rationale                                                                                             |
+| ---------------------------------------- | ------ | ----------------------------------------------------------------------------------------------------- |
+| All Linear Layers Unless Otherwise Noted | NVFP4  |                                                                                                       |
+| Final 15% of Network                     | BF16   | Promote training stability at scale                                                                   |
+| Latent Projections                       | BF16   | Strategically kept in BF16 as step-time impact is negligible                                          |
+| MTP Layers                               | BF16   | Preserves multi-token prediction capabilities                                                         |
+| QKV & Attention Projections              | BF16   | Maintain fidelity of few attention layers                                                             |
+| Mamba Output Projection                  | MXFP8  | Mitigates high incidence of underflows observed when quantizing this layer to NVFP4 at smaller scales |
+| Embedding Layers                         | BF16   |
