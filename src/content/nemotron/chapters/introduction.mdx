@@ -6,3 +6,29 @@
 - Nemotron Nano
 - Nemotron 3 Nano
 - AceReason-nemotron
+
+| Model            | Year    | Parameters | Attention   | FFN        | Training Tokens |
+| ---------------- | ------- | ---------- | ----------- | ---------- | --------------- |
+| Nemotron 3 Nano  | 2025.12 | 30B-A3B    | GQA + Mamba | MoE        | 25T             |
+| Nemotron 3 Super | 2026.04 | 120B-A12B  | GQA + Mamba | Latent MoE | 25T             |
+| Nemotron 3 Ultra | 2026.6  | 550B-A55B  | GQA + Mamba | Latent MoE | 20T             |
+
+架构细节如下表所示
+
+| Model               | Nemotron 3 Nano | Nemotron 3 Super | Nemotron 3 Ultra |
+| ------------------- | --------------- | ---------------- | ---------------- |
+| num layers          | 52              | 88               | 108              |
+| hidden size         | 2688            | 4096             | 8192             |
+| num attention heads | 32              | 32               | 64               |
+| num key-value heads | 2               | 2                | 2                |
+| head dim            | 128             | 128              | 128              |
+| mamba state dim     | 128             | 128              | 128              |
+| mamba groups        | 8               | 8                | 8                |
+| mamba heads         | 64              | 128              | 256              |
+| mamba head dim      | 64              | 64               | 64               |
+| expert hidden size  | 1856            | 2688             | 5120             |
+| total experts       | 128             | 512              | 512              |
+| activated experts   | 6               | 22               | 22               |
+| shared experts      | 2               | 2                | 2                |
+| MoE latent size     | -               | 1024             | 2048             |
+| MTP layers          | -               | 2                | 2                |
