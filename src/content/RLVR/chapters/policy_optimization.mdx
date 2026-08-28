@@ -123,3 +123,13 @@ Ring-Zero [@Ring-Zero] 在 1T 的模型上对比了 GRPO, DAPO, CISPO 和 GSPO, 
 />
 
 试验结果说明，相比于 vanilla GRPO, CISPO 和 DAPO 可以有效降低 all-failed group ratio, 但是相应地，训练稳定性变得更差，CISPO 会导致 entropy collapse.
+
+### REINFORCE
+
+Nemotron-cascade [@Nemotron-cascade] 和 Nemotron-cascade2 [@Nemotron-Cascade2] 采取了 strict on-policy 的训练策略，其训练目标函数如下
+
+$$
+\mathcal{J}(\theta) = \mathbb{E}_{(q,a)\sim\mathcal{D},\{o_i\}_{i=1}^G\sim \pi_{\theta}(\cdot\mid q)}\left[ \frac{1}{\sum_{t=1}^G|o_i|}\sum_{i=1}^G\sum_{t=1}^{|o_i|}\hat{A}_{i,t}\right]
+$$
+
+其中 $\hat{A}_{i,t}$ 与 GRPO 的定义一致
