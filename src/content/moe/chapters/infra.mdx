@@ -110,3 +110,8 @@ $$
 $$
 I_{comm} = \frac{p * n * 3 * d * d_{ff}*K}{(p_1 + p_2) * n * d} = \frac{3*K*p*d_{ff}}{p_1+p_2}
 $$
+
+从上面的分析我们可以看到：
+
+1. 对于 low-latency inference 场景，MoE 模型是 memory-bound, 受 expert weights loading 限制，因此主要影响因素为 $d$ 和 $d_{ff}$
+2. 对于 high-throughput inference 场景，MoE 模型是 communication bound, 受 all-to-all routing 限制，因此主要影响因素为 $d$ 和 $K$
