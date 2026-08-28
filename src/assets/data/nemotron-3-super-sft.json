@@ -1,0 +1,27 @@
+{
+    "title": "Nemotron-3 Super SFT",
+    "total": 1.0,
+    "type": "percentage",
+    "domains": [
+        {
+            "name": "Agent",
+            "percentage": 36.0
+        },
+        {
+            "name": "Reasoning",
+            "percentage": 31.0
+        },
+        {
+            "name": "Chat",
+            "percentage": 23.0
+        },
+        {
+            "name": "Long Context",
+            "percentage": 8.0
+        },
+        {
+            "name": "Misc",
+            "percentage": 2.0
+        }
+    ]
+}
