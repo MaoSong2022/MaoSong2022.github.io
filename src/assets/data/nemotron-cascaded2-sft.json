@@ -1,0 +1,59 @@
+{
+    "title": "Nemotron-Cascade2 SFT",
+    "total": 29.255,
+    "type": "count",
+    "domains": [
+        {
+            "name": "Math w/o Tools",
+            "count": 2.6
+        },
+        {
+            "name": "Math w/ Tools",
+            "count": 1.8
+        },
+        {
+            "name": "Math Proof",
+            "count": 0.8
+        },
+        {
+            "name": "Code",
+            "count": 4.0
+        },
+        {
+            "name": "Science",
+            "count": 2.7
+        },
+        {
+            "name": "Long Context",
+            "count": 0.234
+        },
+        {
+            "name": "Code",
+            "count": 4.0
+        },
+        {
+            "name": "Chat",
+            "count": 10.5
+        },
+        {
+            "name": "Instruction Following",
+            "count": 0.79
+        },
+        {
+            "name": "Safety",
+            "count": 0.004
+        },
+        {
+            "name": "Conversational Agent",
+            "count": 0.82
+        },
+        {
+            "name": "SWE",
+            "count": 0.514
+        },
+        {
+            "name": "Terminal Agent",
+            "count": 0.49
+        }
+    ]
+}
