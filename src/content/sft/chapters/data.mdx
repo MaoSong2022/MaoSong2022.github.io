@@ -1,5 +1,23 @@
+import HtmlEmbed from "../../../components/HtmlEmbed.astro";
+
 ## Data
+
+MOPD [@MOPD] sft dataset:
+
+- Math: Mixture-of-thoughts, BigMath, ORZ
+- Instruction Following: IFBench
+- SWE: R2E-Gym
 
 ### Data Quality
 
 Ring-Zero [@Ring-Zero] 提出了使用 Comprehensibility, Reproducibility 和 Efficiency 来评估 CoT 的质量。
+
+### Dataset
+
+Nemotron-Cascade-2-SFT-data [@Nemotron-Cascade2] 的数据配比如下图所示
+
+<HtmlEmbed
+  src="embeds/d3-pie-domain.html"
+  title="Nemotron-Cascade-2 SFT data mixture"
+  data="nemotron-cascaded2-sft.json"
+/>
