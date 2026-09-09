@@ -1,0 +1,23 @@
+{
+    "title": "Nemotron-3 Ultra SFT",
+    "total": 40,
+    "type": "count",
+    "domains": [
+        {
+            "name": "Science Reasoning",
+            "count": 23.5
+        },
+        {
+            "name": "Math Reasoning",
+            "count": 9.45
+        },
+        {
+            "name": "Code Reasoning",
+            "count": 4.05
+        },
+        {
+            "name": "General",
+            "count": 3.0
+        }
+    ]
+}

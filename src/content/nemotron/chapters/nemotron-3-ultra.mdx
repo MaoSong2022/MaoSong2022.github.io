@@ -1,1 +1,113 @@
+import HtmlEmbed from "../../../components/HtmlEmbed.astro";
+
 ## Nemotron 3 Ultra
+
+NVIDIA 在 26 年 6 月提出了 Nemotron 3 Ultra [@Nemotron3Ultra], 一个 550B-A55B 的 MoE 大语言模型，Nemotron 3 其他模型一样，attention 也采取了 mamba-softmax 的 hybrid 架构
+
+### Architecture
+
+Nemotron 3 Ultra 和 Nemotron 3 Super 的架构基本一致，
+
+### Data
+
+#### Pre-training Data
+
+1. code: 作者新增了 173B tokens
+2. MCQ: 足者新增了 Nemotron-Pretraining-Multiple-Choice 和 Nemotron-Pretraining-Generative 两个与 MCQ 和 open ended QA 相关的数据集
+3. Fact seeking: 作者基于 Finewiki 构建了 fact seeking 数据
+4. Moral Scenarios
+5. Legal
+
+最终，pre-training 阶段两个 phase 的数据配比如下图所示
+
+<HtmlEmbed
+  src="embeds/d3-pie-domain.html"
+  title="Nemotron 3 Ultra Pre-training Phase 1"
+  data="nemotron-3-ultra-pretraining-phase-1.json"
+/>
+
+<HtmlEmbed
+  src="embeds/d3-pie-domain.html"
+  title="Nemotron 3 Ultra Pre-training Phase 2"
+  data="nemotron-3-ultra-pretraining-phase-2.json"
+/>
+
+#### Post-training Data
+
+**SFT**
+SFT 阶段，作者使用 GPT-OSS-120B 的 medium-effort mode 以及随机 truncate reasoning traces 来构建动态思考数据。
+作者还基于 OpenResearcher 构建了 **21.7K** search SFT data.
+
+对于 terminal use, 作者基于 OpenCodeReasoning, OpenMathReasoning, SWE-Bench, SWE-Fixer-Train-110K, SWE-rebench 构建了 seed instructions, 然后基于 Nemotron-Cascade 和 DeepSeek-V3.2 合成了一批 task, 最后基于 harbor 来生成轨迹。通过这个流程，做和手机到了 **370K** multi-turn conversations.
+
+对于 SWE 任务，作者基于 SWE-Gym, R2E-Gym, SWE-rebench, SWE-rebench-V2 来构建数据集，然后使用 MiniMax-M2.5 (thinking) 和 Qwen3-Coder-480B-A35B-instruct 来在 OpenHands, SWE-agent, mini-swe-agent 和 Opencode 这些 harness 中收集轨迹。
+轨迹收集完之后，作者基于 submission integrity, disallowed git operations, edit test loop anti patterns, lost-in exploration, tool-call hygiene, debug-artifact detection in the final patch 这些策略来过滤数据
+
+对于 math reasoning, 作者使用了 Nemotron-Cascade-2 的数据，对于 non-proof math data, 作者收集了 1.8M tool-calling, 1.9M non-tool calling; 对于 proof data, 作者从 Nemotron-Math-Proofs-v1 的 AOPS split.
+
+对于 code, 作者基于 Nemotron-Cascade-2, 使用 GPT-OSS-120B 来收集轨迹，最终得到了 1.2M python, 1.0M C++14, 1.3M python tool-calling reasoning traces.
+
+对于 CUDA, 作者构建了包含 100K samples 的数据集；对于 RTL, 作者构建了 1.2M training samples
+
+最终，SFT 阶段数据共包含 **40B** token, 配比如下图所示
+
+<HtmlEmbed
+  src="embeds/d3-pie-domain.html"
+  title="Nemotron 3 Ultra SFT (B)"
+  data="nemotron-3-ultra-sft.json"
+/>
+
+### Training
+
+#### Pre-training
+
+Pre-training 时, Nemotron 3 Ultra 使用了 NVFP4 进行训练，为了提高训练稳定性和表现，作者将最后 15% 的网络使用更高精度进行训练。
+
+训练时，作者使用了两阶段的数据编排策略，前 75% 的 token 主要关注 diversity, 后 25% 的数据主要关注 quality.
+
+作者发现，使用低精度进行预训练存在如下问题：
+
+1. 在使用 MTP 进行预训练时，如果采用低精度，MTP block 的 `wgrad` 对 shared output layer 几乎没有贡献，这严重影响了训练稳定性，因此作者采用了 FP32 gradient reduction 来解决这个问题
+2. MoE experts 的 load balance 可能与训练不稳定性有关，通过观测 experts 的负载可以分析模型训练是否崩溃。
+
+预训练结束之后，作者还加入了一个 long context phase, 将模型的 context length 提升到 1M.
+并行策略为 32CP+8TP+128EP+2PP.
+
+long context data 由合成数据与 phase 2 data 融合得到，最后 8% iterations 作者使用 4k context length 来进行训练避免模型短文本能力缺失。
+
+#### Post-training
+
+Nemotron 3 Ultra 的 post-training 包含：SFT, RLVR, MOPD, MTP boosting 四个阶段
+
+SFT 阶段包括 2 个 phase:
+
+1. phase 1, context length 294k, 204K samples
+2. phase 2, context length 512k, 19K samples
+
+MOPD 训练阶段，作者采用了 async MOPD 的实现方式，另采样策略为 $\pi_{\mathrm{behav}}$, 参照策略为 $\pi_{\mathrm{prox}}$ [@AReaL], $T_i$ 为 prompt $q$ 对应的 domain expert, 则对应的 importance sampling ratio 和 advantage 分别为
+
+$$
+\hat{A}_t =\mathrm{sg}\left[\log \frac{\pi_{T_i}(y_t|mid q, y_{<t})}{\pi_{\mathrm{prox}}(y_t|mid q, y_{<t})}\right], r_t(\theta) = \frac{\pi_{\theta}(y_t|mid q, y_{<t})}{\pi_{\mathrm{prox}}(y_t|mid q, y_{<t})}
+$$
+
+最终损失函数为
+
+$$
+\mathcal{L}(\theta) = \mathbb{E}_{q\sim\mathcal{D}_i,y\sim\pi_{\mathrm{behav}}}\left[\sum_{t=1}^Tm_tc_t\min\left(r_t(\theta)\hat{A}_t,\mathrm{clip}(r_t(\theta),1-\epsilon,1+\epsilon)\hat{A}_t\right)\right]
+$$
+
+其中 $m_t$ 时 IcePop 的 token-level masking [@IcePop].
+
+接下来是 experts 的训练：
+
+1. SWE teacher: SFT, single-turn RL (PivotRL), multi-turn RL
+2. Office teacher: 基于 GDPval 构建任务
+3. Search teacher: 主要使用了 discard-all resets 和 summary-based compression 两种 context management 策略
+4. Code reasoning teacher: 14K competition problems, 4k OpenCodeReasoning problems
+
+最终，一共训练得到了 10 多个 experts, 部分 experts 会基于训练出来的 student 重新初始化进行第二轮 experts 的训练。
+
+在 MOPD 训练过程中，作者发现直接进行 MOPD 效果比较差，作者猜测原因是不同的教师模型 SFT 训练数据不同，因此其行为也各不相同。
+为了解决这个问题，作者提出了 MOPD warmup, 也就是在对应 domain 的 OPD 训练之前，先进行轻量化的 SFT, 来对齐学生和教师的输出分布。
+
+最后，作者提出了 MTP boosting 来解决 MTP 的训练推理不一致性问题，具体做法就是冻结 backbone, 只训练 MTP heads, 每个 head 的输入都从 MTP heads 输出的 hidden states 中随机进行选取，来模仿 inference 阶段不完整的上下文。
