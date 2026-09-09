@@ -9,9 +9,30 @@ NVIDIA 在 2026年 4 月 提出了 Nemotron 3 Super, 一个基于 Mamba-2 [@Mamb
 
 1. 基于 [NVFP4](https://maosong.website/blog/low-precision/#nvfp4) 精度进行预训练
 2. MoE 架构采用了 [LatentMoE](https://maosong.website/blog/moe/#latentmoe)
-3. 使用了 MTP 来实现 speculative decoding
+3. 使用了 [MTP](https://maosong.website/blog/speculative_decoding/#mtp) 来实现 speculative decoding
 
-### ArchitectUre
+### Architecture
+
+Nemotron 3 Super 的 Attention 采用了 Mamba 和 GQA 的混合架构，FFN 采用了 LatentMoE 架构。
+与其他主流模型一致，MTP 也被用于提高 decoding 效率
+
+关于 LatentMoE, 详情见 [LatentMoE](https://maosong.website/blog/moe/#latentmoe).
+
+针对 MTP, Nemotron 3 Super 主要提出了在不同的 MTP heads 之间共享参数来实现变长 speculative decoding 的目标，实验结果发现模型的 acceptance length 比 DeepSeek-R1 [@DeepSeek-R1] 和 Qwen3-Next [@Qwen3-Next] 高。
+
+关于 attention, Nemotron 3 Super 将 GQA 作为 global anchor 来提高模型的上下文交互能力
+
+不同模块的精度如下表所示
+
+| Layer Type                               | Format | Rationale                                                                                             |
+| ---------------------------------------- | ------ | ----------------------------------------------------------------------------------------------------- |
+| All Linear Layers Unless Otherwise Noted | NVFP4  |                                                                                                       |
+| Final 15% of Network                     | BF16   | Promote training stability at scale                                                                   |
+| Latent Projections                       | BF16   | Strategically kept in BF16 as step-time impact is negligible                                          |
+| MTP Layers                               | BF16   | Preserves multi-token prediction capabilities                                                         |
+| QKV & Attention Projections              | BF16   | Maintain fidelity of few attention layers                                                             |
+| Mamba Output Projection                  | MXFP8  | Mitigates high incidence of underflows observed when quantizing this layer to NVFP4 at smaller scales |
+| Embedding Layers                         | BF16   |                                                                                                       |
 
 ### Data
 
@@ -39,6 +60,8 @@ NVIDIA 在 2026年 4 月 提出了 Nemotron 3 Super, 一个基于 Mamba-2 [@Mamb
   data="nemotron-3-super-pretraining-phase-2.json"
 />
 
+最终 Nemotron 3 Super 的预训练使用了 25T token.
+
 #### Post-training Data
 
 SFT 阶段的数据也基于 Nemotron 3 Nano
@@ -62,6 +85,10 @@ SFT 阶段的数据也基于 Nemotron 3 Nano
   title="Nemotron 3 Super SFT"
   data="nemotron-3-super-sft.json"
 />
+
+RLVR 阶段的数据基于 Nemo Gym 合成得到，最终，作者在 37 个不同的数据集和 21个 environments 上进行训练
+
+SWE-RL 阶段，作者使用 OpenHands 来生产 code patch, 为了提高 harness 多样性，作者还在 OpenHands 中实现了 Codex, OpenCode 等 agent.
 
 ### Training
 
@@ -93,6 +120,59 @@ $$
 
 训练时，作者使用了三个 reasoning modes: reasoning-off, regular 和 low-effort, reasoning-off samples 通过 strip CoT 得到。
 
-RL 的训练
+RL 的训练分为了 4 个阶段：1. RLVR; 2. SWE-RL; 3. RLHF; 4. MTP Healing
 
-### Performance
+RLVR 训练时使用了 21 个 environments, 且根据难度进行了过滤。
+训练过程中，作者还加入了 $2\%$ 左右的 low-effort reasoning data 来提高模型的 reasoning efficiency.
+
+SWE-RL 阶段，作者在 OpenHands 中实现了 OpenCode, Codex agent classes 来提高 tool diversity.
+
+RLHF 阶段，与 [Nemotron 3 Nano](#nemotron-3-nano) 一样，作者训练了一个 GenRM model 来提供 supervision.
+
+RL 训练时，作者使用了 async RL, inference engine 的 staleness 设置为 1 step.
+
+作者还使用了 MIS 来解决 [training-inference mismatch](https://maosong.website/blog/train_inference_mistahch/) 问题
+
+在 agentic RL 训练过程中，作者使用了 PivotRL 策略，训练的 domain 包括 agentic programming, search, terminal use 和 conversational use.
+
+RL 的训练基于 Nemo Gym 和 Nemo RL
+
+### Inference
+
+作者使用了 PTQ 来得到 FP8 和 NVFP4 checkpoint, FP8 量化策略如下
+
+| Configuration                                | FP8 Checkpoint | BF16 Baseline |
+| -------------------------------------------- | -------------- | ------------- |
+| Embedding                                    | BF16           | BF16          |
+| Attention GEMM (QKV and Out Projection)      | BF16           | BF16          |
+| KV Cache + Attention BMM1                    | FP8            | FP8           |
+| Attention BMM2                               | BF16           | BF16          |
+| MoE GEMM (Sparse Experts and Shared Experts) | FP8            | BF16          |
+| MoE Latent Projection GEMM                   | BF16           | BF16          |
+| Router                                       | FP32           | FP32          |
+| Mamba GEMM                                   | FP8            | BF16          |
+| Mamba SSM Cache                              | FP16           | FP32          |
+| Mamba 1D Conv                                | BF16           | BF16          |
+| Output Layers                                | BF16           | BF16          |
+
+NVFP4 量化策略如下
+
+以下是根据图片内容转换的 Markdown 表格：
+
+| Configuration                    | AutoQuantize Searched? | NVFP4 Checkpoint   | BF16 Baseline |
+| -------------------------------- | ---------------------- | ------------------ | ------------- |
+| Embedding                        | No                     | BF16               | BF16          |
+| Attention QKV Projection GEMM    | Yes                    | BF16               | BF16          |
+| Attention Output Projection GEMM | Yes                    | FP8 / BF16         | BF16          |
+| KV Cache + Attention BMM1        | No                     | FP8                | FP8           |
+| Attention BMM2                   | No                     | BF16               | BF16          |
+| Sparse Expert (Routed) GEMM      | Yes                    | NVFP4              | BF16          |
+| Shared Expert GEMM               | Yes                    | NVFP4 / FP8 / BF16 | BF16          |
+| MoE Latent Projection GEMM       | Yes                    | FP8 / BF16         | BF16          |
+| Router                           | No                     | FP32               | FP32          |
+| Mamba Projection GEMM            | Yes                    | FP8 / BF16         | BF16          |
+| Mamba 1D Conv                    | No                     | BF16               | BF16          |
+| Mamba SSM Cache                  | No                     | FP16               | FP32          |
+| Output Layers                    | No                     | BF16               | BF16          |
+
+为了提高 decoding 阶段读取 Mamba state cache 的速度，作者在读取/写入 cache 时，使用 FP16 精度，计算时使用 FP32 精度
