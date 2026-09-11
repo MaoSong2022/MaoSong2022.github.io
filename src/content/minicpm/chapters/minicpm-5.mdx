@@ -1,22 +1,25 @@
 import HtmlEmbed from "../../../components/HtmlEmbed.astro";
-import Wide from '../../../components/Wide.astro';
+import Wide from "../../../components/Wide.astro";
 
 ## MiniCPM-5
 
-1.08B parameters, 128K context length
+| Model       | parameters | Attention  | Context Length |
+| ----------- | ---------- | ---------- | -------------- |
+| MiniCPM5-1B | 1.08B      | GQA (16/2) | 128K           |
+| MiniCPM5-2B | 2.5B       | GQA (16/2) | 128K           |
+
+### MiniCPM5-1B
 
 <Wide>
-<HtmlEmbed
-  id="minicpm5-training"
-  src="minicpm5-training.html"
-  title="MiniCPM5-1B Training Pipeline"
-  desc="MiniCPM5-1B Training Pipeline. Sourced from https://huggingface.co/openbmb/MiniCPM5-1B"
-/>
+  <HtmlEmbed
+    id="minicpm5-training"
+    src="minicpm5-training.html"
+    title="MiniCPM5-1B Training Pipeline"
+    desc="MiniCPM5-1B Training Pipeline. Sourced from https://huggingface.co/openbmb/MiniCPM5-1B"
+  />
 </Wide>
 
-### data
-
-pretraining data: Ultra Fineweb, Ultra-fineweb-l3, ultradata-math
+pre-training data: Ultra Fineweb, Ultra-fineweb-l3, ultradata-math
 
 post-training: multi-teacher OPD
 
@@ -32,19 +35,39 @@ RL:
 performance
 
 <Wide>
-<HtmlEmbed
-  id="minicpm5-opd-performance"
-  src="minicpm5-opd-performance.html"
-  title="MiniCPM5-1B Score Gain from RL+OPD"
-  desc="MiniCPM5-1B Score Gain from RL+OPD. Sourced from https://huggingface.co/openbmb/MiniCPM5-1B"
-/>
+  <HtmlEmbed
+    id="minicpm5-opd-performance"
+    src="minicpm5-opd-performance.html"
+    title="MiniCPM5-1B Score Gain from RL+OPD"
+    desc="MiniCPM5-1B Score Gain from RL+OPD. Sourced from https://huggingface.co/openbmb/MiniCPM5-1B"
+  />
 </Wide>
 
 <Wide>
-<HtmlEmbed
-  id="minicpm5-opd-response-length-reduction"
-  src="minicpm5-opd-response-length-reduction.html"
-  title="MiniCPM5-1B overlong response ratio drop from RL+OPD"
-  desc="MiniCPM5-1B overlong response ratio drop from RL+OPD. Sourced from https://huggingface.co/openbmb/MiniCPM5-1B"
-/>
+  <HtmlEmbed
+    id="minicpm5-opd-response-length-reduction"
+    src="minicpm5-opd-response-length-reduction.html"
+    title="MiniCPM5-1B overlong response ratio drop from RL+OPD"
+    desc="MiniCPM5-1B overlong response ratio drop from RL+OPD. Sourced from https://huggingface.co/openbmb/MiniCPM5-1B"
+  />
+</Wide>
+
+## MiniCPM5-2B
+
+MiniCPM5-2B 的数据包括：
+
+1. UltraX, web pre-training dataset
+2. UltraData-Code, coding data
+3. UltraData-SFT-agent-2609, 500K agent training examples
+4. UltraData-RL-2609, 80K RL training examples
+
+作者主要强调了 post-training 过程中的 RL + OPD 训练策略，RL 作者使用了 JustRL II 算法
+
+<Wide>
+  <HtmlEmbed
+    id="minicpm5-2B-training"
+    src="minicpm5-2b-training.html"
+    title="MiniCPM5-2B Training Pipeline"
+    desc="MiniCPM5-2B Training Pipeline. Sourced from https://huggingface.co/openbmb/MiniCPM5-2B"
+  />
 </Wide>
