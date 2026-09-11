@@ -1,0 +1,351 @@
+<div class="minicpm5-2b-training"></div>
+<style>
+  .minicpm5-2b-training {
+    position: relative;
+    max-width: 100%;
+    overflow-x: auto;
+    background: #ffffff;
+  }
+
+  .minicpm5-2b-training .stage-header {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    fill: #002060;
+    text-anchor: middle;
+  }
+
+  .minicpm5-2b-training .flow-line {
+    fill: none;
+    stroke: #0033cc;
+    stroke-width: 1.25px;
+  }
+
+  .minicpm5-2b-training .bracket-line {
+    fill: none;
+    stroke: #0033cc;
+    stroke-width: 1.5px;
+  }
+
+  .minicpm5-2b-training .node-rect {
+    fill: #e6f7ff;
+    stroke: #66b2ff;
+    stroke-width: 1px;
+    rx: 6px;
+    ry: 6px;
+  }
+
+  .minicpm5-2b-training .node-stacked {
+    fill: #e6f7ff;
+    stroke: #66b2ff;
+    stroke-width: 1px;
+    rx: 6px;
+    ry: 6px;
+  }
+
+  .minicpm5-2b-training .node-special {
+    fill: url(#pink-blue-grad-2b);
+    stroke: #66b2ff;
+    stroke-width: 1px;
+    rx: 6px;
+    ry: 6px;
+  }
+
+  .minicpm5-2b-training .dashed-group {
+    fill: none;
+    stroke: #99bbff;
+    stroke-width: 1.25px;
+    stroke-dasharray: 6, 6;
+    rx: 12px;
+    ry: 12px;
+  }
+
+  .minicpm5-2b-training .node-title {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 10.5px;
+    font-weight: 600;
+    fill: #002060;
+    text-anchor: middle;
+  }
+
+  .minicpm5-2b-training .node-subtitle {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 9px;
+    font-style: italic;
+    fill: #0033cc;
+    text-anchor: middle;
+  }
+
+  .minicpm5-2b-training .role-label {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    fill: #002060;
+  }
+</style>
+<script>
+(() => {
+  const ensureD3 = (cb) => {
+    if (window.d3 && typeof window.d3.select === 'function') return cb();
+    let s = document.getElementById('d3-cdn-script');
+    if (!s) {
+      s = document.createElement('script');
+      s.id = 'd3-cdn-script';
+      s.src = 'https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js';
+      document.head.appendChild(s);
+    }
+    const onReady = () => { if (window.d3 && typeof window.d3.select === 'function') cb(); };
+    s.addEventListener('load', onReady, { once: true });
+    if (window.d3) onReady();
+  };
+
+  const bootstrap = () => {
+    const scriptEl = document.currentScript;
+    let container = scriptEl ? scriptEl.previousElementSibling : null;
+    if (!(container && container.classList && container.classList.contains('minicpm5-2b-training'))) {
+      const cs = Array.from(document.querySelectorAll('.minicpm5-2b-training')).filter(el => !(el.dataset && el.dataset.mounted==='true'));
+      container = cs[cs.length-1] || null;
+    }
+    if (!container) return;
+    if (container.dataset) { if (container.dataset.mounted==='true') return; container.dataset.mounted='true'; }
+
+    const width = 1000;
+    const height = 440;
+
+    const svg = d3.select(container)
+      .append("svg")
+      .attr("viewBox", `0 0 ${width} ${height}`)
+      .attr("width", "100%")
+      .style("display", "block");
+
+    const defs = svg.append("defs");
+
+    defs
+      .append("marker")
+      .attr("id", "arrow-2b")
+      .attr("viewBox", "0 0 10 10")
+      .attr("refX", 6)
+      .attr("refY", 5)
+      .attr("markerWidth", 5)
+      .attr("markerHeight", 5)
+      .attr("orient", "auto-start-reverse")
+      .append("path")
+      .attr("d", "M 0 1.5 L 8 5 L 0 8.5 z")
+      .attr("fill", "#0033cc");
+
+    const grad = defs
+      .append("linearGradient")
+      .attr("id", "pink-blue-grad-2b")
+      .attr("x1", "0%")
+      .attr("y1", "0%")
+      .attr("x2", "100%")
+      .attr("y2", "100%");
+    grad.append("stop").attr("offset", "0%").attr("stop-color", "#ffe6ea");
+    grad.append("stop").attr("offset", "35%").attr("stop-color", "#e6f2ff");
+    grad.append("stop").attr("offset", "100%").attr("stop-color", "#e6f2ff");
+
+    // Top Curly Brackets & Stage Headers
+    const renderTopBrackets = () => {
+      const topY = 48;
+      const bH = 6;
+
+      // Pre-Training Bracket (span x: 10 to 310)
+      svg.append("path")
+        .attr("class", "bracket-line")
+        .attr("d", `M 10,${topY} L 10,${topY - bH} L 110,${topY - bH} L 110,${topY - bH - 4} L 110,${topY - bH} L 310,${topY - bH} L 310,${topY}`);
+      svg.append("text")
+        .attr("class", "stage-header")
+        .attr("x", 110)
+        .attr("y", topY - 14)
+        .text("Pre-Training");
+
+      // SFT Bracket (span x: 315 to 435)
+      svg.append("path")
+        .attr("class", "bracket-line")
+        .attr("d", `M 315,${topY} L 315,${topY - bH} L 350,${topY - bH} L 350,${topY - bH - 4} L 350,${topY - bH} L 435,${topY - bH} L 435,${topY}`);
+      svg.append("text")
+        .attr("class", "stage-header")
+        .attr("x", 350)
+        .attr("y", topY - 14)
+        .text("SFT");
+
+      // RL+OPD Bracket (span x: 440 to 860)
+      svg.append("path")
+        .attr("class", "bracket-line")
+        .attr("d", `M 440,${topY} L 440,${topY - bH} L 650,${topY - bH} L 650,${topY - bH - 4} L 650,${topY - bH} L 860,${topY - bH} L 860,${topY}`);
+      svg.append("text")
+        .attr("class", "stage-header")
+        .attr("x", 650)
+        .attr("y", topY - 14)
+        .text("RL+OPD");
+    };
+    renderTopBrackets();
+
+    // Dashed bounding boxes for groupings
+    svg.append("rect")
+      .attr("class", "dashed-group")
+      .attr("x", 8)
+      .attr("y", 100)
+      .attr("width", 114)
+      .attr("height", 200);
+
+    svg.append("rect")
+      .attr("class", "dashed-group")
+      .attr("x", 152)
+      .attr("y", 145)
+      .attr("width", 114)
+      .attr("height", 140);
+
+    // Nodes definition
+    const singleNodes = [
+      // Pre-Training left column
+      { id: "stable", x: 15, y: 110, w: 100, h: 42, type: "normal", t1: "Stable Training", t2: "" },
+      { id: "short_decay", x: 15, y: 180, w: 100, h: 42, type: "normal", t1: "Short Decay", t2: "4K" },
+      { id: "long_decay", x: 15, y: 250, w: 100, h: 42, type: "normal", t1: "Long Decay", t2: "32K → 128K → 512K" },
+      { id: "base", x: 12, y: 345, w: 106, h: 40, type: "special", t1: "MiniCPM5-2B-Base", t2: "" },
+
+      // Pre-Training right column (Mid-training)
+      { id: "mid_32k", x: 159, y: 158, w: 100, h: 42, type: "normal", t1: "Mid-Training (32K)", t2: "600B Tokens" },
+      { id: "mid_128k", x: 159, y: 228, w: 100, h: 42, type: "normal", t1: "Mid-Training (128K)", t2: "400B Tokens" },
+      { id: "midtrain_model", x: 156, y: 305, w: 106, h: 40, type: "special", t1: "MiniCPM5-2B-Midtrain", t2: "" },
+
+      // SFT column
+      { id: "deep_sft", x: 300, y: 125, w: 104, h: 42, type: "normal", t1: "Deep Thinking SFT", t2: "400B Tokens" },
+      { id: "sft_model", x: 300, y: 242, w: 104, h: 40, type: "special", t1: "MiniCPM5-2B-SFT", t2: "" },
+
+      // RL+OPD downstream
+      { id: "opd", x: 757, y: 229, w: 102, h: 60, type: "normal", t1: "Online Policy", t2: "Distillation (OPD)" },
+      { id: "final_model", x: 896, y: 242, w: 102, h: 40, type: "special", t1: "MiniCPM5-2B", t2: "" }
+    ];
+
+    singleNodes.forEach(n => {
+      const g = svg.append("g").attr("transform", `translate(${n.x},${n.y})`);
+      g.append("rect")
+        .attr("width", n.w)
+        .attr("height", n.h)
+        .attr("class", n.type === "special" ? "node-special" : "node-rect");
+
+      if (n.t2) {
+        g.append("text")
+          .attr("class", "node-title")
+          .attr("x", n.w / 2)
+          .attr("y", n.h / 2 - 2)
+          .text(n.t1);
+        g.append("text")
+          .attr("class", n.id === "opd" ? "node-title" : "node-subtitle")
+          .attr("x", n.w / 2)
+          .attr("y", n.h / 2 + 11)
+          .text(n.t2);
+      } else {
+        g.append("text")
+          .attr("class", "node-title")
+          .attr("x", n.w / 2)
+          .attr("y", n.h / 2 + 4)
+          .text(n.t1);
+      }
+    });
+
+    // Multi-layered stacked cards for RL Tasks
+    const stackedTasks = [
+      { id: "reasoning", x: 505, y: 145, w: 148, h: 44, t1: "Reasoning Task RL", t2: "Enhanced Reasoning Capability" },
+      { id: "general", x: 505, y: 235, w: 148, h: 44, t1: "General Task RL", t2: "Broad Capability" },
+      { id: "agentic", x: 505, y: 325, w: 148, h: 44, t1: "Agentic RL", t2: "Enhanced Agentic Capability" }
+    ];
+
+    stackedTasks.forEach(st => {
+      const offsets = [
+        { dx: -18, dy: -8 },
+        { dx: -9, dy: -4 },
+        { dx: 0, dy: 0 }
+      ];
+      offsets.forEach((off, i) => {
+        const isTop = i === offsets.length - 1;
+        const g = svg.append("g").attr("transform", `translate(${st.x + off.dx}, ${st.y + off.dy})`);
+        g.append("rect")
+          .attr("width", st.w)
+          .attr("height", st.h)
+          .attr("class", "node-stacked");
+
+        if (isTop) {
+          g.append("text")
+            .attr("class", "node-title")
+            .attr("x", st.w / 2)
+            .attr("y", st.h / 2 - 2)
+            .text(st.t1);
+          g.append("text")
+            .attr("class", "node-subtitle")
+            .attr("x", st.w / 2)
+            .attr("y", st.h / 2 + 11)
+            .text(st.t2);
+        }
+      });
+    });
+
+    // Connections and flow lines
+    const lines = [
+      // Pre-Training vertical flow left
+      { d: "M 65,152 L 65,180", m: true },
+      { d: "M 65,222 L 65,250", m: true },
+      { d: "M 65,292 L 65,345", m: true },
+
+      // Base -> Mid-Training branch
+      { d: "M 118,365 L 138,365 L 138,128 L 209,128 L 209,158", m: true },
+
+      // Mid-Training vertical flow
+      { d: "M 209,200 L 209,228", m: true },
+      { d: "M 209,270 L 209,305", m: true },
+
+      // Midtrain -> SFT flow
+      { d: "M 209,345 L 209,420 L 282,420 L 282,146 L 300,146", m: true },
+      { d: "M 352,167 L 352,242", m: true },
+
+      // SFT -> RL fan-out
+      { d: "M 404,262 L 436,262" },
+      { d: "M 436,167 L 487,167", m: true },
+      { d: "M 436,257 L 487,257", m: true },
+      { d: "M 436,347 L 487,347", m: true },
+      { d: "M 436,167 L 436,347" },
+
+      // RL Teachers converging to OPD
+      { d: "M 653,167 L 735,167 L 735,259" },
+      { d: "M 653,257 L 735,257" },
+      { d: "M 653,347 L 735,347 L 735,259" },
+      { d: "M 735,259 L 757,259", m: true },
+
+      // OPD -> MiniCPM5-2B
+      { d: "M 859,259 L 896,259", m: true },
+
+      // SFT Student path down and around to OPD bottom
+      { d: "M 352,282 L 352,420 L 808,420 L 808,289", m: true }
+    ];
+
+    lines.forEach(l => {
+      const p = svg.append("path")
+        .attr("class", "flow-line")
+        .attr("d", l.d);
+      if (l.m) {
+        p.attr("marker-end", "url(#arrow-2b)");
+      }
+    });
+
+    // Annotation text labels
+    svg.append("text")
+      .attr("class", "role-label")
+      .attr("x", 670)
+      .attr("y", 154)
+      .text("Teachers");
+
+    svg.append("text")
+      .attr("class", "role-label")
+      .attr("x", 370)
+      .attr("y", 412)
+      .text("Student");
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => ensureD3(bootstrap), { once: true });
+  } else {
+    ensureD3(bootstrap);
+  }
+})();
+</script>
