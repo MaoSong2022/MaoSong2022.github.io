@@ -2,6 +2,9 @@
 
 追求高吞吐，用 EP, 追求低 latency 用 TP
 
+1. batch size 小时，追求 low latency 可以开 TP, 把参数放在不同的 rank 上
+2. batch size 大时，追求 high throughput, 可以开 EP, 提高通信速度
+
 ### EP
 
 MoE 的内存访问情况如下表所示
