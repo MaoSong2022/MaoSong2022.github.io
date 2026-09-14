@@ -1,0 +1,105 @@
+## Harbor
+
+Harbor 有以下几个核心概念：
+
+1. task, 一个 task 由 1. a single instruction, container environment, 以及一个 test script 组成。 task 用于评估 agents 和 models
+2. dataset, 一个 dataset 由多个 task 组成
+3. agent, 用于完成 task 的 program, 通过 `BaseAgent` 或者 `BaseInstalledAgent` 接口实现
+4. container environment, harbor 中的 environment 由 container 实现，通常由一个 `Dockerfile` 定义
+5. trail, agent 完成任务的一次尝试
+6. job, 一次 job 包含一系列 trails
+
+Harbor 的 task format 如下所示
+
+```
+test_task
+├── environment
+│   └── Dockerfile
+├── instruction.md
+├── solution
+│   └── solve.sh
+├── task.toml
+└── tests
+    └── test.sh
+```
+
+`task.toml` 包含了任务的配置以及 metadata, 例子如下所示
+
+```toml
+schema_version = "1.4"
+
+[task]
+name = "<org>/<name>"
+version = "1.0.0"
+description = "A short description of the task"
+authors = [{ name = "Steve Jobs", email = "steve@apple.com" }]
+keywords = ["trivial", "programming"]
+
+[metadata]
+difficulty_explanation = "Trivial task for demonstration"
+category = "programming"
+
+[verifier]
+timeout_sec = 120.0
+env = { API_KEY = "sk-test-123" }
+user = "root"  # optional: run the verifier as this OS user
+
+[agent]
+timeout_sec = 120.0
+user = "agent"  # optional: run the agent as this OS user
+
+[solution]
+env = { API_KEY = "sk-test-123" }
+
+[environment]
+network_mode = "no-network"  # baseline; defaults to "public" when omitted
+build_timeout_sec = 600.0
+docker_image = "some-org/some-name:some-tag"
+os = "linux"  # or "windows" to target Windows containers
+cpus = 1
+memory_mb = 2048
+storage_mb = 10240
+gpus = 0
+gpu_types = ["H100", "A100"]
+env = { SOME_ENV_VAR = "${SOME_ENV_VAR}" } # harbor run requests approval from the user for these env vars
+
+[environment.tpu]                   # optional; omit the table if you don't need TPUs
+type = "v6e"                        # alias (v3, v4, v5e, v5p, v6e, v7, trillium, ironwood) or canonical GKE label
+topology = "2x4"                    # required; per-pod chip count = product of dimensions (here, 8)
+# A task allocates one TPU slice per pod; specify a single spec rather than a list.
+# Currently only the GKE environment honors this field.
+
+[[environment.mcp_servers]]
+name = "mcp-server"
+transport = "streamable-http"
+url = "http://mcp-server:8000/mcp"
+
+[environment.healthcheck]
+command = "curl -f http://localhost:8080/health"
+interval_sec = 5.0
+timeout_sec = 30.0
+retries = 3
+```
+
+`test.sh` 介绍了如何运行测试来评估 agent 的结果
+
+```bash
+#!/bin/bash
+uvx pytest /tests/test.py
+if [ $? -eq 0 ]; then
+  echo 1 > /logs/verifier/reward.txt
+else
+  echo 0 > /logs/verifier/reward.txt
+fi
+```
+
+`verifier` 产出以下结果
+
+```bash
+verifier/
+    reward.json      # Structured scores (binary reward + pass fractions)
+    ctrf.json        # Machine-readable test report with failure messages
+    test-stdout.txt  # Raw suite output and a list of failure reasons
+    run.log          # Raw stdout/stderr captured during the run
+    reports/         # Framework-native report/log files from the grader
+```

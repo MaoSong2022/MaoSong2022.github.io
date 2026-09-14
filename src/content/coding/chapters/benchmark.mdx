@@ -1,0 +1,46 @@
+## Benchmark
+
+### DeepSWE
+
+DeepSWE [@DeepSWE] 在 SWE-Bench [@SWE-Bench] 的基础上解决了 contamination 和解法固定的问题。
+DeepSWE 包含了 113 道针对 coding agent 的 SWE 任务，覆盖了 91 个 repo, 5 种编程语言。DeepSWE 的主要贡献：1. 原创的问题，避免了 contamination; 2. 提高了问题的 diversity; 3. 更短的问题，更长的答案; 4. 行为验证而不是实现验证。
+
+DeepSWE 设计原则：
+
+1. Reality: 从 developer 角度设计任务，输入长度相比于 SWE-Bench Pro [@SWE-Bench-Pro] 减少 $50\%$ (2000 characters)， 但输出长度增加了 $100\%$
+2. Diversity: 覆盖 91 个 repo, 5 种编程语言
+3. Contamination Free: 所有的 task 和 commit 都不存在于公开的预料，避免泄露
+4. Verification: 基于行为而不是实现细节来进行评估
+
+| Benchmark                     | SWE-Bench Verified | SWE-Bench Pro | DeepSWE |
+| ----------------------------- | ------------------ | ------------- | ------- |
+| Prompt Length                 | 1700               | 4614          | 2158    |
+| Mean Reference Solution Lines | 9.9                | 120           | 668     |
+| Mean Files Edited             | 1.2                | 5.1           | 7.4     |
+
+DeepSWE 的编程覆盖语言占比情况为： Typescript ($31\%$), Go ($30\%$), Python ($30\%$), Javascript ($4\%$), Rust ($4\%$)
+
+DeepSWE 还使用了 GPT-5.5 (xhigh, Codex CLI agent) 作为 judge 来评估 patch 是否实现了功能，实验结果发现，DeepSWE 相比于 SWE-Bench Pro 的 FP 和 FN 比例均有了大幅度下降。
+
+评估时，DeepSWE 基于 mini-swe-agent harness 来进行评估，评估时仅要求 rollout 的时间不超过 2.5 hours.
+
+DeepSWE 评估的 metric 包括 pass@1 和 pass@k, pass@1 是 task 通过率的平均：
+
+$$
+pass\@1 = \frac1N\sum_{i=1}^N\frac{c_t}{n_t}
+$$
+
+其中， $N=113$ 是 task 个数， $n_t$ 是每个 task 的 rollout 次数, $c_t\leq n_t$ 是 rollout 通过次数。pass@k 定义为
+
+$$
+pass\@k = \frac{1}{N}\sum_{i=1}^N\mathbf{1}[c_t\geq 1]
+$$
+
+作者认为 DeepSWE 存在如下不足：
+
+1. binary reward, 没有 partial credit
+2. 只关注 functional correctness, 不能反应代码的可维护性
+3. prompt length 较短，可能会存在一定的模糊性
+4. 没有评估模型的 planning, code review 以及 interactive collaboration 能力
+5. mini-swe-agent 只有一个 bash tool
+6. verifier 观测的范围有限
