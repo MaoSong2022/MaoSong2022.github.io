@@ -21,10 +21,51 @@ Bellman optimality equation 直接寻找最优价值，而本章先解决一个�
 </Note>
 
 我们将先从完整 MDP 模型的精确解法，逐步过渡到只依赖 rollout 的 MC/TD 方法和现代 RL 使用的函数逼近方法。
-这条路径同时回答两个问题：
+本章始终固定 $\pi$：无论更新 Q-table 还是 neural network，改变的都只是对这个策略的价值估计，生成动作的规则不变。
+我们依次回答三个问题：
 
-1. 为什么 Bellman equation 在小环境中可直接求解
-2. 精确求解方法对于 LLM 来说存在什么问题
+1. 已知完整环境模型，如何精确计算 $V^\pi$？
+2. 只能采样 rollout 时，如何用 MC/TD 估计 $V^\pi$？
+3. 状态太多时，如何用函数逼近在不同 prefix 之间共享信息？
+
+如何利用这些估计改变策略，将留到下一章 [Value Based Methods](#value-based-methods)。
+
+### Running Example: Evaluating a Frozen ToyLLM
+
+沿用 [ToyLLM](#running-example-toyllm)，取普通词表 $\{A,B\}$、最大生成长度 $T=2$、target response $y^*=(B,A)$，并令 $\gamma=1$。
+动作空间还包含 `<eos>`；提前结束或生成其他 response 均获得零奖励。
+假设当前固定策略满足
+
+$$
+\pi(A\mid x)=0.6,\quad \pi(B\mid x)=0.3,\quad
+\pi(\langle\mathrm{eos}\rangle\mid x)=0.1,\qquad
+\pi(A\mid x,B)=0.5.
+$$
+
+在 prefix $B$ 之后，其余动作共享剩下的 $0.5$ 概率，具体分配不影响下面的计算。
+由于只有 response $BA$ 成功，
+
+$$
+V^\pi(x,B)=0.5,\qquad
+Q^\pi(x,B)=0.5,\qquad
+Q^\pi(x,A)=Q^\pi(x,\langle\mathrm{eos}\rangle)=0,
+$$
+
+$$
+V^\pi(x)=0.3\times0.5=0.15.
+$$
+
+这里 $V^\pi(x,B)$ 表示到达 prefix $B$ 后的价值，而 $Q^\pi(x,B)$ 表示在初始状态 $x$ 选择动作 $B$ 的价值；二者在这个零中间奖励、$\gamma=1$ 的例子中相等。
+无论使用哪种 evaluation 方法，我们的目标都是恢复这些数值。
+**即使已经知道动作 $B$ 比 $A$ 更好，本章也不会修改 $\pi(B\mid x)=0.3$。**
+
+<Note variant="info">
+
+一般 finite-horizon MDP 的价值还依赖剩余时间，可以把时间并入 state。
+ToyLLM 的 prefix 长度已经包含这一信息，终止状态的 value 统一设为零。
+以下 contraction 论证使用 $0<\gamma<1$；ToyLLM 在 $\gamma=1$ 时仍可按 prefix 长度做有限步 backward induction，不能直接套用严格 contraction 的论证。
+
+</Note>
 
 ### Tabular Learning
 
@@ -32,7 +73,7 @@ Bellman optimality equation 直接寻找最优价值，而本章先解决一个�
 
 #### Tabular Learning with Matrix Solve
 
-对于离散状态空间来说，我们可以将 [value iteration](#value-iteration) 算法中的 [Bellman Equation](#bellman_equation_value) 写为如下的矩阵形式
+对于有限状态空间，固定策略的 [Bellman Equation](#bellman_equation_value) 可以写成线性方程组。这里计算的是 $V^\pi$，不是 value iteration 所寻找的 $V^*$：
 
 $$
 V_{\pi} = R_{\pi} + \gamma P_{\pi} V_{\pi}
@@ -48,13 +89,17 @@ $$
 \end{aligned}
 $$
 
-可以看到，上面这个其实是一个线性方程组，即
+其中 $R_\pi(s)=\mathbb E[r\mid s,a\sim\pi]$，$P_\pi$ 对动作按固定策略求平均。
+我们只编号非终止状态，因此转移到 terminal 的概率质量不写入 $P_\pi$，其行和可以小于 1。
+于是
 
 $$
 (\mathbf{I}_S - \gamma P_{\pi})V_{\pi}  = R_{\pi}
 $$
 
-对于这个线性方程组，我们可以用矩阵求逆或者迭代解法求解。
+实现时使用线性求解器 `SOLVE`，不必显式计算逆矩阵。
+下面的 `STEP(s,a)` 伪代码针对 ToyLLM 这样的确定性 reward/transition；随机环境需要枚举并加权所有可能的 $(r,s')$，单次 `STEP` 样本不能给出精确模型。
+这里 $\mathcal S$ 在算法输入中指非终止状态集合。
 精确算法如下所示
 
 <Algorithm title="Value function Matrix Exact Solve">
@@ -82,7 +127,7 @@ $$
 
 **Input**: policy $\pi$, discount factor $\gamma$, convergence threshold $\theta$, state space $\mathcal{S}$
 
-1. $V(s)=0, s\in\mathcal{S}$
+1. $V(s)=0, s\in\mathcal{S}$, $\Delta=\infty$.
 2. **While** $\Delta > \theta$:
    1. $\Delta\gets0$
    2. **For** each $s\in\mathcal{S}$
@@ -99,7 +144,8 @@ $$
 
 </Algorithm>
 
-下面是两种算法在不同规模下对应的求解时间变化曲线
+对 ToyLLM 的有限生成树，还可以按 prefix 长度倒序计算，避免稠密矩阵求解；但这仍需要访问所求解的状态。
+下面是两种已有实现的求解时间变化曲线
 
 <Image
   src={Matrix_Solve}
@@ -138,7 +184,7 @@ $$
 
 1. $V(s)=0, \mathrm{ReturnSum}(s)=0, \mathrm{ReturnCount}(s)=0, s\in\mathcal{S}$
 2. **For** $\mathrm{episode}=1,2,\dots,M$:
-   1. $s_0\sim p_0$, $\tau=[]$
+   1. $s\sim p_0$, $\mathrm{done}=\mathrm{false}$, $\tau=[]$
    2. **While** not $\mathrm{done}$:
       - $a\sim\pi(\cdot\mid s)$
       - $(s', r, \mathrm{done}) \gets \mathrm{STEP}(s, a)$
@@ -226,7 +272,7 @@ TD learning 对应的算法如下所示
 
 1. $V(s)=0, s\in\mathcal{S}$
 2. **For** $\mathrm{episode}=1,2,\dots,M$:
-   1. $s_0\sim p_0$
+   1. $s\sim p_0$, $\mathrm{done}=\mathrm{false}$
    2. **While** not $\mathrm{done}$:
       - $a\sim\pi(\cdot\mid s)$
       - $(s', r, \mathrm{done}) \gets \mathrm{STEP}(s, a)$
@@ -240,53 +286,56 @@ TD learning 对应的算法如下所示
 
 </Algorithm>
 
-接下来我们来分析一下算法的正确性。
-首先，$\overline{V}_t$ 被称为 TD target 的原因为
+一次 TD 更新可以写成
+
+$$
+V_{t+1}(s_t)=(1-\alpha_t)V_t(s_t)+\alpha_t\overline V_t.
+$$
+
+因此，当 $0<\alpha_t<1$ 时，新估计向本次 sampled target 移动。
+但是 $\overline V_t$ 本身随采样和 $V_t$ 改变，**向当前 target 靠近不等于已经证明收敛**。
+给定采样前的历史 $\mathcal F_t$（其中包含 $V_t$ 和 $s_t$），on-policy 采样满足
+
+$$
+\mathbb E[\delta_t\mid\mathcal F_t]
+=(\mathcal T^\pi V_t)(s_t)-V_t(s_t).
+$$
+
+也就是说，TD error 的条件期望是当前估计的 Bellman residual。
+当 $V_t=V^\pi$ 时，这个期望为零，但单次 TD error 仍可能非零；它不是已知的 $V^\pi-V_t$。
+
+<Theorem title="Convergence of Tabular TD (discounted case)">
+
+对有限 MDP、固定策略 $\pi$、有界奖励和 $0<\gamma<1$，若所有待估计的非终止状态均被无限次访问，并且每个状态按自身访问次数编号的步长满足
+
+$$
+\sum_{n=1}^{\infty}\alpha_n(s)=\infty,\qquad
+\sum_{n=1}^{\infty}\alpha_n(s)^2<\infty,
+$$
+
+则标准 on-policy tabular TD(0) 的估计几乎必然收敛到 $V^\pi$。
+未被访问的状态不享有这一保证；常数步长实验也不满足上述递减步长条件。
+
+</Theorem>
 
 <Sidenote>
 
-See Chapter 7 of [Mathematical Foundations of Reinforcement Learning](https://github.com/MathFoundationRL/Book-Mathematical-Foundation-of-Reinforcement-Learning) for more details.
+关于 tabular TD 的随机逼近分析，可参考 [Mathematical Foundations of Reinforcement Learning](https://github.com/MathFoundationRL/Book-Mathematical-Foundation-of-Reinforcement-Learning) 中的 TD learning 章节。
 
 </Sidenote>
 
-$$
-\begin{aligned}
-   |V_{t+1}(s_t)-\overline{V}_t(s_t)| &= |V_t(s_t) - \alpha_t(s_t)\delta_t-\overline{V}_t(s_t)|\\
-   &= |1-\alpha_t(s_t)||V_{t}(s_t)-\overline{V}_t(s_t)|\\
-   &< |V_{t}(s_t)-\overline{V}_t(s_t)|
-\end{aligned}
-$$
-
-可以看到**函数序列 $\{V_t\}$ 收敛到 $\overline{V}_t$**.
-另一方面，我们有
-
-$$
-\begin{aligned}
-   \mathbb{E}[\delta_t\mid S_t=s_t] &= \mathbb{E}[V^{\pi}(S_t)-\left(r_t + \gamma V^{\pi}(s_{t+1})\right)\mid S_t=s_t]\\
-   &= V^{\pi}(s_t) - \mathbb{E}[r_t + \gamma V^{\pi}(s_{t+1})\mid S_t=s_t]\\
-   &=0
-\end{aligned}
-$$
-
-因此 TD error $\delta_t$ **衡量了当前的估计 $V_t$ 与 $V^\pi$ 之间的差距。**
-
-算法的正确性由如下定理给定
-
-<Theorem title='Convergence of TD Learning'>
-
-给定策略 $\pi$, 基于 [TD learning algorithm](#tabular-learning-with-td), 对任意 $s\in\mathcal{S}$, 如果 $\sum_t\alpha_t(s)=\infty$, $\sum_t\alpha_t^2(s)<\infty$, 则 $V_t(s)$ $a.s.$ 收敛到 $V^{\pi}(s)$, $t\to\infty$.
-
-</Theorem>
-
-<Theorem variant='proof'>
-
-See Theorem 7.1 of [Mathematical Foundations of Reinforcement Learning](https://github.com/MathFoundationRL/Book-Mathematical-Foundation-of-Reinforcement-Learning) for more details.
-
-</Theorem>
+回到 ToyLLM：若所有 value 初始化为零，一次成功的 $BA$ rollout 会让 MC 同时更新初始状态和 prefix $B$。
+按时间顺序更新的 one-step TD 则先用尚为零的 $V(x,B)$ 更新初始状态，再从 terminal reward 更新 $V(x,B)$；之后再次访问时，奖励信息才继续向前传播。
+这解释了为什么在这个小例子中，MC 可能比 TD 更快，而不意味着 MC 在所有任务中都更高效。
 
 #### Tabular Learning Experiments
 
-我们在不同 vocab size 下对比 matrix solve, MC 和 TD.
+这里保留不同 vocab size 下 matrix solve、MC 和 TD 的已有实验图。
+需要先区分代码中的两种环境配置：旧版 benchmark 使用成功 $+1$、失败 $-1$，target 包含 `<EOS>`；本章手算例子采用成功 $1$、失败 $0$，匹配时忽略 EOS。
+因此，旧图中的 value error 是期望回报的误差，不能直接解释为成功概率误差。
+当 $\gamma=1$ 时，旧奖励对应 $V^\pi=2p_{\mathrm{success}}-1$；当 $\gamma<1$ 且结束时间可变时，还必须计入结束时间的折扣。
+
+代码中 `scripts/benchmark.py` 默认使用 `max_len=4`、`gamma=0.9`、uniform policy，并对重复运行取中位数。具体复现应保留命令参数，不能仅凭图片恢复所有实验配置。
 对于 MC 和 TD, 我们将 episodes 设置为 $10,000$, TD 的 learning rate 设置为 $0.1$.
 结果如下图所示
 
@@ -314,10 +363,14 @@ $$
   alt="Number of rollouts required to reach the target error"
 />
 
-可以看到，在当前 terminal binary reward、固定超参数和误差指标下，MC 比 TD 更快达到目标误差。
-当 vocab size 超过 30 后，两者在 rollout budget 内都很难观察到足够多的正样本。
+可以看到，在这组 terminal +1/-1 reward、固定超参数和误差指标下，MC 比 TD 更快达到目标误差。
+图中的叉号表示在预算内未达到误差阈值：TD 在词表大小为 20 和 30 时未达标，MC 在 30 时未达标。稀疏成功轨迹是可能的瓶颈，但仅凭该图不能确定具体原因。
 
-这里暴露出两个不同的问题：
+解释这类实验时，需要同时报告 horizon、固定策略、value 初始化、误差在哪些状态上计算，以及多个随机种子的结果。
+在本章的 0/1 reward 版本中，大量失败 prefix 的真实 value 为零，因此不能仅由全状态平均误差很小推断成功路径已经被学会。旧图使用 +1/-1 reward，未访问状态的零初始化也可能与真实的负 value 有较大误差；两种配置需要分别解释。
+将全状态误差与初始状态误差、成功路径上的误差分别报告，会更容易区分覆盖不足和估计不准。
+
+这里需要区分两个问题：
 
 1. tabular learning 方法不能在相似 prefix 之间共享信息
 2. 稀疏 verifier reward 导致有效样本极少。
@@ -330,7 +383,14 @@ $$
 为了解决这个扩展性不足的问题，当状态空间 $\mathcal{S}$ 较大或连续时，我们可以使用函数逼近的方法来近似 $V^{\pi}$.
 
 这里我们使用 $V_{\phi}:\mathcal{S}\to\mathbb{R}$ 近似 $V^{\pi}$，其中 $\phi$ 是参数。
-令 $d^\pi$ 表示策略 $\pi$ 在 rollout 中诱导的状态访问分布，我们使用 mean squared value (MSE) error:
+令 $d^\pi$ 为固定策略在 rollout 中诱导的状态访问分布。将非终止状态的期望访问次数归一化，可写为
+
+$$
+d^\pi(s)=\frac{\mathbb E_{\tau\sim\pi}[\sum_{t=0}^{T(\tau)-1}\mathbf 1\{s_t=s\}]}{\mathbb E_{\tau\sim\pi}[T(\tau)]}.
+$$
+
+它对应按 transition 加权，而不是每条 episode 权重相同。
+我们使用 mean squared value error:
 
 <Sidenote>
 
@@ -368,26 +428,23 @@ $$
 
 <Algorithm title="Value function approximation with MC">
 
-**while** not converged:
+**While** not converged:
 
-1. $s_0 \sim p_0$, $t = 0$, $\tau=[]$.
-2. **while** $s_t \neq \langle\text{term}\rangle$:
-   - $a_t \sim \pi(\cdot \mid s_t)$
-   - $(r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)$
-   - $\tau.\mathrm{append}((s_t,r_t))$
-   - $t \gets t + 1$
-3. Set $T = t$.
-4. For every $t=0,\ldots,T-1$, compute
-   $G_t=\sum_{k=t}^{T-1}\gamma^{k-t}r_k$.
-5. $g\gets\frac{1}{T}\sum_{t=0}^{T-1}
-   (V_\phi(s_t)-G_t)\nabla_\phi V_\phi(s_t)$.
-6. Update $\phi$ using $g$ with an optimizer.
+1. 从固定策略的状态访问分布采样非终止状态 $s\sim d^\pi$。
+2. 从这个状态开始，固定 $\pi$，采样一条新的 continuation，直到 terminal。
+3. 计算该 continuation 的 discounted return $G$。
+4. $g\gets(V_\phi(s)-G)\nabla_\phi V_\phi(s)$。
+5. 使用 $g$ 做 gradient descent，更新 $\phi$。
 
 </Algorithm>
 
+上面将“选训练状态”和“从该状态采样 return”分开，以明确条件期望。
+实际训练也可以像 tabular MC 一样复用完整 rollout 的每个 prefix，并把各自的 $G_t$ 当作监督信号。
+批处理时应明确按 transition 还是按 episode 加权；变长 episode 下，二者一般对应不同的训练目标。
+
 #### Function Approximation with TD
 
-如果能够访问真实的 $V^\pi(s')$，我们可以将一步使用 TD target 当作监督信号：
+如果能够访问真实的 $V^\pi(s')$，我们可以将一步 TD target 当作监督信号：
 
 $$
 \mathcal{L}(\phi) = \mathbb{E}_{s \sim d^\pi}^\pi
@@ -412,26 +469,8 @@ g:=\mathbb{E}_{s \sim d^\pi}^{\pi}
 \nabla_{\phi}V_{\phi}(s)\right].
 $$
 
-对应的数学更新为：
-
-<Algorithm title="Value function approximation with TD (not correct)">
-
-**While** not converged:
-
-1. $s_0 \sim p_0$, $a_0 \sim \pi(\cdot \mid s_0)$, $(r_0, s_1) \sim p(\cdot, \cdot \mid s_0, a_0)$.
-2. compute TD target
-   $$
-   y = \begin{cases}
-   r_0 + \gamma V_{\phi}(s_1), & \text{if } s_1 \neq \langle\text{term}\rangle \\
-   r_0,                        & \text{otherwise}
-   \end{cases}
-   $$
-3. $g = (V_{\phi}(s_0) - y) \nabla_{\phi} V_{\phi}(s_0)$.
-4. Update $\phi$ using $g$ with an optimizer.
-
-</Algorithm>
-
-我们来看一下上述算法对应的 PyTorch 实现：
+这里的 $g$ 只沿当前预测求导。若直接把 bootstrap target 写入普通平方损失，autograd 会产生不同的梯度。
+下面先以一个非终止 transition 展示这个实现陷阱：
 
 ```python
 pred = V_phi(s0)
@@ -461,10 +500,8 @@ $$
 其中 $\mathrm{sg}[\cdot]$ 是 stop-gradient operator, 满足：
 
 $$
-\mathrm{sg}[x] = \begin{cases}
-x & \text{forward pass} \\
-0 & \text{backward pass}
-\end{cases}
+\mathrm{sg}[x]=x\quad\text{(forward)},\qquad
+\frac{\partial\,\mathrm{sg}[x]}{\partial x}=0\quad\text{(autograd)}
 $$
 
 对应的梯度就是：
@@ -476,10 +513,11 @@ $$
 对应的 Python 代码为：
 
 ```python
+# Single transition; terminal targets do not bootstrap.
 pred = V_phi(s0)
-target = r + gamma * V_phi(s1)
-td_error = pred - target.detach()  # stop-gradient operator
-loss = 0.5 * td_error ** 2
+with torch.no_grad():
+    target = r if terminated else r + gamma * V_phi(s1)
+loss = 0.5 * (pred - target).square()
 loss.backward()
 ```
 
@@ -489,7 +527,7 @@ loss.backward()
 
 **While** not converged:
 
-1. $s_0 \sim p_0$, $a_0 \sim \pi(\cdot \mid s_0)$, $(r_0, s_1) \sim p(\cdot, \cdot \mid s_0, a_0)$.
+1. 从固定策略的 rollout 中采样非终止起点 $s_0\sim d^\pi$，再采样 $a_0\sim\pi(\cdot\mid s_0)$ 和 $(r_0,s_1)\sim p(\cdot,\cdot\mid s_0,a_0)$。
 2. compute TD target
    $$
    y = \begin{cases}
@@ -540,7 +578,7 @@ $$
 
 **while** not converged:
 
-1. $s_0 \sim p_0$, set $t = 0$.
+1. 从固定策略的 rollout 中采样非终止起点 $s_0\sim d^\pi$，set $t=0$。
 2. **for** $t = 0, \ldots, k-1$, stopping early if the episode terminates:
    - $a_t \sim \pi(\cdot \mid s_t)$
    - $(r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)$
@@ -558,153 +596,34 @@ $$
 
 #### Q-Function Evaluation
 
-对于 Q-function, 我们也可以和 value function 一样设计类似的算法。对于 MC, 有：
+$Q^\pi(s,a)$ 与 $V^\pi(s)$ 的区别只是额外固定当前动作。后续仍遵循同一个 $\pi$，因此不必重新推导一套训练方法。
+将网络输入从 $s_t$ 换成 $(s_t,a_t)$，MC target 仍是 $G_t$；one-step TD target 为
 
 $$
-Q^{\pi}(s_0, a_0)
-=\mathbb{E}^{\pi}\left[\sum_{t=0}^{T-1}\gamma^t r_t\mid s_0,a_0\right]
-\approx\frac{1}{M}\sum_{i=1}^{M}\sum_{t=0}^{T^{(i)}-1}\gamma^t r_t^{(i)}.
+y_t^Q=\begin{cases}
+r_t,&s_{t+1}\text{ is terminal},\\
+r_t+\gamma\,\mathrm{sg}[Q_\phi(s_{t+1},a_{t+1})],
+\quad a_{t+1}\sim\pi(\cdot\mid s_{t+1}),&\text{otherwise}.
+\end{cases}
 $$
 
-当使用函数来近似时，目标函数为：
+采用相同的 semi-gradient 更新：
 
 $$
-\mathcal{L}(\phi) = \mathbb{E}_{s \sim d^\pi,\,a\sim\pi(\cdot\mid s)}
-\left[\frac{1}{2}\left(Q_{\phi}(s,a)-Q^{\pi}(s,a)\right)^2\right].
+\phi\gets\phi-\alpha\bigl(Q_\phi(s_t,a_t)-y_t^Q\bigr)\nabla_\phi Q_\phi(s_t,a_t).
 $$
 
-对应的梯度：
+也可以将采样的 $Q_\phi(s_{t+1},a_{t+1})$ 替换为
+$\sum_{a'}\pi(a'\mid s_{t+1})Q_\phi(s_{t+1},a')$，对下一动作显式求期望。
+前者是 sampled SARSA-style evaluation，后者是 Expected SARSA-style evaluation；这里只借用其 backup 形式，策略仍固定。
+k-step target 同样是累计前 $k$ 步奖励，再接上剩余状态动作的 bootstrap value，并在提前终止时去掉 bootstrap。
 
-$$
-\nabla_{\phi} \mathcal{L}(\phi)
-=\mathbb{E}^{\pi}\left[
-\left(Q_{\phi}(s_t,a_t)-G_t\right)\nabla_{\phi}Q_{\phi}(s_t,a_t)
-\right].
-$$
+<Note variant="info">
 
-对应的算法如下
+这里下一动作来自固定 $\pi$，不能随手把它换成 $\arg\max_{a'}Q_\phi(s',a')$。
+一旦把“按当前策略取平均”换成“选择价值最大的动作”，我们就在改变 backup 的目标，进入下一章的 control 问题。
 
-<Algorithm title="Q-function approximation with MC">
-
-**while** not converged:
-
-1. $s_0 \sim p_0$, set $t = 0$, $\tau=[]$.
-2. **while** $s_t \neq \langle\text{term}\rangle$:
-   - $a_t \sim \pi(\cdot \mid s_t)$
-   - $(r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)$
-   - $\tau.\mathrm{append}((s_t,a_t,r_t))$
-   - $t \gets t + 1$
-3. Set $T = t$.
-4. For every $t$, compute $G_t=\sum_{k=t}^{T-1}\gamma^{k-t}r_k$.
-5. $g=\frac{1}{T}\sum_{t=0}^{T-1}
-   (Q_\phi(s_t,a_t)-G_t)\nabla_\phi Q_\phi(s_t,a_t)$.
-6. Update $\phi$ using $g$ with an optimizer.
-
-Return $Q_\phi$
-
-</Algorithm>
-
-对于 TD learning, 我们的目标函数为
-
-$$
-\mathcal{L}(\phi) = \mathbb{E}_{s \sim d^\pi,\,a\sim\pi(\cdot\mid s)}
-\left[\frac{1}{2}\left(Q_{\phi}(s,a)-r-\gamma Q^\pi(s',a')\right)^2\right],
-$$
-
-其中非终止状态下 $a'\sim\pi(\cdot\mid s')$.
-与 value function 类似，使用 bootstrap target 可以得到 on-policy 的 Expected SARSA/SARSA 风格 policy evaluation：
-
-<Algorithm title="Q-function approximation with TD">
-
-**While** not converged:
-
-1. $s_0 \sim p_0$, $a_0 \sim \pi(\cdot \mid s_0)$, $(r_0, s_1) \sim p(\cdot, \cdot \mid s_0, a_0)$.
-2. $$
-   y = \begin{cases}
-   r_0 + \gamma \, \mathrm{sg}[Q_{\phi}(s_1, a_1)],
-      \quad a_1\sim\pi(\cdot\mid s_1), & \text{if } s_1 \neq \langle\text{term}\rangle, \\
-   r_0, & \text{otherwise}.
-   \end{cases}
-   $$
-3. $g = \left(Q_{\phi}(s_0, a_0) - y\right) \nabla_{\phi} Q_{\phi}(s_0, a_0)$.
-4. Update $\phi$ using $g$ with an optimizer.
-
-Return $Q_\phi$
-
-</Algorithm>
-
-<Algorithm title="Q-function approximation with k-step TD">
-
-**While** not converged:
-
-1. $s_0 \sim p_0$, set $t = 0$.
-2. **For** $t = 0, \ldots, k-1$, stopping early on termination:
-   - $a_t \sim \pi(\cdot \mid s_t)$
-   - $(r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)$
-3. Let $n\leq k$ be the number of collected transitions.
-4. **If** $s_n$ is non-terminal
-   1. sample $a_n\sim\pi(\cdot\mid s_n)$
-   2. set $y=\sum_{t=0}^{n-1}\gamma^t r_t+\gamma^n\mathrm{sg}[Q_\phi(s_n,a_n)]$;
-5. **Else**
-   1. set $y=\sum_{t=0}^{n-1}\gamma^t r_t$.
-6. $g = (Q_{\phi}(s_0, a_0) - y) \nabla_{\phi} Q_{\phi}(s_0, a_0)$
-7. Update $\phi$ using $g$ with an optimizer.
-
-Return $Q_\phi$
-
-</Algorithm>
-
-### Policy Iteration Methods
-
-介绍完 policy evaluation 之后，我们可以设计 policy iteration 算法，其基本思想是交替进行 policy evaluation 和 policy improvement:
-
-$$
-\begin{aligned}
-&\text{Compute } V^{\pi^k} \text{ and } Q^{\pi^k} &\quad&\text{(Policy evaluation)} \\
-&\pi^{k+1}(s) = \arg\max_{a \in \mathcal{A}} \mathbb{E}_{(r, s') \sim p(\cdot, \cdot \mid s, a)}\left[r + \gamma V^{\pi^k}(s') \mid s, a\right] &\quad&\text{(Policy improvement)}
-\end{aligned}
-$$
-
-算法的正确性由如下定理保证
-
-<Theorem>
-
-**Theorem**: 考虑上述 policy iteration 算法，假设 $\gamma \in (0, 1)$, $|\mathcal{S}| < \infty$, $|\mathcal{A}| < \infty$ 以及 $|r| \leq R < \infty$, a.s. 那么：
-
-$$
-V^{\pi^{k+1}} \geq V^{\pi^k}, \quad k = 1, 2, \dots
-$$
-
-并且存在 $K \in \mathbb{N}$ 满足 $V^{\pi^K} = V^*$. 也就是说，有限步之后就可以得到最优策略.
-
-</Theorem>
-
-<Theorem variant="proof">
-
-由 $\pi^{k+1}$ 的 greedy 定义，对每个状态 $s$ 都有
-
-$$
-(\mathcal T^{\pi^{k+1}}V^{\pi^k})(s)
-=(\mathcal T^*V^{\pi^k})(s)
-\geq(\mathcal T^{\pi^k}V^{\pi^k})(s)
-=V^{\pi^k}(s).
-$$
-
-反复应用单调的 Bellman operator $\mathcal T^{\pi^{k+1}}$，并利用其 contraction
-性质，得到
-
-$$
-V^{\pi^{k+1}}
-=\lim_{n\to\infty}
-(\mathcal T^{\pi^{k+1}})^nV^{\pi^k}
-\geq V^{\pi^k}.
-$$
-
-有限 MDP 只有有限个 deterministic policies.
-若 value 尚未最优，policy improvement 会产生严格改进；采用一致的 tie-breaking 后不会在等价 policy之间循环。
-因此有限次迭代后到达满足 Bellman optimality equation 的 policy, 其 value 即为 $V^*$.
-
-</Theorem>
+</Note>
 
 ### MC v.s. TD
 
@@ -718,17 +637,36 @@ k-step TD 在两者之间插值：
 
 $$
 \text{TD(0)}
-\xleftarrow{\quad k\to0\quad}
+\xleftarrow{\quad k=1\quad}
 \text{k-step TD}
-\xrightarrow{\quad k\to T\quad}
+\xrightarrow{\quad k\geq T-t\quad}
 \text{MC}.
 $$
 
+### Reproduce the Evaluation Example
+
+配套代码位于 [ToyLLM 项目](https://github.com/MaoSong2022/toyllm)。在仓库根目录运行：
+
+```bash
+uv sync
+uv run python scripts/run_tutorial_control.py --episodes 10000 --seeds 5 --output outputs/tutorial_control.json
+```
+
+脚本显式使用 `failure_reward=0.0, strip_eos=True`，其中代码的 `<BOS>` 对应本文的固定 prompt 初始状态 $x$，`<EOS>` 对应数学记号中的终止 token。
+`hand_example` 同时报告 backward evaluation 与 matrix solve 的精确值；两者都应得到初始 value $0.15$。
+`evaluation` 部分按 seed 报告 MC/TD 的初始状态估计、初始状态绝对误差和全状态 MAE，整个过程中固定策略的动作概率不变。
+TD 使用常数步长 $0.1$，所以有限步结果可能波动，不应要求每个 seed 都精确等于解析值。
+
+现有 `make_bow_feature_extractor` 可用于线性函数逼近实验，但 bag-of-tokens 不保留顺序：例如 prefix `A B` 和 `B A` 会有相同表示。
+在更长的 exact-match 任务中，它们可能有不同的真实 value，因此该表示可能无法拟合所有状态。函数逼近提供共享能力，也会引入表示误差。
+
 ### Takeaway
 
-- LLM generation 的 state 是 `(prompt, token prefix)`, 状态空间随 horizon (context length) 指数增长
-- Matrix solve 和 dynamic programming 能提供小规模环境 ( $< 20$) 的精确基线，但无法扩展到真实 LLM 的场景下 ($\sim15k$)
-- MC 使用完整 return, low bias, high variance; TD 使用 bootstrap, low variance, high bias; k-step return 在两者之间实现一个 trade off.
-- Function approximation 让不同 prefix 共享信息，一条 rollout 可以监督多个 prefix
-- 在 binary verifier reward 下，$V^\pi(x,y_{<t})$ 可以解释为当前 policy 最终通过 verifier 的概率
-- Policy evaluation 解决的是“当前 policy 有多好”；下一步 policy improvement 才解决“如何让 policy 变得更好”
+- Policy evaluation 始终固定 $\pi$；更新的是 $V^\pi$ 或 $Q^\pi$ 的估计。
+- 完整模型允许精确求解，MC/TD 则用 rollout 替代对整个环境的枚举。
+- MC 使用完整 return；TD 使用 bootstrap；k-step TD 在等待奖励和依赖估计之间提供选择。
+- Function approximation 可以让不同 prefix 共享表示，但不保证自动解决稀疏奖励或状态覆盖问题。
+- 当 $\gamma=1$ 且只有 terminal binary reward 时，$V^\pi$ 是当前策略最终成功的概率；有 discount 或其他奖励项时，应解释为相应的期望回报。
+
+回到本章开头，我们现在可以估计出 $V^\pi(x)=0.15$ 和 $Q^\pi(x,B)=0.5$，但策略依旧以 $0.6$ 的概率选择无法成功的首 token $A$。
+下一章的问题因此很自然：**既然已经知道动作的好坏，怎样利用这些价值改进策略？**

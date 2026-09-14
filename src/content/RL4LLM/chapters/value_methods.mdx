@@ -1,198 +1,384 @@
 import Algorithm from "../../../components/Algorithm.astro";
 import Note from "../../../components/Note.astro";
+import Theorem from "../../../components/Theorem.astro";
 
 ## Value Based Methods
 
-在 [Policy Evaluation](#policy-evaluation) 一节中，策略 $\pi$ 是固定的，我们只估计 $V^\pi$ 或 $Q^\pi$.
-Value-based methods 更进一步：学习能够区分动作优劣的 value function，并据此改进策略。
+上一章的 [Policy Evaluation](#policy-evaluation) 固定策略 $\pi$，研究如何估计 $V^\pi$ 或 $Q^\pi$。
+本章转向 **control**：如何利用价值估计，得到更好的策略？
 
-一种直接思路是寻找 optimal value function $V^*$ 或 optimal Q function $Q^*$，再从中恢复最优策略。
-这也是 value based methods 的核心思想：
+<Note title="From evaluation to control" variant="info">
+
+Evaluation 回答“按当前策略行动，未来能得到多少奖励”；control 则进一步问“知道各个动作的价值后，应该怎样改变行动规则”。
+Value-based methods 根据 value/Q-function 选择动作，由价值估计间接决定策略。
+
+</Note>
+
+本章不再重复 MC、TD 和函数逼近的推导，而是沿着四个问题展开：
+
+1. 已经知道 $Q^\pi$，如何改进 $\pi$？——policy improvement 与 policy iteration。
+2. 每次改进前，必须把价值完全算准确吗？——value iteration。
+3. 只有采样数据、没有完整模型时，如何改进策略？——SARSA 与 Q-learning。
+4. Q-table 太大时，如何训练神经网络来做 control？——DQN。
+
+### Policy Improvement
+
+固定策略的价值满足
+
+$$
+V^\pi(s)=\sum_a\pi(a\mid s)Q^\pi(s,a).
+$$
+
+这个平均值不超过最好的动作价值。因此，一个自然的改进是让新策略选择当前 $Q^\pi$ 最大的动作：
+
+$$
+\pi_{\mathrm{new}}(s)\in\arg\max_a Q^\pi(s,a),\qquad
+Q^\pi(s,\pi_{\mathrm{new}}(s))\geq V^\pi(s).
+$$
+
+这里有一个需要解释的跳跃：$Q^\pi$ 假设当前动作之后继续遵循旧策略 $\pi$，但新策略会在后续每个状态也做 greedy improvement。
+这样反复改变未来的行为，还能保证 value 不下降吗？
+
+<Theorem title="Policy Improvement" id="policy-improvement-theorem">
+
+在有限状态、有限动作、有界奖励且 $0<\gamma<1$ 的 MDP 中，若策略 $\pi'$ 在每个状态满足
+
+$$
+\sum_a\pi'(a\mid s)Q^\pi(s,a)\geq V^\pi(s),
+$$
+
+则 $V^{\pi'}(s)\geq V^\pi(s)$ 对所有状态成立。
+基于精确 $Q^\pi$ 的 greedy policy 是满足该条件的一种选择。
+
+</Theorem>
+
+<Theorem title="Repeated improvement of the continuation" variant="proof">
+
+由条件可得 $\mathcal T^{\pi'}V^\pi\geq V^\pi$。
+利用 Bellman operator 的单调性，
+
+$$
+V^\pi\leq\mathcal T^{\pi'}V^\pi
+\leq(\mathcal T^{\pi'})^2V^\pi
+\leq\cdots\longrightarrow V^{\pi'}.
+$$
+
+最后一步使用固定策略 Bellman operator 的 contraction 性质。
+因此，把未来更多步骤替换成 $\pi'$ 不会降低 value。
+对于包含时间信息的 finite-horizon MDP，$\gamma=1$ 时可用有限步 backward induction 得到同样结论。
+
+</Theorem>
+
+#### ToyLLM: From a Better First Token to a Better Policy
+
+继续使用上一章的两步 ToyLLM：target 为 $BA$，$\gamma=1$，旧策略在初始状态选择 $B$ 的概率为 $0.3$，在 prefix $B$ 后选择 $A$ 的概率为 $0.5$。
+于是
+
+$$
+V^\pi(x)=0.15,\qquad Q^\pi(x,B)=0.5,
+\qquad Q^\pi(x,A)=Q^\pi(x,\langle\mathrm{eos}\rangle)=0.
+$$
+
+如果只把第一个动作改成必选 $B$，随后仍用旧策略，则成功概率从 $0.15$ 变为 $0.5$。
+如果在每个 prefix 都对 $Q^\pi$ 做 greedy improvement，那么在 prefix $B$ 后也会必选 $A$，因为这个终止动作的 Q-value 为 1，其他动作为 0。
+因此新策略确定性地生成 $BA$，有
+
+$$
+V^{\pi_{\mathrm{new}}}(x)=1.
+$$
+
+这个例子区分了三个量：旧策略的 value 为 $0.15$，只改当前动作时的 value 为 $0.5$，改进整条后续策略后的 value 为 $1$。
+前两者属于 evaluation，最后一步才使用价值信息完成 control。
+这里一步就得到最优策略是这个小例子的性质，一般问题需要多次迭代。
+
+### Policy Iteration Methods
+
+改进策略后，旧的 $Q^\pi$ 不再描述新的后续行为。因此我们重新评估新策略，再继续改进：
+
+$$
+\pi_k\xrightarrow{\text{evaluation}}V^{\pi_k},Q^{\pi_k}
+\xrightarrow{\text{improvement}}\pi_{k+1}.
+$$
+
+<Algorithm title="Exact Policy Iteration">
+
+1. Initialize a deterministic policy $\pi_0$.
+2. **For** $k=0,1,\ldots$:
+   - **Evaluation**: compute $V^{\pi_k}$ with the known environment model, then compute
+     $$
+     Q^{\pi_k}(s,a)=\mathbb E[r+\gamma V^{\pi_k}(s')\mid s,a].
+     $$
+   - **Improvement**: for every non-terminal state,
+     $$
+     \pi_{k+1}(s)\in\arg\max_a Q^{\pi_k}(s,a).
+     $$
+     Keep the old action if it is already a maximizer; otherwise use a fixed tie-breaking rule.
+   - Stop if $\pi_{k+1}=\pi_k$.
+3. Return $\pi_k$.
+
+</Algorithm>
+
+在上述 finite discounted MDP 条件下，policy improvement 保证 value 单调不降。
+若策略尚未最优，至少一个状态的 value 严格提高；deterministic policies 的数量有限，因此精确 policy iteration 在有限次改进后到达最优策略。
+停止时 $V^{\pi_k}=\mathcal T^*V^{\pi_k}$，也就是满足 Bellman optimality equation。
 
 <Note variant="info">
 
-求解得到 optimal value function $V^*$ 或者 optimal Q function $Q^*$, 再得到 optimal policy $\pi^*$.
+这一保证依赖精确 evaluation。用有限样本或 neural network 得到的 $\hat Q$ 可能排错动作顺序，greedy improvement 不再自动保证真实 return 提高。
+实际 control 算法必须同时面对价值估计误差和探索不足。
 
 </Note>
 
 ### Value Iteration
 
-Value iteration 的基本思路为：通过 Bellman optimality operator 迭代求解 $V^*$ 和 $Q^*$, 然后得到最优策略。
-根据 [BOE Theorem](#BOE_value) 的证明，$\mathcal{T}^*$ 是一个 contraction mapping, 因此我们可以构造函数序列：
+Policy iteration 每轮都要完成一次 evaluation，代价可能很大。
+能不能只做少量 backup，就立即改进动作选择？
 
-$$
-V, \mathcal{T}^* V, (\mathcal{T}^*)^2 V, \cdots
-$$
-
-由不动点定理，该序列收敛到 $V^*$.
-这就是 value iteration algorithm:
+先比较两个更新：
 
 $$
 \begin{aligned}
-V^{k+1} &= \mathcal{T}^* V^k \\
-V^{k+1}(s_t) &= \max_{a \in \mathcal{A}} \mathbb{E}_{(r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)}\left[r + \gamma V^k(s_{t+1}) \mid S_t=s_t, A_t=a_t\right] 
+(\mathcal T^\pi V_k)(s)
+&=\sum_a\pi(a\mid s)\mathbb E[r+\gamma V_k(s')\mid s,a],\\
+(\mathcal T^*V_k)(s)
+&=\max_a\mathbb E[r+\gamma V_k(s')\mid s,a].
 \end{aligned}
 $$
 
-类似地，我们还有 Q value iteration algorithm:
+第一行对动作按固定策略取平均，目标是 $V^\pi$；第二行在每次 backup 中选择最佳动作，目标是 $V^*$。
+令 $V_{k+1}=\mathcal T^*V_k$，就得到 **value iteration**。
+这可以理解为把 evaluation 和 improvement 紧密交替进行；中间的 $V_k$ 不必是某个策略已经评估准确的 value。
 
-$$
-\begin{aligned}
-Q^{k+1} &= \mathcal{T}^* Q^k \\
-Q^{k+1}(s_t, a_t) &= \mathbb{E}_{(r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)}\left[r + \gamma \max_{a_{t+1} \in \mathcal{A}} Q^k(s_{t+1}, a_{t+1}) \mid S_t=s_t,A_t=a_t\right]
-\end{aligned}
-$$
+<Algorithm title="Value Iteration with a Known Model">
 
-最终，我们的最优策略为
-
-$$
-\pi^{*}(s_t) = \arg\max_{a \in \mathcal{A}} Q^*(s_t,a)
-$$
-
-其中 $Q^*=\lim_{k\to\infty}Q^k$.
-
-本节将 value iteration 的思想与函数逼近、TD learning 等技术结合，得到实用的 value-based 算法.
-
-### Tabular Learning
-
-当 state 和 action space 足够小时，我们可以直接维护一张 Q-table.
-
-在 Model-Free 设定下，我们无法直接计算转移概率 $\mathbb{E}_{s' \sim p}$.
-此时，我们必须通过与环境交互产生的轨迹样本 $(s, a, r, s', a')$ 来更新价值。
-
-#### SARSA
-
-SARSA 的核心在于它的更新动作 $a'$ 严格来自于当前的 $\epsilon$-greedy 策略：
-
-$$\boxed{Q(s, a) \leftarrow Q(s, a) + \alpha \left[ r + \gamma Q(s', a') - Q(s, a) \right]}$$
-
-#### Q-Learning (Off-Policy TD Control)
-
-与 SARSA 不同，Q-Learning 在估计未来价值时，直接贪心地选择最优动作，而不受当前探索策略的影响：
-
-$$\boxed{Q(s, a) \leftarrow Q(s, a) + \alpha \left[ r + \gamma \max_{a' \in \mathcal{A}} Q(s', a') - Q(s, a) \right]}$$
-
-### Function Approximation
-
-当状态空间较大或连续时，我们需要使用函数逼近，与上一节类似，我们用 $V_{\phi}$ 近似 $V^{\pi}$:
-
-$$
-J(\phi) = \mathbb{E}_{s}\left[\frac{1}{2}\left(V^{\pi}(s) - V_{\phi}(s)\right)^2\right]
-$$
-
-目标函数的梯度为：
-
-$$
-\nabla_{\phi} J(\phi) = -\mathbb{E}_{s}\left[(V^{\pi}(s) - V_{\phi}(s))\nabla_{\phi} V_{\phi}(s)\right]
-$$
-
-随机梯度下降的更新形式为：
-
-$$
-\phi_{k+1} = \phi_k + \alpha_k (V^{\pi}(s) - V_{\phi}(s))\nabla_{\phi} V_{\phi}(s)
-$$
-
-$V^{\pi}(s)$ 可以通过两种方式来近似：
-
-1. **MC 近似**: $V^{\pi}(s) = \mathbb{E}^{\pi}[G_0 \mid s_0 = s] \approx G_0$
-2. **TD 近似**: $V^{\pi}(s) \approx r_t + \gamma V_{\phi}(s_{t+1})$
-
-### Deep Q-Network (DQN)
-
-将 function approximation 与 Q-learning 结合，可以用 neural network
-逼近 optimal Q function。DQN 进一步引入 replay buffer 和 target network
-来改善训练稳定性：
-
-$$
-\mathcal{L}(\phi) = \mathbb{E}_{(s,a,r,s') \sim \mathcal{D}} \left[ \frac{1}{2} \left( r + \gamma \max_{a'} Q_{\phi^-}(s', a') - Q_{\phi}(s, a) \right)^2 \right]
-$$
-
-其中 $\phi^-$ 为**目标网络（Target Network）**的参数，用于切断数据自举（Bootstrapping）带来的训练正反馈爆炸。
-为了保证求导时 Target 的稳定性，我们必须在代码或公式里明确使用 `stop-gradient` 算子：
-
-$$y = r + \gamma \max_{a'} \mathrm{sg}\left[Q_{\phi^-}(s', a')\right]$$
-
-DQN 针对 optimal policy 应用了 TD learning, 其目标函数为：
-
-$$
-\min_{\phi} \mathcal{L}(\phi) = \mathbb{E}_{(s, a, r, s') \sim \mathcal{D}}\left[\frac{1}{2}\left(Q_{\phi}(s, a) - \left(r + \gamma \max_{a'} Q_{\phi}(s', a')\right)\right)^2\right]
-$$
-
-这里 $\mathcal{D}$ 是 replay buffer, 存储了过去的 transition $(s, a, r, s')$.
-
-<Note variant="info" emoji="💡">
-
-DQN 的两个关键技术：
-
-1. **Experience Replay**: 使用 replay buffer 存储过去的 transitions，从中随机采样进行训练。这打破了数据之间的相关性，提高了样本效率.
-2. **Target Network**: 使用一个独立的 target network $Q_{\phi^{-}}$ 来计算 TD target, 其参数 $\phi^{-}$ 定期从 $\phi$ 复制（或通过 Polyak averaging 更新）。这稳定了训练过程.
-
-</Note>
-
-带有 target network 和 stop-gradient 的 DQN 目标函数为：
-
-$$
-\mathcal{L}(\phi) = \mathbb{E}_{(s, a, r, s') \sim \mathcal{D}}\left[\frac{1}{2}\left(Q_{\phi}(s, a) - \left(r + \gamma \, \max_{a'} \mathrm{sg}[Q_{\phi^{-}}(s', a')]\right)\right)^2\right]
-$$
-
-对应的 Python 实现：
-
-```python
-# Compute current Q-values
-q_values = Q_phi(states).gather(1, actions)
-
-# Compute target Q-values with target network
-with torch.no_grad():
-    next_q_values = Q_target(next_states).max(1)[0]
-    targets = rewards + gamma * next_q_values * (1 - dones)
-
-# Compute loss
-loss = 0.5 * (q_values - targets) ** 2
-loss = loss.mean()
-```
-
-<Algorithm title="DQN with Experience Replay">
-
-1. Initialize replay buffer $\mathcal{D}$ with capacity $N$.
-2. Initialize Q-network $Q_{\phi}$ with random weights.
-3. Initialize target network $Q_{\phi^{-}}$ with weights $\phi^{-} = \phi$.
-4. **for** episode = $1, \dots, M$:
-   - $s_0 \sim p_0$.
-   - **for** $t = 0, \dots, T-1$:
-     - Select action with $\epsilon$-greedy:
-       $$
-       a_t = \begin{cases}
-       \arg\max_a Q_{\phi}(s_t, a), & \text{with prob } 1 - \epsilon \\
-       \text{random action},         & \text{with prob } \epsilon
-       \end{cases}
-       $$
-     - $(r_t, s_{t+1}) \sim p(\cdot, \cdot \mid s_t, a_t)$.
-     - Store $(s_t, a_t, r_t, s_{t+1})$ in $\mathcal{D}$.
-     - Sample random minibatch $\{(s_i, a_i, r_i, s'_i)\}$ from $\mathcal{D}$.
-     - Compute target:
-       $$
-       y_i = \begin{cases}
-       r_i + \gamma \max_{a'} Q_{\phi^{-}}(s'_i, a'), & \text{if not terminal} \\
-       r_i,                                              & \text{if terminal}
-       \end{cases}
-       $$
-     - Update Q-network:
-       $$
-       \mathcal{L} = \frac{1}{|\text{batch}|} \sum_i \frac{1}{2} (Q_{\phi}(s_i, a_i) - y_i)^2, \quad \phi \gets \phi - \alpha \nabla_{\phi} \mathcal{L}
-       $$
-     - Every $C$ steps: $\phi^{-} \gets \phi$.
+1. Initialize $V_0(s)$ for non-terminal states; set terminal value to zero.
+2. **For** $k=0,1,\ldots$:
+   - For every non-terminal state, compute a synchronous backup:
+     $$
+     V_{k+1}(s)=\max_a\mathbb E[r+\gamma V_k(s')\mid s,a].
+     $$
+   - Stop when $\|V_{k+1}-V_k\|_\infty$ is below a chosen tolerance.
+3. Extract a greedy policy using the final value estimate:
+   $$
+   \hat\pi(s)\in\arg\max_a\mathbb E[r+\gamma V_{k+1}(s')\mid s,a].
+   $$
 
 </Algorithm>
 
+由 [Bellman Optimality Equation](#BOE_value)，$0<\gamma<1$ 时有
+
+$$
+\|V_{k+1}-V^*\|_\infty\leq\gamma\|V_k-V^*\|_\infty,
+$$
+
+因此迭代收敛到 $V^*$。有限误差下提取的是近似策略；达到不动点时得到最优策略。
+对 ToyLLM，若从零初始化并做同步更新，第一轮先学到 prefix $B$ 的最优 value 为 1，第二轮才把这一价值传到初始状态。
+这也是 $\gamma=1$、有限生成树下 backward induction 的直观过程。
+
+同样可以直接迭代 Q-function：
+
+$$
+Q_{k+1}(s,a)=\mathbb E\left[r+\gamma\max_{a'}Q_k(s',a')\mid s,a\right],
+$$
+
+其中 terminal 的 bootstrap 项为零。
+这个形式已经非常接近 Q-learning；剩下的问题是如何用样本替代对环境的期望。
+
+### From Evaluation to TD Control
+
+完整模型通常不可用，但我们可以执行动作，收集 $(s,a,r,s',d)$，其中 $d$ 表示本次 transition 是否终止。
+上一章已经介绍 TD 更新，本节沿用
+
+$$
+Q(s,a)\gets Q(s,a)+\alpha\bigl(y-Q(s,a)\bigr).
+$$
+
+新增的问题是：**target $y$ 应该评估哪一种后续行为？**
+此外，若总选择当前估计最大的动作，未尝试的好动作可能永远无法被发现。
+一种简单的 behavior policy 是 $\epsilon$-greedy：以 $1-\epsilon$ 的概率选当前 greedy action，以 $\epsilon$ 的概率在动作空间均匀探索。
+
+#### SARSA
+
+SARSA 从当前 behavior policy 采样下一动作 $a'$，并用它构造 target：
+
+$$
+y_{\mathrm{SARSA}}=\begin{cases}
+r,&d=1,\\
+r+\gamma Q(s',a'),\quad a'\sim\pi_k(\cdot\mid s'),&d=0.
+\end{cases}
+$$
+
+如果 $\pi_k$ 固定，这就是上一章的 Q-function evaluation。
+作为 control 算法，我们根据更新后的 Q-table 不断调整 $\epsilon$-greedy 策略，使高价值动作更容易被选择。
+因此 SARSA 将 evaluation 与 improvement 交织在每次交互中，而不是等待完整 evaluation 收敛。
+它是 **on-policy** 的，因为 target 使用的下一动作正是数据采集策略选出的动作。
+
+<Algorithm title="SARSA Control">
+
+1. Initialize Q-table and exploration schedule $\epsilon_k$.
+2. **For each episode**:
+   - Sample $s\sim p_0$ and $a\sim\epsilon_k\text{-greedy}(Q(s,\cdot))$.
+   - **Repeat**:
+     1. Execute $a$, observe $(r,s',d)$.
+     2. If terminal, set $y=r$; otherwise sample $a'\sim\epsilon_k\text{-greedy}(Q(s',\cdot))$ and set $y=r+\gamma Q(s',a')$.
+     3. Update $Q(s,a)\gets Q(s,a)+\alpha(y-Q(s,a))$.
+     4. If terminal, end the episode; otherwise set $(s,a)\gets(s',a')$.
+
+</Algorithm>
+
+算法名称来自更新所用的五元组 $(S,A,R,S',A')$。
+$\epsilon$-greedy 是这里选择的探索方式，不是 SARSA 的定义要求。
+固定的非零 $\epsilon$ 会持续影响它所评估的后续行为；不能因此直接宣称它学到的是完全 greedy 的最优策略。
+
+#### Q-Learning (Off-Policy TD Control)
+
+另一种选择是：采集数据时继续探索，但 target 假设下一步选当前估计中价值最大的动作：
+
+$$
+y_{\mathrm{Q}}=\begin{cases}
+r,&d=1,\\
+r+\gamma\max_{a'}Q(s',a'),&d=0.
+\end{cases}
+$$
+
+这就是 Q-learning，它是 Q-value iteration 的 sampled backup。
+给定当前 Q-table 和 $(s,a)$，target 对环境采样取期望后等于 Bellman optimality backup；它不是已知的 $Q^*(s,a)$，也不是当前 behavior policy 的 $Q^\pi(s,a)$ 的直接样本。
+
+<Algorithm title="Q-Learning Control">
+
+1. Initialize Q-table.
+2. **For each episode**:
+   - Sample $s\sim p_0$.
+   - **Repeat**:
+     1. Select $a$ with an exploratory behavior policy, such as $\epsilon$-greedy with respect to Q.
+     2. Execute $a$, observe $(r,s',d)$.
+     3. Set $y=r$ if terminal; otherwise set $y=r+\gamma\max_{a'}Q(s',a')$.
+     4. Update $Q(s,a)\gets Q(s,a)+\alpha(y-Q(s,a))$.
+     5. If terminal, end the episode; otherwise set $s\gets s'$.
+
+</Algorithm>
+
+Q-learning 是 **off-policy** 的，因为 behavior policy 可以探索，而 target 对应 greedy 的后续动作。
+这不意味着数据覆盖不重要：有限 discounted MDP 中的 tabular 收敛结论仍要求所有状态动作对被充分访问、有界奖励以及每个状态动作对的步长满足随机逼近条件。
+一份缺少关键动作的固定数据集，并不能自动恢复 $Q^*$。
+
+#### The Same Transition, Different Targets
+
+考虑 ToyLLM 中首 token 为 $B$ 的 transition：当前 reward 为 0，下一状态是 prefix $B$。
+假设当前 Q-table 在该 prefix 上对动作 $A$ 的估计为 $0.8$，对 $B$ 和 `<eos>` 的估计均为 0，而 behavior policy 恰好探索并选择了 `<eos>`。
+当 $\gamma=1$ 时，
+
+$$
+y_{\mathrm{SARSA}}=0+Q((x,B),\langle\mathrm{eos}\rangle)=0,
+\qquad
+y_{\mathrm{Q}}=0+\max_{a'}Q((x,B),a')=0.8.
+$$
+
+二者对同一条 transition 给出不同 target，因为它们对未来行为的假设不同。
+SARSA 的这个样本计入了探索导致的失败；Q-learning 则沿当前估计中的最佳后续动作传播价值，即使这次实际上没有选它。
+这里 $0.8$ 是当前估计，并不是环境给出的额外奖励。
+
+### Deep Q-Network (DQN)
+
+当 Q-table 太大时，我们用 $Q_\phi(s,a)$ 表示 Q-function。
+函数逼近和 semi-gradient 的推导见 [上一章](#function-approximation)，这里的变化是训练 target 使用 $\max_{a'}Q(s',a')$，朝 optimal Q-function 推进。
+
+但是，将 tabular Q-learning 换成 neural network，并不会保留原来的收敛保证。
+一个参数更新可能同时改变许多状态的预测，bootstrap 又依赖这些预测；加上 off-policy 数据，训练可能不稳定。
+[DQN](https://www.nature.com/articles/nature14236) 引入两项重要机制：
+
+1. **Experience replay**：将 transitions 存入 buffer，再随机抽取 minibatch，减弱相邻样本的相关性并复用历史数据。它不能补出从未采集过的动作结果。
+2. **Target network**：用暂时固定的 $Q_{\phi^-}$ 构造 bootstrap target，隔一段时间才从 $\phi$ 复制参数，减缓 target 随训练移动的速度。它改善稳定性，但不构成一般的收敛保证。
+
+对 replay buffer $\mathcal B$ 中的一条 transition，定义
+
+$$
+y=\begin{cases}
+r,&d=1,\\
+r+\gamma\max_{a'}Q_{\phi^-}(s',a'),&d=0.
+\end{cases}
+$$
+
+训练时将 target 当作常数：
+
+$$
+\mathcal L(\phi)=\mathbb E_{(s,a,r,s',d)\sim\mathcal B}
+\left[\frac12\left(Q_\phi(s,a)-\mathrm{sg}[y]\right)^2\right].
+$$
+
+下面展示一个 minibatch 的更新，所有被选中的 Q-value 和 target 都保持为 shape `[B]`：
+
+```python
+# actions: int64 [B]; rewards: float [B]; terminated: bool [B]
+# Q_phi(states) and Q_target(next_states): [B, num_actions]
+q_values = Q_phi(states).gather(1, actions[:, None]).squeeze(1)
+
+with torch.no_grad():
+    next_values = Q_target(next_states).max(dim=1).values
+    next_values = next_values.masked_fill(terminated, 0.0)
+    targets = rewards + gamma * next_values
+
+loss = 0.5 * (q_values - targets).square().mean()
+optimizer.zero_grad()
+loss.backward()
+optimizer.step()
+```
+
+这里 `terminated` 表示 MDP 真正终止。ToyLLM 的 EOS 和定义中的最大生成长度都属于终止；若只是外部采样器暂时截断一个仍会继续的任务，则需要另外处理 bootstrap。
+terminal 的 `next_states` 应使用网络可接受的占位输入，其预测随后被 mask 掉。
+
+<Algorithm title="DQN Training Loop">
+
+1. Initialize $Q_\phi$, copy $\phi^-\gets\phi$, and create replay buffer $\mathcal B$.
+2. Collect transitions with an $\epsilon$-greedy policy derived from $Q_\phi$; store $(s,a,r,s',d)$, resetting the environment after termination.
+3. Once enough data are available, sample minibatches from $\mathcal B$ and update $\phi$ using the loss above.
+4. Every $C$ optimizer steps, copy $\phi^-\gets\phi$.
+5. Repeat collection and training; evaluate the greedy policy separately from the exploratory behavior policy.
+
+</Algorithm>
+
+注意 target network 和 stop-gradient 的作用不同：前者控制 target **多久变化一次**，后者控制本次更新的 **梯度沿哪条路径传播**。
+
 ### Why LLMs Usually Do Not Use DQN
 
-Value-based control 建立了从 Bellman optimality equation 到可训练算法的桥梁，
-但 DQN 通常不是 LLM post-training 的最终选择：
+ToyLLM 展示了 value-based control 确实可以改进 token generation，但不能据此认为 vanilla DQN 就适合真实 LLM post-training。
+更关键的区别是策略的表示与学习目标：
 
-1. LLM action space 是整个 vocabulary，每个 prefix 都要对大量 token 计算并比较 $Q(s,a)$
-2. $\arg\max_a Q(s,a)$ 产生的 greedy policy 不等于我们希望保留和微调的 autoregressive policy distribution
-3. LLM reward 常在完整 response 后给出，早期 token 的 Q target 具有严重的 credit-assignment 和 exploration 问题
-4. 预训练 LLM 已经提供了强 policy prior，直接优化 $\pi_\theta$ 通常比从 Q function 重新构造生成策略更自然
+1. 预训练 LLM 已经提供了 $\pi_\theta(y_t\mid x,y_{<t})$。直接优化这个分布可以沿用已有的生成能力；从 Q-function 提取 greedy policy 需要另一套价值学习和动作选择机制。
+2. Vanilla DQN 的 greedy rule 选择最大 Q-value 的动作，并不直接学习希望保留和调整的完整生成分布。价值方法也可以扩展到随机或正则化策略，但需要额外设计。
+3. 巨大的 prefix space、稀疏 terminal reward 和对未充分访问动作的 Q 估计，使可靠的 control 很困难。词表大本身不是“不适用”的证明：policy model 同样需要处理整个词表。
+4. 在 ToyLLM 中，精确 Q 可以指导 greedy improvement；在真实任务中，错误的高 Q 估计也可能被 $\max$ 放大。模型必须有足够的探索与数据支持这些价值判断。
 
-因此，本章的主要作用是解释 **evaluation 如何变成 control**, 并为 TD, off-policy learning 和 bootstrap 建立直觉。
-下一章将转向 policy-based methods：直接对 LLM policy 的 expected return 求梯度。
+因此，学习本章的目的不是把 DQN 当作 LLM 训练配方，而是理解 **评价策略与改进策略是两个不同的任务**。
+下一章的 [Policy Based Methods](#policy-based-methods) 将直接更新参数化策略；之后的 actor-critic 会重新使用 policy evaluation，让 critic 评估当前 actor 的回报，并帮助 actor 更新。
+其中 critic 通常估计 $V^{\pi_\theta}$ 或 $Q^{\pi_\theta}$，而不是独立求解 $Q^*$。
+
+### Reproduce the Control Example
+
+与上一章共用 `scripts/run_tutorial_control.py`。同一份 JSON 的 `hand_example` 应给出：policy iteration 的初始状态 value 从 $0.15$ 到 $1$，从零初始化的同步 value iteration 则依次为 $0,0,1$。
+前者使用完整的策略评估结果再改进；后者每轮只做一次 optimality backup。
+
+`control` 部分分别运行 SARSA 和 Q-learning，并把以下指标分开报告：
+
+1. 学到的 $\max_a Q(x,a)$，它仍然是一个估计。
+2. 对学到的 greedy policy 做精确 evaluation 得到的成功概率。
+3. 对保留 $\epsilon=0.2$ 探索的策略做精确 evaluation 得到的成功概率。
+4. 最后 1,000 个训练 episode 的经验成功率。
+
+在这个两步例子中，如果 greedy policy 已经确定性地生成 $BA$，它的成功率为 1；但每步在三个动作上保留 $\epsilon=0.2$ 的均匀探索后，成功率为
+
+$$
+\left(1-0.2+\frac{0.2}{3}\right)^2=\frac{169}{225}\approx0.7511.
+$$
+
+因此训练期间仍有失败 episode，并不说明 greedy policy 没有学会任务。
+同样，SARSA 的 estimated Q 与 Q-learning 不完全一致，也可能反映了二者不同的后续行为目标，而不一定是实现错误。
+精确 evaluation 只用于这个可枚举小环境中的诊断；采样控制算法本身不调用精确模型。
+
+### Takeaway
+
+- Value-based control 用价值信息改变动作选择；仅训练一个 value network 仍可能只是 evaluation。
+- Policy iteration 交替执行 evaluation 和 improvement；value iteration 在每次 optimality backup 中交织二者。
+- SARSA 的 target 跟随 behavior policy 的下一动作，Q-learning 的 target 使用 greedy 下一动作。
+- DQN 将 Q-learning 与函数逼近结合，replay buffer 和 target network 用于缓解训练不稳定。
+- 对 LLM 而言，这些方法建立了 control 的共同语言，后续我们会把策略改进交给显式的 autoregressive policy。
