@@ -26,6 +26,8 @@ MiMo-V2-Flash [@MiMo-V2-Flash]
 
 发现由于 OPD 提供了细粒度的 supervision signal, student model 会产生 thinking collapse.
 
+Nemotron 3 Ultra 发现对于 self-contained reasoning domain, OPD 的提升有限，这是因为 teacher model 主要是用 off-policy data 中获取相关知识，这回导致 teacher model 和 student model 之间差距过大。
+
 ### Optimization
 
 MOPD [@MOPD] 认为 OPD advantage 仅使用了采样 token 的概率来计算 KL divergence, 这会导致较大的方差，因此作者使用了 teachers' topK token 来进行计算，最终的损失函数为
@@ -36,7 +38,10 @@ $$
 
 这里 $\mathcal{T}_t=\mathrm{TopK}(\pi_{T}(\cdot\mid x, y_{<t}))$ 是教师模型在位置 $t$ 出的 topK token 的概率。KL divergence 使用了 [k3 estimator](https://maosong.website/blog/kl-divergence/#reverse-kl-estimation).
 
+Nemotron 3 Ultra 发现使用 topK/full vocab 来计算 KL divergence 对模型表现提升不大，作者认为，full-distribution matching 对 prefix 限制比较大，特别是 support 不一致的情况下，而 sampled-token objective 可以提供一个稳定的 on-policy learning signal.
+
 为了避免 [training-inference mismatch](https://maosong.website/blog/train_inference_mistahch/), Nemotron Cascaded 2 [@Nemotron-Cascade2] 使用了 TIS 策略。
+Nemotron 3 Ultra 使用了 IcePop [@IcePop] 提出的 token level masking.
 
 ### MOPD
 
@@ -80,7 +85,22 @@ Mach-Mind-4-Flash [@Mach-Mind-4-Flash] 将 teacher models 分为了三类
 | General   | IF, Writing, Safe                |
 | Agentic   | Code, Tool Use, DeepSearch, Claw |
 
-Nemotron-3-Super 和 MOPD 尝试进行 multi-round MOPD 来提高模型的表现，实验发现 MOPD 可以持续提高教师模型的表现。
+Nemotron-3-Super [@Nemotron3Super] 和 MOPD 尝试进行 multi-round MOPD 来提高模型的表现，实验发现 MOPD 可以持续提高教师模型的表现。
+
+Nemotron 3 Ultra [@Nemotron3Ultra] 发现，直接进行 MOPD 的训练时，效果会比较差，作者认为原因在于不同教师模型经历了不同的 SFT 和 RL 训练阶段，其思考方式与学生模型可能会存在较大不同。
+为了解决这个问题，作者提出了 MOPD warmup, 也就是在对应 domain OPD 训练时，先通过一个轻量化的 SFT 来对学生模型和教师模型的输出分布，然后再进行 OPD, 作者发现这样可以有效提高学生模型的表现，实验结果如下表所示
+
+｜Benchmark ｜Student｜ Warmup｜ No Warmup｜ Teacher｜
+｜---｜---｜---｜---｜---｜
+｜GDPVal ｜28.9｜ 46.7 ｜35.3｜ 49.5 ｜
+｜BrowseComp｜ 31.0｜ 44.4 ｜33.0 ｜51.0 ｜
+｜HLE (no tools) 25.6｜ 26.7 ｜26.3 ｜32.1｜
+
+实验结果显示，对于 agentic domain, warmup 可以有效提高学生模型的表现。
+但是，对于通用推理任务，warmup 提升有限。
+
+Nemotron 3 Ultra 还提出了 multi-round MOPD, 即使用 MOPD 训练出来的 student model 初始化训练得到新的 teacher model, 再进行下一轮的 MOPD 的训练。
+作者发现这种 multi-round 策略可以有效提高模型的表现。
 
 ### OPSD
 
@@ -93,3 +113,52 @@ OPD 的问题在于，其要求教师模型满足 same-family, 而实际上，�
 1. SFT 的 reward signal 更 dense, 但是这会影响模型原有表现
 2. RL 的更新与数据相关，数据 diverse, 更新就慢，数据 consistent, 更新就快
 3. RL 更新更稀疏，只有一部分网络参数会被更新，SFT 更新更加 dense
+
+### CTOPD
+
+已有的 OPD 方案有两点要求：
+
+1. teacher model 和 student model 的 training recipe 相同
+2. teacher model 和 student model 共享 tokenizer
+
+这限制了 OPD 跨 model family distillation 的能力，因此，有一些研究开始探究如何针对不同 model family 的 student 和 teacher 来实现 OPD, 也就是 cross tokenizer opd (CTOPD).
+
+CTOPD 的主要难点有：
+
+1. tokenizer 不同，导致 KL divergence 没办法计算。注意到 KL divergence 是
+
+[@ULD] 提出了 universal logit distillation (ULD) loss 来实现 CTOPD
+
+首先，为了解决 vocabulary 不同的问题，ULD 使用了 Wasserstein distance 来代替 KL divergence
+
+$$
+\mathcal{W}_{1}(\mathbf{p},\mathbf{q}) = \min_{T\in\Pi(\mathbf{p},\mathbf{q})}\sum_{i=1}^{|\Omega_S|}\sum_{j=1}^{|\Omega_T|}T_{ij}C_{ij}
+$$
+
+其中 $\Omega_S$, $\Omega_S$ 分别是两个模型的 vocabulary, $\mathbf{p},\mathbf{q}$ 分别是在对应 vocabulary 上的一个分布，$\Pi(\mathbf{p},\mathbf{q})$ 是 marginal distribution 为 $\mathbf{p}$ 和 $\mathbf{q}$ 的联合分布，$C_{ij}^p$ 是 cost matrix, $T$ 是 transport plan.
+
+这样，ULD 的损失函数就是
+
+$$
+\mathcal{L} = \sum_{t=1}^{|\mathbf{x}|}\mathcal{W}_{1}(\mathbf{p}_{\theta_S}(\cdot\mid \mathbf{x}_{<t}^S),\mathbf{q}_{\theta_T}(\cdot\mid \mathbf{x}_{<t}^T))
+$$
+
+其中 $|\mathbf{x}|=\min(|\mathbf{x}^S|,|\mathbf{x}^T|)$.
+
+ULD 的问题在于，其简单使用两条 sequence 中较短的那条来计算损失，导致信息丢失，另一方面，token misalignment 可能导致语义信息丢失
+
+为了解决这两个问题，[@GOLD] 提出了 GOLD, 一个通过 merge 来对齐不同 vocabulary, 不同 length 的 sequence 来解决 CTOPD 的方法。
+GOLD 的关键思想在于，token sequence 对应的 raw text sequence 是一致的，只是 encoding 的方式不同，因此，我们可以基于 raw text sequence 来对齐不同的 token.
+
+对齐的具体做法就是，基于 BPE, 获取每个 token 对应 raw text sequence 的起始和终止字节区间，然后通过合并区间来保证不同 token chunk 对应的 raw text 一致，并且，为了防止 chat template 或者 special token 导致的起始 token 不一致性，GOLD 会从 response token 部分开始计算。
+
+同时，ULD 使用了 sort 来对齐两个 vocabulary 的分布，但是，一些 token 对应的 raw text 在不同的 vocabulary 中是一致的，因此对于这些 token, 我们可以构建一一对应的关系，降低计算复杂度，对于不匹配的 token, 再 fall back 到 ULD 的计算方式上
+
+### Multi-turn OPD
+
+对于面向 multi-turn agent 场景，也有一些方法正在解决 long-horizon 带来的 distribution shift 问题：
+
+1. Guided OPD 通过在 turn level 混合 teacher 和 student 的 action 来逐步引导 student model
+2. ReOPD 复用收集到的 teacher trajectories, 选择 某个 turn, 回放此前的 prefix, 让学生模型执行 action, 再由 teacher 给予 supervised signal
+3. TurnOPD 解决了 vanilla OPD 花费大量时间在 tail turns 和 long turns 中的学习速度慢的问题
+4. DASH-OPD 根据轨迹的上下文来决定是否需要 teacher signal.
