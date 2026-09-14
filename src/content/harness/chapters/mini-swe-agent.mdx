@@ -1,0 +1,88 @@
+## Mini-SWE-agent
+
+mini-swe-agent 的特点在于：
+
+1. 只有 `bash` 这一个工具
+2. linear history, 所有的历史都 append 到 `messages` 中
+3. 通过 `subprocess.run()` 来执行动作
+
+框架图如下所示
+
+```mermaid
+graph TD
+    Start((Start: DefaultAgent.run)) --> Loop[进入主循环]
+
+    Loop --> Step[调用 step]
+
+    subgraph step_subgraph ["Agent.step()"]
+        direction TB
+        Q[调用 query] --> Exec[调用 execute_actions]
+    end
+
+    Step --> Q
+
+    subgraph query_subgraph ["Agent.query()"]
+        direction TB
+        Limit[limit checks] --> Model[model.query]
+        Model --> AddMsg1[add_messages]
+    end
+
+    Q -.-> Limit
+
+    subgraph execute_subgraph ["Agent.execute_actions()"]
+        direction TB
+        Env[env.execute] --> Format[format_observation_messages]
+        Format --> AddMsg2[add_messages]
+    end
+
+    Exec -.-> Env
+
+    %% 异常处理逻辑
+    Env -- "抛出异常(Submitted等)" --> CatchException>捕获异常]
+    CatchException --> AddExceptionMsg[add_messages]
+    AddExceptionMsg --> CheckExit
+
+    %% 正常执行完毕检查
+    Exec --> CheckExit{"检查 message role == exit?"}
+
+    %% 循环与退出判断
+    CheckExit -- "No" --> Loop
+    CheckExit -- "Yes" --> End(((结束运行并返回)))
+```
+
+`DefaultAgent.run`
+
+```python
+while True:
+    try:
+        self.step()
+    except InterruptAgentFlow as e:
+        self.add_messages(*e.messages)
+    if self.messages[-1].get("role") == "exit":
+        break
+```
+
+`self.step()`:
+
+```python
+def step(self) -> list[dict]:
+    return self.execute_actions(self.query())
+```
+
+`self.query()`
+
+```python
+def query(self) -> dict:
+    # ... limit checks ...
+    message = self.model.query(self.messages)
+    self.add_messages(message)
+    return message
+```
+
+`self.execute_actions()`:
+
+```python
+def execute_actions(self, message: dict) -> list[dict]:
+    outputs = [self.env.execute(action) for action in message.get]
+    return self.add_messages(*self.model.format_observation_messages())
+```
