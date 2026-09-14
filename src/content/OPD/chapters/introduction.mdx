@@ -7,8 +7,12 @@ import Sidenote from "../../../components/Sidenote.astro";
 
 但是，SFT 的问题在于容易过拟合，导致模型出现灾难性遗忘现象。
 为了解决这个问题，我们在本文中介绍现在主流的做法： OPD (on policy distillation).
-OPD 通过使用 reverse KL 作为损失函数，将 off-policy 的 imitation learning 变成了 on-policy 的 guided learning [@lu2025onpolicydistillation;@MiniLLM].
-此时，模型自身尝试解决问题 (rollout), 然后教师模型在 token 层面使用 logits 进行指导。
+OPD 通过让学生模型自身尝试解决问题 (rollout), 然后教师模型在 token 层面使用 logits 进行指导。
+GKD [@agarwal2024onpolicy] 首先提出了 on-policy KD 的概念，即训练数据不再从 off-policy dataset 中得到，即 $(x,y)\sim\mathcal{D}$, 而是由学生模型产生，即 $x\sim\mathcal{D}, y\sim\pi_{S}$, 这里 $\pi_S$ 就是我们的学生模型。
+损失函数上，GKD 仍然使用 forward KL 作为损失函数。
+
+后续的研究逐渐开始使用 reverse KL 作为损失函数，将 off-policy 的 imitation learning 变成了 on-policy 的 guided learning [@lu2025onpolicydistillation;@MiniLLM].
+此时，
 
 相比于 SFT 来说，OPD 可以更大程度保留模型本身的能力，相比于 RL 来说，训练开销更小。
 
