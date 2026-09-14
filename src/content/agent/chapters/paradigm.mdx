@@ -1,0 +1,21 @@
+## Paradigm
+
+ReAct-style 中，作者将 agent 与 environment 交互过程定义如下：
+
+给定 query $q$, systemprompt $s_0$, tool metadata $\mathcal{T}_{\mathrm{meta}}$, agent 通过 reasoning 产生 action 与环境进行交互, 这个交互过程产生一个轨迹 $\mathcal{H}_{T}$
+
+$$
+\mathcal{H}_{T}:= \{(q,s_0,\mathcal{T}_{\mathrm{meta}}),(r_1,a_1,o_1),\dots,(r_i,a_i,o_i),\dots,(r_T,a_T)\}
+$$
+
+其中 $r_i,a_i, o_i$ 分别代表 reasoning CoT, action 和 observation, $a_T$ 是最终回答。给定 $t\leq T$, agent $\pi$ 基于历史交互信息 $\mathcal{H}_{t-1}$ 生成 reasoning CoT $r_t$ 和 action $a_t$,
+
+$$
+r_t,a_t \sim\pi(\cdot\mid \mathcal{H}_{t-1})
+$$
+
+environment $\mathcal{E}$ 基于 action $a_t$ 返回 observation $o_t=\mathcal{E}(a_t)$, 然后更新轨迹
+
+$$
+\mathcal{H}_{t} = \mathcal{H}_{t-1}\cup (r_t,a_t,o_t)
+$$
