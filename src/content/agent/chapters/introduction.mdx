@@ -3,3 +3,26 @@
 Agent 定义为
 
 An LLM agent runs tools in a loop to achieve a goal.
+
+agent 的核心能力：
+
+1. accurate tool calling
+2. coherence over long context
+3. customizability
+4. complex task management
+5. environment understanding
+6. safety
+
+提升模型的这些能力
+
+1. LLM training
+2. harness engineering
+
+| Capability                  | Harness                                                                              | Training                                                               |
+| --------------------------- | ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------- |
+| accurate tool calling       | grammar-constrained decoding                                                         | SFT on tool-calling traces                                             |
+| coherence over long context | 1. context compression/compaction; 2. dynamic memory lookup; 3. sub-agent delegation | SFT on long context                                                    |
+| Customizability             | agent memory; skills; custom tools                                                   | RLHF                                                                   |
+| Complex task management     | provide planning/decomposition tools;sub-agent delegation                            | train on complex/long horizon tasks                                    |
+| environment understanding   | learn skills correspoding to doain knowledge                                         | SFT on data with expected observation shape; RL on domain specific-env |
+| safety                      | sandbox tools; limit access to credentials; monitor trajectories                     | safety aware RL                                                        |
