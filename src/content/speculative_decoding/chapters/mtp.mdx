@@ -3,3 +3,47 @@
 Nemotron 3 Super [@Nemotron3Super] 提出了在不同的 head 之间共享参数来解决 distribution shift 的问题
 
 Nemotron 3 Ultra [@Nemotron3Ultra] 提出了 MTP boosting 来解决训练推理不一致性的问题
+
+MiMo-V2.6 [@MiMo-V2.6] 基于 DFlash 构建了 MTP, 其 MTP 模块包含 5 个 transformer layers, 预测深度为 7, 其架构信息如下所示
+
+| Model                  | MiMo-V2.6-Flash | MiMo-V2.6-Pro |
+| ---------------------- | --------------- | ------------- |
+| Layers (Total/SWA/GA)  | 5/5/0           | 5/5/0         |
+| Hidden Size            | 4096            | 6144          |
+| SWA Heads (Q/KV)       | 64/8            | 128/8         |
+| Sliding Window Size    | 1024            | 1024          |
+| GA Heads (Q/KV)        | 64/4            | 128/8         |
+| Head Dimensions (QK/V) | 128/128         | 128/128       |
+
+## Training
+
+### Pre-training
+
+Pre-training 包含 2 个 stage:
+
+1. stage 1: 作者仅训练 LLM backbone
+2. stage 2: 加入 ViT 和 audio encoder, 联合进行训练
+
+训练时，上下文从 32K 逐渐扩展到 256K, 训练数据如下表所示
+
+| Model          | MiMo-V2.6-Flash | MiMo-V2.6-Pro |
+| -------------- | --------------- | ------------- |
+| Stage 1 (text) | 26T             | 22T           |
+| Stage 2 (omni) | 27T             | 3T            |
+
+训练使用了 Adamw [@AdamW] optimizer.
+
+### Mid-training
+
+mid-training 也包含 2 个 stage:
+
+1. 256k context length
+2. 1M context length
+
+为了支持 large batch RL 训练，作者在 mid-training 阶段使用了 Muown optimizer, 一个 Muon [@Muon] 的变体，Muown 在 Muon 的基础上加入了 row-norm control 来减少 spectral-norm drift 和 sensitivity.
+
+作者还使用了 MXFP4 QAT 来实现低精度训练。
+
+### Post-training
+
+Post-training 包含 SFT 和 RL 两个阶段，作者主要强调了 RL 阶段的训练
