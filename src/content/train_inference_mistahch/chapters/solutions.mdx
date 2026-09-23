@@ -10,6 +10,7 @@
 - DeepSeek-V3 [@DeepSeek-V3]
 - GSPO [@GSPO]
 - MiniRL
+- @top-p sampling candidate sets [@mai_thinking_1]
 
 thinking machine lab, non-deterministic inference, numerical instability. 但是其问题在于
 
@@ -47,6 +48,8 @@ AreaL [@AReaL] 使用了 decoupled PPO [@decoupled_ppo] 来构建 rollout genera
 
 1. vanilla router replay: R2, 梯度更新时，replay inference engine 选中的专家，减少策略滞后性
 2. rollout router replay: R3, 在训练引擎中重放推理引擎选中的专家，减少训练推理差异。相关工作有 DeepSeek-V3.2 [@DeepSeek-V3.2], [@ma2025stabilizingmoereinforcementlearning]
+
+MiMo-V2.6 [@MiMo-V2.6] 在 RL 训练的时候冻结了 router, 发现这样可以提高负载均衡
 
 #### Kernel Optimization
 
