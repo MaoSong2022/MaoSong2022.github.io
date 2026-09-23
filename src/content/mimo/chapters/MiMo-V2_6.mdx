@@ -1,0 +1,122 @@
+## MiMo-V2.6
+
+26 年 9 月 MiMo 发布了 MiMo-V2.6 [@MiMo-V2.6], 包含 Pro 和 Flash 两个模型，均支持 text, image, audio 三个模态。
+
+Post-training 阶段，作者主要在以下几个方面进行了改进：
+
+1. scaling batch size, 使用更大的 batch size 进行训练，提高训练稳定性
+2. fully async training, 最大的 staleness 为 8
+3. agentic grading, 将 verifier 升级为 agentic grading
+
+### Model Information
+
+| 架构参数                | **MiMo-V2.5** | **MiMo-V2.5-Pro** | **MiMo-V2.6-Flash** | **MiMo-V2.6-Pro** |
+| ----------------------- | ------------- | ----------------- | ------------------- | ----------------- |
+| Architecture            | Sparse MoE    | Sparse MoE        | Sparse MoE          | Sparse MoE        |
+| **Total Params**        | **310B**      | **1.02T**         | **309B**            | **1.02T**         |
+| **Activated Params**    | **15B**       | **42B**           | **15B**             | **42B**           |
+| Hidden Size             | 4096          | **6144**          | 4096                | **6144**          |
+| Layers                  | 48            | **70**            | 48                  | **70**            |
+| Dense / MoE Layers      | 1 / 47        | 1 / 69            | 1 / 47              | 1 / 69            |
+| SWA Layers              | 39            | **60**            | 39                  | **60**            |
+| Global Attention Layers | 9             | **10**            | 9                   | **10**            |
+| Q Heads                 | 64            | **128**           | 64                  | **128**           |
+| GA KV Heads             | 8             | 8                 | **4**               | **4**             |
+| SWA KV Heads            | 4             | 8                 | **8**               | **8**             |
+| QK Head Dim             | 192           | 192               | 192                 | 192               |
+| V Head Dim              | 128           | 128               | 128                 | 128               |
+| **Routed Experts**      | 256           | **384**           | 256                 | **384**           |
+| **Experts / Token**     | 8             | 8                 | 8                   | 8                 |
+| MoE Intermediate        | 2048          | 2048              | 2048                | 2048              |
+| Dense Intermediate      | 16384         | 16384             | 16384               | 16384             |
+| SWA Window              | 128           | 128               | 128                 | 128               |
+| **Context Length**      | 1M            | 1M                | 1M                  | 1M                |
+| **MTP Layers**          | 3             | 3                 | **5**               | **5**             |
+
+多模态信息如下
+
+| 参数           | **V2.5**               | **V2.5-Pro** | **V2.6-Flash**                               | **V2.6-Pro**      |
+| -------------- | ---------------------- | ------------ | -------------------------------------------- | ----------------- |
+| Vision Encoder | 729M ViT               | 729M ViT     | **681M MiMo ViT**                            | **681M MiMo ViT** |
+| Vision Layers  | 24 SWA + 4 Full        | 同左         | **24 SWA + 4 Full**                          | 同左              |
+| Audio          | 261M Audio Transformer | 同左         | **308M AudioTokenizer + 127M Patch Encoder** | 同左              |
+| Modalities     | T/I/V/A                | T/I/V/A      | T/I/V/A                                      | T/I/V/A           |
+
+### Architecture
+
+MiMo-ViT 见 [MiMo-ViT](https://maosong.website/blog/visual-foundation-model/#mimo-vit)
+
+## Training
+
+Training 分为了 pre-training, mid-training 和 post-training 三个大的阶段。
+
+Pre-training 分为 2 个 stage：
+
+1. 使用 text-only data 训练 LLM backbone
+2. 使用 omni data 联合训练 ViT, audio encoder 和 LLM
+
+训练时的上下文逐渐从 32K 扩展到 256K, pre-training 使用的数据如下表所示
+
+| Model          | MiMo-V2.6 Flash | MiMo-V2.6 Pro |
+| -------------- | --------------- | ------------- |
+| Stage 1 (text) | 26T             | 27T           |
+| Stage 2 (omni) | 22T             | 3T            |
+| Total          | 48T             | 30T           |
+
+Mid-training 阶段主要提高模型的 long context 能力和 agentic 能力，训练也分为两个阶段，分别将上下文扩展到 256K 和 1M, 训练使用了 Muon [@Muon] 的变体， Muown optimizer, 相比于 Muon, Muown 增加了 explicit rot-norm control, 减少了 spectral-norm shift 和对于 weight decay 的敏感性。
+作者还在训练过程中使用了 MXFP4 QAT.
+作者发现，在 mid-training 阶段加入一些 anti-reward hacking samples 可以缓解模型的 reward hacking behavior.
+
+Post-training 包含 SFT, RL 和 MOPD 3个阶段，作者主要强调了 RL 训练。
+
+### RL
+
+RL 使用了 GRPO [@DeepSeek-Math] 算法，batch size 为 1536, group size 为 16, 因每个 step 有 25k sequences, token per sequence 为 150k 左右，因此 每个 step 消耗 3.7B tokens, 训练的损失函数为
+
+$$
+\mathcal{L}(\theta) = -\mathbb{E}_{q\sim\cup_{d}\mathcal{D}_d, \{o_i\}_{i=1}^G\sim \mu_{\theta_{old}}(\cdot\mid q)}\left[\frac{1}{\sum_{i=1}^G|o_i|}\sum_{i=1}^G\sum_{t=1}^{|o_i|}r_{i,t}M_{i,t}A_i\log\pi_{\theta}(o_{i,t}\mid q,o_{i,<t})\right]
+$$
+
+其中 $r_{i,t}$ 为 importance sampling ratio, $M_{i,t}$ 为 token-level mask, $A$ 为 advantage.
+
+作者认为，更大的 batch size 可以提高 rollout 阶段计算效率 （见 [LLM Memory Computation](https://maosong.website/blog/llm-memory-computation/)
+
+训练过程中，作者使用了 R3 [@ma2025stabilizingmoereinforcementlearning] 和 top-p sampling candidate sets [@mai_thinking_1] 来减少 [training-inference mismatch](https://maosong.website/blog/train_inference_mistahch/)
+
+同时，作者还使用了 partial rollout [@Kimi_K1.5] 提高 throughput.
+
+RL 训练过程中 rollout, training 和 grading 的时间占比如下表所示
+
+| Stage           | Rollout | Training | Grading |
+| --------------- | ------- | -------- | ------- |
+| MiMo-V2.6 Pro   | 43.8%   | 43.5%    | 12.7%   |
+| MiMo-V2.6 Flash | 44.9%   | 40.9$    | 14.2%   |
+
+对于 verifier, 作者提出了 groupwise reward synthesis (GRS) 和 groupwise advantage redistribution (GAR) 来给出 reward
+
+GRS 的做法就是使用 Offline trajectories 让 agent 来提取出 solution rubrics 和 behavior rubrics, 前者说明了 solution 的共有性质，后者说明了解决问题时的良好行为，最终的 reward 定义为
+
+$$
+R_i = R_i^{test}\cdot S_i^{Sol}\cdot S_i^{beh}
+$$
+
+其中 $R_i^{test}$, $S_i^{Sol}$, $S_i^{beh}$ 分别为 binary test reward, solution score 和 behavior score.
+
+在 GRPO 训练过程中，对于一个 group 内 reward 为 1 的rollout, GAR 通过一个 grading agent 来重新进行打分，打分覆盖了五个维度，然后最终的 advantage 会进行一次重加权，进而提高高质量样本的权重。
+
+对于 length penalty, 作者提出了一个基于 percentile 的 penalty 方法来修正 reward;
+作者还提出了 segment-level 的 penalty 来解决 bad tool call 问题
+
+RL 阶段的数据配比如下表所示
+
+| Domain            | Ratio |
+| ----------------- | ----- |
+| Coding            | 68%   |
+| General tool use  | 12%   |
+| Aesthetic Design  | 13%   |
+| Context following | 3%    |
+| Cyber security    | 4%    |
+
+### MOPD
+
+作者在 MOPD 的基础上，使用了 prefix OPD, 即给定一个 prefix, 让 student model rollout (one turn), 然后让 teacher model 进行修正

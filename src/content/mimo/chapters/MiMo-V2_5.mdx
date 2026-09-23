@@ -1,0 +1,11 @@
+## MiMo-V2.5
+
+MiMo-V2.5 [@MiMo-V2.5] 的架构为
+
+pre-training 阶段使用了 27T tokens, 基于 FP8 mixed precision 进行训练，上下文从 32K 逐渐扩展到 1M
+
+post-training 包含 3 个阶段：
+
+1. SFT, 提升基本能力
+2. Domain-specific RL, 训练 math, safety, agentic tool-use 等 experts
+3. MOPD, token level guided OPD 来进行蒸馏
