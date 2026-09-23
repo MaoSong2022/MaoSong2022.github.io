@@ -85,3 +85,11 @@ CogViT 在架构上使用了 QK-Norm [@QK-Norm] 来提高 attention 计算的稳
 2. 使用对比学习来对齐视觉特征和文本特征。这个阶段使用了 NaFlex 来处理动态分辨率图片输入 以及使用了 SigLIP [@SigLIP] 的 Sigmoid loss (batch size) 来进行训练，数据上，作者加入了 8B 的 bilingual 数据来提高模型的多语种能力。
 
 对于优化器，作者使用了 Muon [@jordan2024muon] 以及 cosine learning rate schedule.
+
+### MiMo-ViT
+
+MiMo-ViT [@MiMo-V2.6] 使用了 hybrid attention 架构，包括 sink-augmented SWA, row-major 和 column-major serialization 切换等机制来提高计算效率。
+
+训练时，作者将 MiMo-ViT 外接在一个较小的 LLM 上，然后使用 image-text data, next token prediction loss 进行训练，作者认为这种训练方式更加高效。
+
+训练使用了 4T image tokens.
