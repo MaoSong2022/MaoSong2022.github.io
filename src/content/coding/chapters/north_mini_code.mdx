@@ -1,0 +1,25 @@
+## North Mini Code
+
+North Mini Code 是 Cohere 在 26 年 9 月提出的一个 30B-A3B 的用于 agentic coding 的 MoE 模型
+
+架构上， North Mini Code 使用了 MoE 和 hybrid attention 架构
+
+- MoE, 总专家个数为 128 个，激活专家个数为 8 个, 第一层为 dense layer
+- Attention, local attention 为 SWA (window size=4096), global attention 为 GQA (32/4), local:global=3:1
+
+### Post-training
+
+Post-training 包含 2 阶段，SFT 和 RLVR
+
+SFT 包含 2 个 stage,
+
+- stage 1 使用了 30B tokens, 包含了 $70\%$ 的 code tokens, 其中 $42\%$ agentic tool-use data, $27\%$ single-turn competitive or scientific programming data, context length 为 64k
+- stage 2 使用了 4.5B tokens, 包含了 $61\%$ 的 code tokens, context length 为 128k
+
+RLVR 阶段作者使用了 70K verifiable tasks, 覆盖 5K unique repos.
+
+### Infra
+
+Infra 上，作者使用了 async RL 进行训练，训练算法为 CISPO [@MiniMax-M1]
+
+对于 terminal-based tasks, 作者使用了 Harbor, 对于 SWE tasks, 作者使用了 SWE-agent harness.
