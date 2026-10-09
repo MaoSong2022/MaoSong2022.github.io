@@ -1,0 +1,10 @@
+## IQuest-Q1
+
+IQuest-Q1 是 IQuest 在 26 年 9 月发布的一个 320B-A15B 的 MoE 模型，用于 agentic coding, reasoning 以及 multi-step tool-use.
+
+架构：
+
+1. hybrid attention, SWA : GQA = 3 : 1, window size=4096, heads (Q/KV) = 48/8
+2. MoE, 256/8 experts
+3. MTP, 2 MTP layers
+4. context length, 524k
