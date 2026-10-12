@@ -10,7 +10,7 @@ import HtmlEmbed from "../../../components/HtmlEmbed.astro";
 最后我们把 auto-regressive generation 写成一个 token-level MDP.
 后续章节我们会一直使用这里定义的 LLM state, action 和 reward.
 
-RL 的基本思想是**让 agent 通过与环境交互，学习能够最大化期望回报的策略。**
+RL (Reinforcement Learning, 强化学习) 的基本思想是**让 agent 通过与环境交互，学习能够最大化期望回报的策略。**
 其定义为：
 
 <Note variant="info">
@@ -32,7 +32,7 @@ RL 的数学建模依赖于 Markov Decision Process, 下面我们先介绍相关
 
 <Definition term='Markov Decision Process'>
 
-MDP 是一个可以用于描述强化学习的数学模型，形式化为：
+MDP 是一个可以用于描述 RL 的数学模型，一般用 $(\mathcal{S}, \mathcal{A}, r, p, s_0)$ 表示，各项定义如下所示：
 
 1. **状态 (State)**: $s_t \in \mathcal{S}$, $\mathcal{S}$ 为状态空间。
 2. **动作 (Action)**: $a_t \in \mathcal{A}$, $\mathcal{A}$ 为动作空间。
@@ -44,7 +44,7 @@ MDP 是一个可以用于描述强化学习的数学模型，形式化为：
 
 $$
 \htmlId{markov_property}{\begin{equation}
-  p(s_{t+1} \mid s_t, a_t, \ldots) = p(s_{t+1} \mid s_t, a_t),\ p(r_t \mid s_t, a_t, \ldots) = p(r_t \mid s_t, a_t).
+ \boxed{p(s_{t+1} \mid s_t, a_t, \ldots) = p(s_{t+1} \mid s_t, a_t),\ p(r_t \mid s_t, a_t, \ldots) = p(r_t \mid s_t, a_t).}
 \end{equation}}
 $$
 
@@ -55,16 +55,16 @@ $$
 1. 当 $r_t$ 完全由 $(s_t,a_t)$ 决定时，记为 $r_t = r(s_t, a_t)$.
 2. 状态转移函数是平稳的 (stationary), 即 $p_t(r,s'\mid s,a) = p(r,s'\mid s,a)$.
 3. $a_t$ 由策略 $\pi$ 决定，确定性策略记为 $a_t = \pi(s_t)$, 随机策略记为 $a_t \sim \pi(\cdot \mid s_t)$.
-4. 通常我们使用神经网络表示策略，即 $\pi = \pi_\theta$, 其中 $\theta$ 为网络参数。
-5. 我们用 $S_t$, $A_t$ 代表 $t$ 时刻的状态和动作，这是一个随机变量，用 $S_t=s_t$, $A_t=a_t$ 代表当前状态为 $s_t$， 当前动作为 $a_t$.
+4. 通常我们使用神经网络表示策略，此时 $\pi = \pi_\theta$, 这里 $\theta$ 为网络参数。
+5. 我们用 $S_t$, $A_t$ 代表 $t$ 时刻的状态和动作，这是一个随机变量，用 $S_t=s_t$, $A_t=a_t$ 代表当前状态为 $s_t$, 当前动作为 $a_t$.
 
 ### Trajectory
 
-接下来，我们介绍 trajectory, 也就是 RL 算法所需要的数据的定义
+接下来，我们介绍 trajectory (rollout), 也就是 RL 算法所需要的数据的定义
 
-<Definition term='Trajectory' id='trajectory_def'>
+<Definition term='Trajectory (Rollout)' id='trajectory_def'>
 
-Trajectory (rollout) 定义为 agent 与环境完整的一次交互过程：
+Trajectory (rollout) 定义为 **agent 与环境完整的一次交互过程**：
 
 $$
 \tau = (s_0, a_0, r_0, s_1, a_1, r_1, \ldots, s_{T-1}, a_{T-1}, r_{T-1}, s_T)
@@ -73,15 +73,19 @@ $$
 其概率分布为
 
 $$
-p(\tau \mid s_0, \pi, p) = p_0(s_0) \prod_{t=0}^{T-1} \pi(a_t \mid s_t) \, p(r_t, s_{t+1} \mid s_t, a_t)
+\boxed{p(\tau \mid s_0, \pi, p) = p_0(s_0) \prod_{t=0}^{T-1} \pi(a_t \mid s_t) \, p(r_t, s_{t+1} \mid s_t, a_t)}
 $$
 
 </Definition>
 
 <Note variant="info">
-- 轨迹的概率分布由初始状态分布、策略以及环境模型共同决定，记为 $\tau \sim (p_0, \pi, p)$.
-- 轨迹的概率分布使用了 [Markov property](#markov_property).
-- 本教程仅考虑 finite horizon MDP, 即 $T < \infty$.
+
+从定义可以看出：
+
+1. 轨迹的概率分布由初始状态分布、策略以及环境模型共同决定，记为 $\tau \sim (p_0, \pi, p)$.
+2. 轨迹的概率分布使用了 [Markov property](#markov_property).
+3. 本教程仅考虑 finite horizon MDP, 即 $T < \infty$.
+
 </Note>
 
 ### Return
@@ -107,7 +111,7 @@ $$
 $G_t$ 存在如下递推关系：
 
 $$
-G_t = r_t + \gamma G_{t+1}
+\boxed{G_t = r_t + \gamma G_{t+1}}
 $$
 
 易知
@@ -124,7 +128,7 @@ RL 的最终目标为最大化 expected return, 形式化为：
 
 $$
 \htmlId{rl_objective}{\begin{equation}
-\max_{\pi} \quad \mathbb{E}_{\tau \sim (p_0, \pi, p)} \, R(\tau) = \max_{\pi} \quad \mathbb{E}_{\tau \sim (p_0, \pi, p)} \left[ \sum_{t=0}^{T-1} \gamma^t r_t \right]
+\max_{\pi} \quad \mathbb{E}_{\tau \sim (p_0, \pi, p)} \, R(\tau) = \max_{\pi} \ \mathbb{E}_{\tau \sim (p_0, \pi, p)} \left[ \sum_{t=0}^{T-1} \gamma^t r_t \right]
 \end{equation}}
 $$
 
