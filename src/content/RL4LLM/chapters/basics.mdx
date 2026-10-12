@@ -2,8 +2,7 @@ import Image from "../../../components/Image.astro";
 import FullWidth from "../../../components/FullWidth.astro";
 import Definition from "../../../components/Definition.astro";
 import Note from "../../../components/Note.astro";
-
-import RL4LLM_process from "../../../assets/image/RL-process.png";
+import HtmlEmbed from "../../../components/HtmlEmbed.astro";
 
 ## RL Basics
 
@@ -22,7 +21,10 @@ RL 的基本思想是**让 agent 通过与环境交互，学习能够最大化�
 
 RL 的执行过程如下所示
 
-<Image src={RL4LLM_process} alt="The RL process (source from Sutton)" />
+<HtmlEmbed
+  src="embeds/rl-framework.html"
+  title="RL running process illustration"
+/>
 
 RL 的数学建模依赖于 Markov Decision Process, 下面我们先介绍相关概念。
 
