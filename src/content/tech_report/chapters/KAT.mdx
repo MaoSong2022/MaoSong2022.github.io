@@ -1,0 +1,32 @@
+## KAT
+
+KAT-Coder-V1 [@KAT-Coder-V1] 和 KAT-Coder-V2 [@KAT-Coder-V2] 是快手提出的用于 coding 的大模型系列，前者发布于25年10月，后者发布于26年3月。
+
+### KAT-Coder-V1
+
+KAT-Coder-V1 基于 Qwen3 [@Qwen3] 进行 mid-train, SFT, RL 来提高其 coding 能力
+
+SFT 时，作者提到了两个改进：
+
+1. error-masked SFT, 对于 toll call error 的 token, 将其 mask 掉，避免影响模型表现
+2. Tree-Structured Trajectory Training, 将 multi-branch trajectories 组织成 subtrees, 保证训练稳定性
+
+agentic RL 训练时，作者提出了 Trie Packing, 来解决 multi-trajectory 的内存占用问题
+
+对于算法， 作者提出了基于难度和 entropy 的 advantage scaling 技巧，最终的 advantage 计算方式为
+
+$$
+A_{ij}' = \alpha_i^{group}\beta_{ij}^{sample}
+$$
+
+其中
+
+$$
+\alpha_i^{group}  = 1 + \lambda(D_i-\bar{D}), \beta_{ij}^{sample} = 1+ \mu(H_{ij}-\hat{H}_i)
+$$
+
+分别代表一个 group 里的 task 难度系数和一个 group 里某个 token 的 entropy 系数
+
+### KAT-Coder-V2
+
+KAT-Coder-V2 基于 [KAT-Coder-V1](#kat-coder-v1) continue post-training 得到
