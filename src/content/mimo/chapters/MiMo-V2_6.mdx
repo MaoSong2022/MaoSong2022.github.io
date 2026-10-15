@@ -79,7 +79,7 @@ $$
 
 其中 $r_{i,t}$ 为 importance sampling ratio, $M_{i,t}$ 为 token-level mask, $A$ 为 advantage.
 
-作者认为，更大的 batch size 可以提高 rollout 阶段计算效率 （见 [LLM Memory Computation](https://maosong.website/blog/llm-memory-computation/)
+作者认为，更大的 batch size 可以提高 rollout 阶段计算效率 （见 [LLM Memory Computation](/blog/llm-resource-computation/#训练显存计算)
 
 训练过程中，作者使用了 R3 [@ma2025stabilizingmoereinforcementlearning] 和 top-p sampling candidate sets [@mai_thinking_1] 来减少 [training-inference mismatch](https://maosong.website/blog/train_inference_mistahch/)
 

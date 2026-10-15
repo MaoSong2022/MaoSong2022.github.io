@@ -1,20 +1,28 @@
 ---
-title: LLM Memory Computation
-description: 系统性分析 LLM 在训练和推理过程中的内存需求以及简要介绍对应的优化方法。
+title: "LLM Resource Computation: Parameters, FLOPs and Memory"
+description: "从 Qwen3 架构出发，统一推导 Dense 与 MoE 模型的参数量、训练 FLOPs、训练与推理显存，并分析量化、重计算、并行与 KV cache 优化的资源权衡。"
 authors:
   - name: Mao Song
     url: https://maosong.website/
-published: 2026-01-17 10:04:32+0800
+published: 2025-07-22 10:50:47+0800
+modified: 2026-10-15 00:00:00+0800
 tags:
   - Transformer
+  - Scaling Law
+  - distributed training
   - Training
   - Inference
-  - Tutorial
 categories:
   - LLM
+  - Infra
+  - Tutorial
+tableOfContentsAutoCollapse: true
+showPdf: false
 ---
 
 import Introduction from "./chapters/introduction.mdx";
+import Parameters from "./chapters/parameters.mdx";
+import Flops from "./chapters/flops.mdx";
 import Training from "./chapters/training.mdx";
 import Inference from "./chapters/inference.mdx";
 import Optimization from "./chapters/optimization.mdx";
@@ -22,6 +30,8 @@ import Practices from "./chapters/practices.mdx";
 import Conclusion from "./chapters/conclusion.mdx";
 
 <Introduction />
+<Parameters />
+<Flops />
 <Training />
 <Inference />
 <Optimization />
@@ -54,3 +64,9 @@ import Conclusion from "./chapters/conclusion.mdx";
 22. Shenggui Li et al., "Colossal-AI: A Unified Deep Learning System For Large-Scale Parallel Training," ICPP, 2023.
 23. Lianmin Zheng et al., "SGLang: Efficient Execution of Structured Language Model Programs," NeurIPS, 2024.
 24. NVIDIA Corporation, "TensorRT-LLM: A TensorRT Toolset for Optimizing LLM Inference," [GitHub](https://github.com/NVIDIA/TensorRT-LLM), 2023.
+25. [Qwen3 Collection](https://huggingface.co/collections/Qwen/qwen3-67dd247413f0e2e4f653967f).
+26. Jordan Hoffmann et al., [Training Compute-Optimal Large Language Models](https://arxiv.org/abs/2203.15556), 2022.
+27. [PyTorch Embedding](https://docs.pytorch.org/docs/stable/generated/torch.nn.Embedding.html).
+28. Adam Casson, [Transformer FLOPs](https://www.adamcasson.com/posts/transformer-flops).
+29. Ilya Loshchilov and Frank Hutter, [Decoupled Weight Decay Regularization](https://arxiv.org/abs/1711.05101), 2019.
+30. Samyam Rajbhandari et al., [ZeRO: Memory Optimizations Toward Training Trillion Parameter Models](https://arxiv.org/abs/1910.02054), 2020.

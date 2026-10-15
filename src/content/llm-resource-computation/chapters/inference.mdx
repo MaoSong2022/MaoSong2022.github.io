@@ -1,0 +1,45 @@
+## 推理显存计算
+
+### 权重、激活与 KV cache
+
+推理无需保存 optimizer states 和参数梯度，也不需要为反向传播保留所有层的激活，但仍需要当前层的临时张量和工作区：
+
+$$
+\boxed{M_{\mathrm{inference}}=2P+M_{\mathrm{activation/workspace}}+M_{\mathrm{KV}}}
+$$
+
+临时显存随 batch size、prefill/decode 阶段、上下文长度与算子实现变化。原文使用的 $0.4P$ 只是特定设置下的粗略经验值，不作为通用公式。
+
+### KV Cache Mechanism
+
+自回归生成中，历史 token 的 K/V 可复用。每步只需要计算当前 token 的投影并追加到缓存：
+
+$$
+\mathbf{q}_{t+1}=W_Q\mathbf{x}_{t+1},\qquad
+K_{1:t+1}=[K_{1:t},W_K\mathbf{x}_{t+1}],\qquad
+V_{1:t+1}=[V_{1:t},W_V\mathbf{x}_{t+1}]
+$$
+
+若每次都重新投影历史 token，生成 $s$ 个 token 的 K/V 投影工作量随 $\sum_{t=1}^{s}t=\mathcal{O}(s^2)$ 增长；缓存后这部分降为 $\mathcal{O}(s)$。当前 Query 仍需读取历史 K/V，所以 KV cache 不会将完整 attention 的总计算量降为线性。
+
+### KV Cache Memory
+
+对于 $b$ 条等长序列、$L$ 层 GQA，BF16/FP16 KV cache 占用为
+
+$$
+\boxed{M_{\mathrm{KV}}=b\times s\times L\times2\times h_{kv}\times d_h\times2=4bsLh_{kv}d_h}
+$$
+
+两个 $2$ 分别代表 K/V 两份张量和每个元素的 2 bytes。MHA 时令 $h_{kv}=h$；MQA 时令 $h_{kv}=1$。若请求长度不同，可将 $bs$ 替换为实际缓存的 token 总数 $\sum_i s_i$。量化 KV cache 则应替换每元素字节数，并计入量化元数据。
+
+实际占用还可能包含 page granularity、padding、fragmentation 等开销。该公式针对标准 K/V 存储，MLA 等压缩缓存架构需按实际缓存张量重算。
+
+### 静态权重与动态上下文
+
+由 $M_{\mathrm{KV}}=2P$ 可得 KV cache 与 BF16 权重占用相等时的长度：
+
+$$
+s_{\mathrm{equal}}=\frac{P}{2bLh_{kv}d_h}
+$$
+
+因此，临界长度取决于参数量、层数、KV head 配置和并发数，不能只根据模型名称中的参数规模判断。更大的 batch 或更长的上下文会增加动态缓存；MoE 即使每步只激活部分专家，若所有专家常驻显存，权重仍按总参数量 $P$ 计算。

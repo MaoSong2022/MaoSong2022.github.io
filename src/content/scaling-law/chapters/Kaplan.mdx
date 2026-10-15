@@ -118,7 +118,7 @@ $$
 N\approx 2dn(2d+d_{ff}) = 12nd^2
 $$
 
-这里 $d$ 是 hidden size, $n$ 是 layer 个数，$d_{ff}$ 是 MLP 的 hidden size, 这里我们 假设 $d_{ff}=4d$. 计算时我们丢掉了 bias 以及 LayerNorm 的参数量。具体计算过程见 [LLM parameter analysis](/p/llm-parameter-computation/)
+这里 $d$ 是 hidden size, $n$ 是 layer 个数，$d_{ff}$ 是 MLP 的 hidden size, 这里我们 假设 $d_{ff}=4d$. 计算时我们丢掉了 bias 以及 LayerNorm 的参数量。具体计算过程见 [LLM parameter analysis](/blog/llm-resource-computation/#参数量计算)
 
 transformer 一次前向计算的 operations 数量大概为
 
@@ -134,7 +134,7 @@ $$
 C = C_{backward} + C_{forward} = 3C_{forward}\approx 6N
 $$
 
-具体计算过程见 [LLM FLOPs analysis](/p/llm-flops-computation/)。也就是说，对于参数量为 $N$ 的 transformer model, 每个 token 所需要的 FLOPs 为 $C\approx 6N$
+具体计算过程见 [LLM FLOPs analysis](/blog/llm-resource-computation/#flops-计算)。也就是说，对于参数量为 $N$ 的 transformer model, 每个 token 所需要的 FLOPs 为 $C\approx 6N$
 
 ## Empirical Results and Basic Power Laws
 

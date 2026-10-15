@@ -1,0 +1,23 @@
+## 统一记号与计算口径
+
+评估一个 LLM 的资源需求，需要分别回答三个问题：**模型有多少参数、一次训练或推理需要多少计算、运行时需要多少显存**。三者相关，但不能互相替代：MoE 的总参数量决定权重存储规模，激活专家数影响计算量；上下文变长不会增加参数，却会增加 attention 计算和 KV cache。
+
+本文以 Qwen3 的 decoder-only Transformer 为例，依次推导参数量、FLOPs、训练与推理显存，最后讨论优化方法及其代价。
+
+| 变量 | 配置或含义 |
+| --- | --- |
+| $P$ / $P_{\mathrm{active}}$ | 总参数量 / 每个 token 的激活参数量 |
+| $L$ | Transformer 层数，`num_hidden_layers` |
+| $\vert V\vert$ | 词表大小，`vocab_size` |
+| $d$ | 隐藏维度，`hidden_size` |
+| $d_{ff}$ | Dense FFN 的 `intermediate_size`；MoE 专家的 `moe_intermediate_size` |
+| $h$ / $h_{kv}$ | Query / KV head 数 |
+| $d_h$ | 每个 head 的维度，`head_dim` |
+| $E$ / $k$ | 专家总数 / 每个 token 激活的专家数 |
+| $s$ / $b$ | 序列长度 / 单卡 micro-batch size；推理时 $b$ 为并发序列数 |
+| $D$ / $C$ | 训练 token 总数 / 总 FLOPs |
+
+- 参数量按独立存储的权重元素计数；共享 embedding 只计算一次。除特别说明外，使用无 bias 的投影和 SwiGLU FFN。
+- FLOPs 表示浮点运算次数，FLOP/s 表示运算速率。一次乘加按 2 FLOPs 计算，主要统计矩阵乘法。单序列公式取 $b=1$，batch 计算量再乘 $b$。
+- 显存公式以 **bytes** 为单位，默认权重和 KV cache 使用 BF16/FP16，每个元素 2 bytes。优化器状态、主权重和梯度精度单独说明。
+- 不默认 $hd_h=d$；只有简化为标准 MHA 时才使用这一关系。没有特别说明的显存推导不包含分片、offloading、allocator 保留空间和通信 buffer。

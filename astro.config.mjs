@@ -28,6 +28,14 @@ import rehypeWrapOutput from './plugins/rehype/wrap-outputs.mjs';
 
 export default defineConfig({
 	output: 'static',
+  redirects: {
+    '/blog/llm-parameter-computation/': '/blog/llm-resource-computation/#参数量计算',
+    '/p/llm-parameter-computation/': '/blog/llm-resource-computation/#参数量计算',
+    '/blog/llm-flops-computation/': '/blog/llm-resource-computation/#flops-计算',
+    '/p/llm-flops-computation/': '/blog/llm-resource-computation/#flops-计算',
+    '/blog/llm-memory-computation/': '/blog/llm-resource-computation/#训练显存计算',
+    '/p/llm-memory-computation/': '/blog/llm-resource-computation/#训练显存计算',
+  },
 	site:"https://maosong.website",
   integrations: [
     mermaid({ theme: 'neutral', autoTheme: true }),

@@ -1,0 +1,20 @@
+## 框架实践
+
+### Training Frameworks
+
+| Framework                       | Memory Optimizations                                    |
+| :------------------------------ | :------------------------------------------------------ |
+| Megatron-LM [参考](https://arxiv.org/abs/1909.08053)  | TP, SP, Activation Checkpointing                        |
+| DeepSpeed [参考](https://www.deepspeed.ai/)   | ZeRO-1/2/3, CPU/NVMe Offload, Activation Checkpointing  |
+| FSDP [参考](https://arxiv.org/abs/2304.11277)        | Full parameter sharding, Gradient sharding, CPU Offload |
+| Colossal-AI [参考](https://github.com/hpcaitech/ColossalAI) | ZeRO, TP, PP, Activation Checkpointing                  |
+
+### Inference Frameworks
+
+| Framework                        | Key Techniques  | Memory Optimizations                       |
+| :------------------------------- | :-------------- | :----------------------------------------- |
+| vLLM [参考](https://arxiv.org/abs/2309.06180)         | Paged Attention | KV cache paging, Continuous batching       |
+| SGLang [参考](https://arxiv.org/abs/2312.07104)       | Radix Attention | KV cache reuse, Efficient scheduling       |
+| TensorRT-LLM [参考](https://github.com/NVIDIA/TensorRT-LLM) | Kernel fusion   | Weight quantization, KV cache optimization |
+
+选择框架后，先用上述公式给出资源量级，再测量实际峰值显存和吞吐。比较时保持模型、精度、序列长度、batch size、并行配置与 attention 实现一致。

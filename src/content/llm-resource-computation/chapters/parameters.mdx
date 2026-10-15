@@ -1,30 +1,14 @@
----
-title: LLM Parameter Computation
-description: 我们介绍一下如何计算 LLM 的参数量。我们将基于 Qwen3 模型架构出发，对模型架构进行拆解，然后给出 LLM 参数量计算公式。
-authors:
-- name: Mao Song
-  url: https://maosong.website/
-published: 2025-07-22 10:50:47+0800
-modified: 2025-12-24 15:12:10+0800
-tags:
-- distributed training
-categories:
-- LLM
-- Infra
-- Tutorial
-showPdf: false
-seoThumbImage: /posts/llm-parameter-computation/Qwen3_moe_param_distribution.png
----
+## 参数量计算
 
-本文中，我们介绍一下如何计算 LLM 的参数量。我们将基于 [Qwen3](/p/notes-on-qwen3/) 模型架构出发，对模型架构进行拆解，然后给出 LLM 参数量计算公式。
+参数量描述需要存储的权重规模，也是后续估计算力和显存的起点。先计算 Dense 模型，再把 FFN 替换为 MoE。
 
-## Dense Model
+### Dense Model
 
 我们首先来看一下 Qwen3 的架构，如下图所示
 
-![Architecture of Qwen3](../../assets/image/LM_architecture.png)
+![Architecture of Qwen3](../../../assets/image/LM_architecture.png)
 
-这里，`Qwen3ForCausalLM` 就是我们的的 LLM, 其关键代码如下
+这里，`Qwen3ForCausalLM` 就是我们的 LLM, 其关键代码如下
 
 ```python
 class Qwen3ForCausalLM:
@@ -56,10 +40,10 @@ class Qwen3Model:
 对于 normalization, 现在大部分 LLM 用的都是 `RMSNorm`, 其定义如下：
 
 $$
-\mathrm{RMSNorm}(x) = \frac{x}{\sqrt{\|x\|_2^2+\epsilon}}\odot \gamma
+\mathrm{RMSNorm}(x) = \frac{x}{\sqrt{\frac{1}{d}\|x\|_2^2+\epsilon}}\odot \gamma
 $$
 
-其参数量为：$d$.
+其参数量为：$d$。对每个 head 使用 QK-Norm 时，将这里的维度替换为 $d_h$。
 
 如果说我们使用的是 `LayerNorm`, 则其定义如下：
 
@@ -72,10 +56,10 @@ $$
 因此，`Qwen3Model` 的参数量为
 
 $$
-\mathrm{parameter}(\texttt{Qwen3Model})=d|V| + N*\mathrm{parameter}(\texttt{Qwen3DecoderLayer}) + d
+\mathrm{parameter}(\texttt{Qwen3Model})=d|V| + L*\mathrm{parameter}(\texttt{Qwen3DecoderLayer}) + d
 $$
 
-这里第一项为 `nn.Embedding`, 第三项为 `Qwen3RMSNorm`， 第二项里，$N$ 代表 decode layer 的个数，也就是 `config.num_hidden_layers`.
+这里第一项为 `nn.Embedding`, 第三项为 `Qwen3RMSNorm`， 第二项里，$L$ 代表 decode layer 的个数，也就是 `config.num_hidden_layers`.
 
 `Qwen3DecoderLayer` 包含了四个模块，其关键代码如下
 
@@ -99,7 +83,7 @@ $$
 对于 `Qwen3MLP`, 其定义如下：
 
 $$
-y = W_2(W_3x\odot \mathrm{SwiGLU}(W_1x))
+y = W_2(W_3x\odot \mathrm{SiLU}(W_1x))
 $$
 
 这里 $W_3,W_1\in\mathbb{R}^{d_{ff}\times d}$,  $W_2\in\mathbb{R}^{d\times d_{ff}}$, $d_{ff}$ 是 MLP 的 hidden size, 代码中用 `intermediate_size` 来表示，因此
@@ -124,7 +108,7 @@ $$
 
 这里的四项分别代表了 $W_1,W_2,b_1,b_2$.
 
-### Qwen3Attention
+#### Qwen3Attention
 
 接下来，就是 Attention 部分的参数，`Qwen3Attention` 的关键代码如下：
 
@@ -144,21 +128,21 @@ class Qwen3Attention:
 这里，我们先定义几个量：
 
 - 我们将 head 的个数记为 $h$, 即 `num_attention_heads`
-- 我们将每个 head 的 hidden size 记为 $h_d$, 即 `head_dim`
+- 我们将每个 head 的 hidden size 记为 $d_h$, 即 `head_dim`
 - 我们将 key 和 value head 的个数记为 $h_{kv}$ , 即 `num_key_value_heads`
 
 `Qwen3Attention` 的参数由以下几个部分组成：
 
-- Query projection: $W_{Q}\in\mathbb{R}^{hh_d\times d}$, $b_Q\in\mathbb{R}^{hh_d}$
-- Key projection: $W_K\in\mathbb{R}^{h_{kv}h_d\times d}$, $b_K\in\mathbb{R}^{h_{kv}h_d}$
-- Value projection: $W_V\in\mathbb{R}^{h_{kv}h_d\times d}$, $b_V\in\mathbb{R}^{h_{kv}h_d}$
-- output projection: $W_O\in\mathbb{R}^{d\times hh_d}$
-- RMSNorm：前文已经提到过，两个 normalization (query norm 以及 key norm) 的总参数量为 $2h_d$.
+- Query projection: $W_{Q}\in\mathbb{R}^{hd_h\times d}$, $b_Q\in\mathbb{R}^{hd_h}$
+- Key projection: $W_K\in\mathbb{R}^{h_{kv}d_h\times d}$, $b_K\in\mathbb{R}^{h_{kv}d_h}$
+- Value projection: $W_V\in\mathbb{R}^{h_{kv}d_h\times d}$, $b_V\in\mathbb{R}^{h_{kv}d_h}$
+- output projection: $W_O\in\mathbb{R}^{d\times hd_h}$
+- RMSNorm：前文已经提到过，两个 normalization (query norm 以及 key norm) 的总参数量为 $2d_h$.
 
 因此， `Qwen3Attention` 部分的总参数量为
 
 $$
-\mathrm{parameter}(\texttt{Qwen3Attention}) = hh_{d}d + 2h_{kv}h_dd +dhh_d + 2h_d = 2hh_dd + 2h_{kv}h_dd + 2h_d
+\mathrm{parameter}(\texttt{Qwen3Attention}) = h d_h d + 2h_{kv} d_h d +d h d_h + 2d_h = 2h d_h d + 2h_{kv} d_h d + 2d_h
 $$
 
 分别代表 $W_Q, W_O, W_K,W_V$ 和 两个 normalization layer 的参数量。
@@ -168,7 +152,7 @@ $$
 如果我们查看 `Qwen2Attention` 的代码，我们可以得到 `Qwen2Attention` 的总参数量为
 
 $$
-\mathrm{parameter}(\texttt{Qwen2Attention}) = 2hh_{d}d + 2h_{kv}h_dd +h_{kv}h_d+hh_d+h_{kv}h_d
+\mathrm{parameter}(\texttt{Qwen2Attention}) = 2h d_h d + 2h_{kv} d_h d +h_{kv}d_h+hd_h+h_{kv}d_h
 $$
 
 分别代表 $W_Q, W_K, W_V,W_O$ 和 $b_Q,b_K, b_V$ 的参数量。
@@ -178,35 +162,25 @@ $$
 $$
 \begin{aligned}
 \mathrm{parameter}(\texttt{Qwen3ForCausalLM}) &=d|V| + \mathrm{parameter}(\texttt{Qwen3Model})\\
-&=2d|V| + N*\mathrm{parameter}(\texttt{Qwen3DecoderLayer}) + d\\
-&= N*(2d + \mathrm{parameter}(\texttt{Qwen3MLP}) + \mathrm{parameter}(\texttt{Qwen3Attention})) + d(2|V|+1)\\
-&= N*(2d+3dd_{ff}+2hh_{d}d + 2h_{kv}h_dd + 2h_d) + d(2|V|+1)\\
+&=2d|V| + L*\mathrm{parameter}(\texttt{Qwen3DecoderLayer}) + d\\
+&= L*(2d + \mathrm{parameter}(\texttt{Qwen3MLP}) + \mathrm{parameter}(\texttt{Qwen3Attention})) + d(2|V|+1)\\
+&= L*(2d+3dd_{ff}+2h d_h d + 2h_{kv} d_h d + 2d_h) + d(2|V|+1)\\
 \end{aligned}
 $$
 
-这是针对 `Qwen3ForCausalLM` 的参数量计算。这里的变量定义如下：
+以上即未共享 embedding 时的总参数量 $P$。
 
-| Math Variable  | Code Variable         | Description          |
-| -------------- | --------------------- | -------------------- |
-| $N$            | `num_hidden_layers`   | Transformer block 个数 |
-| $\vert V\vert$ | `vocab_size`          | 词表大小                 |
-| $d$            | `hidden_size`         | token embedding 的维度  |
-| $d_{ff}$       | `intermediate_size`   | MLP 的中间层的维度          |
-| $h_d$          | `head_dim`            | 每个 head 的维度          |
-| $h$            | `num_attention_heads` | query head 的个数       |
-| $h_{kv}$       | `num_key_value_heads` | key 和 value head 的个数 |
-
-### Verification
+#### Verification
 
 接下来，我们就可以基于 Qwen3 的模型来验证了，比如，`Qwen3-32B` 的配置如下:
 
 | Field          | Value  |
 | -------------- | ------ |
-| $N$            | 64     |
+| $L$            | 64     |
 | $\vert V\vert$ | 151936 |
 | $d$            | 5120   |
 | $d_{ff}$       | 25600  |
-| $h_d$          | 128    |
+| $d_h$          | 128    |
 | $h$            | 64     |
 | $h_{kv}$       | 8      |
 
@@ -224,12 +198,12 @@ $$
 
 与我们计算的结果一致（这里除以 2 的原因是其表示模型权重文件的总大小，以 bytes 为单位，一般模型都是 `bfloat16`, 大小为 2 个 bytes, 因此总参数量为总大小除以权重的精度）
 
-## MoE Model
+### MoE Model
 
-MoE model 与 Dense model 不同的地方在于每一层的 FFN, 因此，其总参数计算方式为：
+MoE model 与 Dense model 不同的地方在于每一层的 FFN。以下假设每层均使用 MoE，不包含共享专家，且输入 embedding 与输出 head 不共享权重：
 
 $$
-\mathrm{parameter}(\texttt{Qwen3MoeForCausalLM})=N*(2d+\mathrm{parameter}(\texttt{Qwen3MoE})+hh_{d}d + 2h_{kv}h_dd +dhh_d + 2d) + d(2|V|+1)
+\mathrm{parameter}(\texttt{Qwen3MoeForCausalLM})=L*(2d+\mathrm{parameter}(\texttt{Qwen3MoE})+h d_h d + 2h_{kv} d_h d +d h d_h + 2d_h) + d(2|V|+1)
 $$
 
 对于 MoE layer, 其关键代码为：
@@ -243,18 +217,18 @@ class Qwen3MoeSparseMoeBlock:
         self.experts = nn.ModuleList([Qwen3MoeMLP(config, intermediate_size=config.moe_intermediate_size) for _ in range(self.num_experts)])
 ```
 
-我们记 $n$ 为总专家个数，即 `num_experts`， 记 $k$ 为激活专家个数，即 `num_experts_per_tok` 或者 `top_k`,
+我们记 $E$ 为总专家个数，即 `num_experts`， 记 $k$ 为激活专家个数，即 `num_experts_per_tok` 或者 `top_k`,
 
-首先 `gate` 的参数量为 $dn$, 接下来每个 expert 都是一个 `Qwen3MLP`, 因此 `experts` 总参数量为 $n * 3dd_{ff}$. 这样 MoE layer 的总参数量为
+首先 `gate` 的参数量为 $dE$, 接下来每个 expert 都是一个 `Qwen3MLP`, 因此 `experts` 总参数量为 $E * 3dd_{ff}$. 这样 MoE layer 的总参数量为
 
 $$
-\mathrm{parameter}(\texttt{Qwen3MoE}) = nd + 3ndd_{ff}
+\mathrm{parameter}(\texttt{Qwen3MoE}) = Ed + 3Edd_{ff}
 $$
 
 在推理时，只有一部分专家，也就是 $k$ 个专家会参与计算，此时激活参数量为
 
 $$
-\mathrm{parameter\_activated}(\texttt{Qwen3MoE}) = nd + 3kdd_{ff}
+\mathrm{parameter\_activated}(\texttt{Qwen3MoE}) = Ed + 3kdd_{ff}
 $$
 
 我们带入到 `Qwen3MoeForCausalLM` 中就得到：
@@ -262,43 +236,31 @@ $$
 模型总参数量为：
 
 $$
-\mathrm{parameter}(\texttt{Qwen3MoeForCausalLM})=N*(2d+nd + 3ndd_{ff}+hh_{d}d + 2h_{kv}h_dd +dhh_d + 2h_d) + d(2|V|+1)
+\mathrm{parameter}(\texttt{Qwen3MoeForCausalLM})=L*(2d+Ed + 3Edd_{ff}+h d_h d + 2h_{kv} d_h d +d h d_h + 2d_h) + d(2|V|+1)
 $$
 
 模型激活参数量为：
 
 $$
-\mathrm{parameter\_activated}(\texttt{Qwen3MoeForCausalLM})=N*(2d+nd + 3kdd_{ff} + 2h_{kv}h_dd +dhh_d + 2h_d) + d(2|V|+1)
+\mathrm{parameter\_activated}(\texttt{Qwen3MoeForCausalLM})=L*(2d+Ed + 3kdd_{ff} + h d_h d + 2h_{kv} d_h d +d h d_h + 2d_h) + d(2|V|+1)
 $$
 
-这里的变量定义如下：
+这里的 $d_{ff}$ 对应每个专家的 `moe_intermediate_size`。激活参数量按“共享模块 + 被选中的专家”统计；embedding 查表不会执行整张表的矩阵乘法，因此不能直接用该数值精确计算 FLOPs。
 
-| Math Variable  | Code Variable                   | Description          |
-| -------------- | ------------------------------- | -------------------- |
-| $N$            | `num_hidden_layers`             | Transformer block 个数 |
-| $\vert V\vert$ | `vocab_size`                    | 词表大小                 |
-| $d$            | `hidden_size`                   | token embedding 的维度  |
-| $d_{ff}$       | `intermediate_size`             | MLP 的中间层的维度          |
-| $h_d$          | `head_dim`                      | 每个 head 的维度          |
-| $h$            | `num_attention_heads`           | query head 的个数       |
-| $h_{kv}$       | `num_key_value_heads`           | key 和 value head 的个数 |
-| $n$            | `num_experts`                   | 总专家个数                |
-| $k$            | `top_k` (`num_experts_per_tok`) | 激活专家个数               |
+#### MoE Verification
 
-### MoE Verification
-
-我们用 `Qwen3-235B-A22B` 来验证，其配置如下：
+我们用 [Qwen3-235B-A22B 的配置](https://huggingface.co/Qwen/Qwen3-235B-A22B/blob/main/config.json) 来验证：
 
 | Field          | Value  |
 | -------------- | ------ |
-| $N$            | 94     |
+| $L$            | 94     |
 | $\vert V\vert$ | 151936 |
 | $d$            | 4096   |
 | $d_{ff}$       | 1536   |
-| $h_d$          | 128    |
+| $d_h$          | 128    |
 | $h$            | 64     |
 | $h_{kv}$       | 4      |
-| $n$            | 128    |
+| $E$            | 128    |
 | $k$            | 8      |
 
 计算得到总参数量为
@@ -310,7 +272,7 @@ $$
 计算得到激活参数量为
 
 $$
-\mathrm{parameter\_activated}(\texttt{Qwen3-235B-A22B}) = 22.14456064 * 10^9
+\mathrm{parameter\_activated}(\texttt{Qwen3-235B-A22B}) = 22.19076352 * 10^9
 $$
 
 实际总参数量为
@@ -321,27 +283,27 @@ $$
 
 可以看到，计算结果与实际相符。
 
-## Extension
+### Extension
 
 通过以上计算过程，我们可以很轻松将上述公式扩展到混合架构或者是 MLA 上，对于混合架构，我们分别计算不同 attention 的 layer 个数，然后分别计算。对于 MLA, 我们可以替换 Attention 的计算逻辑。
 
 对于小语言模型系列，比如 0.6B 和 1.7B, 模型的大部分参数集中在 embedding 上，因此 Qwen3 采取了 tie embedding 的方式来减少参数量，具体做法就是 `nn.Embedding` 和 `lm_head` 共享参数。
 
-## Visualization
+### Visualization
 
 接下来，我们来可视化一下不同大小模型不同模块的参数量占比。计算的代码如下：
 
 ```python
-def compute_param_distribution( N: int, V: int, d: int, d_ff: int, h_d: int, h: int, h_kv: int, tie_word_embeddings: bool) -> dict:
+def compute_param_distribution( L: int, V: int, d: int, d_ff: int, d_h: int, h: int, h_kv: int, tie_word_embeddings: bool) -> dict:
     """
     Compute parameter distribution across different components of the model.
 
     Args:
-        N: Number of layers
+        L: Number of layers
         V: Vocabulary size
         d: Hidden dimension
         d_ff: Feed-forward dimension
-        h_d: Head dimension
+        d_h: Head dimension
         h: Number of attention heads
         h_kv: Number of key/value heads
         tie_word_embeddings: Whether input and output embeddings are tied
@@ -355,15 +317,15 @@ def compute_param_distribution( N: int, V: int, d: int, d_ff: int, h_d: int, h: 
         embedding *= 2
 
     # Attention parameters per layer
-    attention_per_layer = h * h_d * d + 2 * h_kv * h_d * d + d * h * h_d + 2 * h_d
-    attention_total = attention_per_layer * N
+    attention_per_layer = h * d_h * d + 2 * h_kv * d_h * d + d * h * d_h + 2 * d_h
+    attention_total = attention_per_layer * L
 
     # FFN parameters per layer
     ffn_per_layer = 3 * d * d_ff
-    ffn_total = ffn_per_layer * N
+    ffn_total = ffn_per_layer * L
 
-    # RMSNorm (2d), QK-Norm (2d), output normalization (d)
-    others = N * (4 * d) + d
+    # Two block RMSNorms; QK-Norm is already included in Attention.
+    others = L * (2 * d) + d
 
     return {
         "Embedding": embedding,
@@ -373,30 +335,30 @@ def compute_param_distribution( N: int, V: int, d: int, d_ff: int, h_d: int, h: 
     }
 ```
 
-对于 dense 模型，每部分的参数量可视化如下：
+对于 dense 模型，每部分的参数量可视化如下。以下保留原文图表；原代码对归一化参数的重复计数已在上方修正，精确数值以修正后的代码为准。
 
-![Parameter distribution across model components](../../assets/image/Qwen3_param_distribution.png)
+![Parameter distribution across model components](../../../assets/image/Qwen3_param_distribution.png)
 
-![Parameter percentage across model components](../../assets/image/Qwen3_param_percentage.png)
+![Parameter percentage across model components](../../../assets/image/Qwen3_param_percentage.png)
 
 可以看到，随着模型 size 增加，模型大部分参数量都集中在 FFN 上。
 
 接下来，我们可视化一下 MoE 模型的参数分布，核心计算代码如下：
 
 ```python
-def compute_moe_param_distribution(N, V, d, d_ff, h_d, h, h_kv, n, k, activate=False) -> dict:
+def compute_moe_param_distribution(L, V, d, d_ff, d_h, h, h_kv, E, k, activate=False) -> dict:
     """
     Compute parameter distribution across different components of the MoE model.
 
     Args:
-        N: Number of layers
+        L: Number of layers
         V: Vocabulary size
         d: Hidden dimension
         d_ff: Feed-forward dimension
-        h_d: Head dimension
+        d_h: Head dimension
         h: Number of attention heads
         h_kv: Number of key/value heads
-        n: Number of experts
+        E: Number of experts
         k: Number of experts per token
         activate: Whether to compute activated parameters
 
@@ -407,18 +369,18 @@ def compute_moe_param_distribution(N, V, d, d_ff, h_d, h, h_kv, n, k, activate=F
     embedding = 2 * V * d
 
     # Attention parameters per layer
-    attention_per_layer = h * h_d * d + 2 * h_kv * h_d * d + d * h * h_d + 2 * h_d
-    attention_total = attention_per_layer * N
+    attention_per_layer = h * d_h * d + 2 * h_kv * d_h * d + d * h * d_h + 2 * d_h
+    attention_total = attention_per_layer * L
 
     # FFN parameters per layer
     if activate:
-        moe_per_layer = n * d + 3 * k * d * d_ff
+        moe_per_layer = E * d + 3 * k * d * d_ff
     else:
-        moe_per_layer = n * d + 3 * n * d * d_ff
-    ffn_total = moe_per_layer * N
+        moe_per_layer = E * d + 3 * E * d * d_ff
+    ffn_total = moe_per_layer * L
 
-    # RMSNorm (2d), QK-Norm (2d), output normalization (d)
-    others = N * (2 * d + 2 * h_d) + d
+    # Two block RMSNorms; QK-Norm is already included in Attention.
+    others = L * (2 * d) + d
 
     return {
         "Embedding": embedding,
@@ -430,16 +392,8 @@ def compute_moe_param_distribution(N, V, d, d_ff, h_d, h, h_kv, n, k, activate=F
 
 结果如下
 
-![Parameter distribution across MoE model components](../../assets/image/Qwen3_moe_param_distribution.png)
+![Parameter distribution across MoE model components](../../../assets/image/Qwen3_moe_param_distribution.png)
 
-![Parameter percentage across MoE model components](../../assets/image/Qwen3_moe_param_percentage.png)
+![Parameter percentage across MoE model components](../../../assets/image/Qwen3_moe_param_percentage.png)
 
 可以看到，MoE 模型的大部分参数还是集中在 MoE 模块上，但是由于其稀疏机制，在激活的参数里，MoE 占比从 95% 以上降低到了 60% 左右。
-
-## Conclusion
-
-在本文中，我们基于 Qwen3 大语言模型系列，介绍了如何计算 dense 模型和 MoE 模型的参数量。模型的参数量计算为后面的显存占用以及优化提供了基础。
-
-## References
-
-- [Qwen3 Collection](https://huggingface.co/collections/Qwen/qwen3-67dd247413f0e2e4f653967f)

@@ -1,0 +1,120 @@
+## 资源优化与权衡
+
+### Overview
+
+| 阶段      | 核心方法         | 典型技术                                                                                                   |
+| :-------- | :--------------- | :--------------------------------------------------------------------------------------------------------- |
+| Training  | 显存与效率提升   | Activation Checkpointing, Mixed Precision Training, Flash Attention, ZeRO, Pipeline/Model/Data Parallelism |
+| Inference | 长序列与速度优化 | KV Cache Optimization, Paged/Radix Attention, Faster Attention, Quantization                               |
+
+### Mixed Precision Training
+
+计算量大的部分用低精度，计算量小的部分用高精度。低精度参与运算，高精度避免 Overflow/Underflow。
+
+下表比较三种简化的状态存储方案。实际配置取决于优化器和训练框架，AMP 本身不唯一决定状态精度：
+
+| 状态存储方案 | 全 BF16 基线 | 全 FP32 | BF16 + FP32 主权重/状态 |
+| :----------------------------- | :------: | :------: | :------: |
+| Weights                        | BF16 (2) | FP32 (4) | BF16 (2) |
+| Master weights                 |    -     |    -     | FP32 (4) |
+| Gradients                      | BF16 (2) | FP32 (4) | BF16 (2) |
+| Adam m                         | BF16 (2) | FP32 (4) | FP32 (4) |
+| Adam v                         | BF16 (2) | FP32 (4) | FP32 (4) |
+| **Static total (bytes/param)** |  **8**   |  **16**  |  **16**  |
+
+**Remark:**
+
+1. 此表假设梯度与计算权重同精度；若梯度用 FP32，第三列合计为 $18P$。
+2. 混合精度的收益主要来自低精度运算和激活存储；静态显存是否降低取决于是否保留主权重以及优化器状态精度。
+
+### ZeRO
+
+ZeRO 将 optimizer states / gradients / weights 按不同 GPU 切片存储，根据阶段划分状态，并通过相应通信保持训练一致；ZeRO-3 还需按需聚合参数。这样每张卡只需维护自己负责的一部分，大幅降低单卡显存需求 [参考](https://arxiv.org/abs/1910.02054)。
+
+**ZeRO Stages:**
+
+- **ZeRO-1**：shard optimizer states
+
+$$
+\text{Training\_Memory} = \text{weight} + \text{activation} + \frac{\text{optimizer}}{\#\text{GPUs}} + \text{gradient}
+$$
+
+- **ZeRO-2**：shard optimizer states + gradients
+
+$$
+\text{Training\_Memory} = \text{weight} + \text{activation} + \frac{\text{optimizer} + \text{gradient}}{\#\text{GPUs}}
+$$
+
+- **ZeRO-3**：shard all
+
+$$
+\text{Training\_Memory} = \text{activation} + \frac{\text{weight} + \text{optimizer} + \text{gradient}}{\#\text{GPUs}}
+$$
+
+> 以上为理想的常驻状态估算。ZeRO-3 的参数聚合、通信 buffer 和临时张量仍会产生额外峰值。分片数指对应的数据并行组大小。
+
+### Model Parallelism
+
+将模型切分到不同 GPU 上：PP (Pipeline Parallelism) 按层划分，TP (Tensor Parallelism) 切分层内张量，EP (Expert Parallelism) 分配不同专家。通信方式随切分方案而变。
+
+理想均匀切分时，权重的单卡常驻占用约为
+
+$$
+M_{\mathrm{weights,rank}}\approx\frac{2P}{\mathrm{PP}\times\mathrm{TP}}
+$$
+
+这只是权重项。梯度、优化器状态、激活、流水线中同时驻留的 micro-batch 和通信 buffer 应分别估算；EP 主要分片专家参数，不能将整个模型简单除以所有并行度的乘积。
+
+### Activation Checkpointing
+
+在反向传播时，重新计算所需的输入，来达到以时间换空间的目的 [参考](https://arxiv.org/abs/1909.08053)
+
+| 策略 | 保留的激活 | 额外计算 |
+| --- | --- | --- |
+| 无 checkpointing | 反向传播需要的中间结果 | 无重计算 |
+| Selective checkpointing | 按张量大小和重算成本选择 | 重算部分模块 |
+| 按层 full checkpointing | 主要保留每层边界输入 | 重算对应层的前向传播 |
+
+选择性重计算通常保留重算成本高的投影结果，重算显存开销较大但相对便宜的 attention 中间结果。更详细的策略见 [Reducing Activation Recomputation in Large Transformer Models](https://arxiv.org/abs/2205.05198)。
+
+若每层保存一个 BF16 输入，边界张量本身约占 $2bsdL$，但峰值还包括重算单层所需的临时激活；分段策略不同，这个系数也会变化。重计算可降低显存，却增加 FLOPs，因此前面的 $C\approx6PD$ 不包含这部分额外成本。
+
+### Flash Attention
+
+FlashAttention [参考](https://arxiv.org/abs/2205.14135) 通过将 Attention 的计算进行分块，来提高内存访问效率以及降低反向传播时所需要的 activation 大小。
+
+**Flash Attention** 通过 tiling 与 online-softmax 降低该部分显存并提升效率（详见 [notes on Flash Attention](/p/notes-on-flashattention/)）。这样 attention 部分的显存就由 $\text{activation} \propto bs^2$ 降低到了 $\text{activation} \propto bs$。
+
+[FlashAttention](https://arxiv.org/abs/2205.14135) 仍计算精确 attention；固定 head 配置时，计算复杂度保持为 $\mathcal{O}(s^2d)$，但无需显式存储完整 attention 矩阵，中间显存对序列长度呈线性增长。它优化的是访存和中间存储，不会消除 attention 的二次计算项。
+
+### KV Cache Optimization
+
+$$
+\text{Memory}(\text{KV cache}) = 4bsLh_{kv}d_h
+$$
+
+针对公式中各因子的优化方向 [参考](https://arxiv.org/abs/2412.19442)：
+
+1. **$s$**: KV cache compression, eviction, selection
+2. **$2$ (bytes)**: KV cache quantization
+3. **缓存表示**: key-value sharing, MLA [参考](https://arxiv.org/abs/2405.04434)
+4. **$h_{kv} \times d_h$**: MQA [参考](https://arxiv.org/abs/1911.02150), GQA [参考](https://arxiv.org/abs/2305.13245), MLA
+
+### Weight Quantization
+
+使用低精度来表示高精度数值的方法，来减少内存占用/提高计算效率。
+
+| 量化时机           | 代表性工作                                                                                                   |
+| :----------------- | :----------------------------------------------------------------------------------------------------------- |
+| 训练后量化 (PTQ)   | GPTQ [参考](https://arxiv.org/abs/2210.17323), AWQ [参考](https://arxiv.org/abs/2306.00978), SmoothQuant [参考](https://arxiv.org/abs/2211.10438), GGUF [参考](https://github.com/ggml-org/ggml) |
+| 量化感知训练 (QAT) | LLM-QAT [参考](https://arxiv.org/abs/2305.17888), PEQA [参考](https://arxiv.org/abs/2305.14152)                                                        |
+
+### Offloading
+
+将一部分参数/优化器状态/激活值等存储到 CPU 上，需要的时候再加载到 GPU 上。
+
+| Offloading 场景     | 代表性工作                                                                             |
+| :------------------ | :------------------------------------------------------------------------------------- |
+| 训练阶段 Offloading | ZeRO-Offload [参考](https://arxiv.org/abs/2101.06840) / ZeRO-Infinity, FSDP [参考](https://arxiv.org/abs/2304.11277) CPU Offload |
+| 推理阶段 Offloading | FlexGen [参考](https://arxiv.org/abs/2303.06865), vLLM [参考](https://arxiv.org/abs/2309.06180) KV Cache Offload                 |
+| MoE Offloading      | KTransformers [参考](https://github.com/kvcache-ai/ktransformers), DeepSpeed-MoE [参考](https://arxiv.org/abs/2201.05596)                   |

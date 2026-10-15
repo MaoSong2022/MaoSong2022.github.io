@@ -1,0 +1,13 @@
+## 总结
+
+| 指标 | 主要估算 | 使用条件 |
+| --- | --- | --- |
+| Dense 参数量 | $P=L[2d+3dd_{ff}+2dd_h(h+h_{kv})+2d_h]+d(2\vert V\vert+1)$ | Qwen3 风格，未共享 embedding |
+| MoE 参数量 | 将 $3dd_{ff}$ 替换为 $Ed+3Edd_{ff}$ | 每层均为 MoE，无共享专家 |
+| MoE 激活参数量 | 将专家项中的 $E$ 替换为 $k$，router 仍为 $Ed$ | 按共享参数与选中专家计数 |
+| Dense 训练 FLOPs | $C\approx6PD$ | 投影占主导，不含重计算和通信 |
+| 训练静态显存 | $8P$ / $16P$ | 全 BF16 基线 / 本文混合精度方案 |
+| 训练激活显存 | $\mathcal{O}(bsLd+bs^2hL)$ | 显式存储 attention 矩阵，固定 FFN 比例 |
+| 推理显存 | $2P+M_{\mathrm{activation/workspace}}+4bsLh_{kv}d_h$ | BF16 权重与标准 KV cache |
+
+参数量由模型结构决定，FLOPs 还取决于参与计算的 token 与专家，显存进一步取决于状态精度、缓存策略和并行方案。优化时先定位占用来源：权重可量化或分片，训练激活可通过 checkpointing 与 FlashAttention 降低，推理 KV cache 可通过减少 KV heads、压缩或分页管理优化。节省显存可能增加计算或通信，应结合实际吞吐一起评估。
