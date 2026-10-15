@@ -55,13 +55,15 @@ MOPD 有以下优势：
 
 使用 MOPD 的模型
 
-| Model             | #teachers | #teachers per sample | Descriptions              |
-| ----------------- | --------- | -------------------- | ------------------------- |
-| MiMo-V2-flash     | unknown   | 1                    | uses task reward          |
-| DeepSeek-V4       | ~10       | all                  | weighted sum over experts |
-| Nemotron-3-Super  | >10       | 1                    | multi-round MOPD          |
-| Mach-mind-4-flash | 10        | 1                    | multi-round MOPD          |
-| Kimi-k3           | 9         | 1                    |                           |
+| Model                                | #teachers | #teachers per sample | Descriptions              |
+| ------------------------------------ | --------- | -------------------- | ------------------------- |
+| MiMo-V2-flash                        | unknown   | 1                    | uses task reward          |
+| DeepSeek-V4                          | ~10       | all                  | weighted sum over experts |
+| Nemotron-3-Super                     | >10       | 1                    | multi-round MOPD          |
+| Mach-mind-4-flash                    | 10        | 1                    | multi-round MOPD          |
+| Kimi-k3                              | 9         | 1                    |                           |
+| KAT-Coder-V2 [@KAT-Coder-V2]         | 5         | 1                    |                           |
+| [GLM 5.2](https://z.ai/blog/glm-5.2) | 10+       |                      |
 
 MiMo-V2-flash [@MiMo-V2-Flash] 采用了 [policy gradient](##connection-with-rl) 的建模方式，其 advantage 如下所示
 
@@ -70,12 +72,12 @@ A_{OPD,t} = \mathrm{sg}\left[\log\pi_\theta(y_t\mid y_{<t}, x)-\log\pi_{T_i}(y_t
 $$
 
 这里 $T_i$ 是 $x$ 对应的 domain expert.
-作者还使用了 truncated importance sampling 策略来解决 [training inference mismatch](https://maosong.website/blog/train_inference_mistahch/) 问题，
+作者还使用了 truncated importance sampling 策略来解决 [training inference mismatch](https://maosong.website/blog/train_inference_mistahch/) 问题。
+
+KAT-Coder-V2 [@KAT-Coder-V2] 采用了先训练不同 specialist 然后进行 OPD 来训练模型的做法，与 MiMo-V2-flash 一样，KAT-Coder-V2 也同时使用了 environment 提供的 sparse 和 teacher 提供的 dense supervision.
 
 DeepSeek-V4 [@DeepSeek-V4] 训练了十几个 specialist, 然后使用加权的方式来训练模型。
 MiniCPM-5 [@MiniCPM5] 训练了不同的 specialist, 然后再进行 OPD.
-
-KAT-Coder-V2 [@KAT-Coder-V2] 采用了先训练不同 specialist 然后进行 OPD 来训练模型的做法，与 DeepSeek-V4 不同，KAT-Coder-V2 每次只选取对应任务的专家作为 teacher.
 
 Mach-Mind-4-Flash [@Mach-Mind-4-Flash] 将 teacher models 分为了三类
 
