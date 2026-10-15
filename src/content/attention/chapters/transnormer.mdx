@@ -1,18 +1,18 @@
-## TransNormer
+### TransNormer
 
 [@TransNormer] 分析了 linear attention 存在的两个问题，分别是 unbounded gradients 以及 attention dilution, 作者提出了 NormAttention 以及 DiagAttention 来解决这两个问题，最后，基于这两个方法训练得到的 TransNormer 的表现与 softmax attention 表现相当。
 
 已有的 linear attention 可以分为两类：
 
 1. Pattern based methods: 基于构造的或者学习的 pattern 来提高 attention 的效率
-2. Kernel based methods: 如 [linear transformer](#linear_transformer), 使用不同的 kernel function 来达到和 softmax attention 相同的效果。
+2. Kernel based methods: 如 [linear transformer](#linear-transformer), 使用不同的 kernel function 来达到和 softmax attention 相同的效果。
 
 linear attention 尽管解决了 softmax attention 平方复杂度的问题，但是其表现不如 softmax attention. 作者分析认为，这里有两个原因：
 
 1. unbounded gradients: linear attention 的 gradient 是无界的，这会使得训练不稳定
 2. attention dilution: linear attention 在 early layers 更关注全局，而不是局部细节，这会降低其表现
 
-### Unbounded Gradients
+#### Unbounded Gradients
 
 attention weight 的矩阵 $P\in\mathbb{R}^{n\times n}$ 可以写成如下形式：
 
@@ -77,7 +77,7 @@ $$
 > \left|\frac{\partial p_{ij}}{\partial s_{ik}}\right| > M
 > $$
 
-### Attention Dilution
+#### Attention Dilution
 
 softmax attention 的一个性质就是其更关注于局部信息。作者设计了一个 metric 来评估 linear attention 架构中的 attention 分布情况。
 
@@ -91,15 +91,19 @@ $$
 
 作者对比 softmax attention 和 linear attention 的结果如下
 
-![Accumulated attention score of different attention](TransNormer-accumulated-attention-score.png)
+{/* ![Accumulated attention score of different attention](TransNormer-accumulated-attention-score.png) */}
+
+> 待补充图片：Accumulated attention score of different attention（原文件：`TransNormer-accumulated-attention-score.png`）。
 
 可以看到，linear transformer 的注意力更分散，作者进一步可视化了模型的 attention 分布，如下图所示
 
-![Visualization of Attention matrices](TransNormer-accumulated-attention-visualization.png)
+{/* ![Visualization of Attention matrices](TransNormer-accumulated-attention-visualization.png) */}
+
+> 待补充图片：Visualization of Attention matrices（原文件：`TransNormer-accumulated-attention-visualization.png`）。
 
 可以看到，softmax attention 比 linear transformer 的注意力更集中。
 
-### NormAttention
+#### NormAttention
 
 为了解决 linear transformer 梯度无界的问题，作者移除了 attention 的 scaling, 然后加入了一个 normalization 用于控制梯度，即
 
@@ -130,7 +134,7 @@ $$
 
 可以看到，NormAttention 的梯度更稳定，与 softmax attention 的表现接近。
 
-### DiagAttention
+#### DiagAttention
 
 为了解决 linear transformer 注意力分散的问题，作者在 early layers 使用了 softmax attention, 为了提高 softmax attention 的计算效率，作者将输入进行分块，然后只在块内计算 softmax attention
 
@@ -142,13 +146,15 @@ $$
 | 1+elu        | softmax      | 3.90     |
 | softmax      | 1+elu        | 3.76     |
 
-### Architecture
+#### Architecture
 
 最后，将上面两个方法放在一起，作者提出了 TransNormer, 其架构如下图所示
 
-![Architecture of TransNormer](TransNormer-architecture.png)
+{/* ![Architecture of TransNormer](TransNormer-architecture.png) */}
 
-### Evaluation
+> 待补充图片：Architecture of TransNormer（原文件：`TransNormer-architecture.png`）。
+
+#### Evaluation
 
 我们仅关注模型在自回归大语言模型场景下的表现，结果如下表所示，可以看到 TransNormer 的表现与 softmax attention 的表现相当。
 
@@ -163,7 +169,7 @@ $$
 | TRANSNORMER T1 | 29.89     | 31.35      | 155.99     |
 | TRANSNORMER T2 | 29.57     | 31.01      | 155.99     |
 
-### Ablation Study
+#### Ablation Study
 
 1. 【比例】DiagAttention layer 的个数与 NormAttention layer 的个数相当时，模型表现最好
 2. 【次序】early layer 使用 DiagAttention, later layer 使用 NormAttention 的表现最好

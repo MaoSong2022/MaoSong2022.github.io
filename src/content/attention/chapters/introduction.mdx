@@ -1,12 +1,18 @@
-## Introduction
+### Introduction
 
 Attention 是现代大语言模型架构的核心组件。在这篇 blog 中，我们将回顾 attention 架构的发展。
 
-### TimeLine
+本文按问题组织内容：先建立基础与成本模型，再讨论 KV cache 压缩、局部与稀疏访问、上下文外推、稳定性，以及 Linear Attention 的计算形式与递归状态，最后讨论混合设计与横向比较。各组按讲解重点划分，同一个方法可能涉及多个问题。
+
+#### 方法与模型示例
 
 - GQA:
 - SWA: Mistral 7B
 - MLA: Kimi-K2, DeepSeek-V2, DeepSeek-V3
 - SWA + MHA: GPT-oss
 
-### Roots
+#### 问题地图（待补充）
+
+- 标准 attention 的计算、显存容量与内存带宽成本。
+- 各类方法改变的维度：KV 表示、token 访问范围、位置信息、归一化与门控。
+- 训练、prefill 和 decode 的优化目标，以及方法之间的组合关系。

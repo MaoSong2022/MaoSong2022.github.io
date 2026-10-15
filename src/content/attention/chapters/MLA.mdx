@@ -1,14 +1,14 @@
 import Image from "../../../components/Image.astro";
 import deepseek_v2_comparison_attention from "../../../assets/image/DeepSeek-V2-comparison-attention.png";
 
-## Multi-head Latent Attention (MLA)
+### Multi-head Latent Attention (MLA)
 
 传统的 multi head attention (MHA) 虽然效果好，但是在 inference 时，其 KV cache 会变成瓶颈，影响推理效率。
 为了解决这个问题，已有的工作如 MQA [@MQA] 和 GQA [@GQA] 通过共享权重来减少 KV cache 内存占用，但是结果发现模型的表现也会降低。
 
 为了解决这个问题，作者提出了 multi-head latent attention (MLA) [@DeepSeek-V2], 来压缩推理时 KV cache 占用.
 
-### Method
+#### Method
 
 MLA 的架构图如下所示
 
@@ -63,7 +63,7 @@ $$
 
 这里 $W^O = [W^O_1,\dots,W^O_{n_h}]$, $W^{UV}=[W^{KV}_1;\dots;W^{KV}_{n_h}]$, $W_i^O\in\mathbb{R}^{d\times d_h}$, $W^{UV}_i\in\mathbb{R}^{d_h\times d_c}$.
 
-### Decoupled Position Embedding
+#### Decoupled Position Embedding
 
 接下来，作者介绍了如何解决 RoPE 不相容的问题。如果说我们直接在 $k_t^C$ 上进行 RoPE, 那么我们有
 
@@ -134,7 +134,7 @@ MLA 与 MHA, MQA, GQA 的对比如下图所示
   alt="Comparison of different attention mechanisms"
 />
 
-### Comparison of KV Cache
+#### Comparison of KV Cache
 
 接下来，作者对比了不同 attention 机制的 KV cache, 结果如下表所示
 
@@ -149,7 +149,7 @@ MLA 与 MHA, MQA, GQA 的对比如下图所示
 
 为了避免 low-rank compression 以及 fine-grained expert segmentation 对输出的 scale 产生影响，作者对 compressed latent vectors $c_t^Q, c_t^{KV}$ 进行了 normalization.
 
-### Code
+#### Code
 
 首先是代码变量与公式变量的对应关系
 
@@ -255,7 +255,7 @@ class DeepseekV2Attention(nn.Module):
 
 ```
 
-### 参数量计算
+#### 参数量计算
 
 首先，我们结合 DeepSeek-V2 的 `config` 计算一下 MLA 部分的参数量：
 
@@ -273,7 +273,7 @@ class DeepseekV2Attention(nn.Module):
 
 我们接下来对比一下各个模型架构之间 attention 部分的参数量，可以看到与 MHA 一致，大部分参数量都集中在最后的 Output projection layer 上
 
-### Experiments
+#### Experiments
 
 作者首先对比了 MHA, GQA, MQA 的表现，作者基于一个 7B 的 dense 模型，使用 1.33T token 进行训练，实验结果如下
 

@@ -1,5 +1,5 @@
 
-## Gated Attention
+### Gated Attention
 
 现有的大部分模型都基于 Transformer 提出的 softmax attention (SDPA), 虽然也有相关的改进工作，但是主要集中于降低 attention 计算复杂度，提高 attention 在推理时的内存使用效率等。之前的工作提出了关于 attention 的两个问题：
 
@@ -15,7 +15,7 @@
 
 作者最终推荐使用 element-wise SDPA gating 方式来进行训练
 
-### Related Work
+#### Related Work
 
 作者主要介绍了 gating 和 attention sink 这两部分的工作。
 
@@ -23,7 +23,7 @@ gating 早在 LSTM 和 GRU 使其就得到了广泛的运用，在 transformer �
 
 第二部分是 attention sink, attention sink 现象由 [StreamingLLM](/p/notes-on-streamingllm/) 提出， 即模型会将相当一部分注意力权重方开始开始的几个 token 上。而本文提出的 gating 机制可以缓解 attention sink 现象。
 
-### Method
+#### Method
 
 首先是标准 MHA 定义：
 
@@ -85,7 +85,7 @@ $$
 \sigma_{\mathrm{sigmoid}}(x) = \frac{1}{1+e^{-x}},\quad \sigma_{\mathrm{SiLU}} = x*\sigma_{\mathrm{sigmoid}}(x)=\frac{x}{1+e^{-x}}
 $$
 
-### Experiments
+#### Experiments
 
 作者构建了三个模型进行实验，模型配置如下表所示
 
@@ -124,7 +124,7 @@ $$
 
 ![training loss curve of gated attention](/posts/notes-on-gated-attention/Gated-attention-training-loss-curve.png)
 
-### Analysis
+#### Analysis
 
 首先，作者对 multi head attention 进行了重写，得到如下形式
 
@@ -187,7 +187,7 @@ $$
 
 可以看到，对于短上下文，虽然两者表现都有所下降，但是本文提出的 gating 表现下降程度较小。而对于长上下文，本文提出的 gating 机制效果明显更好。作者分析原因认为这是由于 softmax attention 倾向于退化为对少数 token 的依赖，  而 gating 通过引入 token-level sparsity，避免了这种路径依赖。
 
-### Conclusion
+#### Conclusion
 
 在本文中，作者系统性探究了 attention 中的 gating 机制，包括 gating 对模型表现，训练稳定性以及训练动态的影响。作者发现，通过提高 non-linearity 和 sparsity 我们可以有效提高模型的上下文能力以及减缓 attention sink 现象。
 
@@ -195,11 +195,11 @@ $$
 
 > attention 的问题不在于 softmax 本身，而在于线性 aggregation 的表达上限与缺乏选择性。而 gating 提供了一种几乎零成本、却极其有效的方式来引入非线性与稀疏性。
 
-## References
+#### References
 
 - [Gated Attention for Large Language Models: Non-linearity, Sparsity, and Attention-Sink-Free](https://openreview.net/forum?id=1b7whO4SfY)
 
-### Appendix
+#### 补充分析
 
 作者在附录中还进一步分析了 massive activation 以及 attention sink.
 

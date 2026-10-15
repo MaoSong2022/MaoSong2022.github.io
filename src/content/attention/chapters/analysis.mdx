@@ -1,8 +1,8 @@
-## Analysis
+### Attention Sink
 
-### Attention heads analysis
+> 待补充：这里统一介绍现象与术语；StreamingLLM 保留缓存策略及实验分析，Gated Attention 保留门控与该现象的关系。
 
-- induction heads
-- retrieval heads
-
-### Attention sink
+- Attention sink 的定义、典型注意力分布与观察方式。
+- 区分 attention 权重较高与语义信息重要。
+- 初始 token 被移出窗口后，attention 分布如何变化。
+- 串联 StreamingLLM 与 Gated Attention 对这一现象的不同处理方式。

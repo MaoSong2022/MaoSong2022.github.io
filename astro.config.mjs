@@ -29,6 +29,7 @@ import rehypeWrapOutput from './plugins/rehype/wrap-outputs.mjs';
 export default defineConfig({
 	output: 'static',
   redirects: {
+    '/blog/linear_attention/': '/blog/attention/#linear-attention',
     '/blog/llm-parameter-computation/': '/blog/llm-resource-computation/#参数量计算',
     '/p/llm-parameter-computation/': '/blog/llm-resource-computation/#参数量计算',
     '/blog/llm-flops-computation/': '/blog/llm-resource-computation/#flops-计算',

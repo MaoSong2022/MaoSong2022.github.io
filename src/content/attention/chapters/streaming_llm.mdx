@@ -1,4 +1,4 @@
-## StreamingLLM
+### StreamingLLM
 
 [@StreamingLLM] 提出了 StreamingLLM, 一个基于 attention sink 来提高 sliding window attention 在超长上下文场景下表现的方法。
 
@@ -23,7 +23,7 @@
 
 作者还进一步在预训练阶段加入了 sink token 充当初始 token, 进一步提高模型的表现。
 
-### Attention Sink
+#### Attention Sink
 
 作者首先探究了一下 softmax attention 以及 sliding window attention 性能下降的节点，实验结果如下图所示
 
@@ -86,7 +86,7 @@ $$
 
 可以看到 zero sink 仍然需要一部分初始 token 来维持模型的表现。作者在论文中推荐使用 learnable sink.
 
-### Experiments
+#### Experiments
 
 作者首先验证了 StreamlingLLM 在不同架构上的表现，结果如下图所示
 

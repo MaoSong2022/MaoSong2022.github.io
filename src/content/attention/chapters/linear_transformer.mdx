@@ -1,6 +1,6 @@
 import Algorithm from "../../../components/Algorithm.astro";
 
-## Linear Transformer
+### Linear Transformer
 
 [@katharopoulos2020transformers] 提出了 linear transformer 的架构，将 attention 的计算复杂度从 $\mathcal{O}(n^2)$ 降低到 $O(n)$, 其中 $n$ 是 sequence length.
 作者通过实验证明，linear transformer 相比于 transformer 快 4000 倍左右。
@@ -79,7 +79,7 @@ M_{ij} = \begin{cases}
 \end{cases}
 $$
 
-此时，我们将对应的 attention 表达式 [linear attention](linear_attention) 改写如下：
+此时，我们将对应的 attention 表达式 [linear attention](#linear_attention) 改写如下：
 
 $$
 V_i' = \frac{\phi(Q_i)^T\sum_{j=1}^i \phi(K_j)V_j^T}{\phi(Q_i)^T\sum_{j=1}^i \phi(K_j)},\quad i=1,\dots,n
@@ -137,7 +137,7 @@ $$
 
 训练时，我们可以高效利用平行来加速计算。但是在推理的时候，我们只需要保存 $\phi(K_j)V_j^T$ 作为 internal state, 这样就可以实现高速推理了。
 
-### Relationship with transformer
+#### Relationship with transformer
 
 作者还将 transformer 建模为 RNN 的形式，注意到 transformer 的定义如下：
 

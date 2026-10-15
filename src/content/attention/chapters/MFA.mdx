@@ -1,6 +1,6 @@
 
 
-## Multi-matrix Factorization Attention (MFA)
+### Multi-matrix Factorization Attention (MFA)
 
 multi-head attention (MHA) 的问题在于，其 KV cache 的内存占用（memory footprint）随 sequence length 以及 batch size 线性增长，从而成为了 LLM 在 decoding 阶段的瓶颈。
 
@@ -12,7 +12,7 @@ multi-head attention (MHA) 的问题在于，其 KV cache 的内存占用（memo
 
 基于这个发现，作者提出了 **Multi-matrix Factorization Attention (MFA)** [@MFA],  以及其变体 **MFA-Key-Reuse (MFA-KR)**.  MFA 的主要目的是在有限的 KV cache size 下提高模型的表现。
 
-### Background
+#### Background
 
 作者首先介绍了 GMHA 的概念，GMHA 由三部分组成：
 
@@ -60,7 +60,7 @@ $$
 
 其中，$S_Q,S_K,S_V\in\mathbb{R}^{d\times C}$ 在所有的 heads 中是共享的，$Q_c,K_c,V_c\in\mathbb{R}^{C\times h_d}$ 是每个 head 的 query, key, value projection layer 的参数， 是 latent factorization 的维度。与 FPBA 相比，我们可以看到，MLA 实际上是在 $d/m$ 个 head 上共享了参数，其中，$W_c$ 和 $U_c$ 分别由秩为  的低秩分解 $S_QQ_cK_c^TS_K^T$ 以及 $S_VV_cO_c^T$ 近似。尽管模型中 $C>h_d$, 但是最终的 rank 仍然是 $h_d$, 因此模型的表现也就受到了限制。
 
-### Method
+#### Method
 
 对已有的 attention 分析之后，作者认为，要提高模型的表现，attention 需要做到亮点：
 
@@ -113,7 +113,7 @@ $$
 | MLA    | $2C$     | $5dC + d^2$     | $m$   | $h_d$                  | $C$                         | $mh_d$            |
 | MFA    | $2C$     | $3Cd + 2mC^2$   | $m$   | $C$                    | $C$                         | $mC$              |
 
-### Code
+#### Code
 
 ```python
 class Step3vAttention(nn.Module):

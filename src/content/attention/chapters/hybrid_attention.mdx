@@ -1,0 +1,17 @@
+### 组合方式（待补充）
+
+- 区分 token 访问模式（local/global）与 KV head 的共享方式，说明各维度如何组合。
+- 区分层间交替与层内多分支组合。
+- 说明局部层／全局层的排列、窗口大小与比例的统计口径。
+- 补充与[前文 Linear Attention](#linear-attention) 的衔接，讨论 softmax attention 与线性注意力的组合方式。
+
+### 模型案例
+
+> 待整理：保留现有记录，后续明确局部层配置、全局层配置、层比例、窗口大小与来源。
+
+| Models                                    | local attention | global attention | ratio |
+| ----------------------------------------- | --------------- | ---------------- | ----- |
+| Inking                                    | SWA             | GQA              | 5:1   |
+| North Mini Code [@cohere_north_code_mini] | SWA             | GQA              | 3:1   |
+
+待补充模型：GLM-5.3 Flash。

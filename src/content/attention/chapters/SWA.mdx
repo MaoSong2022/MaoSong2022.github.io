@@ -1,4 +1,13 @@
-## Sliding Window Attention
+### Sliding Window Attention
+
+#### 局部窗口与访问模式（待补充）
+
+- 定义窗口大小、causal mask 和每个 query 可访问的 token 范围。
+- 给出最小实现，并区分训练时的局部 attention 与推理时的滑动缓存。
+- 说明计算和缓存成本、跨层信息传播，以及远距离信息访问的限制。
+- 引出窗口滚动时初始 token 被移除的问题，衔接 Attention Sink 与 StreamingLLM。
+
+#### 模型观察
 
 MiniMax-M2 [@MiniMax-M2] 发现
 

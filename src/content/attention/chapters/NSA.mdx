@@ -1,4 +1,4 @@
-## Natively trainable Sparse Attention (NSA)
+### Natively trainable Sparse Attention (NSA)
 
 现有的大模型主要是基于 Transformer 提出的 softmax attention, 其主要问题在于随上下文长度增加，其 latency 也上升更快。
 理论估计，对于 64k 上下文长度的输出，softmax attention 部分的计算占 $70\%\sim80\%$ 的 latency.
@@ -15,7 +15,7 @@
 1. Hardware-aligned system: 优化了 blockwise sparse attention 来平衡 arithmetic intensity.
 2. Training-aware design: 支持端到端的训练和部署
 
-### Method
+#### Method
 
 作者首先回顾了 attention 的定义如下：
 
@@ -55,11 +55,11 @@ $$
 
 作者使用了一个较高的 sparsity ratio 来保证 $N_t \ll t$.
 
-### NSA Design
+#### NSA Design
 
 接下来作者分别介绍了每一部分的设计
 
-#### Token Compression
+##### Token Compression
 
 对于 token compression, 其定义如下：
 
@@ -69,7 +69,7 @@ $$
 
 其中 $l$ 是 block size, $d$ 是 sliding stride, $\phi:\mathbb{R}^{l\times d_k}\to \mathbb{R}^d_k$ 是一个 MLP 用于将 block key 映射为一个单一的 key. 对于 $\tilde{V}_t^{\mathrm{cmp}}$ 作者也使用了类似的做法。
 
-#### Token Selection
+##### Token Selection
 
 仅使用 compressed token 的话，可能会丢失一些细粒度的信息。因此，作者额外提出了 token selection 机制来解决这个问题。
 
@@ -113,7 +113,7 @@ $$
 
 其中 $\mathrm{rank}(\cdot)$ 代表了降序排列的 importance scores. $\mathcal{I}_t$ 是选择出来的 block indices, $\mathrm{Cat}(\cdot)$ 表示了 concatenation operation. $\tilde{K}_t^{\mathrm{slc}}\in\mathbb{R}^{d_k\times il'}$ 代表了选择出来的 key.
 
-#### Sliding Window
+##### Sliding Window
 
 为了避免 local pattern 对 compression token 以及 selection token 的学习产生影响，作者额外使用了一个 branch 来学习这个 local pattern. 其具体做法就是维持一个 sliding window 用于最近的若干个 token, 即
 
@@ -125,11 +125,11 @@ $$
 
 为了进一步避免 shortcut learning, 对于三个 branch 作者提供了不同的 key 和 values
 
-#### Kernel Design
+##### Kernel Design
 
 接下来是针对硬件设计进行的优化。由于 flash attention 2 [@FlashAttention2] 对 compression attention 以及 sliding window attention 已经支持的比较好，作者这里介绍了如何针对 selection attention 进行优化。
 
-### Experiments
+#### Experiments
 
 作者构建了一个 27B-A3B 的 MoE 模型，attention 基于 GQA, MoE 基于 DeepSeekMoE [@DeepSeek-MoE]. 模型配置如下表所示
 
@@ -181,7 +181,7 @@ NSA 配置如下
 
 上面的结果均验证了 NSA 的有效性
 
-### Analysis
+#### Analysis
 
 接下来，作者分析了 NSA 的性质。作者首先对比了 NSA 和 flash attention 2 [@FlashAttention2] 的训练速度，结果如下图所示
 

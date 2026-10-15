@@ -1,5 +1,5 @@
 
-## GQA
+### Grouped-Query Attention (GQA)
 
 Multi-head attention (MHA) 的问题在于 inference 阶段，每次 decoding，都需要重新加载 attention 模块中 query layer, key layer 和 value layer 的权重，而加载权重会受带宽限制。
 
@@ -7,16 +7,7 @@ Multi-head attention (MHA) 的问题在于 inference 阶段，每次 decoding，
 
 因此，在本文中作者就提出了Group Query Attention (GQA) [@GQA]，一个在保持模型性能的同时，提高计算效率的注意力机制，作者还介绍了如何将一个 MHA 模型转化为一个一个 MQA 模型。
 
-### Uptraining
-
-将 MHA 模型转化为 MQA 模型分为两步：
-
-1. 将 MHA 权重转化为 MQA 权重
-2. 额外的预训练
-
-具体来讲，作者使用了一个 mean pooling 的方法，来将不同 head 的 query layer 以及 key layer 的权重转化为 MQA 对应 layer 的权重。然后作者 pre-training 若干步来让模型适应新的结构。
-
-### GQA
+#### 分组机制
 
 GQA 的思路在于在 MHA 和 MQA 之间达到一个平衡，也就是说我们将 key layer 和 value layer 进行分组，每个组内共享一个 key layer 和 value layer, 我们假设有 $h$ 个 head，$G$ 个 group，那么
 
@@ -28,7 +19,16 @@ GQA 的思路在于在 MHA 和 MQA 之间达到一个平衡，也就是说我们
 
 ![Overview of grouped-query methods](/posts/notes-on-gqa/MQA_comparison_group_query.png)
 
-### Code
+#### Uptraining
+
+将 MHA 模型转化为 MQA 模型分为两步：
+
+1. 将 MHA 权重转化为 MQA 权重
+2. 额外的预训练
+
+具体来讲，作者使用了一个 mean pooling 的方法，来将不同 head 的 query layer 以及 key layer 的权重转化为 MQA 对应 layer 的权重。然后作者 pre-training 若干步来让模型适应新的结构。
+
+#### Code
 
 MQA 的代码也比较好理解，我们首先定义 group size，即 `num_key_value_heads`, 然后基于 group size 定义对应的 key layer `self.k_proj` 和 value layer `self.v_proj`.
 

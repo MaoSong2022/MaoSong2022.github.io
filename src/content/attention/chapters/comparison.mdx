@@ -1,0 +1,19 @@
+### 方法对照（待补充）
+
+- 对照各方法解决的问题及修改的 attention 组件。
+- 使用一致的符号与假设，比较 KV cache、计算量和内存访问量。
+- 标明对训练、prefill、decode 的影响，以及是否需要训练或适配。
+- 记录质量与效率的权衡、实验条件和局限，避免跨实验直接排名。
+- 总结方法之间的组合关系。
+- 区分 KV cache 与递归状态的存储口径，并比较线性注意力与 softmax attention 的适用条件。
+
+### 阅读导航
+
+- [FlashAttention 专题](/blog/FlashAttention/)：配合本文的成本分析阅读实现与硬件优化。
+- [本文的 Linear Attention](#linear-attention)：阅读计算形式与递归状态，并衔接后面的混合设计。
+- [Position Encoding 专题](/blog/position-encoding/)：补充位置编码背景，配合 MLA 与 DCA 阅读。
+
+### 实践与选择（待补充）
+
+- 分别给出偏重 KV cache 容量、长序列访问和训练稳定性的阅读路径。
+- 给出统一配置下的实现与比较示例。

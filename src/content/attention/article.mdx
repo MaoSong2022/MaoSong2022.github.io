@@ -28,14 +28,79 @@ import MFA from "./chapters/MFA.mdx";
 import MLA from "./chapters/MLA.mdx";
 import MQA from "./chapters/MQA.mdx";
 import NSA from "./chapters/NSA.mdx";
+import SWA from "./chapters/SWA.mdx";
+import AttentionSink from "./chapters/analysis.mdx";
+import StreamingLLM from "./chapters/streaming_llm.mdx";
+import RecentProgress from "./chapters/recent_progress.mdx";
+import QKNorm from "./chapters/qk_norm.mdx";
+import HybridAttention from "./chapters/hybrid_attention.mdx";
+import Comparison from "./chapters/comparison.mdx";
+import AttentionHeads from "./chapters/attention_heads.mdx";
+import LinearAttention from "./chapters/linear_attention.mdx";
+import LinearTransformer from "./chapters/linear_transformer.mdx";
+import TransNormer from "./chapters/transnormer.mdx";
+import LightningAttention from "./chapters/lightning_attention.mdx";
+import GatedDeltaNet from "./chapters/Gated_DeltaNet.mdx";
+import LinearAttentionAnalysis from "./chapters/linear_attention_analysis.mdx";
+
+## Attention 基础与成本
 
 <Introduction />
 <SoftmaxAttention />
-<Invariance />
+
+## 减少 KV cache：共享与压缩
+
+本章依次介绍共享 KV heads 的 MQA、GQA，以及潜变量与矩阵分解路线的 MLA、MFA。
+
 <MQA />
 <GQA />
-<DCA />
 <MLA />
 <MFA />
+
+## 减少访问的 token：局部、流式与稀疏
+
+<SWA />
+<AttentionSink />
+<StreamingLLM />
 <NSA />
+<RecentProgress />
+
+## 扩展上下文：位置与分块
+
+### 位置编码与上下文外推：前置知识
+
+> 待补充：本节先建立直觉，完整推导见文末附录及 [Position Encoding 专题](/blog/position-encoding/)。
+
+- 置换不变性与置换等变性的区别，以及 causal mask 下的适用条件。
+- RoPE 如何表示相对位置，以及训练长度与推理长度的关系。
+- 区分上下文外推、流式生成与完整历史信息的访问能力。
+- DCA 与位置编码扩展方法的联系。
+
+<DCA />
+
+## 改善稳定性与表达能力
+
+<QKNorm />
 <GatedAttention />
+
+## Linear Attention
+
+<LinearAttention />
+<LinearTransformer />
+<TransNormer />
+<LightningAttention />
+<GatedDeltaNet />
+<LinearAttentionAnalysis />
+
+## 组合已有方法：Hybrid Attention
+
+<HybridAttention />
+
+## 横向比较与阅读导航
+
+<Comparison />
+
+## 附录：理论推导与 Attention Heads
+
+<Invariance />
+<AttentionHeads />

@@ -1,0 +1,16 @@
+### 概览与阅读顺序
+
+本节依次介绍 Linear Transformer、TransNormer、Lightning Attention 和 Gated DeltaNet，最后整理局限与比较，再衔接下一章的 Hybrid Attention。
+
+#### 计算形式与递归状态（待补充）
+
+- 从 softmax attention 过渡到核函数形式与矩阵乘法重排。
+- 说明 causal 场景中的递归状态及其更新过程。
+- 分别比较训练、prefill 与 decode 的时间和空间成本，明确序列长度、head dimension 等假设。
+- 区分线性注意力、状态空间模型及相关混合架构的范围与联系。
+
+#### 相关架构与模型记录
+
+| Attention | Models          |
+| --------- | --------------- |
+| Mamba-2   | Nemotron-3 Nano |

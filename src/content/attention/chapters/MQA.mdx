@@ -1,5 +1,5 @@
 
-## Multi-Query Attention (MQA)
+### Multi-Query Attention (MQA)
 
 Google 在 2019 年提出了 multi-query attention (MQA) [@MQA], 用于解决 MQA 内存带宽瓶颈问题。
 
@@ -17,7 +17,7 @@ self.k_proj = nn.Linear(hidden_size, head_dim) # (d, n*d_h)
 self.v_proj = nn.Linear(hidden_size, head_dim) # (d, n*d_h)
 ```
 
-### Analysis
+#### Analysis
 
 我们还是在 token-by-token 的场景下进行分析。
 

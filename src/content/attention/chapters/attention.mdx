@@ -1,6 +1,6 @@
-## Softmax Attention
+### Softmax Attention
 
-### Introduction
+#### Introduction
 
 令 $d$ 为 hidden size, $n_h$ 为 attention heads 的个数，$\ell$ 为 transformer layer 的层数，$d_h$ 为每个 head 的 dimension, $h_t\in\mathbb{R}^d$ 为 attention layer 中第 $t$ 个 token 对应的 hidden states。
 对于标准的 MHA, 我们首先计算 Q, K, V 如下：
@@ -35,13 +35,15 @@ $$
 
 对于现代的 GPU 来说，其一般算力比较强，但是内存访问带宽相对较慢，因此我们希望 MAR 越低越好，以充分发挥 GPU 的算力。
 
-### Implementation
+#### Implementation
+
+> 待补充：最小可运行的 causal MHA 实现，标注 Q/K/V 的 tensor shape、mask 和 KV cache 更新过程。
 
 ```python
 
 ```
 
-### Analysis
+#### Analysis
 
 在训练的时候，由于我们知道 ground truth sequence, 因此我们可以并行计算。但是在 inference 的时候，我们只能 token-by-token 进行计算，因此我们分析一下 token-by-token 场景下的 MAR
 
@@ -59,3 +61,11 @@ $$
 
 1. 提升 batch size $b$, 也就是同时 inference 多次
 2. 降低 $K$ 和 $V$ 的大小
+
+#### 成本模型与符号约定（待补充）
+
+- 统一 batch size、序列长度、query/KV head 数、head dimension 与层数的符号。
+- 分别说明训练、prefill 和单步 decode 的计算过程与成本口径。
+- 区分投影计算、attention 计算、权重读取和 KV cache 读取。
+- 统一缓存统计：每 token／每层的元素数，以及包含 batch、长度、层数和 dtype 的总字节数。
+- 用同一示例贯穿后续 MQA、GQA、MLA、MFA 的比较。

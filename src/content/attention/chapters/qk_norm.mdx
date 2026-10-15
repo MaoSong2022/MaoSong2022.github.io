@@ -1,10 +1,12 @@
-## QK norm
+### QK norm
 
 作者提出了 QK norm, 一个解决 softmax 注意力权重不稳定的 scaling 算法。
 
 Softmax 可以用于将 logits 转化为一个概率分布，但是 softmax 问题是输入的微小差别会对输出产生巨大影响，甚至会 mask 掉其他信号。因此我们需要选取合适的缩放因子，来解决 softmax 的极端值问题。SDPA 的可视化结果如下图所示
 
-![SDPA attention visualization](QK-Norm-SDPA-attention.png)
+{/* ![SDPA attention visualization](QK-Norm-SDPA-attention.png) */}
+
+> 待补充图片：SDPA attention visualization（原文件：`QK-Norm-SDPA-attention.png`）。
 
 作者首先提出了 QKNorm, 其使用了一个可学习的 scaling 参数来控制 $QK^T$ 的范围，进而让 attention 的 pattern 更加分散。
 
@@ -36,6 +38,8 @@ $$
 
 使用这种动态缩放之后，attention 的分布变得更加分散了，结果如下图所示：
 
-![QK normalized attention](QK-norm-normalized-attention.png)
+{/* ![QK normalized attention](QK-norm-normalized-attention.png) */}
+
+> 待补充图片：QK normalized attention（原文件：`QK-norm-normalized-attention.png`）。
 
 - [Query-Key Normalization for Transformers](https://aclanthology.org/2020.findings-emnlp.379.pdf)

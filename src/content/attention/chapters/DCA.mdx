@@ -1,6 +1,6 @@
 
 
-## Dual Chunk Attention (DCA)
+### Dual Chunk Attention (DCA)
 
 
 提升 LLM 上下文长度的方法可以分为两类：一类是 training-free 的，包括 LM-infinite 和 StreamingLLM 等，这些方法以损失 long range dependency 为代价来保持较低的 perplexity。
@@ -16,7 +16,7 @@
 2. **Orthogonality**： DCA 可以和其他方法一起使用，如 YaRN [@YaRN], 这一点已经在 Qwen2.5-1M 以及 Qwen3 中得到了应用
 3. **Long Context Understanding**: DCA 可以在无需训练的情况下，在长上下文设置下，达到已有 SOTA 模型的表现
 
-### Preliminary
+#### Preliminary
 
 对于一个长度为 $L$ 的 token 序列，我们首先定义对应的 position id 如下
 
@@ -36,7 +36,7 @@ $$
 
 原始版本的 RoPE 的问题在于，在训练时，模型没有见过更长的上下文，因此其泛化性也最差，这一点在 YaRN [@YaRN] 已经得到了验证
 
-### Method
+#### Method
 
 DCA 的关键在于将 sequence 分割为若干个 Chunk，然后将 attention 的计算拆分为三个部分：
 
@@ -50,7 +50,7 @@ $$
 P_{\mathbf{q}} = [0,1,\dots,11],\quad P_{\mathbf{k}} = [0,1,\dots,11]
 $$
 
-### Intra-Chunk Attention
+#### Intra-Chunk Attention
 
 我们首先定义个超参数 chunk size $s>0$, 然后我们将我们的 sequence 分割成 $L/s$ 个 chunk，然后每个 chunk 重新进行编号，就得到了如下的 position id
 
@@ -79,7 +79,7 @@ $$
 
 ![Intra Chunk Attention Visualization](/posts/dual-chunk-attention/DCA_intra_chunk_attention_visualization.png)
 
-### Inter-Chunk Attention
+#### Inter-Chunk Attention
 
 接下来，我们来看一下不同 chunk 之间如何计算彼此的 attention。在 Intra-chunk attention 计算中，我们忽略了跨 chunk 的信息，而且，由于现在的 position id 不再是单调递增的了，我们直接使用 $P_{\mathbf{q}}^{Intra}$ 和 $P_{\mathbf{k}}^{Intra}$ 给出的位置信息不对，这也是为什么我们在 Intra-chunk attention 中要求 query 和 key 在同一个 chunk 中才能计算的原因。
 
@@ -117,7 +117,7 @@ $$
 
 ![Inter Chunk Attention Visualization](/posts/dual-chunk-attention/DCA_inter_chunk_attention_visualization.png)
 
-### Successive-Chunk Attention
+#### Successive-Chunk Attention
 
 现在我们既可以计算 intra-chunk，也可以计算 inter-block 的 attention，但是问题是对于相邻的 chunk，其位置信息不对了，从上面的可视化中，我们可以看到，当 $P_{\mathbf{q},i}=6$ , $P_{\mathbf{k},j}=5$ 时，我们有
 
@@ -151,7 +151,7 @@ $$
 
 ![Successive Chunk Attention Visualization](/posts/dual-chunk-attention/DCA_successive_chunk_attention_visualization.png)
 
-### Computation
+#### Computation
 
 接下来，我们把所有的改进放在一起，就得到
 
@@ -176,7 +176,7 @@ $$
 \end{cases}
 $$
 
-### Code
+#### Code
 
 首先是 `RotaryEmbedding` 部分的修改
 
@@ -257,7 +257,7 @@ class Attention(nn.Module):
         attn_output = merge_attn_outputs(flash_results)
 ```
 
-### Evaluation
+#### Evaluation
 
 ![Perplexity evaluation on PG19](/posts/dual-chunk-attention/DCA_perplexity_evaluation_PG19.png)
 
