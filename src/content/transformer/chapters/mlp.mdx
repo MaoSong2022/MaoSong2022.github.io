@@ -1,0 +1,35 @@
+## MLP
+
+现在大语言模型的 MLP 使用的激活函数一般都是 SwiGLU, 其定义为
+
+$$
+\mathrm{SwiGLU}(x) = x\odot \sigma(x)
+$$
+
+其中 $\sigma(\cdot)$ 是 sigmoid 函数
+
+MLP 的定义为
+
+$$
+y = W_2(W_3x\odot \mathrm{SwiGLU}(W_1x))
+$$
+
+其中 $W_3,W_1\in\mathbb{R}^{d_{ff}\times d}$, $W_2\in\mathbb{R}^{d\times d_{ff}}$
+
+一般地，由于 FFN 只有两个权重矩阵，且 $d_{ff}=4d$, 在 SwiGLU 中，为了保证参数量一致，其隐藏层大小设置为 $d_{ff}'=\frac23d_{ff}=\frac83 d$.
+
+MLP 的代码如下所示
+
+```python
+def SwiGLU(x):
+    return x * torch.sigmoid(x)
+
+class MLP(nn.Module):
+    def __init__(self, d, d_ff):
+        self.gate_proj = nn.Linear(d, d_ff, bias=False)
+        self.up_proj = nn.Linear(d, d_ff, bias=False)
+        self.down_proj = nn.Linear(d_ff, d, bias=False)
+
+    def forward(self, x):
+        return self.down_proj(SwiGLU(self.gate_proj(x)) * self.up_proj(x))
+```

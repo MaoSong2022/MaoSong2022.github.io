@@ -1,0 +1,18 @@
+import Image from '../../../components/Image.astro';
+import transformer_architecture from '../../../assets/image/transformer_architecture.png';
+
+## 架构
+
+Transformer [@vaswani2017attention] 由 attention、前馈网络、残差连接和 normalization 等模块组成。下图给出整体结构，后文聚焦用于自回归语言建模的 decoder-only 路线。
+
+<Image src={transformer_architecture} alt="Transformer architecture" />
+
+我们以 Qwen3 的模块组织为例，先区分 Transformer 主体与用于不同任务的输出头。
+
+在 Transformer 主体之上配置不同的输出头和训练目标，可以构建面向不同任务的模型，例如：
+
+- `Qwen3ForQuestionAnswering`
+- `Qwen3ForCausalLM`
+- `Qwen3ForSequenceClassification`
+
+本文选择 `Qwen3ForCausalLM` 这条路线，说明隐藏状态如何转换为下一个 token 的预测。

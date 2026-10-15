@@ -1,0 +1,96 @@
+## Attention
+
+我们先不考虑 position embedding，直接看 attention，attention 定义为
+
+$$
+\mathrm{Attention}(X) = \mathrm{softmax}\left(\frac{QK^T}{\sqrt{d}}\right)V\in\mathbb{R}^{m\times d}
+$$
+
+其中 $X\in\mathbb{R}^{m\times d}$,
+
+$$
+Q = W_QX\in\mathbb{R}^{m\times d},\quad
+K =W_KX\in\mathbb{R}^{n\times d},\quad
+V = W_VX\in\mathbb{R}^{n\times d}
+$$
+
+在自回归模型里，我们还会加上 mask, 让每个 token 只能看见前面的 token 的信息
+
+$$
+\mathrm{Attention}(X) = \mathrm{softmax}\left(\frac{QK^T}{\sqrt{d}}\odot M\right)V
+$$
+
+其中
+
+$$
+M = [M_{ij}] = \begin{cases}
+1, &\text{ if } i < j\\
+0, &\text{ otherwise}
+\end{cases}
+$$
+
+self-attention 的代码如下：
+
+```python
+def scaled_dot_product_attention(Q, K, V, mask) -> torch.Tensor:
+    d_k = Q.shape[-1] # d_k
+    scaled_factor = 1 / d_k**0.5
+
+    scores = torch.einsum("... s_q d_k, ... s_k d_k -> ... s_q s_k", Q, K)
+    scores *= scaled_factor
+
+    if mask is not None:
+        scores = scores.masked_fill(mask == 0, float("-inf"))
+
+    scores = scores.softmax(dim=-1)
+
+    return torch.einsum("... s_q s_k, ... s_k d_v -> ... s_q d_v", scores, V)
+```
+
+## Multi-Head Attention
+
+Multi-Head Attention 定义如下
+
+$$
+\mathrm{MultiHeadAttention}(X) = [\mathrm{Attention}_1(X),\dots,\mathrm{Attention}_h(X)]W_o\in\mathbb{R}^{m\times d}
+$$
+
+其中 $W_o\in\mathbb{R}^{d\times d}$, 且每一个 Attention heads 的维度会从 $d\to d/h$.
+
+Multi-Head Attention 的主要作用为：
+
+1. 让不同的 head 关注不同的信息
+2. 并行计算，提高计算效率
+
+MHA 代码
+
+```python
+class MultiHeadAttention(nn.Module):
+    def __init__(self, d_model: int, num_heads: int) -> None:
+        self.q_proj = Linear(d_model, d_model)
+        self.k_proj = Linear(d_model, d_model)
+        self.v_proj = Linear(d_model, d_model)
+        self.output_proj = Linear(d_model, d_model,)
+
+    def forward(self, x, position_embeddings, mask):
+        Q = rearrange(self.q_proj(x), "... seq_len (num_heads head_dim) -> ... num_heads seq_len head_dim",
+            num_heads=self.num_heads, head_dim=self.head_dim)
+        K = rearrange( self.k_proj(x), "... seq_len (num_heads head_dim) -> ... num_heads seq_len head_dim",
+            num_heads=self.num_heads, head_dim=self.head_dim)
+
+        if mask is None:
+            mask = torch.ones(Q.shape[-2], K.shape[-2])
+            mask = torch.tril(mask)
+
+        if position_embeddings is not None:
+            sin, cos = position_embeddings
+            Q = apply_rotary_pos_emb(Q, sin, cos)
+            K = apply_rotary_pos_emb(K, sin, cos)
+
+        V = rearrange(self.v_proj(x), "... seq_len (num_heads head_dim) -> ... num_heads seq_len head_dim",
+            num_heads=self.num_heads, head_dim=self.head_dim)
+
+        output = scaled_dot_product_attention(Q, K, V, mask=mask)
+        output = rearrange(output, "... num_heads seq_len head_dim -> ... seq_len (num_heads head_dim)")
+        return self.output_proj(output)
+```

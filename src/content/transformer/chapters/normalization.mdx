@@ -1,0 +1,31 @@
+## RMSNorm
+
+RMSNorm 的作用和 LayerNorm 是一样的，但是实现上更简单
+
+$$
+\mathrm{LayerNorm}(x) = \frac{x-\mathbb{E}[x]}{\sqrt{\mathrm{var}[x]+\epsilon}}\odot \beta + \gamma
+$$
+
+其中 $\beta,\gamma\in\mathbb{R}^d$ 是可学习的参数
+
+$$
+\mathrm{RMSNorm}(x) = \frac{x}{\sqrt{\|x\|_2^2+\epsilon}}\odot \gamma
+$$
+
+其中 $\gamma\in\mathbb{R}^d$ 是可学习的参数
+
+RMSNorm 代码实现
+
+```python
+class RMSNorm(nn.Module):
+    def __init__(self, d, eps):
+        self.weight = nn.Parameter(torch.ones(d))
+        self.eps = eps
+
+    def forward(self, x):
+        input_dtype = x.dtype
+        x = x.to(torch.float32)
+        variance = x.pow(2).mean(-1, keepdim=True)
+        x = x * torch.rsqrt(variance + self.eps)
+        return self.weight * x.to(input_dtype)
+```

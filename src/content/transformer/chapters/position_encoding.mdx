@@ -1,0 +1,180 @@
+## Position Encoding
+
+Attention 对于输入的顺序是不敏感的，也就是
+
+$$
+\mathrm{Attention}(Q, \Pi K, \Pi V) = \mathrm{Attention}(Q, K, V)
+$$
+
+这里 $\Pi\in \{0,1\}^{d\times d}$ 是一个置换矩阵 (permutation matrix)
+
+Transformer 的解决方法是在 query 和 key 上加上位置信息：
+
+$$
+Q' = Q + PE(Q),\ K'=K + PE(K)
+$$
+
+这样
+
+$$
+\mathrm{Attention}(Q, K, V) = \mathrm{softmax}\left(\frac{(Q + PE(Q))(K + PE(K))^T}{\sqrt{d}}\right)V\in\mathbb{R}^{m\times d}
+$$
+
+就包含了位置信息
+
+### 绝对位置编码
+
+Transformer 的使用的位置编码如下所示
+
+$$
+PE(pos, 2i) = \sin\left(\frac{pos}{10000^{2i/d}}\right)
+$$
+
+$$
+PE(pos, 2i+1) = \cos\left(\frac{pos}{10000^{2i/d}}\right)
+$$
+
+### RoPE
+
+苏剑林老师提出了 [Position Encoding](/p/notes-on-position-encoding/)，现在已经被广泛使用
+
+$$
+q' = R_{\theta,m}^dq, k' = R_{\theta,n}^d k
+$$
+
+这样 $\langle q, k\rangle$ 就**仅**包含两者的相对位置信息
+
+$$
+\langle q_m, k_n\rangle = x^TW_qR_{\theta, n-m}^d W_kx_n
+$$
+
+RoPE 的矩阵定义如下
+
+$$
+R_{\theta,m}^d = \mathrm{diag}(M_1,\dots,M_{d/2})
+$$
+
+其中
+
+$$
+M_i = \begin{bmatrix}
+    \cos m\theta_i & -\sin m\theta_i\\
+    \sin m\theta_i & \cos m\theta_i
+\end{bmatrix}
+$$
+
+这里
+
+$$
+\theta_i = \frac{1}{10000^{2(i-1)/d}}, i\in\{1,2,\dots,d/2\}
+$$
+
+简化后得到
+
+$$
+R_{\theta,m}^dq = \begin{bmatrix}
+\cos m\theta_0\\
+\cos m\theta_0\\
+\vdots\\
+\cos m\theta_{d/2}\\
+\cos m\theta_{d/2}\\
+\end{bmatrix}\odot \begin{bmatrix}
+x1\\
+x2\\
+\vdots\\
+x_{d-1}\\
+x_d\\
+\end{bmatrix} + \begin{bmatrix}
+\sin m\theta_0\\
+\sin m\theta_0\\
+\vdots\\
+\sin m\theta_{d/2}\\
+\sin m\theta_{d/2}\\
+\end{bmatrix}\odot
+\begin{bmatrix}
+-\ x_2\\
+x_1\\
+\vdots\\
+-x_d\\
+x_{d-1}\\
+\end{bmatrix}
+$$
+
+### RoPE 代码 Naive 实现
+
+`RotaryEmbedding` 代码
+
+```python
+class RotaryEmbedding(nn.Module):
+    def __init__(self, dim):
+        self.inv_freq = 1.0 / (theta ** (torch.arange(0, dim, 2)[: (dim // 2)].float() / dim))
+
+    def forward(self, x, position_ids):
+        freqs = einsum(torch.arange(self.max_seq_len),
+      self.inv_freq, "seq_len, d_k_half -> seq_len d_k_half")[token_positions]
+
+        sin = torch.sin(freqs)
+        cos = torch.cos(freqs)
+
+        return sin, cos
+```
+
+计算部分代码
+
+```python
+def apply_rotary_pos_emb(x: torch.Tensor, sin: torch.Tensor, cos: torch.Tensor) -> torch.Tensor:
+    x_even = x[..., ::2]  # (seq_len, d_k_half)
+    x_odd = x[..., 1::2]  # (seq_len, d_k_half)
+    odds = cos * x_even - sin * x_odd  # (...,seq_len, d_k_half)
+    evens = sin * x_even + cos * x_odd  # (...,seq_len, d_k_half)
+    stacked = torch.stack((odds, evens), -2)  # (...,seq_len, 2, d_k_half)
+    stacked_trans = rearrange(
+        stacked, "... seq_len double d_k_half -> ... seq_len d_k_half double"
+    )  # (...,seq_len, d_k_half, 2)
+    out = rearrange(
+        stacked_trans, "... seq_len d_k_half double -> ... seq_len (d_k_half double)"
+    )  # (..., seq_len, d_k)
+    return out
+```
+
+### RoPE 标准实现
+
+`RotaryEmbedding` 代码 (LLaMA)
+
+```python
+class LlamaRotaryEmbedding(nn.Module):
+    def __init__(self, config: LlamaConfig, device=None):
+        inv_freq = inv_freq = 1.0 / (base ** (torch.arange(0, dim, 2, dtype=torch.int64) / dim)) # d_k_half
+
+    def forward(self, x, position_ids):
+        # (bsz, d_k_half, 1)
+        inv_freq_expanded = self.inv_freq[None, :, None].expand(position_ids.shape[0], -1, 1)
+        # (bsz, 1, seq_len)
+        position_ids_expanded = position_ids[:, None, :]
+        # (bsz, seq_len, d_k_half)
+        freqs = (inv_freq_expanded @ position_ids_expanded).transpose(1, 2)
+        emb = torch.cat((freqs, freqs), dim=-1) # (..., seq_len, d_k)
+        cos = emb.cos() # (..., seq_len, d_k)
+        sin = emb.sin() # (..., seq_len, d_k)
+
+        return cos, sin
+```
+
+计算部分代码
+
+```python
+def rotate_half(x):
+    x1 = x[..., : x.shape[-1] // 2]
+    x2 = x[..., x.shape[-1] // 2 :]
+    return torch.cat((-x2, x1), dim=-1)
+
+
+
+def apply_rotary_pos_emb(q, k, cos, sin, position_ids=None, unsqueeze_dim=1):
+    cos = cos.unsqueeze(unsqueeze_dim)
+    sin = sin.unsqueeze(unsqueeze_dim)
+    q_embed = (q * cos) + (rotate_half(q) * sin)
+    k_embed = (k * cos) + (rotate_half(k) * sin)
+    return q_embed, k_embed
+
+```

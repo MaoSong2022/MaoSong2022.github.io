@@ -1,0 +1,35 @@
+## Transformer
+
+transformer 部分包括四个部分：
+
+1. Embedding Layer：将 token 映射到 embedding space
+2. layers：Transformer 的主体部分，由 $n$ 个 `DecodeLayer` 组成
+3. Norm：在输出之前，进行一次 Normalization
+4. Position Embedding：由于输入的 sequence 长度是固定的，因此我们提前计算好每一层的 position embedding
+
+`Transformer` 部分的代码
+
+```python
+class Transformer(nn.Module):
+    def __init__(self, config):
+        self.embedding = nn.Embedding(config.vocab_size, config.hidden_size, config.pad_token_id)
+        self.layers = nn.ModuleList(
+           [DecodeLayer(config, layer_idx) for layer_idx in range(config.num_hidden_layers)]
+          )
+        self.norm = RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
+        self.rotary_emb = RotaryEmbedding(config)
+
+    def forward(self, input_ids,...):
+        input_embeds = self.embedding(input_ids)
+
+        hidden_states = input_embeds
+        position_embeddings = self.rotary_emb(hidden_states, position_ids)
+
+        for decode_layer in self.layers:
+            layer_outputs = decode_layer(hidden_states, position_ids, position_embeddings)
+            hidden_states = layer_outputs[0]
+
+        hidden_states = self.norm(hidden_states)
+
+        return logits
+```
