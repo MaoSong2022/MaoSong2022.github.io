@@ -2,6 +2,30 @@
 
 ### GLM-5.1
 
-[GLM 5.1](https://z.ai/blog/glm-5.1) 强调恶劣 agentic engineering 能力，
+[GLM 5.1](https://z.ai/blog/glm-5.1) 强调了 agentic engineering 能力，
 
-作者妨碍吸纳 GLM-5 在解决任务时很快就会达到收敛，而 GLM-5.1 则解决了这个问题，模型在 long horizon 任务上持续提升。
+作者说明 GLM-5 在解决任务时很快就会达到收敛，而 GLM-5.1 则解决了这个问题，模型在 long horizon 任务上持续提升。
+
+### GLM-5.2
+
+[GLM 5.2](https://z.ai/blog/glm-5.2) 强调了 long-horizon 能力，改进点如下：
+
+1. 架构上使用了 IndexShare 在 sparse attention layers 中共享 indexer.
+2. 使用 slime 进行训练，支持不同的 harness 进行 rollout, 支持 compaction trajectory 和 sub-agent workflow
+3. 并行 OPD 训练，使用了 10+ 专家
+4. 基于 critic 的 PPO 算法，提高训练效率，这部分见 SAO [TODO]
+5. 将上下文扩展到 1M.
+
+### GLM-5.3
+
+[GLM 5.3](https://z.ai/blog/glm-5.3) 强调了 post-training scaling
+
+### GLM-5.3 Flash
+
+[GLM-5.3 Flash](https://z.ai/blog/glm-5.3-flash) 是一个从零开始训练的模型，参数规模为 320B-A18B.
+
+GLM-5.3 Flash 首次提出了结合稀疏注意力和线性注意力的混合架构，相比于 GLM-5.3 注意力减少了 3 倍，KV cache 降低了 4.4 倍。
+
+模型还使用了 mHC[@mHC] 来提高 scaling efficiency.
+
+预训练阶段，模型使用了 30T 多模态 token.
