@@ -29,4 +29,26 @@ $$
 
 ### KAT-Coder-V2
 
-KAT-Coder-V2 基于 [KAT-Coder-V1](#kat-coder-v1) continue post-training 得到
+KAT-Coder-V2 基于 [KAT-Coder-V1](#kat-coder-v1) continue post-training 得到，训练过程包括 SFT, RL 和 MOPD 三个阶段。
+
+作者首先介绍了 KwaiEnv, 一个用于 agentic coding 的 infra.
+
+post-training 阶段，作者先基于初始模型通过 SFT 和 RL 训练的到 5 个专家，最后通过 MOPD 进行合版。
+
+数据处理：
+
+- SWE-agent: 爬取，验证和执行，收集得到 30k training samples, 作者还构建了 code comprehension 任务来提高模型相应能力
+- WebCoding-agent: 构建了 user perception, design rationale, technical implementation 的分阶段 pipeline
+- Terminal-agent: 通过专家标注，multi-agent synthesis, SWE-format 数据转换和开源数据集成得到
+- WebSearch-agent: 与 Kimi-k3 [@Kimi_K3] 类似使用构建知识图谱然后进行检索
+- General-agent: 包含 instruction following, general QA, code-math reasoning 相关 domain
+
+RL 训练时，作者使用了大概 100k samples.
+
+作者使用了 turn-level GSPO [@GSPO] 来进行训练，其 importance ratio 定义为
+
+$$
+r_{turn}^{(n)}(\theta) = \prod_{i\in\mathcal{T}_n}\frac{\pi_{\theta}(y_i\mid x, y_{<i})}{\pi_{\theta_{old}}(y_i\mid x, y_{<i})}
+$$
+
+其中 $\mathcal{T}_n$ 是一个 turn.
