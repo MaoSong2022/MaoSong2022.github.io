@@ -8,11 +8,11 @@ import base_frequency_comparison_interpolation from '../../../assets/image/base-
 
 RoPE ABF [@RoPEABF] 提出了通过提高 base frequency 来解决 attention decay 问题
 
-[RoPE](/p/notes-on-position-encoding/) 已经成为了大多数 LLM 使用的 position encoding 范式，但是，RoPE 与 LLM long context 之间的关系还没有被探索清楚。在本文中，作者就探究了 base frequency 与 LLM context capability 之间的关系，并给出了一个达到指定上下文长度所需要的 base frequency 的 lower bound.
+[RoPE](/blog/position-encoding/) 已经成为了大多数 LLM 使用的 position encoding 范式，但是，RoPE 与 LLM long context 之间的关系还没有被探索清楚。在本文中，作者就探究了 base frequency 与 LLM context capability 之间的关系，并给出了一个达到指定上下文长度所需要的 base frequency 的 lower bound.
 
 ## Method
 
-首先作者回顾了 attention 与 [RoPE](/p/notes-on-position-encoding/) 的定义， 关键就是 RoPE 这部分，如下所示
+首先作者回顾了 attention 与 [RoPE](/blog/position-encoding/) 的定义， 关键就是 RoPE 这部分，如下所示
 
 $$
 A_{ij} = (R_{i,\theta}q_i)^T(R_{j,\theta}k_j) = q_i^TR_{i-j,\theta}k_j
@@ -25,14 +25,14 @@ $$
 | Base frequency | 10,000   | 10,000    | 500,000   | 1,000,000  | 10,000       |
 | Context length | 2048     | 4096      | 8192      | 32,768     | 4,096        |
 
-接下来，作者回顾了 [YARN](/p/notes-on-yarn/). 其核心思想在于，预训练阶段所有可能的 $\cos(t-s)\theta_i$ 都见过，才能保证模型的 OOD 表现
+接下来，作者回顾了 [YARN](/blog/long-context/#yarn). 其核心思想在于，预训练阶段所有可能的 $\cos(t-s)\theta_i$ 都见过，才能保证模型的 OOD 表现
 
 作者认为 base frequency 的设置应该满足两个条件：
 
 1. **The closer token gets more attention**: 当前的 token 应该给邻近的 token 更高的注意力
 2. **The similar token gets more attention**: 当前的 token 应该给相似的 token 更高的注意力
 
-在 [RoPE](/p/notes-on-position-encoding/) 中，作者已经给出了 $A_{ij}$ 与相对距离 $|i-j|$ 之间的关系。因此第一个性质已经满足了。
+在 [RoPE](/blog/position-encoding/) 中，作者已经给出了 $A_{ij}$ 与相对距离 $|i-j|$ 之间的关系。因此第一个性质已经满足了。
 
 接下来，作者分析了相似 token 的性质，作者定义 token 的相似性如下：
 
