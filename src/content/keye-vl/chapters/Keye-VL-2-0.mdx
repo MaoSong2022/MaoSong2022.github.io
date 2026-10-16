@@ -4,7 +4,7 @@
 
 Keye-VL 2.0 进行了如下改进：
 
-1. 架构上，使用了 DSA [@DSA] 来降低 KV cache 占用和支持 256K 的上下文
+1. 架构上，使用了 DSA [@DeepSeek-V3.2] 来降低 KV cache 占用和支持 256K 的上下文
 2. 训练上，作者提出了 Cross-Modal Multi-teacher On policy distillation (MOPD) 和 Context-RL, Video RL 避免灾难性遗忘。
 
 ### Architecture
@@ -14,7 +14,7 @@ Keye-VL 2.0 进行了如下改进：
 - vision encoder: 和 [KeyeVL1.5](#keye-vl-15) 一样，使用了插值来处理绝对位置编码，使用 2D RoPE 和 sequence packing
 - LLM: Qwen3-A30B-A3B-Thinking-2507
 - MLP: patch merger
-- attention: DSA [@DSA] + GQA [@GQA], topK=2048.
+- attention: DSA [@DeepSeek-V3.2] + GQA [@GQA], topK=2048.
 
 ### Data
 

@@ -94,7 +94,7 @@ Post-training 包含以下阶段：
 2. reward model training: 使用 SFT 和 RL 两个阶段进行训练
 3. LongCoT code-start： 初步激活模型的 reasoning 能力
 4. General RL:
-5. RLVR: 使用了 [GSPO](/p/notes-on-gspo/) 算法来进行训练，在训练过程中，作者采取了 progressive hint sampling 方式，也就是提供不同程度的 hint 来提高模型的训练效率。为了进一步提高模型的表现，作者采用了一个和 [Seed1.5-VL](/p/notes-on-seed1.5-vl/) 一样的迭代式训练策略，即反复进行 SFT 和 RL 来降低训练成本，提高训练效率。
+5. RLVR: 使用了 [GSPO](/blog/policy-optimization/#gspo) 算法来进行训练，在训练过程中，作者采取了 progressive hint sampling 方式，也就是提供不同程度的 hint 来提高模型的训练效率。为了进一步提高模型的表现，作者采用了一个和 [Seed1.5-VL](https://arxiv.org/abs/2505.07062) 一样的迭代式训练策略，即反复进行 SFT 和 RL 来降低训练成本，提高训练效率。
 6. alignment RL: 提高模型的 instruction following, format adherence, preference alignment 表现
 
 ### Experiments
