@@ -2,11 +2,11 @@
 
 字节 Seed 团队和清华合作提出了 DAPO [@DAPO]，一种全开源的，基于 PPO 的强化学习方法，一用于提升 LLM 的 reasoning 能力。
 
-Preliminary 包括 [PPO](#ppo)，[GRPO](#grpo) 还有 KL divergence
+Preliminary 包括 [PPO](/blog/RL4LLM/#ppo)，[GRPO](/blog/RL4LLM/#grpo) 还有 KL divergence
 
 ### KL Divergence
 
-在传统的 RLHF 框架中，我们再 [PPO](#ppo) 的基础上，增加了一个 KL divergence 正则项，用于约束新旧策略的差异。具体来说，给定旧策略 $\pi_{\theta_{old}}$ 和新策略 $\pi_{\theta}$，我们实际上优化的损失函数为
+在传统的 RLHF 框架中，我们再 [PPO](/blog/RL4LLM/#ppo) 的基础上，增加了一个 KL divergence 正则项，用于约束新旧策略的差异。具体来说，给定旧策略 $\pi_{\theta_{old}}$ 和新策略 $\pi_{\theta}$，我们实际上优化的损失函数为
 
 $$
 \mathcal{J}_{\mathrm{RLHF}}(\theta) = \mathcal{J}_{\mathrm{PPO}}(\theta) - \beta\mathrm{KL}\left(\pi_{\theta_{old}}(\cdot\mid q)\|\pi_{\theta}(\cdot\mid q)\right)
@@ -48,7 +48,7 @@ $$
 
 作者举了一个例子，当 $\epsilon=0.2$ 时，如果一个 group 的输出为 $[0.01, 0.9]$, 那么在 clip 之后，最大的更新幅度为 $[0.01, 0.9]\times 0.2=[0.002, 0.18]$. 这对于概率比较小的输出来说，很难帮助模型提升。因此，作者修改了其阈值。进一步地，作者分离了 clip 的阈值，分别使用 $\epsilon_{low}$ 和 $\epsilon_{high}$ 来约束更新幅度。作者通过实验验证了这个例子，结果如下图所示：
 
-最后，加入 Clip-Higher 策略的 DAPO 的训练目标为，与 [GRPO](#grpo) 的训练目标相比，我们使用 $\epsilon_{low}$ 和 $\epsilon_{high}$ 来约束更新幅度。
+最后，加入 Clip-Higher 策略的 DAPO 的训练目标为，与 [GRPO](/blog/RL4LLM/#grpo) 的训练目标相比，我们使用 $\epsilon_{low}$ 和 $\epsilon_{high}$ 来约束更新幅度。
 
 $$
 \mathcal{J}_{\mathrm{DAPO}}(\theta) = \mathbb{E}_{(q,a)\sim\mathcal{D},\{o_i\}_{i=1}^G\sim \pi_{\theta_{old}}(\cdot\mid q)}\left[ \frac{1}{\sum_{t=1}^G|o_i|}\sum_{i=1}^G\sum_{t=1}^{|o_i|}\min\left(r_{i,t}(\theta)\hat{A}_{i,t},\mathrm{clip}\left(r_{i,t}(\theta), 1-\epsilon_{low}, 1+\epsilon_{high}\right)\hat{A}_{i,t}\right) \right]
