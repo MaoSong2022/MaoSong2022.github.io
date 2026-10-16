@@ -1,0 +1,41 @@
+---
+title: "Overview of LLM Inference"
+description: "梳理大语言模型推理中的采样策略、Prefill 与 Decode 性能分析、KV cache、Continuous batching、并行推理、Speculative decoding 与 Multi-token prediction，并讨论生成结果的可复现性。"
+authors:
+  - name: "Mao Song"
+    url: "https://maosong.website/"
+published: "2026-10-16 00:00:00+0800"
+modified: "2026-10-16 00:00:00+0800"
+tags:
+  - "Inference"
+  - "KV Cache"
+  - "Sampling"
+  - "Speculative Decoding"
+  - "Parallelism"
+categories:
+  - "LLM"
+  - "Infra"
+tableOfContentsAutoCollapse: true
+pdfProOnly: false
+showPdf: false
+---
+
+import Introduction from "./chapters/introduction.mdx";
+import Sampling from "./chapters/sampling.mdx";
+import Roofline from "./chapters/roofline.mdx";
+import KVCache from "./chapters/kv_cache.mdx";
+import ContinuousBatching from "./chapters/continuous_batching.mdx";
+import Parallelism from "./chapters/parallelism.mdx";
+import SpeculativeDecoding from "./chapters/speculative_decoding.mdx";
+import MTP from "./chapters/mtp.mdx";
+import Reproducibility from "./chapters/reproducibility.mdx";
+
+<Introduction />
+<Sampling />
+<Roofline />
+<KVCache />
+<ContinuousBatching />
+<Parallelism />
+<SpeculativeDecoding />
+<MTP />
+<Reproducibility />
