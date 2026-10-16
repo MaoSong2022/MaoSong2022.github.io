@@ -6,7 +6,7 @@
 
 MiMo-VL 7B 的架构是一个标准的 "ViT-MLP-LLM" 架构，其中：
 
-- ViT 使用了 Qwen2.5-VL [@Qwen2.5-VL] 的 Qwen2.5-ViT
+- ViT 使用了 [Qwen2.5-VL](/blog/qwen-vl-series/#qwen25-vl) [@Qwen2.5-VL] 的 Qwen2.5-ViT
 - MLP 是一个两层的 SwiGLU MLP Layer
 - LLM 是之前发布的 MiMo-7B
 
@@ -64,4 +64,4 @@ RLHF 的 reward model 使用 Breadley-Terry model 作为训练目标，text-only
 作者还比较了原始的 GRPO 和本文中使用的 on-policy 版本的 GRPO ，结果发现 on-policy 版本的 GRPO 效果更好
 
 最后，作者探讨了一下将不同任务放在一起训练导致的互相干扰问题。
-这个在MiMo里也提到过，核心问题就是有的任务是 short CoT 的，有的任务是 Long CoT 的，如何让模型根据任务来选择不同的 reasoning length 是一个需要探讨的问题，这个问题在 [VC-PPO](/p/notes-on-vc-ppo/) 里进行了初步的探讨。
+这个在MiMo里也提到过，核心问题就是有的任务是 short CoT 的，有的任务是 Long CoT 的，如何让模型根据任务来选择不同的 reasoning length 是一个需要探讨的问题，这个问题在 [VC-PPO](/blog/policy-optimization/#vc-ppo) 里进行了初步的探讨。

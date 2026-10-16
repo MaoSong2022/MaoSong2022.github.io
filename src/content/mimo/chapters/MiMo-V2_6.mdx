@@ -63,7 +63,7 @@ Pre-training 分为 2 个 stage：
 | Stage 2 (omni) | 22T             | 3T            |
 | Total          | 48T             | 30T           |
 
-Mid-training 阶段主要提高模型的 long context 能力和 agentic 能力，训练也分为两个阶段，分别将上下文扩展到 256K 和 1M, 训练使用了 Muon [@Muon] 的变体， Muown optimizer, 相比于 Muon, Muown 增加了 explicit rot-norm control, 减少了 spectral-norm shift 和对于 weight decay 的敏感性。
+Mid-training 阶段主要提高模型的 long context 能力和 agentic 能力，训练也分为两个阶段，分别将上下文扩展到 256K 和 1M, 训练使用了 Muon [@jordan2024muon] 的变体， Muown optimizer, 相比于 Muon, Muown 增加了 explicit rot-norm control, 减少了 spectral-norm shift 和对于 weight decay 的敏感性。
 作者还在训练过程中使用了 MXFP4 QAT.
 作者发现，在 mid-training 阶段加入一些 anti-reward hacking samples 可以缓解模型的 reward hacking behavior.
 
