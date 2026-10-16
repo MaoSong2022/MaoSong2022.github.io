@@ -35,7 +35,7 @@ Seed-ViT 的超参数如下表所示
 | ---------- | ------------- | -------- | ------- | ------------- | --------- | -------- |
 | 14         | 2D RoPE       | 64       | 20      | 1280          | 4.0       | 27       |
 
-对于输入的图片，Seed-ViT 首先将图片 resize 到 28\*28 的倍数，接下来图片会被分割为 14\*14 的 patch. 与 [NaViT](NaViT.md) 一样，Seed-ViT 也是用了 token-packing 的操作，来将多个图片 packing 到一个 sequence 里进行训练。最后，对于 Seed-ViT 输出的图片特征，作者还是用了 $2\times 2$ 的 average pooling 来降低 token 个数。
+对于输入的图片，Seed-ViT 首先将图片 resize 到 28\*28 的倍数，接下来图片会被分割为 14\*14 的 patch. 与 [NaViT](https://arxiv.org/abs/2307.06304) 一样，Seed-ViT 也是用了 token-packing 的操作，来将多个图片 packing 到一个 sequence 里进行训练。最后，对于 Seed-ViT 输出的图片特征，作者还是用了 $2\times 2$ 的 average pooling 来降低 token 个数。
 
 Seed-ViT 的预训练包括三个阶段，其设置和超参数如下表所示：
 
@@ -57,7 +57,7 @@ Seed-ViT 的预训练包括三个阶段，其设置和超参数如下表所示�
 基于这三点考虑，Seed-ViT 的训练包括三个阶段：
 
 1. Masked Image modeling with 2D RoPE：这一阶段的目的是提高模型对与几何和结构的感知能力。作者使用 `EVA02-CLIP-E` 作为教师模型，然后随机将 75% 的 patches 进行 mask，最后让 Seed-ViT 输出的特征尽可能匹配教师模型输出的特征。这里的损失函数是 cosine similarity. 作者发现，scale up MIM 之后，VLM 在 OCR 和文档理解任务上的表现得到了大幅度的提升。
-2. Native Resolution Contrastive Learning：这一阶段和 [CLIP](CLIP.md), [SigLIP](SigLIP.md) 的训练差不多，text encoder 与 `EVA02-CLIP-E` 相同。损失函数为 SigLIP loss 和 SuperClass loss
+2. Native Resolution Contrastive Learning：这一阶段和 [CLIP](/blog/visual-foundation-model/#clip), [SigLIP](/blog/visual-foundation-model/#siglip) 的训练差不多，text encoder 与 `EVA02-CLIP-E` 相同。损失函数为 SigLIP loss 和 SuperClass loss
 3. Omni-modal pret-raining：这一阶段使用了 MiCo 框架，来将 video frames, audio, visual captions 以及 audio captions 进行对齐，text encoder 编码 caption，ViT 编码其他部分。通过这一阶段的训练，模型可以学习 omni-model representations,并且还可以提高模型的图片和视频理解人物上的表现。
 
 ### 视频编码
