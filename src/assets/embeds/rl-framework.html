@@ -1,26 +1,16 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>强化学习框架 · Agent–Environment</title>
+<div class="rl-framework" lang="zh-CN" aria-label="强化学习框架示意图">
 <style>
-  * { box-sizing: border-box; }
-  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #fff; }
-  main { width: min(100%, 1000px); padding: 24px; }
-  svg { display: block; width: 100%; height: auto; overflow: visible; }
-  .node-label { font-family: "Arial Narrow", "Helvetica Neue", Arial, sans-serif; font-weight: 600; font-size: 19px; letter-spacing: .5px; fill: white; }
-  .label { font-family: "Arial Narrow", "Helvetica Neue", Arial, sans-serif; font-size: 16px; letter-spacing: 1px; }
-  .math { font-family: Georgia, "Times New Roman", serif; font-size: 17px; font-style: italic; }
-  @media (max-width: 600px) { main { padding: 8px; } }
-  @media print { body { min-height: auto; } main { width: 100%; padding: 0; } }
+  .rl-framework, .rl-framework * { box-sizing: border-box; }
+  .rl-framework { width: min(100%, 1000px); margin: 0 auto; padding: 24px; }
+  .rl-framework svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .rl-framework .node-label { font-family: "Arial Narrow", "Helvetica Neue", Arial, sans-serif; font-weight: 600; font-size: 19px; letter-spacing: .5px; fill: white; }
+  .rl-framework .label { font-family: "Arial Narrow", "Helvetica Neue", Arial, sans-serif; font-size: 16px; letter-spacing: 1px; }
+  .rl-framework .math { font-family: Georgia, "Times New Roman", serif; font-size: 17px; font-style: italic; }
+  @media (max-width: 600px) { .rl-framework { padding: 8px; } }
+  @media print { .rl-framework { width: 100%; padding: 0; } }
 </style>
-</head>
-<body>
-<main aria-label="强化学习框架示意图">
   <svg id="rl-diagram" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 571 236" role="img" aria-labelledby="diagram-title diagram-description"></svg>
   <noscript>请启用 JavaScript，以显示 D3.js 绘制的强化学习框架图。</noscript>
-</main>
 <!-- D3.js v7.9.0, ISC license. https://d3js.org/ -->
 <script>
 // https://d3js.org v7.9.0 Copyright 2010-2023 Mike Bostock
@@ -78,5 +68,4 @@ const math = svg.append('g').attr('fill', colors.text).selectAll('text').data(sy
 math.append('tspan').text(d => d.symbol);
 math.append('tspan').attr('dy', 4).attr('font-size', 11).text(d => d.sub);
 </script>
-</body>
-</html>
+</div>
