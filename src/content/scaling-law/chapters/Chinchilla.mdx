@@ -20,7 +20,7 @@ $$
 
 作者通过训练 400 多个模型，构建了对应的 scaling law.
 
-已有工作如 [Kaplan scaling law](/p/kaplan-scaling-law/) 已经发现模型参数和大语言模型表现之间的关系，一个结论就是计算最优并不代表达到最优的 loss. 在本文中，作者也有相同结论，但是作者认为大模型应该使用比 Kaplan scaling law 推荐的更多的 training token. 基于这个发现，作者训练了 Chinchilla [@Chinchilla], 一个 70B 的 LLM, Chinchilla 相比 Gopher 表现有了大幅度的提升。
+已有工作如 [Kaplan scaling law](/blog/scaling-law/#kaplan) 已经发现模型参数和大语言模型表现之间的关系，一个结论就是计算最优并不代表达到最优的 loss. 在本文中，作者也有相同结论，但是作者认为大模型应该使用比 Kaplan scaling law 推荐的更多的 training token. 基于这个发现，作者训练了 Chinchilla [@Chinchilla], 一个 70B 的 LLM, Chinchilla 相比 Gopher 表现有了大幅度的提升。
 
 ## Scaling Law
 
@@ -64,7 +64,7 @@ $$
 
 ### Optimal Model Scaling
 
-作者将三种方法的结果以及 [Kaplan scaling law](/p/kaplan-scaling-law/) 的结果总结放在下表中，作者假设 $N_{opt}(C)\propto C^a$ 以及 $D_{opt}(C)\propto C^b$
+作者将三种方法的结果以及 [Kaplan scaling law](/blog/scaling-law/#kaplan) 的结果总结放在下表中，作者假设 $N_{opt}(C)\propto C^a$ 以及 $D_{opt}(C)\propto C^b$
 
 | Approach   | $a$  | $b$  |
 | ---------- | ---- | ---- |
@@ -113,7 +113,7 @@ $$
 作者还通过 ablation study 发现，cosine learning rate cycle length 应该和训练步数差不多，当 cycle length 太长时，模型表现会下降。
 
 **Optimizer**
-作者对比了 [Adam](/p/notes-on-adam/) 和 [AdamW](/p/notes-on-adamw/) 的表现，结果发现，AdamW 的表现优于 Adam.
+作者对比了 [Adam](/blog/optimizer/#adam) 和 [AdamW](/blog/optimizer/#adamw) 的表现，结果发现，AdamW 的表现优于 Adam.
 
 **High Precision**
 训练时，作者使用了高精度也就是 `float32` 来保存梯度的状态，结果显示，不管是 Adam 还是 AdamW, 使用高精度都可以提高模型的表现
