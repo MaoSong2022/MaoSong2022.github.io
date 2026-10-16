@@ -96,7 +96,7 @@ $$
 \mathbf{p}_{t}^{\mathrm{slc}}[j] = \sum_{m=0}^{l'/d-1}\sum_{n=0}^{l/d-1}\mathbf{p}_{t}^{\mathrm{cmp}}\left[\frac{l'}{d}j-m-n\right]
 $$
 
-对于 [GQA](/p/notes-on-gqa/) 和 [MQA](/p/notes-on-mqa/), 由于其 KV-cache 在 heads 之间共享，因此我们必须保证不同 heads 之间的 consistency, 因此作者提出了 shared importance score 如下：
+对于 [GQA](/blog/attention/#grouped-query-attention-gqa) 和 [MQA](/blog/attention/#multi-query-attention-mqa), 由于其 KV-cache 在 heads 之间共享，因此我们必须保证不同 heads 之间的 consistency, 因此作者提出了 shared importance score 如下：
 
 $$
 \mathbf{p}_{t}^{\mathrm{slc}'} = \sum_{h=1}^H\mathbf{p}_{t}^{\mathrm{slc},(h)}
@@ -131,7 +131,7 @@ $$
 
 #### Experiments
 
-作者构建了一个 27B-A3B 的 MoE 模型，attention 基于 GQA, MoE 基于 DeepSeekMoE [@DeepSeek-MoE]. 模型配置如下表所示
+作者构建了一个 27B-A3B 的 MoE 模型，attention 基于 GQA, MoE 基于 [DeepSeekMoE](/blog/deepseek-series/#deepseek-moe) [@DeepSeek-MoE]. 模型配置如下表所示
 
 | field                | value |
 | -------------------- | ----- |
@@ -158,7 +158,7 @@ NSA 配置如下
 
 其中 selection blocks 包含初始的一个 block 以及最近的 2 个 block.
 
-模型先在 8K 的上下文长度下使用 270B token 进行预训练，接下来在使用 [YARN](/p/notes-on-yarn/) 将模型上下文通过 continual pre-training 以及 SFT 扩展到 32K. 训练过程的损失如下图所示
+模型先在 8K 的上下文长度下使用 270B token 进行预训练，接下来在使用 [YARN](/blog/long-context/#yarn) 将模型上下文通过 continual pre-training 以及 SFT 扩展到 32K. 训练过程的损失如下图所示
 
 ![Training loss of NSA](/posts/notes-on-nsa/NSA-training-loss.png)
 
@@ -172,7 +172,7 @@ NSA 配置如下
 
 ![Performance of NSA on LongBench](/posts/notes-on-nsa/NSA-long-context-performance.png)
 
-作者还使用了 [DeepSeek-R1](/p/notes-on-deepseek-r1/) 中的知识蒸馏方法，结果如下表所示
+作者还使用了 [DeepSeek-R1](/blog/deepseek-r1/) 中的知识蒸馏方法，结果如下表所示
 
 | Generation token limit | 8192  | 16384 |
 | ---------------------- | ----- | ----- |

@@ -68,7 +68,7 @@
 
 前面是在 inference 阶段进行优化的，作者现在进一步探究在 pre-training 阶段加入 attention sink 参与训练对模型表现的影响。
 
-[[softmax-off-by-one]] 提出了我们应该加入一个 zero sink token, 其计算公式如下
+[softmax-off-by-one](https://www.evanmiller.org/attention-is-off-by-one.html) 提出了我们应该加入一个 zero sink token, 其计算公式如下
 
 $$
 \mathrm{softmax}_1(x)_i = \frac{\exp(x_i)}{1 + \sum_{j=1}^N \exp(x_j)}

@@ -19,9 +19,9 @@
 
 作者主要介绍了 gating 和 attention sink 这两部分的工作。
 
-gating 早在 LSTM 和 GRU 使其就得到了广泛的运用，在 transformer 之后，相关的现行注意力也有应用，比如 [MiniMax-01](/p/notes-on-minimax-01/) 所使用的 Lightning Attention 等，但是这些工作没有系统性探究 gating 背后的机制。
+gating 早在 LSTM 和 GRU 使其就得到了广泛的运用，在 transformer 之后，相关的现行注意力也有应用，比如 [MiniMax-01](/blog/minimax/#minimax-01) 所使用的 Lightning Attention 等，但是这些工作没有系统性探究 gating 背后的机制。
 
-第二部分是 attention sink, attention sink 现象由 [StreamingLLM](/p/notes-on-streamingllm/) 提出， 即模型会将相当一部分注意力权重方开始开始的几个 token 上。而本文提出的 gating 机制可以缓解 attention sink 现象。
+第二部分是 attention sink, attention sink 现象由 [StreamingLLM](/blog/attention/#streamingllm) 提出， 即模型会将相当一部分注意力权重方开始开始的几个 token 上。而本文提出的 gating 机制可以缓解 attention sink 现象。
 
 #### Method
 
@@ -59,7 +59,7 @@ O' &= O\odot \sigma\left(XW_\theta\right)   \tag{G5}\\
 \end{align}
 $$
 
-这里 $\sigma$ 是激活函数，$W_\theta$ 是激活函数的可学习参数，我们可以将其理解为一个 linear layer, 即当前模块的输出取决于输入 hidden sates 经过一个线性层和激活层之后的结果，相似的做法还有 [MoE](/p/moe-tutorial/) 中的 gating layer, [NSA](/p/notes-on-nsa/) 中的 gating layer 等。对应的示意图如下所示
+这里 $\sigma$ 是激活函数，$W_\theta$ 是激活函数的可学习参数，我们可以将其理解为一个 linear layer, 即当前模块的输出取决于输入 hidden sates 经过一个线性层和激活层之后的结果，相似的做法还有 [MoE](/blog/moe/) 中的 gating layer, [NSA](/blog/attention/#natively-trainable-sparse-attention-nsa) 中的 gating layer 等。对应的示意图如下所示
 
 ![Positions of different gating methods](/posts/notes-on-gated-attention/Gated-attention-position.png)
 
@@ -132,9 +132,9 @@ $$
 o_i^k = \sum_{j=1}^i\left(S_{ij}^k X_jW_V^k\right)W_O^k = \sum_{j=1}^i S_{ij}^k X_j(W_V^kW_O^k)
 $$
 
-也就是说，$W_K$ 和 $W_O$ 可以吸收到一起，由于 $W_V^j\in\mathbb{R}^{d\times d_k}$, $W_O^k\in\mathbb{R}^{d_k\times d}$, 从而 $\mathrm{rank}(W_V^jW_O^k)\leq \max(\mathrm{rank}(W_V^j), \mathrm{rank}(W_O^k))\leq d_k$.  对于 [GQA](/p/notes-on-gqa/) 和 [MQA](/p/notes-on-mqa/), 最终的有效秩会进一步降低。
+也就是说，$W_K$ 和 $W_O$ 可以吸收到一起，由于 $W_V^j\in\mathbb{R}^{d\times d_k}$, $W_O^k\in\mathbb{R}^{d_k\times d}$, 从而 $\mathrm{rank}(W_V^jW_O^k)\leq \max(\mathrm{rank}(W_V^j), \mathrm{rank}(W_O^k))\leq d_k$.  对于 [GQA](/blog/attention/#grouped-query-attention-gqa) 和 [MQA](/blog/attention/#multi-query-attention-mqa), 最终的有效秩会进一步降低。
 
-而使用本文提到的 G1 和 G2 gating 策略之后，我们相当于是通过非线性机制提高了上面的秩，进而解决了 softmax attention 表达能力不足的问题, 实际上，StepFun 的 [MFA](/p/notes-on-mfa/) 也是类似的思想。下面是 G1 和 G2 做的改进：
+而使用本文提到的 G1 和 G2 gating 策略之后，我们相当于是通过非线性机制提高了上面的秩，进而解决了 softmax attention 表达能力不足的问题, 实际上，StepFun 的 [MFA](/blog/attention/#multi-matrix-factorization-attention-mfa) 也是类似的思想。下面是 G1 和 G2 做的改进：
 
 $$
 \begin{align}
@@ -175,7 +175,7 @@ $$
 
 因此，作者的结论为，input-dependent, head-specific gating 可以提高 attention score distribution 的 sparsity, 进而减缓 attention sink. 并且引入 spaisity 之后，我们还可以避免 massive activation, 进而使用更低的精度进行训练。
 
-最后，作者探究了以下 gating 机制的上下文扩展能力，作者在已有的模型上基于 32k 上下文长度使用了 80B token 进行 continue pre-training, 然后使用 [YARN](/p/notes-on-yarn/) 将模型上下文长度扩展到了 128K。 测试的结果如下图所示
+最后，作者探究了以下 gating 机制的上下文扩展能力，作者在已有的模型上基于 32k 上下文长度使用了 80B token 进行 continue pre-training, 然后使用 [YARN](/blog/long-context/#yarn) 将模型上下文长度扩展到了 128K。 测试的结果如下图所示
 
 | Method    | 4k           | 8k            | 16k           | 32k            | 64k   | 128k  |
 | --------- | ------------ | ------------- | ------------- | -------------- | ----- | ----- |
