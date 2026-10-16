@@ -2,14 +2,14 @@ import HtmlEmbed from "../../../components/HtmlEmbed.astro";
 
 ## Nemotron 3 Super
 
-NVIDIA 在 2026年 4 月 提出了 Nemotron 3 Super, 一个基于 Mamba-2 [@Mamba-2] 和 GQA [@GQA] 混合注意力，以及 MoE 架构的大语言模型。
+NVIDIA 在 2026年 4 月 提出了 Nemotron 3 Super [@Nemotron3Super], 一个基于 Mamba-2 [@Mamba-2] 和 GQA [@GQA] 混合注意力，以及 MoE 架构的大语言模型。
 其中，MoE 模块包含 512 个专家，激活 24 个专家，参数量为 120B-A12B.
 
 相比于 Nemotron 3 Nano, Nemotron 3 Super 主要有三点改进：
 
 1. 基于 [NVFP4](https://maosong.website/blog/low-precision/#nvfp4) 精度进行预训练
 2. MoE 架构采用了 [LatentMoE](https://maosong.website/blog/moe/#latentmoe)
-3. 使用了 [MTP](https://maosong.website/blog/speculative_decoding/#mtp) 来实现 speculative decoding
+3. 使用了 [MTP](https://proceedings.mlr.press/v235/gloeckle24a.html) 来实现 speculative decoding
 
 ### Architecture
 

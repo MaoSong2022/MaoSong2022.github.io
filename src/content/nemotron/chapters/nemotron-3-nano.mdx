@@ -16,7 +16,7 @@ Nemotron 3 Nano 的架构基于 Nemotron-H 和 Nemotron 2 Nano,
 Pre-training data 包括以下几个部分：
 
 1. Nemotron-CC-Code-v1: 基于 Nemotron-CC-Math pipeline 构建了高质量 code pre-training corpus, 使用了 Lynx + LLM pipeline 来进行过滤和优化，最终包含 428B tokens.
-2. Nemotron-Pretraining-Code-v2: 基于 [Nemotron 2 Nano](#namotron-2-nano) 从 Github 构建了 source-code corpus. 还基于 Nemotron-H 的策略使用 Qwen3-32B 来合成 QA pairs. 作者还是用了 code-rewriting 来提高代码数据的质量
+2. Nemotron-Pretraining-Code-v2: 基于 [Nemotron 2 Nano](https://arxiv.org/abs/2508.14444) 从 Github 构建了 source-code corpus. 还基于 Nemotron-H 的策略使用 Qwen3-32B 来合成 QA pairs. 作者还是用了 code-rewriting 来提高代码数据的质量
 3. Nemotron-CC-v2.1: 基于 Nemotron-CC recipe 来构建 CC web crawl data, 加入了 2.1T 新 token.
 4. Nemotron-Pretraining-Specialized-v1: 包括 Wikipedia, Math Textbook, Scientific Coding, cross-domain code, STEAM reasoning 和一些 SFT 风格的数据，作者使用了 Nemo Data Designer 来实现 data generation pipeline.
 
@@ -82,7 +82,7 @@ RLHF 的训练数据主要来原始 HelpSteer3
 
 Pre-training 阶段作者使用了 Warm-Stable-Decay learning rate (8.4B warmup, 20T stable, 5T decay), context length 为 8192, batch size 为 3072.
 
-与 [Nemotron 2 Nano](#namotron-2-nano) 一致，作者加入了一个 long-context phase 来提高模型的长上下文能力，该阶段的数据配比为, document QA: long context data: phase 2 data = 20: 1: 79. 这个阶段使用了 121B tokens.
+与 [Nemotron 2 Nano](https://arxiv.org/abs/2508.14444) 一致，作者加入了一个 long-context phase 来提高模型的长上下文能力，该阶段的数据配比为, document QA: long context data: phase 2 data = 20: 1: 79. 这个阶段使用了 121B tokens.
 
 #### Post-training
 

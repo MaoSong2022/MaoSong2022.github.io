@@ -7,13 +7,13 @@ cascaded RL 使用了 sequential, domain-wise RL 来提高模型的数学和代�
 
 但是提高模型的 reasoning 能力涉及到多个 domain, 每个 domain 的 verification 方式不一致，比如 math reasoning 依赖 symbolic rule-based verification, code generation 依赖于 execution based verification, alignment 依赖与 reward model based score.
 
-在 [AceReason-nemotron](#AceReason-nemotron) 中，作者提出了使用 Cascade RL 的方式来提高模型的数学和代码能力，作者发现这样做有以下优势：
+在 [AceReason-nemotron](https://arxiv.org/abs/2505.16400) 中，作者提出了使用 Cascade RL 的方式来提高模型的数学和代码能力，作者发现这样做有以下优势：
 
 1. rule-based math verification 比 execution based verification 效率更高，可以在训练早期提高模型训练效率
 2. math reasoning 能力可以泛化到其他 domain 上
 3. math RL 之后，我们可以通过 code RL 提高模型的 code 能力而不损失模型的 math reasoning 表现
 
-因此，在本文中，作者基于 Qwen3 [@Qwen3] 的 Qwen3-8B-Base 以及 Qwen3-14B-Base 构建了一个开源的 post training recipe.
+因此，在本文中，作者基于 [Qwen3](/blog/Qwen-series/#qwen3) [@Qwen3] 的 Qwen3-8B-Base 以及 Qwen3-14B-Base 构建了一个开源的 post training recipe.
 
 本文贡献如下：
 
@@ -30,8 +30,8 @@ cascaded RL 使用了 sequential, domain-wise RL 来提高模型的数学和代�
 stage 1 数据构造
 
 - general domain 数据包含 2.8M samples, 3.2B token, knowledge 相关数据有 1.2M samples, 1.5B tokens. 作者对数据进行了处理和增广。
-- reasoning domain 数据包含了 [AceReason-nemotron](#AceReason-nemotron) 中的数据，包含 AceMath, NuminaMath, OpenMathReasoning 这些数据集，作者收集了 353K prompts, 通过多次采样得到 **2.77M samples**.
-- code reasoning data 来源于 [AceReason-nemotron](#AceReason-nemotron), 包含 TACO, APPs, OpenCoder-Stage-2, OpenCodeReasoning. 数据包含 172K prompts, 1.42M samples, context length 16K
+- reasoning domain 数据包含了 [AceReason-nemotron](https://arxiv.org/abs/2505.16400) 中的数据，包含 AceMath, NuminaMath, OpenMathReasoning 这些数据集，作者收集了 353K prompts, 通过多次采样得到 **2.77M samples**.
+- code reasoning data 来源于 [AceReason-nemotron](https://arxiv.org/abs/2505.16400), 包含 TACO, APPs, OpenCoder-Stage-2, OpenCodeReasoning. 数据包含 172K prompts, 1.42M samples, context length 16K
 - science reasoning data, 基于 S1K 和 LLaMA-Nemotron, 包含 226K prompts, 289K samples
 
 stage 2 数据构造
@@ -75,7 +75,7 @@ SFT 包含了两个阶段，分别覆盖 reasoning domain 和 general domain.
 - stage 2: 32K, 加入了新的 math, science, code 数据，进一步提高模型的 tool use, software engineering skills, 训练 1 epoch
 
 对于 chat template, 作者使用了 ChatML 格式，然后使用了 `/think` 和 `/no_think` 两个 flag 来控制是否进行思考。
-作者通过实验发现，[Qwen3](Qwen3.md) 的 explicit flags 效果更好，并且可以覆盖所有场景，因此，作者舍弃了 `<think></think>` block.
+作者通过实验发现，[Qwen3](/blog/Qwen-series/#qwen3) 的 explicit flags 效果更好，并且可以覆盖所有场景，因此，作者舍弃了 `<think></think>` block.
 作者还用了 `<tools></tools>`, `<tool_call></tool_call>` tags 来表明可用工具以及模型的工具调用
 
 训练的超参数如下所示
