@@ -189,8 +189,10 @@ class DataParallelBucket(nn.Module):
 
 </Accordion>
 
+<span id="gradient-accumulation"></span>
+
 第三个优化是针对 gradient accumulation 的。
-对于 [gradient accumulation](#gradient_accumulation), 我们仅在 $K$ 步 ($K=$ gradient accumulation size) 之后才会进行一次 optimizer states.
+对于 [gradient accumulation](#gradient-accumulation), 我们仅在 $K$ 步 ($K=$ gradient accumulation size) 之后才会进行一次 optimizer states.
 
 如果我们每次反向传播都通过一次 AllReduce 来同步梯度的话，显然降低了整体的计算效率，因为前面 $K-1$ 步实际上不需要梯度同步。
 

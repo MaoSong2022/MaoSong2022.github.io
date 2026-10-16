@@ -10,7 +10,7 @@ import gpipe_performance_analysis from "../../../assets/image/GPipe-performance-
 
 ## Pipeline Parallelism
 
-在 [Tensor Parallelism](#tp) 中，我们介绍了如何将模型权重 shard 到不同的 GPU 上来降低 activation.
+在 [Tensor Parallelism](#tensor-parallelism) 中，我们介绍了如何将模型权重 shard 到不同的 GPU 上来降低 activation.
 TP 的问题在于其只能部署在单节点内部，这是因为 TP 一次训练需要 AllReduce 两次，跨节点的 TP 会提高整体训练的通信开销。
 
 下图是不同节点数量的 bandwidth TODO
