@@ -80,7 +80,7 @@ $$
 |           RL           |  8  |  8  | CoT 非常长，使用 CP=8 提高计算效率 |
 
 作者使用了 DeepEP [@DeepEP] 来提高 dispatch/combine 效率。
-与 DeepSeek-V3 [@DeepSeek-V3] 一样，作者在 dispatch 之前，也进行了 quantization, 将 token 转化为 MXFP8 精度来提高通信效率。
+与 [DeepSeek-V3](/blog/deepseek-series/#deepseek-v3) [@DeepSeek-V3] 一样，作者在 dispatch 之前，也进行了 quantization, 将 token 转化为 MXFP8 精度来提高通信效率。
 
 在 combine 时，作者使用了 BF16 精度来避免精度损失。
 
