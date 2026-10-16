@@ -5,7 +5,9 @@ import gemini_3_0_flash_performance from '../../../assets/image/Gemini-3-0-Flash
 import gemini_3_0_pro_image_performance from '../../../assets/image/Gemini-3-0-Pro-Image-performance.png';
 import gemini_3_0_pro_image_performance_new from '../../../assets/image/Gemini-3-0-Pro-Image-performance-new.png';
 
-Gemini 3.0 是是 Google 新一代最强模型，model card 介绍了 Gemini 3.0 系列的评估结果以及基本能力
+Gemini 3.0 的 Pro 模型卡 [@Gemini3Pro] 介绍了模型能力与评估结果。
+
+Gemini 3.0 是 Google 新一代最强模型，model card 介绍了 Gemini 3.0 系列的评估结果以及基本能力
 
 ## Introduction
 
@@ -23,7 +25,7 @@ Gemini 3.0 Pro 拥有原生多模态以及 reasoning 能力，可以处理 text,
 | input  | text, images, audio, video | 1M      |
 | output | text                       | 64K     |
 
-Gemini 3.0 Flash 与 Gemini 3.0 Pro 基本一致，与 [Gemini2.5](/p/notes-on-gemini2.5/) 相同，应该是采取了蒸馏的方式来实现更高的吞吐速度以及效率
+Gemini 3.0 Flash 与 Gemini 3.0 Pro 基本一致，与 [Gemini2.5](/blog/gemini/#gemini-25) 相同，应该是采取了蒸馏的方式来实现更高的吞吐速度以及效率
 
 Gemini 3.0 Pro Image 基于 Gemini 3.0 Pro 开发，是一个支持 text, image prompt 的图片生成模型
 
@@ -35,7 +37,7 @@ Gemini 3.0 Pro Image 基于 Gemini 3.0 Pro 开发，是一个支持 text, image 
 
 ## Experiments
 
-Gemini 3.0 Pro 对比了 [Gemini2.5](/p/notes-on-gemini2.5/) , Claude Sonnet 4.5 和 GPT-5.1
+Gemini 3.0 Pro 对比了 [Gemini2.5](/blog/gemini/#gemini-25) , Claude Sonnet 4.5 和 GPT-5.1
 
 <Image src={gemini_3_0_pro_performance} alt="Performance of Gemini 3.0 Pro" />
 
