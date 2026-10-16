@@ -522,7 +522,7 @@ $$
 \boxed{\mathrm{var}[\nabla_\theta (\rho k_1)]\geq \mathrm{var}[\nabla_\theta (\rho k_3)]=\mathrm{var}[\nabla_\theta (\mathrm{sg}(\rho)k_2)]}
 $$
 
-即当 $\pi_\theta$ 和 $\pi_{ref}$ 比较接近时，$\rho k_3$ 的 variance 比 $\rho k_1$ 更小，这是由于 $\rho s_\theta (k_1+1)$ 额外包含了一个 期望为零的项，这导致了其 variance 比较高。在 [DeepSeek-V3.2](/p/notes-on-deepseek-v3.2/) 中，作者就使用了 $\rho k_3$ 来降低梯度的 variance, 提高训练的稳定性。
+即当 $\pi_\theta$ 和 $\pi_{ref}$ 比较接近时，$\rho k_3$ 的 variance 比 $\rho k_1$ 更小，这是由于 $\rho s_\theta (k_1+1)$ 额外包含了一个 期望为零的项，这导致了其 variance 比较高。在 [DeepSeek-V3.2](/blog/deepseek-series/#deepseek-v-32) 中，作者就使用了 $\rho k_3$ 来降低梯度的 variance, 提高训练的稳定性。
 
 【3】将相关的估计总结为了下表的形式
 
