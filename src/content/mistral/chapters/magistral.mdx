@@ -1,7 +1,9 @@
 
 Magistral 是 Mistral 提出的一个 reasoning model 系列，主要针对 math 和 code 两个 domain
 
-## Introduction
+## Magistral
+
+本文记录 Magistral 技术报告 [@Magistral] 的阅读笔记。
 
 Mistral 在 2025 年 6 月 12 日发布了 Magistral ，一个 reasoning model, 包含两个模型，一个是由纯 RL 训练得到的 *Magistral Medium*, 另一个是由 SFT 和蒸馏 Magistral Medium 得到的 **Magistral Small**
 
@@ -19,7 +21,7 @@ Mistral 在 2025 年 6 月 12 日发布了 Magistral ，一个 reasoning model, 
 
 RL 算法基于 GRPO 改进，主要有以下几点：
 
-1. 去掉了 KL Divergence loss, 这一点跟 [DAPO](/p/notes-on-dapo/) 是一致的，提升模型的探索能力
+1. 去掉了 KL Divergence loss, 这一点跟 [DAPO](https://arxiv.org/abs/2503.14476) 是一致的，提升模型的探索能力
 2. Loss Normalization，在 sample 层面做平均，还是跟 DAPO 一致，减少不同长度输出对训练造成的影响
 3. Advantage Normalization, 作者首先将每个 token 的 Advantage 定义为 $\hat{A}_i=R_i-\mu$,  其中 $\mu$ 是每个 group 的 reward 均值， 然后在每个 mini-batch 里对 advantage 进行 Normalization (这里 $\hat{A}_{mean}$ 和 $\hat{A}_{std}$ 分别为 mini-batch advantage 的均值和方差)：
 
@@ -54,7 +56,7 @@ $$
 - code response：包含一个 markdown block
 
 > [!tip] Future
-> 最新的 [GLM-4.1V-Thinking](/p/notes-on-glm-4.1v-thinking/) 认为，不应该在 RL 训练阶段加入 format reward
+> 最新的 [GLM-4.1V-Thinking](/blog/GLM/#glm-41v-thinking) 认为，不应该在 RL 训练阶段加入 format reward
 
 **correctness**
 基于答案的正确性分配奖励
@@ -119,7 +121,7 @@ Magistral Medium 训练时满足的要求：
 Magistral small 训练
 
 **SFT**
-数据集包括两部分，一部分是 Magistral Medium 回答正确的这部分数据，第二部分是公开数据集，包括 [[OpenThoughts]] 和 [[OpenR1]] 两个数据集，作者使用 Magistral Medium 来生成回答。作者还加入了 10% 的 instruction tuning 数据来保持模型的通用能力。
+数据集包括两部分，一部分是 Magistral Medium 回答正确的这部分数据，第二部分是公开数据集，包括 [OpenThoughts](https://www.open-thoughts.ai/) 和 [OpenR1](https://github.com/huggingface/open-r1) 两个数据集，作者使用 Magistral Medium 来生成回答。作者还加入了 10% 的 instruction tuning 数据来保持模型的通用能力。
 
 **RL**
 RL 的训练与 Magistral Medium 一致。
