@@ -7,7 +7,7 @@ LLaMA3 [@LLaMA3] 是 meta 在24年4月发布的一款开源大语言模型系列
 Several improvements are made on Llama3 compared to llama2:
 
 1. Llama3 uses a tokenizer with a vocabulary of 128K tokens.
-2. Llama3 adopts [grouped query attention (GQA)](/p/notes-on-gqa/) across both the 8B and 70B sizes.
+2. Llama3 adopts [grouped query attention (GQA)](/blog/attention/#grouped-query-attention-gqa) across both the 8B and 70B sizes.
 3. Llama3 uses to context window of size 8192 tokens
 
 ### Traning
@@ -51,7 +51,7 @@ The fine-tuning of Llama3 contains:
 3. Proximal Policy Optimization
 4. Direct Preference Optimization
 
-Learning from perference rankings via PPO and [DPO](/p/notes-on-dpo/) also greatly improved the performance of LLma3 on reasoning and coding tasks. Since perference ranking helps the model to select answer when it is in a dilemma.
+Learning from perference rankings via PPO and [DPO](/blog/RLHF/#dpo) also greatly improved the performance of LLma3 on reasoning and coding tasks. Since perference ranking helps the model to select answer when it is in a dilemma.
 
 ## Instruct model performance
 
