@@ -23,7 +23,7 @@
 
 GLM-5 [@GLM5], DeepSeek-V4 [@DeepSeek-V4] 和 MiMo-V2-Flash [@MiMo-V2-Flash] 将 MOPD 作为 post-training 的最后一个阶段来进行 consolidation
 
-Nemotron-cascade [@Nemotron-cascade] 采用了 cascaded RL 策略，作者认为 multi-task RL 在训练时，由于不同 domain 的数据 rollout 长度， verification 时间不一致，最终训练效率会比较低。
+Nemotron-cascade [@Nemotron-Cascade] 采用了 cascaded RL 策略，作者认为 multi-task RL 在训练时，由于不同 domain 的数据 rollout 长度， verification 时间不一致，最终训练效率会比较低。
 作者的解决方法是研究不同 domain RL 之间的依赖关系，严格保证 后续 domain RL 的训练建立在前面 domain RL 的结果之上。
 
 Nemotron-cascade2 [@Nemotron-Cascade2] 才了一个混合策略，对于前后依赖关系必要多的，使用 cascaded RL, 比如 instruction following 最先进行训练。
