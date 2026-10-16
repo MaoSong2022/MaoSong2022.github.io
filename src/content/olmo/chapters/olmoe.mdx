@@ -17,7 +17,7 @@ import olmoe_router_saturation from "../../../assets/image/olmoe-router-saturati
 
 ## olmoe
 
-已有的模型如 DeepSeekMoE [@DeepSeek-MoE], [Mixtral MoE](/p/mixstral-8x7b/), [Qwen1.5](/browse?q=qwen1.5) 等 MoE 模型基本只开源权重。也有一些开源的模型，比如 OpenMoE 等，但是开源信息不全。基于这个目的，作者提出了 olmoe 模型系列，包括 olmoe-7B-A1B 和 olmoe-7B-A1B-instruct 两个版本。
+已有的模型如 [DeepSeekMoE](/blog/deepseek-series/#deepseek-moe) [@DeepSeek-MoE], [Mixtral MoE](https://arxiv.org/abs/2401.04088), [Qwen1.5](/browse?q=qwen1.5) 等 MoE 模型基本只开源权重。也有一些开源的模型，比如 OpenMoE 等，但是开源信息不全。基于这个目的，作者提出了 olmoe 模型系列，包括 olmoe-7B-A1B 和 olmoe-7B-A1B-instruct 两个版本。
 
 ## Method
 
@@ -93,7 +93,7 @@ DeepSeekMoE [@DeepSeek-MoE] 提出使用共享专家来学习 common knowledge, 
 
 #### Sparse Upcycling
 
-作者还对比了从零开始训练 MoE 与基于 dense model upcycling 的方式训练 MoE，sparse upcycling 的相关工作有 MiniCPM, [Qwen2](/p/notes-on-qwen2/) 以及 [Mixtral MoE](/p/mixstral-8x7b/).结果如下图所示
+作者还对比了从零开始训练 MoE 与基于 dense model upcycling 的方式训练 MoE，sparse upcycling 的相关工作有 MiniCPM, [Qwen2](/blog/Qwen-series/#qwen2) 以及 [Mixtral MoE](https://arxiv.org/abs/2401.04088).结果如下图所示
 
 <Image src={olmoe_sparse_upcycling} alt="Sparse upcycling" />
 
@@ -126,7 +126,7 @@ DeepSeekMoE [@DeepSeek-MoE] 提出使用共享专家来学习 common knowledge, 
 
 #### Router Z-loss
 
-[ST-MoE](/p/st-moe/) 提出了 Router z-loss 来提高 MOE 训练的稳定性和表现。其表达式如下所示
+[ST-MoE](https://arxiv.org/abs/2202.08906) 提出了 Router z-loss 来提高 MOE 训练的稳定性和表现。其表达式如下所示
 
 $$
 \mathcal{L}_{RZ}(x) = \frac{1}{B}\sum_{i=1}^B\left(\log\sum_{j=1}^{N_E}\exp(x_i^{(i)})\right)^2
@@ -146,13 +146,13 @@ $$
 
 #### QK-Norm
 
-作者探究了 [QK-norm](/p/notes-on-qk-norm/) 对模型训练的影响，结果发现 QK-norm 可以提高模型训练的稳定性，结果如下图所示
+作者探究了 [QK-norm](/blog/attention/#qk-norm) 对模型训练的影响，结果发现 QK-norm 可以提高模型训练的稳定性，结果如下图所示
 
 <Image src={olmoe_qk_norm_ablation} alt="ablation study on QK-Norm" />
 
 #### AdamW Epsilon
 
-作者发现，在 [AdamW](/p/notes-on-adamw/) 优化器中，使用更小的 `eps` 可以提高模型的表现，因此作者将 `eps` 设置为 $1e-8$.
+作者发现，在 [AdamW](/blog/optimizer/#adamw) 优化器中，使用更小的 `eps` 可以提高模型的表现，因此作者将 `eps` 设置为 $1e-8$.
 
 #### Adaptation Settings
 
@@ -188,7 +188,7 @@ Switch Transformer [@SwitchTransformer] 中提出使用 `float32` 精度来进�
 
 ### Domain Specialization
 
-作者还探究了不同 expert 对于不同 domain 的 specialization 程度，作者发现对于 specialized domain 的数据，expert 会出现一定程度的 specialization, 但是对于通用 domain 的数据，expert 的 specialization 程度比较低。这个结论与 [Mixtral MoE](/p/mixstral-8x7b/) 的结论不同，作者认为这个原因是 [Mixtral MoE](/p/mixstral-8x7b/) 使用了 upcycling 的方式，这会限制模型的表现。因此，作者进一步强调 MoE 从零开始训练是一个更好的训练方式。
+作者还探究了不同 expert 对于不同 domain 的 specialization 程度，作者发现对于 specialized domain 的数据，expert 会出现一定程度的 specialization, 但是对于通用 domain 的数据，expert 的 specialization 程度比较低。这个结论与 [Mixtral MoE](https://arxiv.org/abs/2401.04088) 的结论不同，作者认为这个原因是 [Mixtral MoE](https://arxiv.org/abs/2401.04088) 使用了 upcycling 的方式，这会限制模型的表现。因此，作者进一步强调 MoE 从零开始训练是一个更好的训练方式。
 
 ### Vocabulary Specialization
 
