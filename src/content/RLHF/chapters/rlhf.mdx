@@ -38,5 +38,5 @@ $$
 
 1. 收集数据，$\{(x,y_0,y_1,y_2,y_3,b)\}$, 其中 $x\sim \mathcal{D}$, $y_i\sim\rho(\cdot\mid x)$, $b\in\{0,1,2,3\}$ 为人类偏好。
 2. 初始化 reward model 为 $r=\rho$, reward 通过一个 Linear layer 预测，基于收集到的数据训练 reward model.
-3. 基于 [PPO](PPO.md) 算法在数据集 $\mathcal{D}$ 上训练 Policy model $\pi$
+3. 基于 [PPO](/blog/RL4LLM/#ppo) 算法在数据集 $\mathcal{D}$ 上训练 Policy model $\pi$
 4. 持续收集数据来训练 reward model $r$. 在每一轮 PPO 算法开始之前，作者都保证收集到足够多的训练数据来更新 reward model, 进而避免 distribution shift
