@@ -3,9 +3,9 @@ import Image from '../../../components/Image.astro';
 import nope_similarity from '../../../assets/image/NoPE-similarity.png';
 import nope_softmax_hyperparameter from '../../../assets/image/NoPE-softmax-hyperparameter.png';
 
-## Introduction
+## NoPE
 
-[@kazemnejad2023the] 系统性对比了 [AliBi](/p/notes-on-alibi/), [RoPE](/p/notes-on-position-encoding/) , [T5](/p/notes-on-t5/) 提出的 T5 bias 以及 Transformer 提出的绝对位置编码 (APE).
+[@kazemnejad2023the] 系统性对比了 [AliBi](/blog/position-encoding/#alibi), [RoPE](/blog/position-encoding/) , [T5](https://arxiv.org/abs/1910.10683) 提出的 T5 bias 以及 Transformer 提出的绝对位置编码 (APE).
 
 作者发现，常用的方法在 length generalization 上表现并不是最好的，而 NoPE 不需要额外的计算开销反而效果最好。
 
@@ -21,7 +21,7 @@ import nope_softmax_hyperparameter from '../../../assets/image/NoPE-softmax-hype
 
 <Image src={nope_similarity} alt="Distance of NoPE with other position encodings" />
 
-实验结果表明，NoPE 与 [T5](/p/notes-on-t5/) 提出的 T5 bias 最相似。
+实验结果表明，NoPE 与 [T5](https://arxiv.org/abs/1910.10683) 提出的 T5 bias 最相似。
 
 作者在理论上推导出了 NoPE 的两个性质：
 

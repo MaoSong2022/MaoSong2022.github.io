@@ -13,11 +13,11 @@ import rnope_swa_128k_attention from "../../../assets/image/RNoPE-SWA-128k-atten
 2. 如何训练长上下文 LLM
 3. 如何降低长上下文 LLM 在 inference 时的 latency 以及 memory usage
 
-对于建模长上下文输入，我们可以从 attention 机制或者位置编码来入手。前者类似的工作有 Landmark Attention 和 Focused Transformer, 但是这些方法的问题在于训练不稳定。 [QK norm](/p/notes-on-qk-norm/) 可以比较好解决 softmax 分布过于极端的问题，但是其问题在于训练时的数值不稳定性，并且可能会影响模型的长上下文能力。
+对于建模长上下文输入，我们可以从 attention 机制或者位置编码来入手。前者类似的工作有 Landmark Attention 和 Focused Transformer, 但是这些方法的问题在于训练不稳定。 [QK norm](/blog/attention/#qk-norm) 可以比较好解决 softmax 分布过于极端的问题，但是其问题在于训练时的数值不稳定性，并且可能会影响模型的长上下文能力。
 
-另一方面，对于位置编码，已有的工作如 APE, AliBi, [RoPE](/p/notes-on-position-encoding/) 等都可以提供位置信息。但是，这些方法很有可能回影响模型最终的 attention score 分布。另外，[NoPE](/p/notes-on-nope/) 探究了移除 position encoding 的可能性。
+另一方面，对于位置编码，已有的工作如 APE, AliBi, [RoPE](/blog/position-encoding/) 等都可以提供位置信息。但是，这些方法很有可能回影响模型最终的 attention score 分布。另外，[NoPE](/blog/position-encoding/#nope) 探究了移除 position encoding 的可能性。
 
-还有一些工作目的是降低 softmax attention 的时间复杂度和空间复杂度。比如 sliding window attention, sparse attention, [attention sink](/p/notes-on-streamingllm/) 等都可以降低整体的时间/空间复杂度。但是这些方法最终的表现都有所下降。
+还有一些工作目的是降低 softmax attention 的时间复杂度和空间复杂度。比如 sliding window attention, sparse attention, [attention sink](/blog/attention/#streamingllm) 等都可以降低整体的时间/空间复杂度。但是这些方法最终的表现都有所下降。
 
 ## Observation
 
@@ -95,7 +95,7 @@ import rnope_swa_128k_attention from "../../../assets/image/RNoPE-SWA-128k-atten
 
 ## Method
 
-考虑到 [NoPE](/p/notes-on-nope/) 和 RopE 各自的优点，作者提出了一个混合架构，来结合 NoPE 与 RoPE. 具体做法就是 NoPE layer 和 RoPE layer 交替进行。作者将这个模型架构记为 RNoPE.
+考虑到 [NoPE](/blog/position-encoding/#nope) 和 RopE 各自的优点，作者提出了一个混合架构，来结合 NoPE 与 RoPE. 具体做法就是 NoPE layer 和 RoPE layer 交替进行。作者将这个模型架构记为 RNoPE.
 
 RNoPE 不同 layer 与不同 base frequency 产生的 attention score 分布如下
 
@@ -151,7 +151,7 @@ RNoPE 不同 layer 与不同 base frequency 产生的 attention score 分布如�
 
 作者提出了 RNope-SWA, 一个混合 NoPE, RoPE position embedding 和 sliding window attention 的 attention 机制。RNope-SWA 可以在保持模型表现的同时提高计算效率和降低 KV cache 占用。
 
-尽管本文和已有的工作如 YoCo, Jamba-1.5 和 [MiniMax-01](/p/notes-on-minimax-01/) 均证明了混合 attention 架构的有效性。但是，目前对于其工作机制尚缺乏一个比较系统性的理解。作者认为这是一个需要探究的方向。另外，作者还认为如何更好的汇总上下文信息与位置信息也是一个可以探究的方向。
+尽管本文和已有的工作如 YoCo, Jamba-1.5 和 [MiniMax-01](/blog/minimax/#minimax-01) 均证明了混合 attention 架构的有效性。但是，目前对于其工作机制尚缺乏一个比较系统性的理解。作者认为这是一个需要探究的方向。另外，作者还认为如何更好的汇总上下文信息与位置信息也是一个可以探究的方向。
 
 ## References
 
