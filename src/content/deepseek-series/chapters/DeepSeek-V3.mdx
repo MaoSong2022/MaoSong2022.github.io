@@ -21,9 +21,9 @@ import deepseek_v3_instruct_performance from "../../../assets/image/DeepSeek-V3-
 
 在训练目标和架构上，作者做了如下改进：
 
-1. efficiency inference: 采用了 [DeepSeek-V2](#deepSeek-v2) 提出的 [MLA](/p/notes-on-mla/)
-2. cost-effective training: 采用了 [DeepSeekMoE](#deepSeek-moe) 提出了 MoE 架构
-3. auxiliary-loss-free strategy: 采用了 [Loss-Free Balancing](/p/notes-on-loss-free-balancing/) 提出的 loss balancing 策略
+1. efficiency inference: 采用了 [DeepSeek-V2](#deepseek-v2) 提出的 [MLA](/blog/attention/#multi-head-latent-attention-mla)
+2. cost-effective training: 采用了 [DeepSeekMoE](#deepseek-moe) 提出了 MoE 架构
+3. auxiliary-loss-free strategy: 采用了 [Loss-Free Balancing](/blog/moe/#loss-free-load-balancing-strategy) 提出的 loss balancing 策略
 4. multi-token prediction: 采用了 MTP 的训练目标来提升模型的表现
 
 在训练框架上上，作者做了如下改进：
@@ -37,15 +37,15 @@ import deepseek_v3_instruct_performance from "../../../assets/image/DeepSeek-V3-
 
 - 预训练阶段，DeepSeek-V3 使用了**14.8T token**.
 - 在 mid-training 阶段，作者将模型的上下文长度由 8K 扩展到 32K, 再扩展到 128K.
-- 后训练阶段，作者使用了 SFT 和 RL 两个阶段来提高模型的表现，作者还对 [DeepSeek-R1](/p/notes-on-deepseek-r1/) 进行蒸馏来提高模型的 reasoning 能力
+- 后训练阶段，作者使用了 SFT 和 RL 两个阶段来提高模型的表现，作者还对 [DeepSeek-R1](/blog/deepseek-r1/) 进行蒸馏来提高模型的 reasoning 能力
 
 ### Architecture
 
-DeepSeek-V3 的架构与 [DeepSeek-V2](#deepSeek-v2) 的架构一致，见 [DeepSeek-V2](#deepseek-v2).
+DeepSeek-V3 的架构与 [DeepSeek-V2](#deepseek-v2) 的架构一致，见 [DeepSeek-V2](#deepseek-v2).
 
 DeepSeek-V3 在 DeepSeekMoE 的基础上，使用 sigmoid function 来单独计算每个专家的贡献，然后再进行 normalization.
 
-DeepSeek-V3 还使用了 [Loss-Free Balancing](/p/notes-on-loss-free-balancing/), 其表达式如下
+DeepSeek-V3 还使用了 [Loss-Free Balancing](/blog/moe/#loss-free-load-balancing-strategy), 其表达式如下
 
 $$
 g_{i,t} = \begin{cases}
@@ -126,7 +126,7 @@ $$
 
 DeepSeek-V3 训练使用了 2048 张 H800, 每个 node 包含 8 张 GPU, node 内部使用 NVLink 和 NVSwitch 进行连接，node 之间使用 InfiniBand 进行连接
 
-与之前的 DeepSeek 系列相同，DeepSeek-V3 也是用了 HAI-LLM 框架来支持训练。训练时，DeepSeek-V3 使用了 16-way PP, 64-way EP (spanning 8 nodes, [GShard](/p/gshard/)) 以及 ZeRO-1 DP.
+与之前的 DeepSeek 系列相同，DeepSeek-V3 也是用了 HAI-LLM 框架来支持训练。训练时，DeepSeek-V3 使用了 16-way PP, 64-way EP (spanning 8 nodes, [GShard](https://openreview.net/forum?id=qrwe7XHTmYb)) 以及 ZeRO-1 DP.
 
 作者主要进行了三点优化：
 
@@ -173,7 +173,7 @@ dispatch(F, block1) -> MLP(F, block1) -> combine(F, block1) -> attention(F, bloc
 
 <Image src={gpu_communication_pattern} alt="Communication of GPU" />
 
-对于 H800 来说,NVLink 的带宽为 160GB/s, IB 的带宽为 50GB/s, 因此 NVLInk 的通信效率是 IB 的 3.2 倍，即节点内部通信效率高于节点之间的通信效率。为了提高通信效率，作者限制每个 token 只能被分发到至多 4 个节点上（[DeepSeek-V2](/p/notes-on-deepseek-v2/) 里提到的 device limited routing）。其具体通信方式为想传输到目标 node index 相同的 rank 上，然后再通过节点内部通信传输到目标的 rank 上。通过这种方式，我们可以让节点间通信与节点内部通信进行重叠，从而每个 token 可以从一个节点上选取 3.2 个专家，这样 DeepSeek-V3 可以在不损失效率的情况下最高选取 $13$ 个专家。
+对于 H800 来说,NVLink 的带宽为 160GB/s, IB 的带宽为 50GB/s, 因此 NVLInk 的通信效率是 IB 的 3.2 倍，即节点内部通信效率高于节点之间的通信效率。为了提高通信效率，作者限制每个 token 只能被分发到至多 4 个节点上（[DeepSeek-V2](/blog/deepseek-series/#deepseek-v2) 里提到的 device limited routing）。其具体通信方式为想传输到目标 node index 相同的 rank 上，然后再通过节点内部通信传输到目标的 rank 上。通过这种方式，我们可以让节点间通信与节点内部通信进行重叠，从而每个 token 可以从一个节点上选取 3.2 个专家，这样 DeepSeek-V3 可以在不损失效率的情况下最高选取 $13$ 个专家。
 
 作者进一步采用了 warp specialization 技巧来将 20 个 SM 划分为 10 个通信 channel. 作者分别针对 dispatching 和 combing 阶段使用了不同数量的 warps.
 
@@ -225,7 +225,7 @@ dispatch(F, block1) -> MLP(F, block1) -> combine(F, block1) -> attention(F, bloc
 
 作者通过压缩 cached activation 和 optimizer states 来进一步减少内存访问以及通信访问次数
 
-- Low-precision optimizer states: 对于 optimizer states, 作者使用了 BF16 数据格式来保存 [AdamW](/p/notes-on-adamw/) 的优化器的一阶和二阶动量，但是对于 master weight 和 gradients 作者仍然使用了 FP32 来保证训练的数值稳定性
+- Low-precision optimizer states: 对于 optimizer states, 作者使用了 BF16 数据格式来保存 [AdamW](/blog/optimizer/#adamw) 的优化器的一阶和二阶动量，但是对于 master weight 和 gradients 作者仍然使用了 FP32 来保证训练的数值稳定性
 - Low-Precision Activation: 对于 linear operator, 作者将其 cache activation 使用 FP8 格式进行存储，对于 attention 的输出，作者使用了 E5M6 数据格式来存储 activations, 这些 activations 的 tile size 为 $1\times 128$, 作者还是用了 2 的幂次作为 scale factor 来减少 quantizationerror; 对于 SwiGLU, 作者将其输入也保存为 FP8 的数据格式来降低内存消耗
 - Low-Precision Communication: 在 MoE up-projection 之前，作者将 attention 的输出量化为 FP8 数据格式再执行 dispatch 操作，这样可以降低通信开销。在反向传播的时候同理，先进行 FP8 量化，然后再进行反向 dispatch. 对于 combine 阶段，为了避免精度损失，作者还是使用了 BF16 数据格式
 
@@ -297,7 +297,7 @@ prefilling 阶段在 4 节点 32 GPU 上进行，并行策略如下
 
 #### Data
 
-相比于 [DeepSeek-V2](/p/notes-on-deepseek-v2/), DeepSeek-V3 提升了数学和代码数据的比例，以及增加了多语种数据。最终训练数据一共包括 **14.8T**
+相比于 [DeepSeek-V2](/blog/deepseek-series/#deepseek-v2), DeepSeek-V3 提升了数学和代码数据的比例，以及增加了多语种数据。最终训练数据一共包括 **14.8T**
 
 作者还使用了 DeepSeekCoder-V2 里应用的 Fill in the middle 策略来让模型基于上下文越策中间的文本，对应的数据格式如下
 
@@ -334,9 +334,9 @@ Tokenizer 基于 BBPE, 大小为 128K tokens. 在训练时，作者将随机一�
 
 #### Long Context Extension
 
-作者使用了 [YARN](/p/notes-on-yarn/) 来扩展模型的上下文长度，模型上下文长度经过两个额外的训练阶段从 4K 扩展到 32K 再扩展到 128K, 均训练了 1000 步。
+作者使用了 [YARN](/blog/long-context/#yarn) 来扩展模型的上下文长度，模型上下文长度经过两个额外的训练阶段从 4K 扩展到 32K 再扩展到 128K, 均训练了 1000 步。
 
-YARN 配置与 [DeepSeek-V2](/p/notes-on-deepseek-v2/) 基本一致，在额外的 decoupled query and key 上作者没有应用这一点。参数配置如下表
+YARN 配置与 [DeepSeek-V2](/blog/deepseek-series/#deepseek-v2) 基本一致，在额外的 decoupled query and key 上作者没有应用这一点。参数配置如下表
 
 | parameter | $s$ | $\alpha$ | $\beta$ | $\sqrt{t}$   |
 | --------- | --- | -------- | ------- | ------------ |
@@ -346,7 +346,7 @@ YARN 配置与 [DeepSeek-V2](/p/notes-on-deepseek-v2/) 基本一致，在额外�
 
 #### Performance
 
-DeepSeek-V3 base 的表现下图所示，作者对比了 DeepSeek-V2 [@DeepSeek-V2], [Qwen2.5](/p/notes-on-qwen2.5/), LLaMA 3.1 [@LLaMA3]
+DeepSeek-V3 base 的表现下图所示，作者对比了 DeepSeek-V2 [@DeepSeek-V2], [Qwen2.5](/blog/Qwen-series/#qwen25), LLaMA 3.1 [@LLaMA3]
 
 <Image
   src={deepseek_v3_base_performance}
@@ -361,7 +361,7 @@ DeepSeek-V3 base 的表现下图所示，作者对比了 DeepSeek-V2 [@DeepSeek-
 
 可以看到，在模型架构相同，训练数据相同的情况下，1-MTP 的效果超过了 baseline 的表现，说明了 MTP 策略的有效性
 
-接下来，作者还验证了 [Loss-Free Balancing](/p/notes-on-loss-free-balancing/) 的有效性，结果如下图所示
+接下来，作者还验证了 [Loss-Free Balancing](/blog/moe/#loss-free-load-balancing-strategy) 的有效性，结果如下图所示
 
 <Image
   src={deepseek_v3_ablation_loss_free_balancing}
@@ -388,7 +388,7 @@ DeepSeek-V3 base 的表现下图所示，作者对比了 DeepSeek-V2 [@DeepSeek-
 
 #### SFT
 
-post-training 包含 1.5M 样本，数据包括 reasoning 数据以及 non-reasoning 数据，前者由 [DeepSeek-R1](/p/notes-on-deepseek-r1/) 合成，后者由 DeepSeek-V2.5 合成
+post-training 包含 1.5M 样本，数据包括 reasoning 数据以及 non-reasoning 数据，前者由 [DeepSeek-R1](/blog/deepseek-r1/) 合成，后者由 DeepSeek-V2.5 合成
 
 SFT 时，作者训练了两个 epoch, 使用了 sequence packing 技巧
 
@@ -407,7 +407,7 @@ RL 训练使用的算法为 GRPO
 
 #### Discussion
 
-作者首先探究了 Distillation 对模型表现的影响，作者使用 [DeepSeek-R1](/p/notes-on-deepseek-r1/) 来蒸馏 DeepSeek-V2.5, 结果如下图所示
+作者首先探究了 Distillation 对模型表现的影响，作者使用 [DeepSeek-R1](/blog/deepseek-r1/) 来蒸馏 DeepSeek-V2.5, 结果如下图所示
 
 | Model                     | LiveCodeBench-CoT |        | MATH-500 |        |
 | ------------------------- | ----------------- | ------ | -------- | ------ |

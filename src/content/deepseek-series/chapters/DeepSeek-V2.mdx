@@ -28,7 +28,7 @@ DeepSeek-V2 的模型架构如下
 
 ### MLA
 
-这部分介绍见 [MLA](/blog/attention/#MLA)
+这部分介绍见 [MLA](/blog/attention/#multi-head-latent-attention-mla)
 
 #### Device-Limited Routing
 
@@ -88,7 +88,7 @@ tokenizer 与 DeepSeek-LLM [@DeepSeek-LLM] 一致。
 | # Experts Active Per Token | 6           | 6                |
 | # Shared Experts           | 2           | 2                |
 
-这里比较特殊的一点在于，模型在第一层使用了 MoE layer, 这个做法的原因在后面的 [olmoe](/p/notes-on-olmoe/) 里有提到，核心思想是 early layer 特别是第一层 layer 收敛比较慢。
+这里比较特殊的一点在于，模型在第一层使用了 MoE layer, 这个做法的原因在后面的 [olmoe](/blog/olmo/#olmoe) 里有提到，核心思想是 early layer 特别是第一层 layer 收敛比较慢。
 
 MLA 的配置如下 (DeepSeek-V2)
 
@@ -126,7 +126,7 @@ MLA 的配置如下 (DeepSeek-V2)
 
 ### Evaluation
 
-作者对比了 DeepSeek-LLM [@DeepSeek-LLM], [Qwen1.5](/p/notes-on-qwen1.5/), [Mixtral MoE](/p/mixstral-8x7b/) 以及 LLaMA3 [@LLaMA3], 实验结果如下
+作者对比了 DeepSeek-LLM [@DeepSeek-LLM], [Qwen1.5](/blog/Qwen-series/#qwen15), [Mixtral MoE](https://arxiv.org/abs/2401.04088) 以及 LLaMA3 [@LLaMA3], 实验结果如下
 
 <Image
   src={deepseek_v2_pretraining_performance}

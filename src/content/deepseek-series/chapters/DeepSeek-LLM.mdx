@@ -5,7 +5,7 @@ import deepseek_llm_dataset_ablation from "../../../assets/image/DeepSeek-LLM-da
 
 ## DeepSeek-LLM
 
-已有的 scaling law 如 [Kaplan](/p/kaplan-scaling-law/) 和 [Chinchilla](/p/chinchilla-scaling-law/) 介绍了 model size, dataset size, compute budget 与模型表现之间的关系。在本文中，作者进一步探究了 learning rate 和 batch size 等超参数与模型表现之间的关系。基于发现的 scaling law, 作者为不同大小的模型设置了最优的超参数。并且，作者还发现不同数据集与模型表现之间的关系。
+已有的 scaling law 如 [Kaplan](/blog/scaling-law/#kaplan) 和 [Chinchilla](/blog/scaling-law/#chinchilla) 介绍了 model size, dataset size, compute budget 与模型表现之间的关系。在本文中，作者进一步探究了 learning rate 和 batch size 等超参数与模型表现之间的关系。基于发现的 scaling law, 作者为不同大小的模型设置了最优的超参数。并且，作者还发现不同数据集与模型表现之间的关系。
 
 <Sidenote>
   See [Scaling Law](https://maosong.website/blog/scaling-law/) for more details.
@@ -15,7 +15,7 @@ import deepseek_llm_dataset_ablation from "../../../assets/image/DeepSeek-LLM-da
 
 ### Architecture
 
-DeepSeek-LLM 的架构与 LLaMA [@LLaMA] 基本相同，作者在 67B 的模型上使用了 [GQA](/p/notes-on-gqa/) 来提高 inference 效率。最终模型的配置如下表所示
+DeepSeek-LLM 的架构与 LLaMA [@LLaMA] 基本相同，作者在 67B 的模型上使用了 [GQA](/blog/attention/#grouped-query-attention-gqa) 来提高 inference 效率。最终模型的配置如下表所示
 
 | Params                 | 7B       | 67B      |
 | ---------------------- | -------- | -------- |
@@ -59,7 +59,7 @@ DeepSeek-LLM 的架构与 LLaMA [@LLaMA] 基本相同，作者在 67B 的模型�
 2. 作者使用 non-embedding FLOPs/token $M$ 来表示 model scale
 3. 预训练数据的质量对最后中的 scaling 影响很大
 
-作者首先构建了针对 batch size 和 learning rate 的 scaling law, 结果显示最优的 learning rate 和 batch size 范围都比较广，这个结论与 [Kaplan](/p/kaplan-scaling-law/) 一致。
+作者首先构建了针对 batch size 和 learning rate 的 scaling law, 结果显示最优的 learning rate 和 batch size 范围都比较广，这个结论与 [Kaplan](/blog/scaling-law/#kaplan) 一致。
 
 接下来，作者进一步探究了 batch size 与 generalization error $L$ 之间的关系。作者希望找到 model scale $N$, data scale $D$ 与 compute budget $C$ 之间的关系，即
 
@@ -96,7 +96,7 @@ $$
 M_{opt}(C), D_{opt}(C) = {\arg\min}_{M,D\ s.t.\ C=MD} L(N,D)
 $$
 
-作者使用了 [Chinchilla](/p/chinchilla-scaling-law/) 提出来的 IsoFLOP 曲线进行拟合，拟合的曲线为
+作者使用了 [Chinchilla](/blog/scaling-law/#chinchilla) 提出来的 IsoFLOP 曲线进行拟合，拟合的曲线为
 
 $$
 M_{opt}(C) = 0.1715*C^{0.5243}, D_{opt}(C) = 5.8316*C^{0.4757}

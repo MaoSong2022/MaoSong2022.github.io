@@ -8,7 +8,7 @@ DeepSeek 在 2024 年 1 月发布了 DeepSeekMoE, 一个解决 MoE 模型 specia
 
 ## DeepSeek-MoE
 
-DeepSeek-MoE [@DeepSeek-MoE] 与 [DeepSeek-LLM](#deeepSeek-llm) 几乎同时发布，前者主要探究了 MoE 模型的上限。
+DeepSeek-MoE [@DeepSeek-MoE] 与 [DeepSeek-LLM](#deepseek-llm) 几乎同时发布，前者主要探究了 MoE 模型的上限。
 
 作者首先回顾了已有 MoE 模型的不足，主要有两点：
 
@@ -143,7 +143,7 @@ $$
 
 <Image src={deepseekmoe_ablation_experts} alt="Ablation on experts" />
 
-实验结果显示，与 [GShard](/p/gshard/) 相比，**使用共享专家可以有效提高模型的表现**。并且，**使用更细粒度的专家也可以进一步提高模型的表现**
+实验结果显示，与 [GShard](https://openreview.net/forum?id=qrwe7XHTmYb) 相比，**使用共享专家可以有效提高模型的表现**。并且，**使用更细粒度的专家也可以进一步提高模型的表现**
 
 作者还探究了共享专家与路由专家的比例，作者分别使用不同的比例进行实验，结果发现共享专家：路由专家个数为 1：3 的时候模型效果最好。
 
