@@ -103,7 +103,7 @@ $$
 p_1 * n * d + p_2 * n * d = (p_1 + p_2) * n * d
 $$
 
-这里 $p_1$ 和 $p_2$ 分别代表 dispatch 和 combine 时的精度，比如 DeepSeek-V3 [@DeepSeek-V3] 使用了 FP8 精度进行 dispatch, BF16 精度进行 combine.
+这里 $p_1$ 和 $p_2$ 分别代表 dispatch 和 combine 时的精度，比如 [DeepSeek-V3](/blog/deepseek-series/#deepseek-v3) [@DeepSeek-V3] 使用了 FP8 精度进行 dispatch, BF16 精度进行 combine.
 
 这样，MoE module 的 arithmetic intensity (communication) 就是
 

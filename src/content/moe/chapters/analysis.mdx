@@ -3,7 +3,7 @@ import olmoe_router_saturation from "../../../assets/image/olmoe-router-saturati
 
 ## Analysis on MoE
 
-前面的章节我们介绍了 [MoE layer design](#moe-design) 和如何通过 [load balancing loss](#load-balancing-loss) 来提高 MoE 的负载均衡。这一节我们来分析一下 MoE layer 的性质。
+前面的章节我们介绍了 [MoE layer design](#moe-design) 和如何通过 [load balancing loss](#load-balancing) 来提高 MoE 的负载均衡。这一节我们来分析一下 MoE layer 的性质。
 
 ### Specialization of Experts
 
@@ -17,7 +17,7 @@ OpenMoE [@OpenMoE] 分析了 MoE 模型的特化程度，其结论如下
 
 ### Saturation of Experts
 
-OLMoE [@OLMoE] 探究了训练过程中激活的专家和训练结束后激活的专家的匹配程度，结果如下图所示
+[OLMoE](/blog/olmo/#olmoe) [@OLMoE] 探究了训练过程中激活的专家和训练结束后激活的专家的匹配程度，结果如下图所示
 
 <Image src={olmoe_router_saturation} alt="Olmoe router saturation" />
 
@@ -25,5 +25,5 @@ OLMoE [@OLMoE] 探究了训练过程中激活的专家和训练结束后激活�
 作者认为，这是专家特化的结果，初始的 routing 如果改变的话会带来表现下降，因此模型倾向于使用固定的专家处理特定的 token
 
 作者还发现，later layers 比 early layers 饱和更快，early layer, 特别是 layer 0, 饱和的非常慢。
-作者认为，这是 DeepSeekMoE [@DeepSeek-MoE] 放弃在第一层使用 MoE layer 的原因，因为 load balancing loss 收敛更慢。后
-续 DeepSeek-V2 [@DeepSeek-V2] 和 DeepSeek-V3 [@DeepSeek-V3] 均在 early layer 上使用 dense layer 替换掉了 MoE layer
+作者认为，这是 [DeepSeekMoE](/blog/deepseek-series/#deepseek-moe) [@DeepSeek-MoE] 放弃在第一层使用 MoE layer 的原因，因为 load balancing loss 收敛更慢。后
+续 [DeepSeek-V2](/blog/deepseek-series/#deepseek-v2) [@DeepSeek-V2] 和 [DeepSeek-V3](/blog/deepseek-series/#deepseek-v3) [@DeepSeek-V3] 均在 early layer 上使用 dense layer 替换掉了 MoE layer

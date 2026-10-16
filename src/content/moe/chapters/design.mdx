@@ -21,7 +21,7 @@ import olmoe_sparse_upcycling from "../../../assets/image/olmoe-sparse-upcycling
 一般来说，专家个数越多，模型越稀疏，模型表现越好。扩展专家个数有两个方式：
 
 1. 直接增加专家个数，这会导致模型参数量上升，如 Switch Transformer [@SwitchTransformer]
-2. 对已有的专家进行切分，将大专家切分为小专家，如 DeepSeekMoE [@DeepSeek-MoE]
+2. 对已有的专家进行切分，将大专家切分为小专家，如 [DeepSeekMoE](/blog/deepseek-series/#deepseek-moe) [@DeepSeek-MoE]
 
 Switch Transformer [@SwitchTransformer] 也通过实验发现，增加专家个数可以显著提高模型的训练效率和表现，结果如下图所示
 
@@ -41,14 +41,14 @@ DeepSeekMoE [@DeepSeek-MoE] 提出了 fine-granularity expert 的概念，其做
 
 可以看到，在稀疏度 (激活专家个数占总专家个数比例) 不变的情况下，提高专家的粒度，可以提高模型的表现。
 
-OLMoE [@OLMoE] 对 DeepSeekMoE [@DeepSeek-MoE] 的这个观点进行了验证，结果如下图所示，
+[OLMoE](/blog/olmo/#olmoe) [@OLMoE] 对 DeepSeekMoE [@DeepSeek-MoE] 的这个观点进行了验证，结果如下图所示，
 
 <Image src={olmoe_expert_granularity} alt="Expert granularity" />
 
 结果显示，当专家粒度从 8E-1A 扩展到 32E-4A 时，模型在 HellaSwag 上的表现提升了 $10\%$, 但是进一步扩展到 64E-8A 时，模型的表现提升不到 $2\%$, 这说明了无限制提升专家粒度对模型的提升越来越有限。
 
 Kimi K2[@Kimi-K2] 探究了针对 MoE 模型 sparsity 的 scaling law, 结果也说明，提升 sparsity 可以提高模型的表现。
-因此，其相对于 DeepSeek-V3 [@DeepSeek-V3] 使用了 $50\%$ 额外的的专家数。
+因此，其相对于 [DeepSeek-V3](/blog/deepseek-series/#deepseek-v3) [@DeepSeek-V3] 使用了 $50\%$ 额外的的专家数。
 Ling-mini-beta [@EL] 进一步验证了这个观点。
 
 MiniMax-M2 [@MiniMax-M2] 也验证了细粒度专家可以提高模型表现的结论。
@@ -118,7 +118,7 @@ $$
 
 <Image src={olmoe_routing_z_loss} alt="Ablation study on routing Z-loss" />
 
-可以看到，加入 router Z-loss 之后，模型训练的稳定性有所提升，因此 Olmoe 采取了这个改进，但是后续的 MoE 模型使用 Z-loss 较少，个人猜测原因是 [Loss-Free Balancing](#load-balancing-loss) 中提出的加入额外的 loss 会影响 nex-token prediction loss
+可以看到，加入 router Z-loss 之后，模型训练的稳定性有所提升，因此 Olmoe 采取了这个改进，但是后续的 MoE 模型使用 Z-loss 较少，个人猜测原因是 [Loss-Free Balancing](#loss-free-load-balancing-strategy) 中提出的加入额外的 loss 会影响 nex-token prediction loss
 
 ### Routing Strategy
 
@@ -149,7 +149,7 @@ $$
 \text{expert capacity} = \left(\frac{\text{tokens per batch}}{\text{number of experts}}\right) * \text{capacity factor}
 $$
 
-设置 capacity factor 之后，当某个专家处理的 token 个数超过 capacity 之后，概专家的计算就会直接跳过，退化为 residual connection. 后续 DeepSeek-V2 [@DeepSeek-V2] 也采用了这种策略，但是 DeepSeek-V3 [@DeepSeek-V3] 弃用
+设置 capacity factor 之后，当某个专家处理的 token 个数超过 capacity 之后，概专家的计算就会直接跳过，退化为 residual connection. 后续 [DeepSeek-V2](/blog/deepseek-series/#deepseek-v2) [@DeepSeek-V2] 也采用了这种策略，但是 DeepSeek-V3 [@DeepSeek-V3] 弃用
 
 **Load balancing Loss**
 在训练目标中加入负载均衡损失，要求每个专家处理的 token 个数的分布尽可能均匀。

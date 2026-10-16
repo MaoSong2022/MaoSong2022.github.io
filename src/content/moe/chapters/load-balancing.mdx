@@ -266,7 +266,7 @@ TODO
 
 ### Experiments
 
-OLMoE [@OLMoE] 对比了加入 load balancing loss 之后模型的表现变化情况，结果如下图所示
+[OLMoE](/blog/olmo/#olmoe) [@OLMoE] 对比了加入 load balancing loss 之后模型的表现变化情况，结果如下图所示
 
 <Image
   src={olmoe_load_balancing_loss}
@@ -284,7 +284,7 @@ OLMoE [@OLMoE] 对比了加入 load balancing loss 之后模型的表现变化�
 
 结果显示，load balancing loss 确实可以让不同专家的激活概率大致相当。
 
-[@wang2024auxiliarylossfreeloadbalancingstrategy] 使用了 [DeepSeekMoE](DeepSeekMoE.md) 来进行实验，作者使用了 sigmoid function 作为 gating function, 因为作者发现 sigmoid function 效果比 softmax 效果更好。
+[@wang2024auxiliarylossfreeloadbalancingstrategy] 使用了 [DeepSeekMoE](/blog/deepseek-series/#deepseek-moe) 来进行实验，作者使用了 sigmoid function 作为 gating function, 因为作者发现 sigmoid function 效果比 softmax 效果更好。
 
 作者提出了 maximal violation (MaxVio) 来量化一个 MoE layer 的负载均衡程度
 
