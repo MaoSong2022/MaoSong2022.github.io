@@ -45,7 +45,7 @@ $$
 T_{\mathrm{comm}}  =\frac{\text{Communication Bytes}}{\text{Network/Memory Bandwith Bytes/s}}
 $$
 
-通常来说，我们可以通过计算 - 通信重叠来降低整体的运行时间，比如说 [DeepSeek-V3](/p/notes-on-deepseek-v3/) 等模型提出的优化方法,  此时理论上的最小运行时间就是 $T_{\mathrm{math}}$ 和 $T_{\mathrm{comm}}$ 之间的最大值。另一方面，如果我们不做任何优化，则理论上最大运行时间就是 $T_{\mathrm{math}}$ 和 $T_{\mathrm{comm}}$ 之和。我们定义对应的 bound 如下
+通常来说，我们可以通过计算 - 通信重叠来降低整体的运行时间，比如说 [DeepSeek-V3](/blog/deepseek-series/#deepseek-v3) 等模型提出的优化方法,  此时理论上的最小运行时间就是 $T_{\mathrm{math}}$ 和 $T_{\mathrm{comm}}$ 之间的最大值。另一方面，如果我们不做任何优化，则理论上最大运行时间就是 $T_{\mathrm{math}}$ 和 $T_{\mathrm{comm}}$ 之和。我们定义对应的 bound 如下
 
 $$
 \begin{aligned}
