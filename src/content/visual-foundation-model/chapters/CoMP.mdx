@@ -35,7 +35,7 @@ $$
 
 这里 $E\in\mathbb{E}^{P^2\cdot C\times D_v}$, $E_{pos}\in\mathbb{R}^{N\times D_V}$ 分别是 patch embedding 和 learnable position embedding, $\mathrm{Int}(\cdot)$ 是 bilinear interpolation.
 
-相比于 [ViT](ViT.md), C-RoPE 做出了两点改动：
+相比于 [ViT](/blog/visual-foundation-model/#vit), C-RoPE 做出了两点改动：
 
 1. 使用了 Interpolation 来支持动态分辨率图片输入
 2. 使用了 RoPE 来高效利用位置信息
@@ -52,7 +52,7 @@ $$
 
 ### Vision-language Representation Alignment
 
-text-decoding loss 可以对其视觉特征和文本特征，但是对于使用自监督训练方式的 VLM, 比如 [DINOv2](DINOv2.md), 其预训练目标与 text-decoding loss 之间存在较大 gap, 为了解决这个问题，作者提出了 alignment loss.
+text-decoding loss 可以对其视觉特征和文本特征，但是对于使用自监督训练方式的 VLM, 比如 [DINOv2](/blog/visual-foundation-model/#dino2), 其预训练目标与 text-decoding loss 之间存在较大 gap, 为了解决这个问题，作者提出了 alignment loss.
 
 具体做法就是先计算出文本和视觉特征：
 
@@ -101,7 +101,7 @@ $$
 \end{cases}
 $$
 
-作者基于 [CLIP](CLIP.md), [SigLIP](SigLIP.md), [SigLip-2](SigLip-2.md), [DINOv2](DINOv2.md), [AIMv2](AIMv2.md) 等 VFM 进行了实验，主要结果如下图所示
+作者基于 [CLIP](/blog/visual-foundation-model/#clip), [SigLIP](/blog/visual-foundation-model/#siglip), [SigLip-2](/blog/visual-foundation-model/#siglip2), [DINOv2](/blog/visual-foundation-model/#dino2), [AIMv2](AIMv2.md) 等 VFM 进行了实验，主要结果如下图所示
 
 ![Performance of CoMP on multimodal understanding tasks](CoMP-performance.png)
 
