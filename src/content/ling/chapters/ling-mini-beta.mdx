@@ -2,7 +2,7 @@
 
 蚂蚁提出了针对 MoE 模型的 scaling law [@Ling-mini-beta], 并基于 scaling law 提出了 Ling-mini-beta
 
-目前已经有了针对 dense LLM 的 scaling law, 如 [Kaplan scaling law](Kaplan%20scaling%20law.md) 和 [Chinchilla scaling law](Chinchilla%20scaling%20law.md).
+目前已经有了针对 dense LLM 的 scaling law, 如 [Kaplan scaling law](/blog/scaling-law/#kaplan) 和 [Chinchilla scaling law](/blog/scaling-law/#chinchilla).
 
 但是，对于 MoE 模型，目前还缺乏一个比较系统的 scaling law.
 
@@ -46,7 +46,7 @@ $$
 G = \frac{d_{\mathrm{model}}}{d_{\mathrm{Expert}}}
 $$
 
-与 [DeepSeek-LLM](DeepSeek-LLM.md) 一样，作者使用 $C=MD$ 来表示算力，non-embedding FLOPs $M$ 和训练 token 数 $D$ 之间的关系。
+与 [DeepSeek-LLM](/blog/deepseek-series/#deepseek-llm) 一样，作者使用 $C=MD$ 来表示算力，non-embedding FLOPs $M$ 和训练 token 数 $D$ 之间的关系。
 
 ### Hyper Parameters
 
@@ -134,7 +134,7 @@ $$
 
 作者还探究了其他可能的因素，结论如下：
 
-1. 与 [DeepSeek-V3](DeepSeek-V3.md) 一样，将 early layer 替换为 dense layer 可以避免 routing imbalance, 并且不会损害模型的表现
+1. 与 [DeepSeek-V3](/blog/deepseek-series/#deepseek-v3) 一样，将 early layer 替换为 dense layer 可以避免 routing imbalance, 并且不会损害模型的表现
 2. attention 应该占 $30\%\sim40\%$ 左右的算力才能保证模型的表现和效率。进一步提升 attention 的算力占比虽然会提升表现但是会降低推理效率。
 
 通过前面的发现，作者将 shared expert 设置为 1 个，然后探究 EL 与 activation ratio $A$, granularity $G$, FLOPs $C$ 之间的关系。
