@@ -66,7 +66,7 @@ $$
 \boxed{F_{\mathrm{MoE}}=2sdE+6ksdd_{ff}}
 $$
 
-这里 $d_{ff}$ 为单个专家的中间维度。总专家数影响模型存储，实际参与矩阵乘法的专家数决定主要 FLOPs。更多架构背景见 [MoE](/p/moe-tutorial/)。
+这里 $d_{ff}$ 为单个专家的中间维度。总专家数影响模型存储，实际参与矩阵乘法的专家数决定主要 FLOPs。更多架构背景见 [MoE](/blog/moe/)。
 
 #### 前向汇总
 
@@ -126,7 +126,7 @@ $$
 
 ### FLOPs 分布实验
 
-保留原文基于 [Chinchilla scaling law](/p/chinchilla-scaling-law/) Table A9 的配置分析，筛掉 `kv_size * n_heads != d_model` 的配置，词表大小为 32,000。本实验使用两矩阵 FFN，与前面默认的三矩阵 SwiGLU 区分。计算所有层的代码为：
+保留原文基于 [Chinchilla scaling law](/blog/scaling-law/#chinchilla) Table A9 的配置分析，筛掉 `kv_size * n_heads != d_model` 的配置，词表大小为 32,000。本实验使用两矩阵 FFN，与前面默认的三矩阵 SwiGLU 区分。计算所有层的代码为：
 
 ```python
 def compute_flops(L, V, d, d_ff, s, swiglu=False):

@@ -83,7 +83,7 @@ $$
 
 FlashAttention [参考](https://arxiv.org/abs/2205.14135) 通过将 Attention 的计算进行分块，来提高内存访问效率以及降低反向传播时所需要的 activation 大小。
 
-**Flash Attention** 通过 tiling 与 online-softmax 降低该部分显存并提升效率（详见 [notes on Flash Attention](/p/notes-on-flashattention/)）。这样 attention 部分的显存就由 $\text{activation} \propto bs^2$ 降低到了 $\text{activation} \propto bs$。
+**Flash Attention** 通过 tiling 与 online-softmax 降低该部分显存并提升效率（详见 [notes on Flash Attention](/blog/FlashAttention/#flashattention)）。这样 attention 部分的显存就由 $\text{activation} \propto bs^2$ 降低到了 $\text{activation} \propto bs$。
 
 [FlashAttention](https://arxiv.org/abs/2205.14135) 仍计算精确 attention；固定 head 配置时，计算复杂度保持为 $\mathcal{O}(s^2d)$，但无需显式存储完整 attention 矩阵，中间显存对序列长度呈线性增长。它优化的是访存和中间存储，不会消除 attention 的二次计算项。
 
