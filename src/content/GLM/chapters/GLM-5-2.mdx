@@ -13,7 +13,7 @@ features:
 
 #### IndexShare
 
-GLM 5.2 使用了 IndexShare [TODO] 来减少 DSA [@DSA] 中 indexer 的算力消耗。
+GLM 5.2 使用了 IndexShare [TODO] 来减少 DSA [@DeepSeek-V3.2] 中 indexer 的算力消耗。
 具体做法就是，每 4 层 transformer layer 共享一个轻量化的 indexer, 这 4 层里的第一层负责执行计算，然后计算得到的 topk indices 被这 4 层共享。
 
 #### MTP
@@ -50,7 +50,7 @@ infra 方面， GLM-5.2 使用了 slime 来执行 parallel OPD training, 最终 
 
 ### Reward hacking
 
-对于 long horizon tasks 中的 rollout 过长问题，由于不同 rollout 产生的可训练的 rollout 数量不同，长度高度可变，因此 GRPO [@DeeepSeek-Math] 很容易失效。
+对于 long horizon tasks 中的 rollout 过长问题，由于不同 rollout 产生的可训练的 rollout 数量不同，长度高度可变，因此 GRPO [@DeepSeek-Math] 很容易失效。
 为了解决这个问题，GLM-5.2 回归到了 PPO [@PPO] 的训练框架下，用于解决不同 rollout 长度不同的问题。
 
 对于 coding agent reward hacking, 作者发现 GLM-5.2 会使用 `curl` 去 Github 下载答案，或者通过查看隐藏文件来获取信息。
