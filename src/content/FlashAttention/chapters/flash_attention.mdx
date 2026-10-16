@@ -14,7 +14,7 @@ import flashattention_ablation_block_size from "../../../assets/image/flashatten
 Transformer 的 attention 是一个平方度复杂度的算法，这个平方复杂度既体现在时间复杂度上（矩阵乘法），也体现在空间复杂度上（需要存储中间结果）。因此，要降低 attention 的复杂度，我们有两种思路：
 
 1. 从时间复杂度上入手，比如使用稀疏 attention 机制或者线性注意力机制
-2. 从空间复杂度上入手，比如使用 [GQA](/p/notes-on-gqa/), [MQA](/p/notes-on-mqa/) 等减少内存的访问开销
+2. 从空间复杂度上入手，比如使用 [GQA](/blog/attention/#grouped-query-attention-gqa), [MQA](/blog/attention/#multi-query-attention-mqa) 等减少内存的访问开销
 
 本文提出的 flash attention [@FlashAttention] 就属于降低空间复杂度的一种做法。作者认为，我们应该设计一种 **IO-aware** 的 attention 算法，来减少 attention 计算式的内存访问开销，进而提高 attention 的计算效率。
 
@@ -156,7 +156,7 @@ m(x) &= \max(m(x^{(1)}), m(x^{(2)}))， f(x) = [e^{m(x^{(1)})-m(x)}f(x^{(1)}),e^
 \end{aligned}
 $$
 
-因此，如果我们额外记录 $m(x)$ 以及 $\ell(x)$ 这两个量，那么我们可以每次仅计算 softmax 的一个 block. 具体细节见[softmax](/p/notes-on-softmax/).
+因此，如果我们额外记录 $m(x)$ 以及 $\ell(x)$ 这两个量，那么我们可以每次仅计算 softmax 的一个 block. 具体细节见[softmax](/blog/math/#softmax).
 
 #### Recomputation
 
@@ -346,7 +346,7 @@ $$
 
 计算的空间复杂度也是要 $\mathcal{O}(N)$ 的
 
-注意到 $P_{i:}=\mathrm{softmax}(s_{i:})$, 且 $y=\mathrm{softmax}(x)$ 的 Jacobian 是 $\mathrm{diag}(y)-yy^T$ (推导过程见 [softmax](/p/notes-on-softmax/)), 我们有
+注意到 $P_{i:}=\mathrm{softmax}(s_{i:})$, 且 $y=\mathrm{softmax}(x)$ 的 Jacobian 是 $\mathrm{diag}(y)-yy^T$ (推导过程见 [softmax](/blog/math/#softmax)), 我们有
 
 $$
 dS_{i:} = (\mathrm{diag}(P_{i:})-P_{i:}P_{i:}^T)dP_{i:} = P_{i:} \odot dP_{i:} - (P_{i:}^TdP_{i:})P_{i:}
