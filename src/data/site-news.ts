@@ -11,6 +11,11 @@ export type SiteNewsItem = {
 /** Newest items first. Edit this list to update the home page news block. */
 export const SITE_NEWS: SiteNewsItem[] = [
   {
+    date: "2026-09-01",
+    title: "I have joined the SenseTime as a Researcher",
+    summary: "I have joined the SenseTime as a Researcher. I will continue to focus on post training of LLMs.",
+  },
+  {
     date: "2026-05-13",
     title: "Make this blog framework as a blog template",
     summary: "A blog template for research articles and blog posts.",
