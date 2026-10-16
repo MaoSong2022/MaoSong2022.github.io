@@ -1,8 +1,8 @@
 ## MoonLight
 
-Kimi 提出了 Moonlight, 一个基于 [Muon](Muon.md) optimizer 训练得到的 16B-A3B MoE LLM. 作者详细介绍了如何 scale up muon optimizer.
+Kimi 提出了 Moonlight, 一个基于 [Muon](/blog/optimizer/#muon) optimizer 训练得到的 16B-A3B MoE LLM. 作者详细介绍了如何 scale up muon optimizer.
 
-[Muon](Muon.md) 验证了 Muon optimizer 在小语言模型 [[nanoGPT]] 上的表现，但是对于更大规模 LLM 的表现，尚未有人探究。因此 Kimi 就希望在大规模 LLM 上验证 Muon optimizer 的表现。作者主要进行了两点改进：
+[Muon](/blog/optimizer/#muon) 验证了 Muon optimizer 在小语言模型 [[nanoGPT]] 上的表现，但是对于更大规模 LLM 的表现，尚未有人探究。因此 Kimi 就希望在大规模 LLM 上验证 Muon optimizer 的表现。作者主要进行了两点改进：
 
 1. 加入 weight decay
 2. 调整了不同参数更新的 scale
@@ -41,11 +41,11 @@ $$
 X_0 = \frac{M_t}{\|M_t\|_F},\quad X_k = aX_{k-1} + b(X_{k-1}X_{k-1}^T)X_{k-1} + c(X_{k-1}X_{k-1}^T)^2X_{k-1}
 $$
 
-其中，normalization 是为了保证 Newton-Schulz 的收敛性。 $a,b,c$ 是三个超参数，在 [Muon](Muon.md) 中设置为 $(a,b,c)=(3.4445, 4.7750, 2.0315)$.
+其中，normalization 是为了保证 Newton-Schulz 的收敛性。 $a,b,c$ 是三个超参数，在 [Muon](/blog/optimizer/#muon) 中设置为 $(a,b,c)=(3.4445, 4.7750, 2.0315)$.
 
 ### Scaling up Muon
 
-作者发现，尽管 Muon 在小规模场景下 work 的很好，但是大规模性场景下的收益就非常有限了。作者发现，这是因为模型的参数以及每一层输出的 RMS 变得很大，这可能会影响模型的性能。因此，作者就和 [AdamW](AdamW.md) 一样使用 weight dacay 来避免这个问题，即
+作者发现，尽管 Muon 在小规模场景下 work 的很好，但是大规模性场景下的收益就非常有限了。作者发现，这是因为模型的参数以及每一层输出的 RMS 变得很大，这可能会影响模型的性能。因此，作者就和 [AdamW](/blog/optimizer/#adamw) 一样使用 weight dacay 来避免这个问题，即
 
 $$
 W_t =W_{t-1} - \eta_t(O_t + \lambda W_{t-1})
@@ -71,7 +71,7 @@ $$
 而 Adam 和 AdamW 的 RMS 都在 $1$ 附近。作者认为 RMS 也会影响模型表现：
 
 1. 当 $\max(A,B)$ 过大时，如 dense MLP matrix, 其更新就会变得很小，限制了模型的表现
-2. 当 $\max(A,B)$ 过小时，如 [GQA](GQA.md) 中的 KV head 或者 [DeepSeek-V3](DeepSeek-V3.md) 中的 MLA, 更新又会变得很大，导致训练不稳定。
+2. 当 $\max(A,B)$ 过小时，如 [GQA](/blog/attention/#grouped-query-attention-gqa) 中的 KV head 或者 [DeepSeek-V3](/blog/deepseek-series/#deepseek-v3) 中的 MLA, 更新又会变得很大，导致训练不稳定。
 
 因此，作者就提出了一个 rescaling 的技巧，来消除 Muon optimizer 的影响。
 
@@ -85,7 +85,7 @@ $$
 
 ### Distributed Muon
 
-[[ZeRO]] ZeRO-1 天然适合 AdamW, 因为 AdamW 都是 element-wise 进行计算的。但是 Muon 则需要梯度矩阵的全部信息。因此，作者就针对 ZeRO-1 进行适配， 提出了 **Distributed Muon**, 分布式版本将优化器的状态进行切分，然后加入了两个额外的操作：
+[ZeRO](/blog/parallelism/#zero) ZeRO-1 天然适合 AdamW, 因为 AdamW 都是 element-wise 进行计算的。但是 Muon 则需要梯度矩阵的全部信息。因此，作者就针对 ZeRO-1 进行适配， 提出了 **Distributed Muon**, 分布式版本将优化器的状态进行切分，然后加入了两个额外的操作：
 
 1. DP gather: 将 ZeRO-1 切分的梯度矩阵 gather 为一个完整的矩阵
 2. Calculate Full Update: 对完整的梯度矩阵执行 Newton-Schulz 迭代

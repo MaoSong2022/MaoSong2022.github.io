@@ -9,7 +9,9 @@ import moonlight_pre_training_performance from '../../../assets/image/Moonlight-
 import moonlight_svd_entropy from '../../../assets/image/Moonlight-SVD-entropy.png';
 import moonlight_sft_performance from '../../../assets/image/Moonlight-SFT-performance.png';
 
-Muon (MomentUm Orthogonalized by Newton-Schulz) 是一个针对二维神经网络的优化器，它基于 SGD-momentum 改进，增加了一个 Newton-Schulz 的后处理步骤
+## Muon
+
+Muon (MomentUm Orthogonalized by Newton-Schulz) [@jordan2024muon] 是一个针对二维神经网络的优化器，它基于 SGD-momentum 改进，增加了一个 Newton-Schulz 的后处理步骤
 
 ## Method
 
@@ -141,7 +143,7 @@ Kimi 提出了 Moonlight, 一个基于 Muon optimizer 训练得到的 16B-A3B Mo
 
 ## Introduction
 
-[Muon](/p/notes-on-muon-blog/) 验证了 Muon optimizer 在小语言模型 nanoGPT 上的表现，但是对于更大规模 LLM 的表现，尚未有人探究。因此 Kimi 就希望在大规模 LLM 上验证 Muon optimizer 的表现。作者主要进行了两点改进：
+[Muon](/blog/optimizer/#muon) 验证了 Muon optimizer 在小语言模型 nanoGPT 上的表现，但是对于更大规模 LLM 的表现，尚未有人探究。因此 Kimi 就希望在大规模 LLM 上验证 Muon optimizer 的表现。作者主要进行了两点改进：
 
 1. 加入 weight decay
 2. 调整了不同参数更新的 scale
@@ -212,7 +214,7 @@ $$
 而 Adam 和 AdamW 的 RMS 都在 $1$ 附近。作者认为 RMS 也会影响模型表现：
 
 1. 当 $\max(A,B)$ 过大时，如 dense MLP matrix, 其更新就会变得很小，限制了模型的表现
-2. 当 $\max(A,B)$ 过小时，如 [GQA](/p/notes-on-gqa/) 中的 KV head 或者 [DeepSeek-V3](/p/notes-on-deepseek-v3/) 中的 MLA, 更新又会变得很大，导致训练不稳定。
+2. 当 $\max(A,B)$ 过小时，如 [GQA](/blog/attention/#grouped-query-attention-gqa) 中的 KV head 或者 [DeepSeek-V3](/blog/deepseek-series/#deepseek-v3) 中的 MLA, 更新又会变得很大，导致训练不稳定。
 
 因此，作者就提出了一个 rescaling 的技巧，来消除 Muon optimizer 的影响。
 
