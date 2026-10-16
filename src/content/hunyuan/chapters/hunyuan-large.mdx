@@ -10,7 +10,7 @@ Hunyuan-Large 主要在三个方向进行了改进：
 
 ### Architecture
 
-Hunyuan-Large 是一个基于 MoE 的 transformer 架构，attention 部分使用了 [GQA](GQA.md), position encoding 使用了 RoPE, MLP 的激活函数为 SwiGLU. 在 MoE layer 中，Hunyuan-Large 使用了 shared experts. 最终，模型的配置如下图所示
+Hunyuan-Large 是一个基于 MoE 的 transformer 架构，attention 部分使用了 [GQA](/blog/attention/#grouped-query-attention-gqa), position encoding 使用了 RoPE, MLP 的激活函数为 SwiGLU. 在 MoE layer 中，Hunyuan-Large 使用了 shared experts. 最终，模型的配置如下图所示
 
 | Configuration                   | Hunyuan-Large |
 | :------------------------------ | :------------ |
@@ -44,7 +44,7 @@ $$
 
 第一个 $2$ 是因为同时缓存 K 和 V, 第二个 $2$ 是因为一般使用 `bfloat16` 数据格式。
 
-对于 CLA, 因为连续两层共享相同的 KV cache，因此结果除以 2; 对于 MHA, $h_{kv}=h$; 对于 [MQA](MQA.md), $h_{kv}=1$. 最后，KV cache 的内存占用如下表所示
+对于 CLA, 因为连续两层共享相同的 KV cache，因此结果除以 2; 对于 MHA, $h_{kv}=h$; 对于 [MQA](/blog/attention/#multi-query-attention-mqa), $h_{kv}=1$. 最后，KV cache 的内存占用如下表所示
 
 | Attention Mechanism | KV Cache Memory    |
 | ------------------- | ------------------ |
@@ -70,7 +70,7 @@ $$
 
 #### Expert Specific Learning Rate Scaling
 
-作者使用 [AdamW](AdamW.md) 作为优化器，作者探讨了如何设定学习率。基于之前的工作，最优的学习率与 batch size 相关：
+作者使用 [AdamW](/blog/optimizer/#adamw) 作为优化器，作者探讨了如何设定学习率。基于之前的工作，最优的学习率与 batch size 相关：
 
 $$
 \epsilon_{\mathrm{opt}}(B) = \frac{2\epsilon_{\max}}{\sqrt{\frac{\mathcal{B}_{\mathrm{noise}}}{B}}+\sqrt{\frac{B}{\mathcal{B}_{\mathrm{noise}}}}}
@@ -122,13 +122,13 @@ SFT 训练了 3 个 epoch, 学习率从 2e-5 降低到 2e-6, 为了避免 overfi
 
 ### RLHF
 
-作者使用 [DPO](DPO.md) 来进行 RLHF, 作者同时使用了 offline 和 online 的数据来进行训练，前者是收集的数据，后者是当前 policy 生成的数据。与 [LLaMA 3](LLaMA%203.md) 和 [[Nemotron-4]] 一样，为了提高训练稳定性，对于 chosen reponse, 作者使用了 SFT loss.
+作者使用 [DPO](/blog/RLHF/#dpo) 来进行 RLHF, 作者同时使用了 offline 和 online 的数据来进行训练，前者是收集的数据，后者是当前 policy 生成的数据。与 [LLaMA 3](/blog/LLaMA-series/#llama3) 和 [[Nemotron-4]] 一样，为了提高训练稳定性，对于 chosen reponse, 作者使用了 SFT loss.
 
 作者还是用了 exponential moving average 策略来减少 reward hacking 现象，以及降低 alignment tax.
 
 ### Experiment
 
-对于 base 版本，作者对比了 [LLaMA 3](LLaMA%203.md), [Mixtral MoE](Mixtral%20MoE.md), [[DeepSeek-V2]], 实验结果如下图所示
+对于 base 版本，作者对比了 [LLaMA 3](/blog/LLaMA-series/#llama3), [Mixtral MoE](https://arxiv.org/abs/2401.04088), [DeepSeek-V2](/blog/deepseek-series/#deepseek-v2), 实验结果如下图所示
 
 ![Performance of Hunyuan-Large-Base](Hunyuan-large-base-performance.png)
 
