@@ -1,0 +1,8 @@
+---
+import { COMPLETION } from "../data/article-editorial";
+---
+<details class="completion-legend">
+  <summary>What do these statuses mean?</summary>
+  <p>Status describes reading readiness within the current scope. Ready to Read articles may still receive updates.</p>
+  {Object.entries(COMPLETION).map(([key, value]) => <p><span class={`completion completion--${key}`}>{value.label}</span> {value.description}</p>)}
+</details>

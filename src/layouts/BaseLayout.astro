@@ -12,12 +12,13 @@ import {
 
 interface Props {
   pageTitle: string;
+  lang?: string;
   description?: string;
   /** Extra class on the inner `.site-page` wrapper (e.g. `site-page--browse`). */
   contentClass?: string;
 }
 
-const { pageTitle, description, contentClass } = Astro.props;
+const { pageTitle, description, contentClass, lang = "en" } = Astro.props;
 const pageDescription = description ?? SITE_DESCRIPTION;
 const canonicalURL = new URL(Astro.url.pathname, Astro.site);
 const pageTitleText =
@@ -38,7 +39,7 @@ const websiteJsonLd = {
 };
 ---
 
-<html lang="en" data-theme="light">
+<html lang={lang} data-theme="light">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />

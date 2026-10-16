@@ -10,8 +10,10 @@ import {
 } from "../consts";
 import avatarSrc from "../../public/avatar.jpg";
 import { SITE_NEWS } from "../data/site-news";
-import { browseCategoryHref, browseTagHref } from "../utils/browse-links";
-import { parseArticleGlob } from "../utils/site-articles";
+import ArticleList from "../components/ArticleList.astro";
+import ContentCollections from "../components/ContentCollections.astro";
+import CompletionLegend from "../components/CompletionLegend.astro";
+import { parseArticleGlob, selectFeatured } from "../utils/site-articles";
 import { getAllArticleBundleLastModifiedIso } from "../utils/article-modified";
 
 const articleGlob = import.meta.glob<{ frontmatter: Record<string, unknown> }>(
@@ -21,7 +23,8 @@ const articleGlob = import.meta.glob<{ frontmatter: Record<string, unknown> }>(
 
 const modifiedBySlug = await getAllArticleBundleLastModifiedIso();
 const articles = await parseArticleGlob(articleGlob, modifiedBySlug);
-const latest = articles.slice(0, 4);
+const tutorials = selectFeatured(articles, "learning");
+const analyses = selectFeatured(articles, "analysis");
 
 const newsItems = [...SITE_NEWS].sort((a, b) => {
   const ta = Date.parse(a.date);
@@ -73,6 +76,26 @@ function newsDateIso(raw: string): string | undefined {
     <a class="button button--ghost" href={`https://scholar.google.com/citations?user=${GOOGLE_SCHOLAR_ID}`}>Google Scholar</a>
   </div>
 
+  <section aria-labelledby="tutorials-heading">
+    <p class="section-eyebrow">START HERE</p>
+    <h2 id="tutorials-heading">Featured Tutorials</h2>
+    <p class="section-intro">Foundational guides for building a reusable mental model.</p>
+    <ArticleList articles={tutorials} compact />
+  </section>
+
+  <section aria-labelledby="analysis-heading">
+    <h2 id="analysis-heading">Deep Dives</h2>
+    <p class="section-intro">Question-driven derivations and comparisons. These articles are in progress; their status reflects the current reading experience.</p>
+    <ArticleList articles={analyses} compact />
+    <p class="section-more"><a href="/blog/collections/analysis/">All Deep Dives →</a></p>
+  </section>
+
+  <section aria-labelledby="collections-heading">
+    <h2 id="collections-heading">Explore by Content Type</h2>
+    <ContentCollections articles={articles} />
+    <CompletionLegend />
+  </section>
+
   {
     newsItems.length > 0 ? (
       <section class="site-news" aria-labelledby="news-heading">
@@ -121,108 +144,4 @@ function newsDateIso(raw: string): string | undefined {
     ) : null
   }
 
-  {
-    latest.length > 0 ? (
-      <section aria-labelledby="latest-heading">
-        <h2 id="latest-heading">Latest</h2>
-        <ul class="article-index">
-          {latest.map(
-            ({
-              url,
-              title,
-              displayDate,
-              description: desc,
-              categories,
-              tags,
-            }) => (
-              <li class="article-index__item">
-                {categories ? (
-                  <a
-                    class="article-index__category"
-                    href={browseCategoryHref(categories)}
-                  >
-                    {categories}
-                  </a>
-                ) : null}
-                <a class="article-index__link" href={url}>
-                  {title}
-                </a>
-                {displayDate ? (
-                  <span class="article-index__meta">{displayDate}</span>
-                ) : null}
-                {desc ? <p class="article-index__desc">{desc}</p> : null}
-                {tags.length > 0 ? (
-                  <div class="article-index__tags">
-                    {tags.map((t) => (
-                      <a class="article-index__tag" href={browseTagHref(t)}>
-                        {t}
-                      </a>
-                    ))}
-                  </div>
-                ) : null}
-              </li>
-            ),
-          )}
-        </ul>
-      </section>
-    ) : null
-  }
-
-  <style>
-    @media (--bp-sm) {
-      .site-hero {
-        gap: var(--spacing-3);
-        margin-bottom: var(--spacing-5);
-      }
-
-      .site-hero__avatar {
-        width: 84px;
-        height: 84px;
-      }
-
-      .site-slogan {
-        font-size: 1.125rem;
-        line-height: 1.4;
-        margin-bottom: var(--spacing-2);
-      }
-
-      .site-lead {
-        font-size: 1rem;
-        line-height: 1.6;
-      }
-
-      .site-news__title-link,
-      .site-news__title {
-        font-size: 1rem;
-        line-height: 1.4;
-      }
-
-      .article-index__link {
-        font-size: 1rem;
-        line-height: 1.4;
-      }
-
-      .home-cta-primary {
-        min-height: 2.75rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 700;
-        letter-spacing: 0.01em;
-        box-shadow: 0 6px 18px color-mix(in srgb, var(--primary-color) 26%, transparent);
-      }
-
-      .site-actions .button--ghost {
-        min-height: 2.5rem;
-      }
-    }
-
-    .site-news__title-link,
-    .site-news__title,
-    .article-index__link,
-    .article-index__desc {
-      overflow-wrap: anywhere;
-      word-break: normal;
-    }
-  </style>
 </BaseLayout>

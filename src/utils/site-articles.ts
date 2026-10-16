@@ -1,6 +1,8 @@
 import { formatDisplayDate } from "./date-format";
+import { ARTICLE_EDITORIAL, type Editorial, type ContentType, type Completion } from "../data/article-editorial";
 
-export type SiteArticleEntry = {
+export type SiteArticleEntry = Editorial & {
+  classified: boolean;
   slug: string;
   url: string;
   title: string;
@@ -56,7 +58,7 @@ export async function parseArticleGlob(
   articleGlob: Record<string, { frontmatter?: Record<string, unknown> }>,
   modifiedBySlug: Record<string, string> = {},
 ): Promise<SiteArticleEntry[]> {
-  const articles: SiteArticleEntry[] = Object.entries(articleGlob).map(
+  const articles: SiteArticleEntry[] = Object.entries(articleGlob).filter(([path]) => !/content\/demo\/article\.(md|mdx)$/.test(path)).map(
     ([path, mod]): SiteArticleEntry => {
       const match = path.match(/content\/([^/]+)\/article\.(?:md|mdx)$/);
       const slug = match?.[1] ?? "unknown";
@@ -78,6 +80,8 @@ export async function parseArticleGlob(
       const tags = normalizeTags(fm.tags);
       const categories = normalizeFirstCategory(fm.categories);
       return {
+        ...(ARTICLE_EDITORIAL[slug] ?? { contentType: "learning", completion: "outline" }),
+        classified: Object.hasOwn(ARTICLE_EDITORIAL, slug),
         slug,
         url: `/blog/${slug}/`,
         title,
@@ -99,4 +103,16 @@ export async function parseArticleGlob(
   });
 
   return articles;
+}
+
+/** Stable sorting preserves the existing newest-first order within each status. */
+export function sortByCompletion<T extends { completion: Completion }>(articles: T[]): T[] {
+  const rank = { complete: 0, growing: 1, outline: 2 };
+  return [...articles].sort((a, b) => rank[a.completion] - rank[b.completion]);
+}
+
+export function selectFeatured(articles: SiteArticleEntry[], type: ContentType): SiteArticleEntry[] {
+  return articles.filter(a => a.contentType === type && a.featuredOrder !== undefined
+    && a.completion !== "outline" && (type !== "learning" || a.completion === "complete"))
+    .sort((a, b) => a.featuredOrder! - b.featuredOrder!);
 }

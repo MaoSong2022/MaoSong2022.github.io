@@ -1,0 +1,24 @@
+---
+import type { SiteArticleEntry } from "../utils/site-articles";
+import { CONTENT_TYPES, COMPLETION, collectionHref } from "../data/article-editorial";
+import { browseCategoryHref, browseTagHref } from "../utils/browse-links";
+interface Props { articles: SiteArticleEntry[]; id?: string; compact?: boolean }
+const { articles, id, compact = false } = Astro.props;
+---
+<ul class="article-index" id={id}>
+  {articles.map(a => (
+    <li class="article-index__item" data-browse-slug={a.slug}>
+      <div class="article-badges">
+        <a class="article-index__category" href={collectionHref(a.contentType)}>{CONTENT_TYPES[a.contentType].shortLabel}</a>
+        <span class={`completion completion--${a.completion}`} title={COMPLETION[a.completion].description}>{COMPLETION[a.completion].label}</span>
+      </div>
+      <a class="article-index__link" href={a.url}>{a.title}</a>
+      {(a.summary || a.description) && <p class="article-index__desc">{a.summary || a.description}</p>}
+      {a.displayDate && <span class="article-index__meta">Updated {a.displayDate}</span>}
+      {!compact && <div class="article-index__tags">
+        {a.categories && <a class="article-index__tag" href={browseCategoryHref(a.categories)}>{a.categories}</a>}
+        {a.tags.map(t => <a class="article-index__tag" href={browseTagHref(t)}>{t}</a>)}
+      </div>}
+    </li>
+  ))}
+</ul>

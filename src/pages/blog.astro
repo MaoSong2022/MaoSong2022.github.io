@@ -1,74 +1,26 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
-import { browseCategoryHref, browseTagHref } from "../utils/browse-links";
-import { parseArticleGlob } from "../utils/site-articles";
+import ArticleList from "../components/ArticleList.astro";
+import ContentCollections from "../components/ContentCollections.astro";
+import CompletionLegend from "../components/CompletionLegend.astro";
+import { CONTENT_TYPES, collectionHref, type ContentType } from "../data/article-editorial";
+import { parseArticleGlob, sortByCompletion } from "../utils/site-articles";
 import { getAllArticleBundleLastModifiedIso } from "../utils/article-modified";
-
-const articleGlob = import.meta.glob<{ frontmatter: Record<string, unknown> }>(
-  "../content/*/article.{md,mdx}",
-  { eager: true },
-);
-
-const modifiedBySlug = await getAllArticleBundleLastModifiedIso();
-const articles = await parseArticleGlob(articleGlob, modifiedBySlug);
-
-const pageTitle = "Blog";
-const description =
-  "Articles and papers — research-style posts published from this site.";
+const articleGlob = import.meta.glob<{ frontmatter: Record<string, unknown> }>("../content/*/article.{md,mdx}", { eager: true });
+const articles = await parseArticleGlob(articleGlob, await getAllArticleBundleLastModifiedIso());
+const order: ContentType[] = ["analysis", "learning", "topics", "reports"];
 ---
-<BaseLayout
-  pageTitle={pageTitle}
-  description={description}
-  contentClass="site-page--blog"
->
-  <p class="site-lead">
-    Notes, tutorials, and longer-form writing. 
-    <a href="/browse">Search and filter by tags or category →</a>
-  </p>
-
-  {
-    articles.length === 0 ? (
-      <p>No posts yet. Add a folder under <code>src/content/</code> with an <code>article.md</code> or <code>article.mdx</code>.</p>
-    ) : (
-      <section aria-labelledby="posts-heading">
-        <h2 id="posts-heading">All posts</h2>
-        <ul class="article-index">
-          {articles.map(
-            ({
-              url,
-              title,
-              displayDate,
-              description: desc,
-              categories,
-              tags,
-            }) => (
-              <li class="article-index__item">
-                {categories ? (
-                  <a class="article-index__category" href={browseCategoryHref(categories)}>
-                    {categories}
-                  </a>
-                ) : null}
-                <a class="article-index__link" href={url}>
-                  {title}
-                </a>
-                {displayDate ? (
-                  <span class="article-index__meta">{displayDate}</span>
-                ) : null}
-                {desc ? <p class="article-index__desc">{desc}</p> : null}
-                {tags.length > 0 ? (
-                  <div class="article-index__tags">
-                    {tags.map((t) => (
-                      <a class="article-index__tag" href={browseTagHref(t)}>
-                        {t}
-                      </a>
-                    ))}
-                  </div>
-                ) : null}
-              </li>
-            ),
-          )}
-        </ul>
-      </section>
-    )
-  }
+<BaseLayout pageTitle="Articles" description="Explore LLM tutorials, technical reports, topic overviews, and deep dives." contentClass="site-page--blog" lang="en">
+  <p class="site-lead">From foundational knowledge to independent analysis. Choose a reading path.</p>
+  <ContentCollections articles={articles} />
+  <div class="index-tools"><span>{articles.length} articles · Ordered by readiness, then most recently updated</span><a href="/browse">Search & Filter →</a></div>
+  <CompletionLegend />
+  {order.map(type => {
+    const rows = sortByCompletion(articles.filter(a => a.contentType === type));
+    return <section aria-labelledby={`heading-${type}`}>
+      <h2 id={`heading-${type}`}>{CONTENT_TYPES[type].label} <span class="section-count">{rows.length}</span></h2>
+      <p class="section-intro">{CONTENT_TYPES[type].description} <a href={collectionHref(type)}>View Collection →</a></p>
+      <ArticleList articles={rows} />
+    </section>;
+  })}
 </BaseLayout>

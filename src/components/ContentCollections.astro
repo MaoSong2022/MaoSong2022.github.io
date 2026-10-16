@@ -1,0 +1,16 @@
+---
+import { CONTENT_TYPES, collectionHref, type ContentType } from "../data/article-editorial";
+import type { SiteArticleEntry } from "../utils/site-articles";
+interface Props { articles: SiteArticleEntry[]; current?: ContentType }
+const { articles, current } = Astro.props;
+const types = Object.keys(CONTENT_TYPES) as ContentType[];
+---
+<nav class="content-collections" aria-label="Browse by content type">
+  {types.map((type, i) => (
+    <a class="collection-card" href={collectionHref(type)} aria-current={current === type ? "page" : undefined}>
+      <span class="collection-card__number">{articles.filter(a => a.contentType === type).length} articles</span>
+      <strong>{CONTENT_TYPES[type].label} <span aria-hidden="true">↗</span></strong>
+      <span>{CONTENT_TYPES[type].description}</span>
+    </a>
+  ))}
+</nav>

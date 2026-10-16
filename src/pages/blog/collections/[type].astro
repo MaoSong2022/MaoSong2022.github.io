@@ -1,0 +1,24 @@
+---
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import ArticleList from "../../../components/ArticleList.astro";
+import ContentCollections from "../../../components/ContentCollections.astro";
+import CompletionLegend from "../../../components/CompletionLegend.astro";
+import { CONTENT_TYPES, type ContentType } from "../../../data/article-editorial";
+import { parseArticleGlob, sortByCompletion } from "../../../utils/site-articles";
+import { getAllArticleBundleLastModifiedIso } from "../../../utils/article-modified";
+export function getStaticPaths() {
+  return Object.keys(CONTENT_TYPES).map(type => ({ params: { type } }));
+}
+const type = Astro.params.type as ContentType;
+const collection = CONTENT_TYPES[type];
+const articleGlob = import.meta.glob<{ frontmatter: Record<string, unknown> }>("../../../content/*/article.{md,mdx}", { eager: true });
+const articles = await parseArticleGlob(articleGlob, await getAllArticleBundleLastModifiedIso());
+const rows = sortByCompletion(articles.filter(a => a.contentType === type));
+---
+<BaseLayout pageTitle={collection.label} description={collection.description} contentClass="site-page--blog" lang="en">
+  <p class="site-lead">{collection.description}</p>
+  <ContentCollections articles={articles} current={type} />
+  <div class="index-tools"><span>{rows.length} articles · Ready to Read first</span><a href={`/browse?type=${type}`}>Filter by Status →</a><a href="/blog">All Articles →</a></div>
+  <CompletionLegend />
+  <ArticleList articles={rows} />
+</BaseLayout>
