@@ -17,13 +17,13 @@ Kimi-k2 是一个总参数为 1T, 激活参数为 32B 的 MoE 大语言模型，
 
 基于这个目标，作者就提出了 Kimi K2, 一个 1.04T 总参数，32B 激活参数的 MoE 模型，用于解决实现 agent Intelligence 中遇到的问题。作者主要进行了三点改进：
 
-1. MuonClip, 一个基于 [Muon](/p/notes-on-moonlight/) 的优化算法，来提高 Kimi K2 对 token 的利用效率以及提高训练的稳定性
+1. MuonClip, 一个基于 [Muon](/blog/optimizer/#moonlight) 的优化算法，来提高 Kimi K2 对 token 的利用效率以及提高训练的稳定性
 2. 大规模的 agentic 数据合成 pipeline: 作者构建了一个用于合成工具调用，agent 数据的 pipeline
 3. 通用的 RL 框架，作者将 RLVR 和 self-critic rubric reward mechanism 结合起来，用于提升模型的表现
 
 ### Architecture
 
-Kimi-K2 的架构与 [DeepSeek-V3](/p/notes-on-deepseek-v3/) 相似，配置如下表所示
+Kimi-K2 的架构与 [DeepSeek-V3](/blog/deepseek-series/#deepseek-v3) 相似，配置如下表所示
 
 | 指标                     | DeepSeek-V3   | Kimi K2        | $\Delta$          |
 | ------------------------ | ------------- | -------------- | ----------------- |
@@ -72,7 +72,7 @@ $$
 
 Kimi-K2 主要强调了 token efficiency, 即每个 token 对模型表现提升的贡献。token efficiency 越高，说明每个 token 对最终模型的贡献也就越高
 
-相比于 [Kimi-k1.5](/p/notes-on-kimi-k1.5/), Kimi-K2 使用了一个 rephrasing pipeline, 来提高高质量 token 的利用率，作者在 knowledge 和 mathematics domain 上进行了实验。
+相比于 [Kimi-k1.5](/blog/kimi/#kimi-k15), Kimi-K2 使用了一个 rephrasing pipeline, 来提高高质量 token 的利用率，作者在 knowledge 和 mathematics domain 上进行了实验。
 
 最终，Kimi-K2 的预训练数据包括了 **15.5T** token, 主要覆盖 Web text, code, mathmatics 以及 Knowledge 四个 domain. 大部分的数据处理与 Kimi-k1.5 相同。
 
@@ -170,7 +170,7 @@ Kimi-k2 使用了 16-way 的 PP, 16-way 的 EP 以及 ZeRO-1 Data Parallelism. �
 
 <Image src={kimi_k2_communication_computation} alt="Kimi-K2 parallelism" />
 
-作者发现通过增加 warm-up mircro-batches, 我们可以有效重叠 EP 的 all-to-all communication 以及 computation. 但是，对于 [[DualPipe]], 其要求双倍的存储来保存参数和梯度，并且提高 PP 粒度会引入更多的 bubble, 因此 Kimi-K2 没有使用 DualPipe.
+作者发现通过增加 warm-up mircro-batches, 我们可以有效重叠 EP 的 all-to-all communication 以及 computation. 但是，对于 [DualPipe](/blog/parallelism/#dualpipe), 其要求双倍的存储来保存参数和梯度，并且提高 PP 粒度会引入更多的 bubble, 因此 Kimi-K2 没有使用 DualPipe.
 
 为了减少 [[1F1B]] 的 PP 通信开销，作者在反向传播的过程中同时进行 PP 通信，来进一步重合通信与计算。
 
@@ -186,7 +186,7 @@ Kimi-k2 使用了 16-way 的 PP, 16-way 的 EP 以及 ZeRO-1 Data Parallelism. �
 
 模型上下文长度为 4096, 使用 MuonClip 进行优化，使用 WSD lr Scheduler.weight decay 为 0.1, global batch size 为 67M tokens.
 
-预训练结束之后，作者加入了一个 long-context activation stage. 这个阶段，作者使用了 400B 的 4K 上下文的 token 和 60B 的 32K 上下文的 60B token. 最后作者使用 [YARN](/p/notes-on-yarn/) 将模型上下文长度扩展到 128K.
+预训练结束之后，作者加入了一个 long-context activation stage. 这个阶段，作者使用了 400B 的 4K 上下文的 token 和 60B 的 32K 上下文的 60B token. 最后作者使用 [YARN](/blog/long-context/#yarn) 将模型上下文长度扩展到 128K.
 
 ### SFT
 

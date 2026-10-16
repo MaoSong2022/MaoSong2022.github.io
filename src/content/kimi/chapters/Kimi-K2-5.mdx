@@ -17,14 +17,14 @@ Kimi-K2.5 的核心有亮点：
 
 Kimi K2.5 是一个标准的 ViT-MLP-LLM 架构，其中
 
-1. ViT, 基于 [Kimi-VL](Kimi-VL.md) 提出的 MoonViT, 并进行了改进, 参数量为 400M
+1. ViT, 基于 [Kimi-VL](https://arxiv.org/abs/2504.07491) 提出的 MoonViT, 并进行了改进, 参数量为 400M
 2. MLP, 基于 patch merger,
-3. LLM, 基于 [Kimi-k2](/p/notes-on-kimi-k2/), 参数量为 1.02T-A32B
+3. LLM, 基于 [Kimi-k2](/blog/kimi/#kimi-k2), 参数量为 1.02T-A32B
 
 **ViT**
-作者使用了 [Kimi-VL](Kimi-VL.md) 提出的 MoonViT, MoonViT 基于 [SigLIP](SigLIP.md) 提出的 SigLIP-SO-400M 开发得到，MoonViT 使用了 [NaViT](NaViT.md) 来避免切分图片和使用不同精度图片进行训练。
+作者使用了 [Kimi-VL](https://arxiv.org/abs/2504.07491) 提出的 MoonViT, MoonViT 基于 [SigLIP](/blog/visual-foundation-model/#siglip) 提出的 SigLIP-SO-400M 开发得到，MoonViT 使用了 [NaViT](https://arxiv.org/abs/2307.06304) 来避免切分图片和使用不同精度图片进行训练。
 
-在 MoonViT 的基础上，Kimi-K2.5 还进一步提出了 MoonViT-3D, 将 [NaViT](NaViT.md) 的思想扩展到了 3D 用于提高模型的视频理解能力，具体做法为将连续 4 帧的视频展开为 1D sequence, 这样在图像上的注意力机制就可以无缝衔接到视频上了。并且，通过这种方式，我们可以让模型关注跨帧的信息（注意力在 4 帧的 token 之间进行），简化代码如下所示
+在 MoonViT 的基础上，Kimi-K2.5 还进一步提出了 MoonViT-3D, 将 [NaViT](https://arxiv.org/abs/2307.06304) 的思想扩展到了 3D 用于提高模型的视频理解能力，具体做法为将连续 4 帧的视频展开为 1D sequence, 这样在图像上的注意力机制就可以无缝衔接到视频上了。并且，通过这种方式，我们可以让模型关注跨帧的信息（注意力在 4 帧的 token 之间进行），简化代码如下所示
 
 ```python
 # config.json temporal_merge_kernel_size
@@ -77,7 +77,7 @@ def tpool_patch_merger(
 MLP 使用了 PatchMerger, 用于减少视觉 token 个数，这个方案在之前的 Qwen-VL 系列里已经得到了应用。
 
 **LLM**
-LLM 基于 [Kimi-k2](/p/notes-on-kimi-k2/) 的 MoE 模型，总参数为 1T, 激活参数为 32B
+LLM 基于 [Kimi-k2](/blog/kimi/#kimi-k2) 的 MoE 模型，总参数为 1T, 激活参数为 32B
 
 ### Data
 
@@ -87,16 +87,16 @@ LLM 基于 [Kimi-k2](/p/notes-on-kimi-k2/) 的 MoE 模型，总参数为 1T, 激
 
 1. ViT-training: 单独训练 ViT, 实际用了 image caption, grounding, ocr, video 等数据进行训练，训练方式采用了类似 InternVL 的方式，即通过 cross entropy loss 来与一个清凉话的 LLM 进行对齐，这个阶段训练使用了 1T token, 然后作者使用了一个非常短的 stage 来更新 MLP 用于对齐 ViT 和 Kimi-K2
 2. Joint pre-training: 训练所有参数，长下文长度为 4K, 使用了 15T token. 这里主要强调了提升代码数据的比例
-3. Long context mid-training: 使用 [YARN](/p/notes-on-yarn/) 来提高模型的上下文长度
+3. Long context mid-training: 使用 [YARN](/blog/long-context/#yarn) 来提高模型的上下文长度
 
 最终预训练阶段 recipe 如下所示
 
 <Image src={kimi_k2_5_pre_training} alt="Pre-training recipe of Kimi-K2.5" />
 
 **Native Multimodal pre-training**
-在 Joint pre-training stage, Kimi-K2.5 还采用了一个与 [InternVL3](InternVL3.md) 类似的策略，即在预训练一开始直接使用多模态数据进行预训练。
+在 Joint pre-training stage, Kimi-K2.5 还采用了一个与 [InternVL3](https://arxiv.org/abs/2504.10479) 类似的策略，即在预训练一开始直接使用多模态数据进行预训练。
 
-传统的多模态大模型往往基于一个比较成熟的 LLM backbone 来完成多模态大模型的训练，但是其问题在于成熟的 LLM 其表示空间会收敛到语言模态上，多模态信息的迁移能力比较差。[InternVL3](InternVL3.md) 虽然也是 native multimodal pre-training, 但是其仍然依赖于成熟的 LLM. Kimi K2.5 则是使用预训练阶段的 Kimi K2 作为 backbone 来避免表示空间的塌缩，在训练一开始即直接加入少量多模态数据来保持模型的多模态能力。
+传统的多模态大模型往往基于一个比较成熟的 LLM backbone 来完成多模态大模型的训练，但是其问题在于成熟的 LLM 其表示空间会收敛到语言模态上，多模态信息的迁移能力比较差。[InternVL3](https://arxiv.org/abs/2504.10479) 虽然也是 native multimodal pre-training, 但是其仍然依赖于成熟的 LLM. Kimi K2.5 则是使用预训练阶段的 Kimi K2 作为 backbone 来避免表示空间的塌缩，在训练一开始即直接加入少量多模态数据来保持模型的多模态能力。
 
 作者探究了预训练阶段不同的数据对比，试验结果如下图所示
 
@@ -117,17 +117,17 @@ Post-training 分为了 SFT 和 RL, SFT 阶段作者使用了合成的高质量�
   alt="Performance of Vision RL on zero-vision SFT"
 />
 
-在 RL 阶段，作者基于 [Kimi-k1.5](/p/notes-on-kimi-k1.5/) 提出的策略优化算法加入了一个 token-level clipping 机制来减少 off-policy divergence, 目标函数如下所示
+在 RL 阶段，作者基于 [Kimi-k1.5](/blog/kimi/#kimi-k15) 提出的策略优化算法加入了一个 token-level clipping 机制来减少 off-policy divergence, 目标函数如下所示
 
 $$
 \mathcal{L}(\theta)=\mathbb{E}_{x\sim\mathcal{D}}\left[\frac{1}{N}\sum_{j=1}^k\sum_{i=1}^{|y_i|}\mathrm{clip}\left(\log\frac{\pi_{\theta}(y_j^i\mid x, y_{j}^{0:i})}{\pi_{\mathrm{old}}(y_j^i\mid x, y_{j}^{0:i})},\alpha,\beta\right)(r(x, y_j) - \bar{r}(x)) - \tau\left(\log\frac{\pi_{\theta}(y_j^i\mid x, y_{j}^{0:i})}{\pi_{\mathrm{old}}(y_j^i\mid x, y_{j}^{0:i})}\right)^2\right]
 $$
 
-其中 $k$ 是针对每个回答 $x$ 的采样次数，$N=\sum_{j=1}^k|y_j|$ 是一个 batch 里总的 token 个数， $\alpha,\beta,\tau$ 为超参数，$\bar{r}(x)$ 是对 normalization 的估计，这里采用了 Kimi-K1.5 的 mean reward, 即 $\bar{r}(x)=1/k\sum_{j=1}^Kr(x,y_j)$. 这里的 clipping 机制与 PPO 不同的地方在于针对 log-ratio 进行 clipping, 而不依赖于 advantage 的计算。最终训练时使用了 [Moonlight](/p/notes-on-moonlight/) 的 MuonClip 算法
+其中 $k$ 是针对每个回答 $x$ 的采样次数，$N=\sum_{j=1}^k|y_j|$ 是一个 batch 里总的 token 个数， $\alpha,\beta,\tau$ 为超参数，$\bar{r}(x)$ 是对 normalization 的估计，这里采用了 Kimi-K1.5 的 mean reward, 即 $\bar{r}(x)=1/k\sum_{j=1}^Kr(x,y_j)$. 这里的 clipping 机制与 PPO 不同的地方在于针对 log-ratio 进行 clipping, 而不依赖于 advantage 的计算。最终训练时使用了 [Moonlight](/blog/optimizer/#moonlight) 的 MuonClip 算法
 
 对于 reward 的设计，Kimi-k2.5 也使用了基于规则和基于 reward model 的方式，前者针对答案可验证的任务，后者针对开放式的任务。
 
-作者还构建了 length penalty 来提高模型的推理效率，作者发现 [Kimi-k1.5](/p/notes-on-kimi-k1.5/) 和 [Kimi-k2](/p/notes-on-kimi-k2/) 中的 length penalty 虽然可以生成更准确的 reasoning chain, 但是其很难泛化到更高的算力. 为了解决这个问题，作者提出了 **Toggle** 策略，即在 inference-time scaling 和 budget-constrained optimization 两种模式之间进行切换优化，对应的 reward 定义为
+作者还构建了 length penalty 来提高模型的推理效率，作者发现 [Kimi-k1.5](/blog/kimi/#kimi-k15) 和 [Kimi-k2](/blog/kimi/#kimi-k2) 中的 length penalty 虽然可以生成更准确的 reasoning chain, 但是其很难泛化到更高的算力. 为了解决这个问题，作者提出了 **Toggle** 策略，即在 inference-time scaling 和 budget-constrained optimization 两种模式之间进行切换优化，对应的 reward 定义为
 
 $$
 \tilde{r}(x,y) = \begin{cases}
@@ -191,7 +191,7 @@ $$
 
 ### Infra
 
-Kimi-k2.5 的 infra 基于 [Kimi-k2](/p/notes-on-kimi-k2/), 作者主要强调了 decouple encoder process (DEP) 这一改进。之前的工作将 vision encoder 和 text embedding 都做为 PP 的第一个 stage, 但是由于 vision encoder 对不同输入的处理时间不同，这个 stage 的算历和内存分配随输入变化比较大。为了解决这个问题，作者提出了 DEP, 包含三个 stage 来提高训练效率:
+Kimi-k2.5 的 infra 基于 [Kimi-k2](/blog/kimi/#kimi-k2), 作者主要强调了 decouple encoder process (DEP) 这一改进。之前的工作将 vision encoder 和 text embedding 都做为 PP 的第一个 stage, 但是由于 vision encoder 对不同输入的处理时间不同，这个 stage 的算历和内存分配随输入变化比较大。为了解决这个问题，作者提出了 DEP, 包含三个 stage 来提高训练效率:
 
 1. balanced vision forward: 由于 vision encoder 比较小 (400M), 因此作者将 vision encoder 复制到所有 GPU 上，然后根据负载来将 visual data 分配到不同的 GPU 上进行处理，这个阶段不保存中间激活值，处理完毕之后所有的结果作为 PP Stage0 的输入
 2. backbone training: 正常进行训练，与 LLM 的训练优化一致
@@ -283,6 +283,6 @@ Kimi-k2.5 的 infra 基于 [Kimi-k2](/p/notes-on-kimi-k2/), 作者主要强调�
 
 从结果可以看出，Kimi-K2.5 的 agent 能力达到了 SOTA 级别，其多模态能力也比较强。
 
-与 [DeepSeek-V3.2](/p/notes-on-deepseek-v3.2/) 一样，作者也对比了不同模型的推理效率，结果如下图所示
+与 [DeepSeek-V3.2](/blog/deepseek-series/#deepseek-v-32) 一样，作者也对比了不同模型的推理效率，结果如下图所示
 
 可以看到，相比与 Kimi-K2, Kimi-K2.5 通过在 RL 层面进行优化，降低了输出长度，但是相比与 DeepSeel-V3.2 和 Gemini3.0 Pro 之间还存在一定差距。
