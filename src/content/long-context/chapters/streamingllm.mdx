@@ -9,34 +9,13 @@ import attention_sink_pre_training_sink_token from '../../../assets/image/attent
 import attention_sink_visualization_attention_logits from '../../../assets/image/attention_sink-visualization-attention-logits.png';
 import attention_sink_arc_performance from '../../../assets/image/attention_sink-ARC-performance.png';
 
-作者提出了 StreamingLLM [@StreamingLLM], 一个基于 attention sink 来提高 sliding window attention 在超长上下文场景下表现的方法。
+### StreamingLLM：固定缓存下的持续推理
 
-## Introduction
+StreamingLLM [@StreamingLLM] 处理的是流式推理中的缓存问题：当输入持续到来，如何在固定大小的 KV cache 下保持语言建模稳定？它保留少量初始 token 作为 attention sink，同时缓存最近的 token。
 
-已有的基于 softmax attention 的架构的问题在于很难扩展到长上下文的场景，主要原因有两点：
+这里需要区分两个目标：YaRN 等方案扩展一次注意力计算可利用的位置范围；StreamingLLM 则通过淘汰历史来控制成本。持续运行的总长度可以很长，但模型只能直接访问保留下来的历史。
 
-1. KV cache 会随着序列长度增加而商城，从而提高 decoding 的 latency
-2. 序列长度超过预训练的 context length 之后，模型表现会急剧下降
-
-为了解决这个问题，已有的方法可以分为三类：
-
-1. length extrapolation: 使用 RoPE 或者 AliBi 等方法来扩展 LLM 的 context length, 这类方法的问题是扩展的上下文长度仍然有限，对于 streaming 的场景作用有限
-2. context window attention: 扩展 LLM 的上下文长度，如 flash attention [@FlashAttention] 等来降低 attention 的计算和内存开销。这类方法也是只在有限的上下文场景下 work
-3. Improving LLMs’ Utilization of Long Text: 更好利用长上下文的数据
-
-基于已有的工作的发现，作者提出了本文研究的核心问题：
-
-> 如何在不损失模型表现和效率的情况下，提高模型在无限长上下文场景下的表现。
-
-为了解决这个问题，作者首先分析了 sliding window attention 的不足，作者发现，sliding window attention 在超过 KV cache size 之后，表现也会急剧下降。作者通过实验发现，sliding window attention 表现急剧下降的原因在于 **attention sink**, 也就是模型损失了对于初始 token 的关注，从而导致模型表现下降。
-
-基于 attention sink, 作者设计了 StreamingLLM, 用于提高 sliding window attention 在长上下文场景下的表现，结果发现，模型的表现有了大幅度的提升。
-
-作者还进一步在预训练阶段加入了 sink token 充当初始 token, 进一步提高模型的表现。
-
-## Method
-
-### Attention Sink
+#### Attention sink：为什么只保留滑动窗口还不够
 
 作者首先探究了一下 softmax attention 以及 sliding window attention 性能下降的节点，实验结果如下图所示
 
@@ -72,20 +51,23 @@ import attention_sink_arc_performance from '../../../assets/image/attention_sink
 | Cache Config | 0+4096  | 1+4095 | 2+4094 | 4+4092 | 8+4088 |
 | Llama-2-7B   | 3359.95 | 11.88  | 10.51  | 9.59   | 9.54   |
 
-可以看到，不同的模型架构都存在这个问题，这说明 sliding window attention 的影响与架构无关。并且，作者认为，使用初始 4 个 token 就可以有效的避免模型的性能下降，进一步增加初始 token 的数量不会有进一步提升。
+可以看到，不同的模型架构都存在这个问题，说明这个现象出现在论文评估的多种架构上。在这些实验中，保留 4 个初始 token 已能恢复大部分性能，继续增加数量的收益较小。
 
-作者分析 attention sink 出现的原因在于，
+作者把这个现象与 softmax 归一化联系起来：注意力权重之和必须为 1，即使当前 query 不需要从历史中提取很多信息，也需要给某些位置分配权重。因果注意力中的初始 token 对后续位置一直可见，容易成为这样的 sink；高注意力权重不必意味着语义重要。
 
-1. 初始的 token 对于后续所有的 token 都是可见的，因此其会携带一些信息
-2. 在预训练阶段，模型并没有一个一致的初始 token 来标注起始信息，这导致模型会默认使用第一个 token 来储存一些信息。
+#### 保留初始 token 与最近窗口
 
 为了解决这个问题，作者就提出了缓存初始 token 的方法，具体做法就是，在 sliding window attention 的基础上，我们还会加上初始 token 的信息，作者展示示意图如下所示
 
-<Image src={attention_sink_kv_cache_rolling} alt="Rolling KV cache of StramingLLM" />
+<Image src={attention_sink_kv_cache_rolling} alt="Rolling KV cache of StreamingLLM" />
 
-也就是说，我们初始 token 始终会参与计算（论文中初始 token 数量为 4），然后我们会维持一个大小为 3 的 KV cache 队列来进行最终 sliding window attention 的计算，这样，每次计算 attention 的时候，我们就会使用 $\# \text{iniital token} + \# \text{sliding window token}$ 这么多的 token 来计算 attention. 作者对比了不同 attention 的计算方式，如下图所示
+设初始 token 数量为 $a$，最近窗口大小为 $w$，每一步最多缓存 $a+w$ 个 token 的 KV。图中的 4 个初始 token 与 3 个最近 token 是示意配置，实际窗口应按任务设置。处理新 token 时保留初始部分、淘汰最近窗口中最旧的部分，并按缓存内的相对位置处理 RoPE，避免位置编号随流长度无限增大。
+
+作者对比了不同 attention 的计算方式：
 
 <Image src={attention_sink_illustration_streamingllm} alt="Illustration of StreamingLLM" />
+
+#### 训练阶段的 learnable sink
 
 前面是在 inference 阶段进行优化的，作者现在进一步探究在 pre-training 阶段加入 attention sink 参与训练对模型表现的影响。
 
@@ -107,21 +89,21 @@ $$
 
 可以看到 zero sink 仍然需要一部分初始 token 来维持模型的表现。作者在论文中推荐使用 learnable sink.
 
-## Experiments
+#### StreamingLLM 的实验结果
 
-作者首先验证了 StreamlingLLM 在不同架构上的表现，结果如下图所示
+作者首先验证了 StreamingLLM 在不同架构上的表现，结果如下图所示
 
 <Image src={attention_sink_preplexsity_4m_tokens} alt="Perplexity of StreamingLLM on 4M tokens" />
 
-实验结果显示，StreamingLLM 可以扩展到 4M 的上下文
+实验结果显示，StreamingLLM 能在总长度达到 4M token 的流上维持稳定的语言建模表现。这里的 4M 是累计处理长度，不是可同时检索的上下文窗口。
 
-接下来，作者探究了以下在 Pretraining 阶段加入 learnable sink token 对模型表现的影响，结果如下图所示
+接下来，作者探究了在 Pretraining 阶段加入 learnable sink token 对模型表现的影响，结果如下图所示
 
 <Image src={attention_sink_pre_training_sink_token} alt="Pre-training loss curves of models w/ sink tokens" />
 
 可以看到，加入 sink token 之后对模型的表现没有显著影响。并且，模型在下游任务上的表现与标准的 softmax attention 表现差不多。
 
-作者还对 StreamlingLLM 进行了可视化，结果如下图所示
+作者还对 StreamingLLM 进行了可视化，结果如下图所示
 
 <Image src={attention_sink_visualization_attention_logits} alt="Visualization of attention logits with StreamingLLM" />
 
@@ -131,10 +113,10 @@ $$
 
 可以看到，full attention 出现了 OOM error, 而 sliding window attention 虽然避免了 OOM 的问题，但是其表现非常差。而 StreamingLLM 则进一步提高了 Sliding Window attention 的表现。
 
-## Conclusion
+#### StreamingLLM 的适用边界
 
-作者在本文中提出了 StreamingLLM, 一个在 Sliding window attention 中加入 sink token 来避免超过 cache size 之后模型表现急剧下降的问题。作者详细介绍了 attention sink 现象以及解决方法。
+StreamingLLM 适合主要依赖近期内容、需要持续运行的任务。它不保留已淘汰历史的完整信息，因此不能据此声称模型具备无限长记忆。需要跨整本书检索或总结时，仍然要解决历史信息如何保留和访问的问题。参见[项目 FAQ](https://github.com/mit-han-lab/streaming-llm#faq)。
 
-## References
+**延伸阅读**
 
 - [Efficient Streaming Language Models with Attention Sinks](https://openreview.net/forum?id=NG7sS51zVF)

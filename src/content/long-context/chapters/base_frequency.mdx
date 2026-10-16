@@ -4,35 +4,35 @@ import base_frequency_fine_tuning_impact from '../../../assets/image/base-freque
 import base_frequency_pre_training_stage from '../../../assets/image/base-frequency-pre-training-stage.png';
 import base_frequency_comparison_interpolation from '../../../assets/image/base-frequency-comparison-interpolation.png';
 
-## Introduction
+### RoPE base：增大基数与长距离辨别能力
 
-RoPE ABF [@RoPEABF] 提出了通过提高 base frequency 来解决 attention decay 问题
+增大 RoPE base 是上下文扩展的一条路线，ABF（Adjusted Base Frequency）[@RoPEABF] 是相关工作之一。本节的理论和实验来自另一篇论文 [Base of RoPE Bounds Context Length](https://arxiv.org/abs/2405.14591)，需要区分这两个来源。
 
-[RoPE](/blog/position-encoding/) 已经成为了大多数 LLM 使用的 position encoding 范式，但是，RoPE 与 LLM long context 之间的关系还没有被探索清楚。在本文中，作者就探究了 base frequency 与 LLM context capability 之间的关系，并给出了一个达到指定上下文长度所需要的 base frequency 的 lower bound.
+这篇论文研究 RoPE base 与有效上下文长度的关系，并在给定假设下估计目标长度所需的 base 下界。它为“模型是否真正利用远处内容”提供了补充分析视角。
 
-## Method
+#### 从注意力分数到相关 token 的辨别能力
 
 首先作者回顾了 attention 与 [RoPE](/blog/position-encoding/) 的定义， 关键就是 RoPE 这部分，如下所示
 
 $$
-A_{ij} = (R_{i,\theta}q_i)^T(R_{j,\theta}k_j) = q_i^TR_{i-j,\theta}k_j
+A_{ij} = (R_{i,\theta}q_i)^T(R_{j,\theta}k_j) = q_i^TR_{j-i,\theta}k_j
 $$
 
-这里 $\theta$ 就是 base frequency, 作者总结不同模型的 base frequency 配置如下表所示
+这里 $\theta$ 就是 base frequency, 论文记录的部分模型配置如下；这是论文发表时的具体模型版本，不能作为同名系列后续版本的配置表
 
 | Model          | Llama-7B | Llama2-7B | Llama3-8B | Mistral-7B | Baichuan2-7B |
 | -------------- | -------- | --------- | --------- | ---------- | ------------ |
 | Base frequency | 10,000   | 10,000    | 500,000   | 1,000,000  | 10,000       |
 | Context length | 2048     | 4096      | 8192      | 32,768     | 4,096        |
 
-接下来，作者回顾了 [YARN](/blog/long-context/#yarn). 其核心思想在于，预训练阶段所有可能的 $\cos(t-s)\theta_i$ 都见过，才能保证模型的 OOD 表现
+前面的 [YaRN](#yarn) 通过调整频率减轻位置外推问题。这里进一步追问：即使位置分布得到控制，模型是否仍能在远距离区分相关 token 与无关 token？
 
 作者认为 base frequency 的设置应该满足两个条件：
 
 1. **The closer token gets more attention**: 当前的 token 应该给邻近的 token 更高的注意力
 2. **The similar token gets more attention**: 当前的 token 应该给相似的 token 更高的注意力
 
-在 [RoPE](/blog/position-encoding/) 中，作者已经给出了 $A_{ij}$ 与相对距离 $|i-j|$ 之间的关系。因此第一个性质已经满足了。
+在 [RoPE](/blog/position-encoding/) 中，作者已经给出了 $A_{ij}$ 与相对距离 $|i-j|$ 之间的关系。这种衰减描述的是理论上的趋势，并不保证每一对实际 token 的注意力都随距离单调下降。
 
 接下来，作者分析了相似 token 的性质，作者定义 token 的相似性如下：
 
@@ -43,7 +43,7 @@ $$
 这里 $k^*=q+\epsilon$ 代表了相似的 token, 而 $k$ 是一个随机 token. 作者给出的结论如下
 
 **Theorem**
-假设 $q,k\in\mathbb{R}^d$ 独立同分布，它们的标准差为 $\sigma\in\mathbb{R}$, 则对于 $k^*=q+\epsilon$, $\epsilon$ 是一个随机变量满足 $\mathbb{E}[\epsilon]=0$, 则我们有
+假设 $q,k\in\mathbb{R}^d$ 的分量独立同分布，标准差为 $\sigma$，且随机 key 与 query 独立；令 $k^*=q+\epsilon$，噪声与 $q$ 独立且 $\mathbb{E}[\epsilon]=0$, 则我们有
 
 $$
 \mathbb{E}_{q,k^*}[q^TR_{m,\theta}k^*] - \mathbb{E}_{q,k}[q^TR_{m,\theta}k] = 2\sigma^2\sum_{i=0}^{d/2-1}\cos(m\theta_i)
@@ -55,15 +55,15 @@ $$
 L_\theta = \sup\{L\mid B_{m,\theta}\geq 0, \forall m\in[L]\}
 $$
 
-也就是说，base frequency 决定了 LLM 的上下文长度。作者给出了不同的上下文长度对应的 base frequency 如下表所示
+在上述假设下，base 会限制相关 token 保持期望分数优势的距离。下表是论文设置下的数值估计，依赖旋转维度与分析假设，不能直接当作所有模型的通用配置要求
 
 | Context Len. | 1k    | 2k    | 4k    | 8k    | 16k   | 32k   | 64k   | 128k  | 256k  | 512k  | 1M    |
 | ------------ | ----- | ----- | ----- | ----- | ----- | ----- | ----- | ----- | ----- | ----- | ----- |
 | Lower Bound  | 4.3e3 | 1.6e4 | 2.7e4 | 8.4e4 | 3.1e5 | 6.4e5 | 2.1e6 | 7.8e6 | 3.6e7 | 6.4e7 | 5.1e8 |
 
-总的来说，远距离衰减性保证了模型会更关注邻近的 token, 而相似 token 保证了模型能够区分出真正有意义的 token.
+这里需要同时关注两种性质：对邻近位置的偏好，以及在远距离上保持相关 token 相对于随机 token 的分数优势。二者都是分析视角，不能单独保证下游任务的准确率。
 
-## Experiments
+#### Base 的实验结果
 
 作者首先分析了 base frequency 在 fine-tuning 阶段对模型上下文能力的影响，实验结果如下图所示
 
@@ -71,7 +71,7 @@ $$
 
 从实验结果可以看到，当 base frequency 低于阈值时，模型的表现急剧下降。
 
-作者进一步探讨了 base frequency 对于模型 pre-training 阶段的影响，结果也是一样的，即非常小的 base frequency 会限制模型的 context 能力，结果下图所示 （三行分别代表了 base frequency 为 1e2, 1e4 和 1e6 的情况）
+作者进一步探讨了 base frequency 对于模型 pre-training 阶段的影响，结果也是一样的，即非常小的 base frequency 会限制模型的 context 能力，结果下图所示 （第一行是 base 为 1e2 的预训练模型，第二、三行分别是在更长序列上以 1e4、1e6 继续微调的结果）
 
 <Image src={base_frequency_pre_training_stage} alt="impact of base frequency on pre-training stage" />
 
@@ -85,10 +85,10 @@ $$
 
 实验结果说明，Interpolation 在上下文超过 30K 之后，其 $B_{m,\theta}\leq0$ 的 次数显著增加，表明了其和上下文能力之间的关系。
 
-## Conclusion
+#### Base 分析的适用边界
 
-作者在本文中，探究了 RoPE 中 base frequency 与 LLM 上下文能力之间的关系，发现了提高模型的上下文能力需要关注 RoPE 的 base frequency 超参数，并给出了对应的 lower bound. 作者通过实验验证了这个观点。
+这项工作的启发是：位置分布是否越界与远距离信息是否可辨别，需要分别检查。论文也指出，多层网络可能提取超过单层分析范围的信息，因此这个 lower bound 不是完整 LLM 的严格能力上限。增大 base 应与训练长度、数据和检索评估一起考虑。
 
-## References
+**延伸阅读**
 
 - [arxiv](http://arxiv.org/abs/2405.14591)

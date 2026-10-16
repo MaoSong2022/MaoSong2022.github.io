@@ -1,11 +1,11 @@
 ---
-title: "Overview of Long Context capabilities"
+title: "Long Context：问题、解决方法、主流方案与现状"
 authors:
   -
     name: "Mao Song"
     url: "https://maosong.website/"
 published: "2025-07-03 14:40:49+0800"
-modified: "2025-07-15 16:36:09+0800"
+modified: "2026-10-16 00:00:00+0800"
 tags:
   - "Long Context"
   - "position encoding"
@@ -21,6 +21,32 @@ import Yarn from './chapters/Yarn.mdx';
 import BaseFrequency from './chapters/base_frequency.mdx';
 import Streamingllm from './chapters/streamingllm.mdx';
 
+import Problems from './chapters/problems.mdx';
+import Methods from './chapters/methods.mdx';
+import Data from './chapters/data.mdx';
+import Status from './chapters/status.mdx';
+
+长上下文能力涉及三个不同的问题：模型能接收多长的输入、能从多远的位置提取信息，以及能以多大的成本持续运行。把上下文窗口从 4K 改成 128K，只改变了配置，还需要位置编码、训练数据和推理系统共同支持。
+
+本文按“问题 → 解决方法 → 主流方案 → 现状”展开：先明确长上下文的瓶颈，再建立方法分类，随后以 YaRN、RoPE base 分析和 StreamingLLM 为代表解释具体机制，最后讨论这些方案已经解决什么、还需要如何评估。文章聚焦已有笔记覆盖的位置扩展与流式推理路线。
+
+## 问题
+
+<Problems />
+
+## 解决方法
+
+<Methods />
+<Data />
+
+## 主流方案
+
+下面沿两条路线展开：YaRN 与增大 RoPE base 关注更长距离上的位置表示，StreamingLLM 关注有限缓存下的持续推理。三者的目标与评价指标不同，不能仅按宣称的 token 数量排序。
+
 <Yarn />
 <BaseFrequency />
 <Streamingllm />
+
+## 现状
+
+<Status />

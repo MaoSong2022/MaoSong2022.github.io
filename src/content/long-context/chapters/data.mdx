@@ -1,17 +1,18 @@
-## Data
+### 数据与训练：让长窗口包含真实依赖
 
-[@Harm2023longcontextrun] 分析了预训练数据中的长度分布。
+Harm de Vries 在 2023 年的 [In the long (context) run](https://www.harmdevries.com/post/context-length/) 中抽样分析了预训练数据。以下数字来自当时的数据版本和 tokenizer 设置，描述的是样本统计。[@Harm2023longcontextrun]
 
-结果发现：
+| 数据来源 | 统计结果 | 统计口径 |
+| --- | --- | --- |
+| C4 与 RefinedWeb | 超过约 95% 的文档短于 2K token | 文档数占比 |
+| RefinedWeb | 约 55% 的 token 来自短于 2K 的文档，约 80% 来自短于 8K 的文档 | token 数占比 |
+| RefinedWeb 与 C4 | 来自超过 16K 文档的 token，前者超过 12.5%，后者不到 2.5% | token 数占比 |
+| StarCoderData 中各编程语言的源码 | 超过 80% 的文件短于 3K token | 文件数占比 |
+| Wikipedia | 超过 50% 的文章长于 4K token | 文章数占比 |
+| Gutenberg 书籍 | 超过 75% 的书籍长于 16K token | 书籍数占比 |
 
-1. C4 数据集中，95% 的文档长度小于 2K. 从 token 角度看，55% 的文档 token 低于 2K tokens, 80% 的文档 token 低于 8K.
-2. RefinedWeb 数据集中，12.5% 的文档 token 超过了 16K.
-3. StarCoderData 数据集中，80% 的文档 token 低于 5K.
-4. WikiPedia 数据中， 50% 的 article 包含的 token 数超过了 4k
-5. Book 类数据中，超过 75% 的书籍包含的 token 超过了 16k
+短文档数量多，不代表长文档贡献的 token 少；反过来，单个文件很长，也不代表它包含有效的长程依赖。数据筛选需要同时考虑长度与内容关联。
 
-如何获取高质量数据：
+原文提出了几条可探索的数据构造方向：利用网页超链接组织关联文档，利用 repository metadata 组织同一代码库的文件，以及利用跨文件 commit history 组织有演化关系的代码。书籍与长文章也提供了自然连贯的样本。
 
-1. 使用 web documents 之间的 hyperlink
-2. 使用 code base 中的 repository metadata
-3. 使用 source code files 的 meta information, 比如 commit history
+这些方向的共同目标是让模型有机会学习跨片段关系。对本文讨论的上下文扩展来说，位置编码决定如何表示距离，数据和训练则决定模型是否学会利用这种距离。

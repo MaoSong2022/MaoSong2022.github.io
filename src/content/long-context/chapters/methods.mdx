@@ -1,0 +1,43 @@
+### 从瓶颈到解决方法
+
+长上下文需要同时处理位置表示、资源开销和训练信号。下表先说明方法改变了什么，再进入具体方案。
+
+| 瓶颈 | 解决方法 | 代表方案 | 仍需解决的问题 |
+| --- | --- | --- | --- |
+| 超出训练长度后位置分布发生变化 | 压缩位置坐标或调整 RoPE 频率 | PI、NTK-aware、YaRN | 短文本能力与长距离辨别能力之间的权衡 |
+| 远距离相关 token 难以区分 | 调整 RoPE base，并配合长文本训练 | 增大 base 的训练路线 | base 合适也不代表模型已经学会长程依赖 |
+| 完整注意力计算和显存开销增长 | 优化注意力的执行与访存 | FlashAttention | 保留完整注意力，计算量仍随长度平方增长 |
+| 流式推理的 KV cache 持续增长 | 限制可访问历史并保留初始 token | 滑动窗口、StreamingLLM | 被淘汰的历史无法再被直接访问 |
+| 训练样本缺少远距离关联 | 构造连贯的长样本并进行训练 | 长文档、仓库级代码、关联文档 | 样本长度不等于有效依赖长度 |
+
+这些方法可以组合。例如，位置扩展解决可表示的距离，FlashAttention 降低执行开销，长文本训练提供学习信号；是否采用滑动窗口，则取决于任务是否需要完整历史。
+
+### 理解位置扩展：RoPE、缩放比例与波长
+
+先统一后续方案使用的符号。RoPE 的完整推导参见[位置编码](/blog/position-encoding/)，这里使用 $f_{W}(x_m, m, \theta_d)$ 来表示RoPE：
+
+$$
+f_{W}(x_m, m, \theta_{d}) = \Theta_{\theta, m}^d W x_m
+$$
+
+其中 $\Theta_{\theta, m}^d\in\mathbb{R}^{d\times d}$ 是多维旋转矩阵, $\theta_d=[\theta_{0,d},\dots,\theta_{(d-2)/2,d}]\in\mathbb{R}^{d/2}$,  $\theta_{i,d}=\theta^{-2i/d}$, $\theta>0$ 是一个超参数，RoPE中设置为 $\theta=10000$,  $W\in\{W_q,W_k\}\subset\mathbb{R}^{d\times d}$ 是对应注意力头的 query/key 投影矩阵（为简化记号，假设输入维度同为 $d$）， $x\in\mathbb{R}^{d}$ 是输入的hidden states.
+
+其中 $d$ 表示旋转维度，$\theta$ 是 RoPE 的 base；$\theta_{i,d}$ 才是各维度的旋转频率。索引 $i$ 越小，频率越高、波长越短。后文还会用到两个量：
+
+**scaling factor**
+假设预训练的上下文长度为 $L$, 扩展的上下文长度为 $L'>L$, 则我们定义scaling factor 为
+
+$$
+s = \frac{L'}{L}
+$$
+
+易知 $s>1$.
+
+**wavelength**
+我们将 $\lambda_d$ 定义为 $i$-th 维的RoPE embedding对应的 wavelength：
+
+$$
+\lambda_{i,d} = \frac{2\pi}{\theta_{i,d}} = 2\pi\theta^{2i/d}, \ i=0,\dots,(d-2)/2
+$$
+
+wavelength 描述了对于第 $i$ 个二维旋转分量，RoPE旋转一周 ($2\pi$) 所需要的上下文长度。
