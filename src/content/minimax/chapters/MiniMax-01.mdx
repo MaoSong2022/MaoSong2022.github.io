@@ -16,7 +16,9 @@ import minimax_01_vl_performance from "../../../assets/image/MiniMax-01-VL-perfo
 
 ## MiniMax-01
 
-MiniMax-01 是一个基于 hybrid attention 架构的大模型系列，包含 MiniMax-Text-01 和 MiniMax-VL-01 两个模型，其中 MiniMax-Text-01 推理时支持 4M 的上下文长度，MiniMax-VL-01 支持 512B 的上下文长度
+本文记录 MiniMax-01 技术报告 [@MiniMax-01] 的阅读笔记。
+
+MiniMax-01 是一个基于 hybrid attention 架构的大模型系列，包含 MiniMax-Text-01 和 MiniMax-VL-01 两个模型，其中 MiniMax-Text-01 推理时支持 4M 的上下文长度，MiniMax-VL-01 在文本模型基础上使用 512B 视觉语言 token 继续训练
 
 现有大部分模型的上下文长度为 32K-256K, 但实际上我们对于长上下文的需求已经超过了这个范围。已有的模型主要基于 self-attention, 这是一个平方复杂度的算法。
 
@@ -49,7 +51,7 @@ MiniMax-01 是一个基于 hybrid attention 架构的大模型系列，包含 Mi
 
 1. 将 attention block 按照 8 个 block 为一组，每组里只有最后 1 个 block 使用 softmax attention, 其余 7 个 block 使用 lightning attention
 2. 使用 MoE 替换 FFN, MoE 总专家个数为 32 个，激活专家个数为 2 个
-3. softmax attention 使用了 [GQA](/p/notes-on-gqa/), 来提高内存加载效率, group size 为 8
+3. softmax attention 使用了 [GQA](/blog/attention/#grouped-query-attention-gqa), 来提高内存加载效率, group size 为 8
 4. 使用了 RoPE 作为 position embedding
 5. 使用了 RMSNorm 替换了 LayerNorm
 
@@ -83,7 +85,7 @@ $$
 这里 $f_i$ 是分配给第 $i$ 个专家的 token 比例， $P_i$ 是第 $i$ 个专家的平均 routing 概率。
 
 **Global router**
-作者还基于 [GShard](/p/gshard/) 构建了一个 global routing 策略，由于 GPU memory 限制，对于每一个 micro batch size, token 分布不仅在一个 EP group 内分布不平衡，在不同 EP group 之间可能也不平衡。因此，作者实现了一个 global token dispatching 策略。具体来说，在 token 分发到不同的 EP group 之前，作者使用 `allgather` 来计算每个专家需要处理的 token. 这样就可以基于全局信息智能分配 token, 避免某些专家过载。
+作者还基于 [GShard](https://openreview.net/forum?id=qrwe7XHTmYb) 构建了一个 global routing 策略，由于 GPU memory 限制，对于每一个 micro batch size, token 分布不仅在一个 EP group 内分布不平衡，在不同 EP group 之间可能也不平衡。因此，作者实现了一个 global token dispatching 策略。具体来说，在 token 分发到不同的 EP group 之前，作者使用 `allgather` 来计算每个专家需要处理的 token. 这样就可以基于全局信息智能分配 token, 避免某些专家过载。
 
 ### Linear Attention
 
@@ -131,7 +133,7 @@ $$
 > compute these results
 
 **Scaling law**
-作者接下来分别针对三个架构设计了 70M, 160M, 410M, 1B, 3B, 7B 系列模型，模型使用 300B token 进行训练，上下文长度为 8192, 对于每种架构，作者将 batch size 设置为 4M tokens. 与 [Chinchilla scaling law](/p/chinchilla-scaling-law/) 类似， 作者探究了以下模型的 scaling law, 结果如下图所示
+作者接下来分别针对三个架构设计了 70M, 160M, 410M, 1B, 3B, 7B 系列模型，模型使用 300B token 进行训练，上下文长度为 8192, 对于每种架构，作者将 batch size 设置为 4M tokens. 与 [Chinchilla scaling law](/blog/scaling-law/#chinchilla) 类似， 作者探究了以下模型的 scaling law, 结果如下图所示
 
 <Image src={minimax_01_scaling_law} alt="Summary of Scaling law" />
 
@@ -489,7 +491,7 @@ RL 训练包括 offline stage 以及 online stage.
 这个阶段的目的是进一步提高模型在真实场景下模型的避险。作者构建了高质量的多模态数据，包括 **44.8B** 的多模态 token, 这个阶段模型训练了一个 epoch.
 
 **Stage 4: Enhancement of Preference**
-这个阶段的目的是对齐，作者使用 [DPO](/p/notes-on-dpo/) 来训练模型，数据集包括 **40,000** 条数据。数据构建过程如下：
+这个阶段的目的是对齐，作者使用 [DPO](/blog/RLHF/#dpo) 来训练模型，数据集包括 **40,000** 条数据。数据构建过程如下：
 
 1. prompt selection: 作者基于真实用户交互数据构建了高质量的 prompt
 2. Response generation: 作者通过多次采样，然后使用 MiniMax-Text-01 来生成多样化的数据
