@@ -12,11 +12,11 @@
 
 ### Architecture
 
-架构参考了 DeepSeek-MoE [@DeepSeekMoE]
+架构参考了 DeepSeek-MoE [@DeepSeek-MoE]
 
 - Attention: multi head attention [@vaswani2017attention], QK-Norm[@QK-Norm]
 - FFN: MoE 架构，128 个 experts，激活 8 个 experts，其中 2 个为 shared experts，6 个为 routed experts. gating layer 采用了 FP32 防止出现数值不稳定性
-- Load Balancing：与 DeepSeek-V3 [@DeepSeek-V3] 一样，采用了 auxiliary-loss-free approach. 另外还增加了一个 sequence-wise balance loss 来避免 sequence 内部的不平衡
+- Load Balancing：与 [DeepSeek-V3](/blog/deepseek-series/#deepseek-v3) [@DeepSeek-V3] 一样，采用了 auxiliary-loss-free approach. 另外还增加了一个 sequence-wise balance loss 来避免 sequence 内部的不平衡
 - 包含 62 layers，第一个 layer 使用了 Dense FFN，后面使用的是 MoE
 
 ### Data
