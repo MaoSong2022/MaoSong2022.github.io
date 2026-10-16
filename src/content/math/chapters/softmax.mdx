@@ -167,7 +167,7 @@ plt.show()
 
 可以看到，当 variance 比较小的时候，输出的分布接近于均匀分布，而 variance 越大，输出的分布越接近 One-hot 分布。
 
-在 attention 的计算过程中，我们也有 softmax 函数，为了在 softmax 过程中避免 variance 的影响，现在会在计算 softmax 之前加入 normalization layer 来提前进行归一化。见 [QK-norm](/p/notes-on-qk-norm/).
+在 attention 的计算过程中，我们也有 softmax 函数，为了在 softmax 过程中避免 variance 的影响，现在会在计算 softmax 之前加入 normalization layer 来提前进行归一化。见 [QK-norm](/blog/attention/#qk-norm).
 
 ### Algorithms
 
