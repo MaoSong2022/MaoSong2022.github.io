@@ -1,20 +1,20 @@
 
 ## Qwen2
 
-2024 年 9 月 Qwen 发布了 Qwen2 [Qwen2] 系列技术报告，Qwen2 系列包括 4 个 dense 模型（0.5B, 1.5B, 7B, 72B）和一个 MoE 模型（总参数 57B，激活参数 14B），作者主要在架构，数据和长上下文上进行了改进。
+2024 年 7 月 Qwen 发布了 Qwen2 [@Qwen2] 系列技术报告，Qwen2 系列包括 4 个 dense 模型（0.5B, 1.5B, 7B, 72B）和一个 MoE 模型（总参数 57B，激活参数 14B），作者主要在架构，数据和长上下文上进行了改进。
 
 ### Architecture
 
-对于 dense 模型，Qwen2 在 [Qwen-LLM](/p/notes-on-qwen-llm/) 的基础上做了如下改动：
+对于 dense 模型，Qwen2 在 [Qwen-LLM](/blog/Qwen-series/#qwen-llm) 的基础上做了如下改动：
 
-1. 使用 [Group Query Attention (GQA)](/p/notes-on-gqa/) 替换 MHA，来优化 KV cache，提高 throughput
-2. 使用 [Dual Chunk Attention](/p/dual-chunk-attention/) 和 [YARN](/p/notes-on-yarn/) 来提高模型上下文长度和训练效率
+1. 使用 [Group Query Attention (GQA)](/blog/attention/#grouped-query-attention-gqa) 替换 MHA，来优化 KV cache，提高 throughput
+2. 使用 [Dual Chunk Attention](/blog/attention/#dual-chunk-attention-dca) 和 [YARN](/blog/long-context/#yarn) 来提高模型上下文长度和训练效率
 
 其余与 Qwen 一致，包括 SwiGLU，RoPE，RMSNorm 和 pre-normalization
 
-对于 MoE 模型，Qwen2-MoE 基于 [Qwen1.5](/p/dual-chunk-attention/) 进行了改进，主要是 3 点：
+对于 MoE 模型，Qwen2-MoE 基于 [Qwen1.5](/blog/Qwen-series/#qwen15-moe) 进行了改进，主要是 3 点：
 
-1. 作者使用了更细粒度的专家个数，作者认为细粒度的专家可以提供更丰富的 combination，这一点与 [olmoe](/p/notes-on-olmoe/) 的结论相同
+1. 作者使用了更细粒度的专家个数，作者认为细粒度的专家可以提供更丰富的 combination，这一点与 [olmoe](/blog/olmo/#olmoe) 的结论相同
 2. 与 DeepSeek-MoE 一样，作者使用了共享专家和路由专家
 3. 作者使用了类似 upcycling 的方法来初始化模型。假设一共有 $n$ 个专家，每个专家的维度为 $h_E$, 原始 dense 模型的维度为 $h_{FFN}$, 那么我们会把 dense 模型的参数复制 $[nh_E/h_{FFN}]$ 次，这样就可以扩展到任意个数的 MoE 模型上。作者还对参数进行 shuffle，来提高 diversity。最后，作者还对 50% 的参数进行随机初始化，来提高模型的 capacity。
 
@@ -53,8 +53,8 @@
 
 1. 加入了更多高质量的长上下文数据
 2. 将 RoPE 的 frequency 从 10,000 提升到了 1,000,000
-3. 使用了 [YARN](/p/notes-on-yarn/) 来扩展上下文长度
-4. 使用了 [Dual Chunk Attention](/p/dual-chunk-attention/) 来优化 attention 的计算
+3. 使用了 [YARN](/blog/long-context/#yarn) 来扩展上下文长度
+4. 使用了 [Dual Chunk Attention](/blog/attention/#dual-chunk-attention-dca) 来优化 attention 的计算
 
 ### Post-training
 

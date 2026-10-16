@@ -28,21 +28,21 @@ Qwen3-Next 包含三个模型：
 | linear attention  | fast | low performance  |
 | softmax attention | slow | high performance |
 
-因此，作者的动机就是是结合 linear attention 与 softmax attention, 在局部利用 linear attention 的高效性来提高训练和推理效率，在关键部分使用 softmax attention 来提高模型的能力。 这种混合注意力机制之前也有很多模型采用，比如 [MiniMax-01](/p/notes-on-minimax-01/) 等。最终 Qwen3-Next 使用了 Gated DeltaNet+Gated Attention 的混合注意力机制，模型的 transformer layers 按照 4 个为一组，前三层使用 Gated DeltaNet, 第四层使用 Gated Attention.
+因此，作者的动机就是是结合 linear attention 与 softmax attention, 在局部利用 linear attention 的高效性来提高训练和推理效率，在关键部分使用 softmax attention 来提高模型的能力。 这种混合注意力机制之前也有很多模型采用，比如 [MiniMax-01](/blog/minimax/#minimax-01) 等。最终 Qwen3-Next 使用了 Gated DeltaNet+Gated Attention 的混合注意力机制，模型的 transformer layers 按照 4 个为一组，前三层使用 Gated DeltaNet, 第四层使用 Gated Attention.
 
 下面是一些细节：
 
-1. Gated DeltaNet 相比于 [SWA](/p/notes-on-rnope-swa/) 和 Mamba2, 其 in-context learning 能力更强
+1. Gated DeltaNet 相比于 [SWA](/blog/position-encoding/#rnope-swa) 和 Mamba2, 其 in-context learning 能力更强
 2. 对于 softmax attention:
-   1. 使用了 [Gated Attention](/p/notes-on-gated-attention/) 提出的 gating 机制来解决 massive activation 和 attention sink 问题
+   1. 使用了 [Gated Attention](/blog/attention/#gated-attention) 提出的 gating 机制来解决 massive activation 和 attention sink 问题
    2. 将 attention head 的 dimension 从 128 提高到 256
-   3. 使用了和 [DeepSeek-V3](/p/notes-on-deepseek-v3/) 类似的 partial RoPE 机制，仅对前 $25\%$ 的元素进行旋转
+   3. 使用了和 [DeepSeek-V3](/blog/deepseek-series/#deepseek-v3) 类似的 partial RoPE 机制，仅对前 $25\%$ 的元素进行旋转
 
 ### MoE
 
 - 1 个共享专家，512 个路由专家，其中激活专家个数为 10 个。
 - 对于 MoE router 的参数，作者还进行了 normalization 来保证每个专家被选择的概率相同。
-- 与 [Qwen3](/p/notes-on-qwen3/) 一致，Qwen3-Next 也是用了 [Global-batch load balancing](/p/notes-on-global-batch-load-balancing/) 策略，在保持激活专家数不变的情况下，通过提高总专家个数来降低训练损失。
+- 与 [Qwen3](/blog/Qwen-series/#qwen3) 一致，Qwen3-Next 也是用了 [Global-batch load balancing](/blog/moe/#global-batch-load-balancing-loss-strategy) 策略，在保持激活专家数不变的情况下，通过提高总专家个数来降低训练损失。
 
 ### Normalization and Training
 

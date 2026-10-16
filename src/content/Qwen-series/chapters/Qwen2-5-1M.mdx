@@ -5,13 +5,13 @@ import qwen2_5_1m_pp from "../../../assets/image/Qwen2_5_1M_PP.png";
 import qwen2_5_1m_scheduling from "../../../assets/image/Qwen2_5_1M_scheduling.png";
 import qwen2_5_1m_ruler_performance from "../../../assets/image/Qwen2_5_1M_RULER_performance.png";
 
-## Qwen2.5
+## Qwen2.5-1M
 
 Qwen 在 2025 年 1 月提出了 Qwen2.5-1M [@Qwen2.5_1M]，一个拥有 1M 上下文长度的大语言模型系列。包含 7B，14B 两个开源模型以及 API 模型 Qwen2.5-Turbo. 主要改进方法包括长上下文数据合成，渐进式预训练以及多阶段 post-training 等。作者还对 inference 进行了优化，提高了 inference 的效率。
 
 ### Architecture
 
-架构上，Qwen2.5-1M 与 [Qwen2.5](/p/notes-on-qwen2.5/) 的架构一致，Qwen2.5-1M 包括 7B，14B 两个 size，还包括一个基于 MoE 的 API 模型 Qwen2.5-Turbo，不同的点在于，Qwen2.5-1M 的上下文长度为 1M，最大生成长度为 8K
+架构上，Qwen2.5-1M 与 [Qwen2.5](/blog/Qwen-series/#qwen25) 的架构一致，Qwen2.5-1M 包括 7B，14B 两个 size，还包括一个基于 MoE 的 API 模型 Qwen2.5-Turbo，不同的点在于，Qwen2.5-1M 的上下文长度为 1M，最大生成长度为 8K
 
 ### Pretraining
 
@@ -64,7 +64,7 @@ RL 训练时，与 Qwen2.5 不一样的是，作者进使用了 offline RL，也
 
 #### Length Extrapolation
 
-与 Qwen2.5 一样，Qwen2.5-1M 也是用了 [Dual Chunk Attention](/p/dual-chunk-attention/) 和 [YARN](/p/notes-on-yarn/) 来在推理阶段扩展模型的上下文长度，作者做了如下实验，来对比 Qwen2.5, Qwen2.5-1M 加上 DCA 之后的影响
+与 Qwen2.5 一样，Qwen2.5-1M 也是用了 [Dual Chunk Attention](/blog/attention/#dual-chunk-attention-dca) 和 [YARN](/blog/long-context/#yarn) 来在推理阶段扩展模型的上下文长度，作者做了如下实验，来对比 Qwen2.5, Qwen2.5-1M 加上 DCA 之后的影响
 
 <Image src={qwen2_5_1m_dca} alt="Qwen2.5 performance of DCA" />
 

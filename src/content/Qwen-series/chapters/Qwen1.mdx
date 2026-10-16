@@ -1,7 +1,7 @@
 
 ## Qwen-LLM
 
-Qwen 在 23 年 9 月份发布了 Qwen 系列大语言模型，包括 1.8B， 7B，14B 三个 size，训练过程使用了 3T token. 作者还基于 Qwen，构建了 Code-Qwen-Chat，Math-Qwen-Chat 等系列领域大语言模型。
+Qwen 在 23 年 9 月份发布了 Qwen 系列大语言模型 [@Qwen]，包括 1.8B， 7B，14B 三个 size，训练过程使用了 3T token. 作者还基于 Qwen，构建了 Code-Qwen-Chat，Math-Qwen-Chat 等系列领域大语言模型。
 
 ### Pre-training
 
@@ -46,7 +46,7 @@ BPE tokenizer，最终的 tokenizer 大小为 152K
 2. log-N scaling
 3. window attention
 
-后续前两个统一成了 [YARN](/p/notes-on-yarn/).
+后续前两个统一成了 [YARN](/blog/long-context/#yarn).
 
 observation: lower layer 对上下文长度扩展更敏感, 因此作者动态调整了 window size
 
