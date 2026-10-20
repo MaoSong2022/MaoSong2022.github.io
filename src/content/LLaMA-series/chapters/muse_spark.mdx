@@ -1,0 +1,10 @@
+## Muse Spark
+
+[Muse Glimmer](https://huggingface.co/meta-models/Muse-Glimmer-30B) 是 Meta 在 26年8月发布的一个 30B 的 agentic model, 参数量为 29.6B
+
+attention 上， Muse Glimmer 使用了 hybrid attention 架构，local attention 为 SWA (window size = 2048), global attention 为 GQA. 模型还使用了 [gated mechanism](https://maosong.website/blog/attention/#gated-attention).
+
+[Muse Spark Open](https://huggingface.co/meta-models/Muse-Spark-Open-816B-A42B) 是 Meta 在26年10月发布的一个 816B-A42B 的多模态大模型，支持 text, image/video, audio 三种模态，模型使用了 hybrid attention 和 MoE 架构。
+attention 架构与 Muse Glimmer 一致。
+
+MoE 上，Muse Spark Open 使用了 256/8 experts.
