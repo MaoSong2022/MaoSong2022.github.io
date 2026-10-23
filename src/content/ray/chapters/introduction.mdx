@@ -1,0 +1,356 @@
+## Introduction
+
+> learning notes on [Ray Explained: From a Slow Function to a Scalable Service in 40 Minutes](https://github.com/The-Pocket/PocketFlow-Tutorial-Video-Generator/blob/main/docs/system/ray.md)
+
+ray 是一个分布式任务管理框架。
+
+首先，我们从一个具体的问题开始
+
+> 假设我们需要处理一个由图片处理的数据集，如何提高整体的处理效率？
+
+我们将从序列化处理逐步向分布式处理，来对比整体的效率提升
+
+### Naive Implementation
+
+最简单的做法就是使用 `for` 循环进行处理，代码如下
+
+```python
+todo
+```
+
+我们可以看到，
+
+### Ray task
+
+现在，我们尝试将这个数据处理任务转换为一个分布式处理任务，这就是 `ray` 起作用的地方。
+
+`Ray Task` 是提高并行化处理效率的一个方案，为了使用 `Ray Task`, 我们仅需要
+
+1. 初始化 `Ray`
+2. 将处理逻辑（一般是一个 Python 函数）使用 `@ray.remote` 来装饰
+3. 通过 `.remote` 来调用处理函数收集结果
+
+最终代码如下所示
+
+```python
+import time
+
+import numpy as np
+import ray
+
+ray.init()  # Initialize Ray
+
+
+@ray.remote
+def process_image(image: np.ndarray) -> np.ndarray:
+    """
+    Simulates processing an image by applying a simple transformation.
+
+    Args:
+        image (np.ndarray): Input image as a NumPy array.
+
+    Returns:
+        np.ndarray: Processed image.
+    """
+    # Simulate some processing time
+    time.sleep(1)
+
+    # Example transformation: invert the colors
+    processed_image = 255 - image
+
+    return processed_image
+
+
+num_images = 10
+images = [np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8) for _ in range(10)]
+
+start_time = time.time()
+result_refs = [process_image.remote(image) for image in images]
+results = ray.get(result_refs)
+
+end_time = time.time()
+
+print(f"Processed {len(images)} images in {end_time - start_time:.2f} seconds.")
+
+```
+
+这里涉及到几个概念
+
+- `ray.init()` 初始化一个新的或者链接到一个已有的 Ray runtime
+- `@ray.remote()` 定义一个 remote function 或者 actor
+- `.remote()` 以 async 的方式执行一个 remote function
+- `ObjectRef` `.remote()` 返回的一个 future/promise
+- `ray.get()` 以 block 的方式从 `ObjectRef` 中获取真正的结果
+
+这里需要关注的点在于 `.remote()` 并不直接返回结果，如果我们打印 `result_refs`, 我们可以看到下面的输出
+
+```python
+print(result_refs)
+```
+
+```
+[ObjectRef(c8ef45ccd0112571ffffffffffffffffffffffff0100000001000000),
+ObjectRef(16310a0f0a45af5cffffffffffffffffffffffff0100000001000000),
+ObjectRef(c2668a65bda616c1ffffffffffffffffffffffff0100000001000000),
+ObjectRef(32d950ec0ccf9d2affffffffffffffffffffffff0100000001000000),
+ObjectRef(e0dc174c83599034ffffffffffffffffffffffff0100000001000000),
+ObjectRef(f4402ec78d3a2607ffffffffffffffffffffffff0100000001000000),
+ObjectRef(f91b78d7db9a6593ffffffffffffffffffffffff0100000001000000),
+ObjectRef(82891771158d68c1ffffffffffffffffffffffff0100000001000000),
+ObjectRef(8849b62d89cb30f9ffffffffffffffffffffffff0100000001000000),
+ObjectRef(80e22aed7718a125ffffffffffffffffffffffff0100000001000000)]
+```
+
+这实际上是 Ray 为了减少资源占用而提出的，也就是说，只有我们实际使用 `result_refs` 里的内容时， Ray 才会真正执行对应的任务，通过这种 lazy invoke 的方式，我们可以避免资源浪费
+
+### Actor
+
+前面已经介绍了如何通过 Ray Task 来分布式处理大量数据。但是， Ray Task 的问题在于它不包含状态。
+
+为了理解这个问题，我们从可视化处理进度开始，一个自然的想法是加入一个 global variable, 用于记录处理图片数量
+
+```python
+import time
+
+import numpy as np
+import ray
+
+ray.init()  # Initialize Ray
+
+processed_image_count = 0  # Global variable to keep track of processed images
+
+
+@ray.remote
+def process_image(image: np.ndarray) -> np.ndarray:
+    """
+    Simulates processing an image by applying a simple transformation.
+
+    Args:
+        image (np.ndarray): Input image as a NumPy array.
+
+    Returns:
+        np.ndarray: Processed image.
+    """
+    global processed_image_count
+
+    processed_image_count += 1
+    print(f"Processed image count: {processed_image_count}")
+    # Simulate some processing time
+    time.sleep(1)
+
+    # Example transformation: invert the colors
+    processed_image = 255 - image
+
+    return processed_image
+
+
+num_images = 10
+images = [np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8) for _ in range(10)]
+
+start_time = time.time()
+result_refs = [process_image.remote(image) for image in images]
+results = ray.get(result_refs)
+
+end_time = time.time()
+
+print(f"Processed {len(images)} images in {end_time - start_time:.2f} seconds.")
+
+# RAY_ENABLE_UV_RUN_RUNTIME_ENV=0 uv run ray_process.py
+
+```
+
+输出为
+
+```
+(process_image pid=43017) Processed image count: 1
+Processed 10 images in 1.06 seconds.
+(process_image pid=43020) Processed image count: 1 [repeated 9x across cluster]
+```
+
+可以看到，处理图片始终为 1, 这是因为每个 Ray task 都会占用一个进程，拥有一份 `processed_image_count` 的 copy.
+每个 Ray task 执行时各自改变对应的计数，然后完成执行，这导致我们无法保存一份持久化的状态。
+
+为了解决 Ray task 无状态的问题，我们可以使用 `Actor`, Actor 是一个状态化的对象，与 Ray task 使用 function 不同，Actor 使用 class 来保证我们可以追踪和管理任务的状态，代码如下：
+
+```python
+import time
+
+import numpy as np
+import ray
+
+ray.init()  # Initialize Ray
+
+
+@ray.remote
+class ProcessCounter:
+    def __init__(self):
+        self.count = 0
+
+    def increment(self):
+        self.count += 1
+        print(f"Processed image count: {self.count}")
+        return self.count
+
+    def get_count(self):
+        return self.count
+
+
+@ray.remote
+def process_image(image: np.ndarray, counter: ProcessCounter) -> np.ndarray:
+    """
+    Simulates processing an image by applying a simple transformation.
+
+    Args:
+        image (np.ndarray): Input image as a NumPy array.
+        counter (ProcessCounter): Counter instance to track processed images.
+
+    Returns:
+        np.ndarray: Processed image.
+    """
+    counter.increment.remote()
+    # Simulate some processing time
+    time.sleep(1)
+
+    # Example transformation: invert the colors
+    processed_image = 255 - image
+
+    return processed_image
+
+
+num_images = 10
+images = [np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8) for _ in range(10)]
+
+counter = ProcessCounter.remote()
+result_refs = [process_image.remote(image, counter) for image in images]
+results = ray.get(result_refs)
+image_count = ray.get(counter.get_count.remote())
+
+print(f"Overview: Processed {image_count} images.")
+
+# RAY_ENABLE_UV_RUN_RUNTIME_ENV=0 uv run ray_process.py
+```
+
+输出如下
+
+```
+(ProcessCounter pid=53285) Processed image count: 1
+(ProcessCounter pid=53285) Processed image count: 2
+(ProcessCounter pid=53285) Processed image count: 3
+(ProcessCounter pid=53285) Processed image count: 4
+(ProcessCounter pid=53285) Processed image count: 5
+(ProcessCounter pid=53285) Processed image count: 6
+(ProcessCounter pid=53285) Processed image count: 7
+(ProcessCounter pid=53285) Processed image count: 8
+(ProcessCounter pid=53285) Processed image count: 9
+(ProcessCounter pid=53285) Processed image count: 10
+Overview: Processed 10 images.
+```
+
+可以看到，`Actor` 定义方式与 `Task` 非常类似，使用时，只需通过 `.remote()` 将其转换为 `ActorHandle` 然后传递给 `Task` 作为参数然后调用即可。
+
+### Cluster
+
+前面我们都是在单机节点 (single node) 上来并行化处理的。
+接下来，我们介绍如何多节点 (multi node) 来并行化处理，这就涉及到了 Ray Cluster 的概念，一个 Ray cluster 包含 2 类节点：
+
+1. head node: 负责管理 Ray cluster, 编排任务，执行程序
+2. worker node: 负责执行 Ray task 和 host Ray actor.
+
+为了启动一个 Ray cluster, 我们首先需要一个配置文件，来定义 Ray cluster 的资源，一个例子如下所示
+
+```yaml
+cluster_name: default
+docker:
+    image: ""
+    container_name: ""
+provider:
+    type: local
+    head_ip: YOUR_HEAD_NODE_HOSTNAME
+    worker_ips: []
+auth:
+    ssh_user: YOUR_USERNAME
+    ssh_private_key: ~/.ssh/id_rsa
+head_node: {}
+worker_nodes: {}
+file_mounts:
+     "/tmp/ray_sha": "/YOUR/LOCAL/RAY/REPO/.git/refs/heads/YOUR_BRANCH"
+setup_commands: []
+head_setup_commands: []
+worker_setup_commands: []
+setup_commands:
+    - source activate ray && test -e ray || git clone https://github.com/YOUR_GITHUB/ray.git
+    - source activate ray && cd ray && git fetch && git reset --hard `cat /tmp/ray_sha`
+#    - source activate ray && cd ray/python && pip install -e .
+head_start_ray_commands:
+    - source activate ray && ray stop
+    - source activate ray && ulimit -c unlimited && ray start --head --port=6379 --autoscaling-config=~/ray_bootstrap_config.yaml
+worker_start_ray_commands:
+    - source activate ray && ray stop
+    - source activate ray && ray start --address=$RAY_HEAD_IP:6379
+```
+
+然后，我们就可以启动一个 Ray cluster
+
+```bash
+ray up cluster_def.yaml
+```
+
+Ray cluster 启动之后，我们就可以提交任务了，提交任务指令如下
+
+```bash
+ray submit cluster_def.yaml ray_count.py
+```
+
+我们还可以通过 `ray.init(address=...)` 来将 script 连接到已有的 Ray cluster 上。
+
+现在，我们的处理效率可以随着 worker nodes 数量而提升了。
+
+最后，当我们完成任务之后，我们可以关闭 Ray cluster
+
+```bash
+ray down cluster_def.yaml
+```
+
+Ray cluster 起来之后，我们还可以通过 Ray Dashboard 来观测资源使用情况，任务运行 log 等。
+
+### Data
+
+上一节我们介绍了如何通过 Ray cluster 来解决数据量过多的问题。
+这一节我们介绍如何通过 Ray Data 来解决数据过大的问题。
+
+当数据集非常大的时候，由于单一节点的内存有限，我们可能无法一次性全部加载，这个时候，我们就可以使用 Ray Data 来解决这个问题。
+
+Ray Data 的特性在于三点：
+
+1. lazy execution, 当我们创建 `Dataset` 时，数据并不会被立即加载，而是在参与计算的时候才加载
+2. sharding & streaming, Ray data 会将数据集切分为更小可管理的 blocks, 然后将这些 blocks 直接传输到 worker nodes, 避免经过 head nodes 的内存
+3. parallelism, Ray data 基于 Ray tasks, 因此一些操作会自动化通过 Ray tasks 来并行化处理
+
+为了使用 Ray Data 的这三个特性，我们需要将数据转换为 `ray.data.Dataset` 格式，比如
+
+```python
+import ray
+
+ds = rat.data.read_images("path-to-images/")
+
+print(ds)
+```
+
+接下来，我们可以对数据集做一些预处理，比如
+
+```python
+@ray.remote
+def process_image(image_row: dict) -> dict:
+    image = image_row['image']
+    processed_image = 255 - image
+
+    return {'processed_image': processed_image}
+
+processed_ds = ds.map(process_image)
+```
+
+最后，我们可以使用处理后的数据，比如，保存成一个新的数据集
+
+```python
+processed_ds.write_parquet("path-to-save-images/")
+```
