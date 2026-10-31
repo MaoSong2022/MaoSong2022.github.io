@@ -1,0 +1,15 @@
+## dots3-note preview
+
+[dots3-note preview](https://studio.dots.ai/dots/dots3-en.html) 是小红书在 26 年 8 月发布的一款 agentic model.
+
+dots3-note preview 参数量为 280B-A16B, 上下文为 512K, 支持 text, vision 和 speech 三种莫泰。
+
+在 RL 训练过程中，dots3-note preview 使用了 TEMPO.
+
+在 TEMPO 训练过程中，模型在 policy model 和 critic model 之间切换，critic 对已经生成的 rollout 进行及时评估，然后更新 policy model, 这样就提高了整体的效率。
+
+在 critic 的训练过程中，作者得到如下三点结论：
+
+1. evaluation is easier than generation, 因此我们可以通过 evaluation 来减少 generation cost
+2. self-evaluation 在 inference 时也可以提高模型的表现
+3. 模型 self-evaluation 的能力至关重要
