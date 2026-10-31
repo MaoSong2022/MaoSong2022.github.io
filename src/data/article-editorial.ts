@@ -69,6 +69,7 @@ export const ARTICLE_EDITORIAL: Record<string, Editorial> = {
   "scaling-law": topic(),
   RLHF: topic(),
   RLVR: topic("outline"),
+  agenticRL: topic(),
   "low-precision": topic("outline"),
   "unified-MLLM": topic("outline"),
   "kl-divergence": { contentType: "analysis", completion: "growing", featuredOrder: 1, summary: "围绕 KL 散度的估计与优化展开推导，辨析不同形式的含义和适用条件。" },
