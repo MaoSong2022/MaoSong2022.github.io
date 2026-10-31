@@ -1,3 +1,5 @@
+import Quote from "../../../components/Quote.astro";
+
 ## Introduction
 
 Agentic RL 的目标是训练 agent 使用 tools，以最大化完成任务的能力：
@@ -28,7 +30,9 @@ agentic AI 的下一个瓶颈是 system scaling，而不只是 model scaling：
 
 Agent 定义为
 
-An LLM agent runs tools in a loop to achieve a goal.
+<Quote source="Simon Willison, <a href='https://simonwillison.net/2025/Sep/18/agents/'>">
+  An LLM agent runs tools in a loop to achieve a goal.
+</Quote>
 
 agent 的核心能力：
 
@@ -109,12 +113,12 @@ agent 的目标是最大化 expected return $\mathbb{E}[\sum_t \gamma^tr_t]$。
 | action type               | tokens, homogeneous     | tool, plan heterogeneous         |
 | intermediate verification | possible                | rarely possible                  |
 
-| Method      | RLVR/RLHF    | Agentic RL |
-| ----------- | ------------ | ---------- |
-| Granularity | token        | turn       |
+| Method      | RLVR/RLHF    | Agentic RL                |
+| ----------- | ------------ | ------------------------- |
+| Granularity | token        | turn                      |
 | Action      | token        | tool call / turn response |
-| horizon     | short        | long       |
-| State       | MDP (approx) | POMDP      |
+| horizon     | short        | long                      |
+| State       | MDP (approx) | POMDP                     |
 
 ### Core Challenges
 
