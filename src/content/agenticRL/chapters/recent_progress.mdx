@@ -1,9 +1,42 @@
 ## Recent Progress
 
-1. have a collection where we curate environments and verifies to scale up intelligence
-2. figure out the best definition of what intelligence is
-3. release algorithms to train longer, on harder prompts, and with diverse responses
+开放问题可以概括为三条：
 
-https://zhuanlan.zhihu.com/p/2064646116927344943
+1. 构建并持续扩充 environments 与 verifiers 的集合，用环境多样性 scale intelligence
+2. 更清楚地定义「agent intelligence」应如何被测量与比较
+3. 发布能 train longer、on harder prompts、with diverse high-quality reward feedback 的算法与系统
 
-### SAO
+一个好的 agentic RL 训练范式同样强调：
+
+1. train for longer: 保持 entropy balance，控制 verbosity 无涨
+2. train on more difficult prompts and tasks
+3. train on more diverse responses，并配以高质量 reward feedback
+
+### Search-R1
+
+Search-R1 让模型在回答过程中自主决定是否需要进行搜索，是 agentic RAG / tool-use RL 的一个代表性案例。
+
+agentic RAG 的典型问题：
+
+1. multi hop reasoning 能力不行
+2. 正确文档在库里，但是检索不到
+3. 同名实体
+
+工程侧常见解决方案：
+
+1. 实体归一
+2. 重新分块
+3. 去重和时效性处理，去除重复文档，增加时效信息
+4. 混合检索和 reranker
+
+奖励设计上，结构化短答案可用 exact match；自由文本答案常用 rubric reward。后者若直接用 LLM-as-a-judge，容易出现 reward hacking（回答很长但事实性仍错），具体讨论见 Methods 中的 Reward and Verification。
+
+### Pivot-RL
+
+Pivot RL [@PivotRL] 提出了使用 partial rollout 作为初始状态来解决 rollout cost 高的问题
+
+### TEMPO
+
+小红书提出了 [TEMPO](https://studio.dots.ai/dots/tempo-blog.html)，用于提高 long-horizon RL 的训练效率。
+
+TEMPO 的核心思想在于，将连续 $H$ turns 作为一个 macro-step, 然后，与 [pivot-RL](#pivot-rl) 类似，作者使用 critic 对 partial rollout 进行评分，然后选取更优的 partial rollout 继续交互。

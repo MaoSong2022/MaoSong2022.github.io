@@ -1,0 +1,109 @@
+## Methods
+
+Methods 覆盖奖励与验证、credit assignment 算法、长轨迹上下文管理，以及面向 harness 的评测。
+
+### Reward and Verification
+
+Agentic RL 的奖励信号通常来自可验证的环境反馈，而不是纯偏好模型：
+
+1. **Outcome reward**: 任务成功/失败、单元测试通过、exact match 等终局信号
+2. **Process / turn-level reward**: 对中间工具调用或子目标打分，用于缓解 sparse outcome 与 credit assignment 困难
+
+Verifier 是奖励的基础设施。需要同时关注 false positive 与 false negative：过松的 verifier 会鼓励 reward hacking，过严则会浪费有效探索。实践上应减少脆弱的 hand-craft reward，并警惕 LLM-as-a-judge：模型可能通过拉长回答等方式刷分，却仍有事实性错误。
+
+典型约定：
+
+1. 结构化短答案：exact match
+2. 自由文本答案：rubric reward（需约束 hacking）
+3. 代码 / 证明 / UI：单元测试、math checker、DOM scripts 等可执行 verifier
+
+奖励设计应与评测环境对齐；environment 与 reward 稳定后，再比较算法往往更可靠。
+
+### Algorithms and Credit Assignment
+
+针对 turn-level、long-horizon 与稀疏 outcome reward，现有方法大致可分为：
+
+1. **Turn-level PRM**: 如 agentPRM，在 turn 粒度估计过程奖励或优势
+2. **Hindsight and counterfactual methods**: 如 reflection，利用事后信息或反事实轨迹重新分配 credit
+3. **Critic-free methods**: 如 GiGPO、POAD，减少对额外价值网络的依赖
+4. **Hierarchical methods**: 在不同时间尺度上分解决策与信用分配
+5. **Information-theoretic methods**: 如 IGPO
+6. **Implicit and DPO-based methods**: 用偏好或隐式目标近似多步优势
+
+这些路线共同针对同一问题：避免把整条 multi-turn trajectory 压成单一 episode advantage。具体算法细节与近期进展（如 TEMPO 对 long-horizon 训练效率的优化）见 Recent Progress；奖励设计本身见上文 Reward and Verification。
+
+### Context Management
+
+长轨迹场景下，上下文管理属于 harness / system 侧能力：在有限 context window 中保留对后续决策有用的 observation 与进度，而不是把完整交互历史原样塞进模型。这与 Agent 章中「coherence over long context」的 harness 路径一致。
+
+Mach-Mind-4-Flash [@Mach-Mind-4-Flash] 提出了四个机制：
+
+1. sliding window observation filtering
+2. context restart via progress summary
+3. dynamic adaptive threshold
+4. answer self-check
+
+相关讨论也出现在 DeepSeek-V3.2、DeepSeek-V4 等长上下文 agent 系统中。
+
+### Evaluation
+
+为什么 model-centric evaluation 不够：
+
+1. 同一个模型，在不同 memory / tool / policy / runtime 下表现可能完全不同
+2. 风险往往不是单组件错误，而是组件交互产生
+3. final answer 只是一小部分，真正重要的是整个 execution trajectory
+
+因此评测需要同时覆盖工具、场景、指令模糊度、软件系统与鲁棒性这五个维度：
+
+1. agents are expected to work with many different tools
+2. agents are expected to work for many different use cases
+3. agents are expected to work under vaguely specified instructions
+4. agents are expected to work under many software systems
+5. agents are expected to be robust
+
+off-the-shelf benchmarks: (1) and (2)
+
+- agentic coding:
+  1. SWEBench
+  2. TerminalBench
+  3. AIDER
+- ToolCalling
+  1. TauBench
+  2. BFCL
+  3. ComplexFuncBench
+- Knowledge
+  1. HLE
+  2. BrowserComp
+
+Agent Harness: (4)
+
+- SWEBench:
+  1. OpenHands
+  2. MiniSWE
+  3. OpenSWE
+  4. Aider-SWEBench
+- HLE:
+  1. with search harness
+  2. without search
+
+focused unit-test evaluations: (3) and (5)
+
+1. structured output adherence, structeval
+2. instruction following, w/ conditional instructions, IFBench
+3. Long Trajectories: NexusBench
+
+好的评估：
+
+1. 多任务，多 verifier
+2. 当改变 harness 时，可以以不同的方式让 agent 在 sandbox 中探索
+3. 每个任务应该都包含多个 tools
+
+benchmark 的质量：
+
+1. hardness
+2. separability
+3. diversity
+
+long horizon benchmark:
+
+- SWE-Marathon

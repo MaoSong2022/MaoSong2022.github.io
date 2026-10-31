@@ -1,14 +1,12 @@
 ## Data
 
-1. environment: 比如 code repository, web browser 等，让模型能够理解不同的环境
-2. tools: 可以提供信息或者改变环境，让模型使用不同的工具
-3. verifier: 比如代码的单元测试，proof 的 math checker, DOM scripts 等，训练模型完成不同的目标
+Agentic 训练数据由三部分构成：
 
-关键：environment 和 verifier 的 diversity
+1. environment: 比如 code repository、web browser 等，让模型理解不同环境
+2. tools: 提供信息或改变环境，让模型学会使用不同工具
+3. verifier: 比如代码单元测试、proof 的 math checker、DOM scripts 等，定义可完成的目标
 
-verifier: 保证 我们有一些 false positive 和 false negatives
-
-Mach-Mind-4-Flash [@Mach-Mind-4-Flash] 介绍了 EnvScaling, 来提高 multi-turn agentic RL 的表现。
+关键是 environment 与 verifier 的 diversity。Mach-Mind-4-Flash [@Mach-Mind-4-Flash] 介绍了 EnvScaling，用于提高 multi-turn agentic RL 表现。工具层面的探索会影响模型能力上限；MiMo-V2.6 [@MiMo-V2.6] 发现 scaling harness 也可以迁移到其他 harness。
 
 ### Chat Template
 
@@ -17,13 +15,9 @@ Mach-Mind-4-Flash [@Mach-Mind-4-Flash] 介绍了 EnvScaling, 来提高 multi-tur
 | Schema | Json      |                   |
 | Schema | XML       | Mach-Mind-4-Flash |
 
-### TITO
-
 ### Dataset
 
 - SWE-Gym
 - R2E-Subset
 
-[@MidTool] 提出了 MidTool, 一个合成 mid-training 阶段 general tool-use 数据的 pipeline, 以及一个包含20.3b token 的数据集，作者发现，该数据集可以有效提高模型 SFT 和 RL 阶段的表现。
-
-MiMo-V2.6 [@MiMo-V2.6] 发现 scaling harness 也可以提高模型在其他 harness 上的表现。
+[@MidTool] 提出了 MidTool，一个合成 mid-training 阶段 general tool-use 数据的 pipeline，以及一个包含 20.3b token 的数据集；该数据可有效提高后续 SFT 与 RL 阶段表现。

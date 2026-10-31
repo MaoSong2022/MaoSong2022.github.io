@@ -1,3 +1,11 @@
 ## Infra
 
-MiMo-V2.6 [@MiMo-V2.6] 介绍了 RL infra.
+大规模 Agentic RL 依赖稳定的训练与推理系统：sandbox 扩缩容、长上下文训练/推理，以及 async rollout 与 train/infer 分离。
+
+已知线索：
+
+- MiMo-V2.6 [@MiMo-V2.6] 介绍了 RL infra
+- 工业级训练稳定性依赖 [Training-Inference mismatch](/blog/train_inference_mistahch/) 处理、PPO EWMA 等
+- 常见瓶颈包括大规模 sandbox、长轨迹吞吐，以及用 response mask 区分模型生成与工具观测
+
+待补充：async agent loop、sandbox 调度与长轨迹内存优化。
