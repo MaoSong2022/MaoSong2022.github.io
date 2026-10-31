@@ -1,0 +1,35 @@
+## Ornith
+
+Ornith 1.0 [@ornith_397b] 是 Ornith AI 在 26 年 6 月发布的一系列 agentic AI model, 包括 9B, 31B, 35B 和 397B 四个 size.
+
+模型基于 [Gemma4](https://maosong.website/blog/Gemma/#gemma-4) 和 [Qwen3.5](https://maosong.website/blog/Qwen-series/#qwen35) 开发得到。
+
+训练时，作者采取了 self-improving 策略，即同时提升 LLM 和 scaffold.
+每一步，给定当前 task 和上一步的 scaffold, 模型先对 scaffold 进行修正，然后再基于新的 scaffold 来生成解答。
+为了避免 reward hacking, 作者做了三点改进：
+
+1. 作者限制了修改边界，environment, tool interface, test 被隔离，且禁止改动
+2. 使用一个 monitor 来保证监督模型是否超过安全边界
+3. 使用一个 LLM-as-a-judge 来作为 verifier.
+
+训练时，作者使用了一个 async RL 算法，基于 pipeline RL 策略，作者使用了一个 staleness weight $w(d_t)$ 来控制 staleness:
+
+$$
+w(d_t)=\begin{cases}
+    1, &\text{ if } d_t\leq K_1,
+    \exp(-\lambda(d_t-K_1)), &\text{ if }K_1<d_t\leq K_2,
+    0,&\text{ otherwise}
+\end{cases}
+$$
+
+最终的损失函数为
+
+$$
+L_t = \min(r_tA_t, \mathrm{clip}(r_t,1-\epsilon^-,1+\epsilon^+)A_t)\cdot w(d_t)
+$$
+
+其中
+
+$$
+r_t = \frac{\pi_{\theta}(y_t\mid x, y_{<t})}{\pi_{\mathrm{behave}}(y_t\mid x, y_{<t})}
+$$
