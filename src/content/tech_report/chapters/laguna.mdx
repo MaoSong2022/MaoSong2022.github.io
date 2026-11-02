@@ -1,0 +1,21 @@
+## LAGUNA
+
+LAGUNA [@Laguna] 是 Poolside team 在 26 年 5 月发布的两个 agentic coding model, 包括 Laguna M.1 和 Laguna XS.2 两个模型，模型参数量分别为 225.8B-A23.4B 和 33.4B-A3B.
+
+### Post-training
+
+Post-training 包含三个阶段：
+
+1. mid-training: 60B tokens, 覆盖 chat, reasoning, agentic coding 等 domain. 数据配比为 reasoning: coding: chat = 4: 3: 3.
+2. SFT: 40B tokens, 主要是 agentic coding domain, 其占比为 $85\%$, 其中 with reasoning 占比 $30\%$, without reasoning 占比 $45\%$. 其他数据包括 math agentic reasoning 数据 ($3\%$), non-agentic 数据 ($22\%$).
+3. RL: 基于 CISPO [@MiniMax-M1]
+
+作者使用了一些 special tokens, 比如 `<assistant>`, 对于小模型 (Laguna XS.2), 作者进行随机初始化然后开始 mid-training, 对于大模型 (Laguna M.1), 作者使用一个 warmup phase 来解决 loss spikes, 作者首先使用 subtoken averaging 来初始化每个 special token 的 embedding, 然后作者冻结其他参数，只训练lm embedding 100 steps 来解决这个问题。
+
+算法上，作者提出了 length-weighted leave-one-out baseline, 其 advantage 定义如下
+
+$$
+b_i = \frac{\sum_{j\neq i}w_jr_j}{\sum_{j\neq i}w_j}, A_i=r_i-b_i
+$$
+
+这里 $w_i$ 为参与 loss 计算的 token 个数。
