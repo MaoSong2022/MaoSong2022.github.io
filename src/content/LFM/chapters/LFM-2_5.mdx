@@ -1,0 +1,23 @@
+## LFM 2.5
+
+LFM2.5-24B-A2B [@LFM2.5-24B-A2B] 是 Liquid AI 发布的一个用于端侧设备的 MoE 模型
+
+LFM2.5-24B-A2B 架构与 LFM2-24B-A2B 一致，
+
+- 40 layers
+- 64/4 experts
+- hybrid attention (gated shorted convolutions and GQA)
+- 131 context length
+
+training
+
+- pre-training tokens: 33T
+- mid-training: 2T (32k context), 300 B (131K context)
+
+post-training:
+
+- sft
+- specialization (SFT, RL)
+- non-agentic MOPD
+- agentic MOPD
+- agentic RL
