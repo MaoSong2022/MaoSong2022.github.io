@@ -97,9 +97,7 @@ $$
 \tau=(s_0,a_0, o_0,r_0, s_1, a_1,\dots,a_{T-1}, o_{T-1}, r_{T-1}, s_T)
 $$
 
-agent $\pi_{\theta}$ 从 action space 采样得到 $a_t\sim\pi_{\theta}(\cdot\mid s_t)$，这里 $a_t=(a_t^1,a_t^2,\dots,a_t^{<eos>})$ 是按自回归方式生成的 token sequence，即 $a_t^i\sim\pi_{\theta}(\cdot\mid s_t,a_t^{<i})$；$o_t$ 是执行 $a_t$ 后环境返回的观测，环境给予奖励 $r_t=\mathcal{R}(s_t,a_t)$ 并更新状态 $s_{t+1}\sim \mathcal{T}(s_t,a_t)$。
-
-agent 的目标是最大化 expected return $\mathbb{E}[\sum_t \gamma^tr_t]$。
+agent $\pi_{\theta}$ 从 action space 采样得到 $a_t\sim\pi_{\theta}(\cdot\mid s_t)$，这里 $a_t=(a_t^1,a_t^2,\dots,a_t^{<eos>})$ 是按自回归方式生成的 token sequence，即 $a_t^i\sim\pi_{\theta}(\cdot\mid s_t,a_t^{<i})$；$o_t$ 是执行 $a_t$ 后环境返回的观测，环境给予奖励 $r_t=\mathcal{R}(s_t,a_t)$ 并更新状态 $s_{t+1}\sim \mathcal{T}(s_t,a_t)$ $o_t$ 是 agent 对于 $s_{t}$ 的一个观测，当 $o_t=s_t$ 时，POMDP 退化为 MDP.
 
 与 reasoning RL 相比，Agentic RL 的状态、动作与转移都发生了本质变化：
 
