@@ -1,0 +1,13 @@
+## Nemotron 3.5 Super
+
+Nemotron 3.5 Super [@Nemotron-3-5-Super] 是 NVIDIA 推出的基于 MoE 和 hybrid attention 的大模型系列。
+
+### Nemotron 3.5 Super VL
+
+Nemotron 3.5 Super VL 是 NVIDIA 在 发布的一个 120B-A12B 的多模态大模型
+
+Nemotron 3.5 Super VL 从 [Nemotron 3 Ultra](#nemotron-3-ultra) 蒸馏得到，作者使用了 SkewReverse loss 来提高 coding distillation 的准确率
+
+模型使用了 [MOPD](https://maosong.website/blog/OPD/#mopd) 来进行合版。
+
+训练时，作者使用了 PTQ 和 quantization-aware distillation 在 NVFP4 精度下进行训练。
