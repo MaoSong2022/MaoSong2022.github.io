@@ -1,0 +1,15 @@
+## Step 5 preview
+
+Step 5 Preview [@Step-5-Preview] 是阶跃星辰在 26 年 10 月发布的针对 agentic 任务的 MoE 模型，总参数量为 600B, 激活参数量为 27B, 上下文为 1M.
+
+Step 5 Preview 架构上采用了 hybrid attention, narrow and deep, MoE 三种方案。
+
+对于 attention 模块，作者采取了 hybrid attention 架构，local attention 为 gated SWA, global attention 为 sparse GQA, 比例为 3:1, 这与 Step 3.5 一致
+
+对于 layer, Step 5 Preview 采用了 narrow but deep 的方案，来提高模型的 multi-hop reasoning 能力。
+基于这个方案，模型包含 92 layers.
+为了解决 deep layer 带来的训练不稳定问题，作者提出了三点改进：
+
+1. 使用 FP32 精度来保存 hidden state
+2. 对 RMSNorm 进行 scale
+3. 执行细粒度的 gradient clamp.
