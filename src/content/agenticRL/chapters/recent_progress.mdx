@@ -12,7 +12,9 @@
 2. train on more difficult prompts and tasks
 3. train on more diverse responses，并配以高质量 reward feedback
 
-### Search-R1
+### Cases
+
+#### Search-R1
 
 Search-R1 让模型在回答过程中自主决定是否需要进行搜索，是 agentic RAG / tool-use RL 的一个代表性案例。
 
@@ -31,11 +33,13 @@ agentic RAG 的典型问题：
 
 奖励设计上，结构化短答案可用 exact match；自由文本答案常用 rubric reward。后者若直接用 LLM-as-a-judge，容易出现 reward hacking（回答很长但事实性仍错），具体讨论见 Methods 中的 Reward and Verification。
 
-### Pivot-RL
+### Algorithms
+
+#### Pivot-RL
 
 Pivot RL [@PivotRL] 提出了使用 partial rollout 作为初始状态来解决 rollout cost 高的问题
 
-### TEMPO
+#### TEMPO
 
 小红书提出了 [TEMPO](https://studio.dots.ai/dots/tempo-blog.html)，用于提高 long-horizon RL 的训练效率。
 
