@@ -1,0 +1,25 @@
+## Framework
+
+LEGO-RL [@LEGO-RL] 提出了 harness-native RL 的概念，主要有三个特征
+
+1. faithful optimization
+2. reliable execution
+3. observable training
+
+Forge 提出了如下的优化目标形式
+
+$$
+\begin{aligned}
+    \max_{\theta} J(\theta) &= \text{Throughput}(\mathcal{A}) \times \text{Sample Efficiency}(\mathcal{A}) \\
+    \text{s.t.} \quad &\forall \mathcal{A} \in \Omega_{\text{agent}} \quad (\text{Arbitrary Agent}) \\
+     &\mathbb{E}[\text{Update Variance}] < \delta \quad (\text{Stability}) \\
+     &\mathbb{E}[\Vert{}J^{(T)} - J^*\Vert{}] < \epsilon \quad (\text{Convergence})
+\end{aligned}
+$$
+
+其中 throughput 指的是每秒处理的 token 数量，由 rollout, training, data processing 以及 IO 四部分决定。
+Sample efficiency 表示每个样本带来的性能提升，由 data distribution, data quality, algorithm efficiency 和 off-policy staleness 决定。
+
+作者认为求解这个优化问题，我们需要解决三个挑战：
+
+1.
