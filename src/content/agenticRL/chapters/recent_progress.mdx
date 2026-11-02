@@ -40,3 +40,11 @@ Pivot RL [@PivotRL] 提出了使用 partial rollout 作为初始状态来解决 
 小红书提出了 [TEMPO](https://studio.dots.ai/dots/tempo-blog.html)，用于提高 long-horizon RL 的训练效率。
 
 TEMPO 的核心思想在于，将连续 $H$ turns 作为一个 macro-step, 然后，与 [pivot-RL](#pivot-rl) 类似，作者使用 critic 对 partial rollout 进行评分，然后选取更优的 partial rollout 继续交互。
+
+### Harness RL
+
+在 agentic RL 的基础上，harness 进一步对环境的观测进行了封装，比如 agent 执行的 action 权限不够，或者工具调用错误，则 harness 会在 action 执行之前给予反馈，我们将 harness 记作 $\mathcal{H}$, 则对应的轨迹为
+
+$$
+\tau=(s_0,a_0, \mathcal{H}(o_0),r_0, s_1, a_1,\dots,a_{T-1}, \mathcal{H}(o_{T-1}), r_{T-1}, s_T)
+$$
