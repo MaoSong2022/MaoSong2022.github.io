@@ -23,3 +23,10 @@ Sample efficiency 表示每个样本带来的性能提升，由 data distributio
 作者认为求解这个优化问题，我们需要解决三个挑战：
 
 1.
+
+OpenForge RL 提出了一个可插拔的 rollout interface 来连接 RL 框架与 harness rollouts. 给定一个 inference server,
+
+1. OpenForge RL 启动一个 Kubernetes orchestrator 来构建，管理与删除 rollout container pods
+2. 创建一个 proxy 来 wrap inference server 来不同的 container 提供服务
+
+Kubernetes orchestrator 基于 Orchard,
