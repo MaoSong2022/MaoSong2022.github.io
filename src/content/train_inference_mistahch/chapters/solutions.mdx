@@ -147,3 +147,12 @@ $$
 $$
 \mathrm{KL}_B(P(x)\mid\mid Q(x)) = P(x)\log \frac{P(x)}{Q(x)} + (1-P(x))\log\frac{1-P(x)}{1-Q(x)}
 $$
+
+Prime RL 使用了 IPO [@prime-rl0.10.0], 作者认为 IcePop 使用的比值可能存在较大误差，
+比如概率从 $0.01$ 提高到 $0.06$ 变化了 6 倍而被 mask, 从 $0.9$ 变化到 $0.2$ 仅变化 $0.22$ 倍而被保留。因此，作者的做法是使用 difference 来决定是否 mask:
+
+$$
+|\pi_{\theta}(y_{i,t}\mid y_{i,<t},x) - \mu_{\theta}(y_{i,t}\mid y_{i,<t},x)|> \epsilon
+$$
+
+通过实验作者发现，IPO 比 IcePop 更加稳定。
