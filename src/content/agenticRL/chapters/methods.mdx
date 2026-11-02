@@ -32,6 +32,18 @@ Verifier 是奖励的基础设施。需要同时关注 false positive 与 false 
 
 这些路线共同针对同一问题：避免把整条 multi-turn trajectory 压成单一 episode advantage。具体算法细节与近期进展（如 TEMPO 对 long-horizon 训练效率的优化）见 Recent Progress；奖励设计本身见上文 Reward and Verification。
 
+Odyssey [@Odyssey] 提出了 Heuristic Credit Assignment (HCA), 其核心思想是减少 agent 在 multi-turn rollout 中出现的错误
+
+最终，HCA 的训练目标函数为
+
+$$
+\mathcal{J}_{\mathrm{HCA}}(\pi_\theta) = \mathbb{E}_{x \sim \mathcal{D}, \{\tau_i\}_{i=1}^G \sim \pi_\theta(\cdot|x)} \left[ \frac{1}{G} \sum_{i=1}^{G} \frac{1}{\textcolor{red}{\max(1, N_i)}} \sum_{t,j} \textcolor{red}{m_{t,j}^i} \log \pi_\theta(a_{t,j}^i \mid h_t^i, a_{t,\text{<}j}^i) \widehat{A}_i^{\mathrm{HCA}} \right]
+$$
+
+其中 $N_i=\sum_{t,j}m_{t,j}^i$ 是 masked token count.
+
+目标函数的意义为，每个 sample rollout $G$ 条轨迹，如果轨迹是正常的，则
+
 ### Context Management
 
 长轨迹场景下，上下文管理属于 harness / system 侧能力：在有限 context window 中保留对后续决策有用的 observation 与进度，而不是把完整交互历史原样塞进模型。这与 Agent 章中「coherence over long context」的 harness 路径一致。
