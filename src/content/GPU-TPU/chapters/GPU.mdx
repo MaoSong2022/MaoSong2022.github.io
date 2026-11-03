@@ -67,7 +67,9 @@ $$
 \text{Peak FLOPs} = 16896*1.98\text{ GHz} = 33.5 \text{ TFLOPs/s}
 $$
 
-这个值刚好是 [H100 datasheet](https://resources.nvidia.com/en-us-hopper-architecture/nvidia-tensor-core-gpu-datasheet) 报告的 peak FLOPs 的一半，这是因为我们可以使用 FMA (fused-multiply-add) 来在一个时钟周期里完成两次操作。不同 GPU 的计算效率如下表所示 (除 SMs 之外其他数值单位为 TFLOPs/s)
+这个值刚好是 [H100 datasheet](https://resources.nvidia.com/en-us-hopper-architecture/nvidia-tensor-core-gpu-datasheet) 报告的 peak FLOPs 的一半，这是因为我们可以使用 FMA (fused-multiply-add) 来在一个时钟周期里完成两次操作。
+
+下图汇总了从 P100 到 B300 的 HBM 带宽、SM 数、显存容量与 Tensor Core FLOPs 等规格，可切换指标，或用 Bandwidth vs FLOPs 散点图观察 peak arithmetic intensity。
 
 <HtmlEmbed
   id="nvidia-gpu-specs"
