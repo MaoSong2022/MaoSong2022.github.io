@@ -69,13 +69,12 @@ $$
 
 这个值刚好是 [H100 datasheet](https://resources.nvidia.com/en-us-hopper-architecture/nvidia-tensor-core-gpu-datasheet) 报告的 peak FLOPs 的一半，这是因为我们可以使用 FMA (fused-multiply-add) 来在一个时钟周期里完成两次操作。不同 GPU 的计算效率如下表所示 (除 SMs 之外其他数值单位为 TFLOPs/s)
 
-| GPU  | Generation | SMs | CUDA core (FP64) | CUDA core (FP32) | Tensor Core (FP64) | Tensor Core (TF32) | Tensor Core (BF16) | Tensor Core (FP8) | Tensor Core (INT*) |
-| ---- | ---------- | --- | ---------------- | ---------------- | ------------------ | ------------------ | ------------------ | ----------------- | ------------------ |
-| V100 | Volta      | 80  | 7.8              | 15.7             | -                  | -                  | 125                | -                 | -                  |
-| A100 | Amper      | 108 | 9.7              | 19.5             | 19.5               | 156                | 312                | 624               | 624                |
-| H100 | Hopper     | 132 | 34               | 67               | 67                 | 495                | 990                | 1979              | 1979               |
-| H200 | Hopper     | 132 | 34               | 67               | 67                 | 495                | 990                | 1979              | 1979               |
-| B200 | Blackwell  | 148 | 40               | 80               | 40                 | 1125               | 2250               | 4500              | 9000               |
+<HtmlEmbed
+  id="nvidia-gpu-specs"
+  src="d3-nvidia-gpu-specs.html"
+  title="NVIDIA Datacenter GPU Specs (P100–B300)"
+  desc="Dense Tensor Core FLOPs；气泡大小代表显存容量。数据来自 <code>nvidia_gpu_specs.csv</code>。"
+/>
 
 ### Comparison with CPU
 

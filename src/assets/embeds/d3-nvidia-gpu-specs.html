@@ -1,0 +1,665 @@
+<div class="d3-nvidia-gpu-specs"></div>
+<style>
+  .d3-nvidia-gpu-specs {
+    position: relative;
+    width: 100%;
+  }
+
+  .d3-nvidia-gpu-specs .controls {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+
+  .d3-nvidia-gpu-specs .controls .control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .d3-nvidia-gpu-specs .controls label {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-color);
+  }
+
+  .d3-nvidia-gpu-specs .toggle-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .d3-nvidia-gpu-specs .toggle-btn {
+    font-size: 13px;
+    font-weight: 600;
+    padding: 7px 14px;
+    border: 1.5px solid var(--border-color);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-color);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .d3-nvidia-gpu-specs .toggle-btn:hover {
+    background: color-mix(in srgb, var(--border-color) 55%, transparent);
+  }
+
+  .d3-nvidia-gpu-specs .toggle-btn.active {
+    background: var(--primary-color);
+    color: #fff;
+    border-color: var(--primary-color);
+  }
+
+  .d3-nvidia-gpu-specs .chart-card {
+    width: 100%;
+  }
+
+  .d3-nvidia-gpu-specs svg {
+    display: block;
+    width: 100%;
+  }
+
+  .d3-nvidia-gpu-specs .axis-label {
+    fill: var(--text-color);
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .d3-nvidia-gpu-specs .axes path,
+  .d3-nvidia-gpu-specs .axes line {
+    stroke: var(--axis-color);
+  }
+
+  .d3-nvidia-gpu-specs .axes text {
+    fill: var(--tick-color);
+    font-size: 11px;
+  }
+
+  .d3-nvidia-gpu-specs .grid line {
+    stroke: var(--grid-color);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+  }
+
+  .d3-nvidia-gpu-specs .bar-label {
+    fill: var(--text-color);
+    font-size: 10px;
+    font-weight: 600;
+    pointer-events: none;
+  }
+
+  .d3-nvidia-gpu-specs .point-label {
+    fill: var(--text-color);
+    font-size: 11px;
+    font-weight: 700;
+    paint-order: stroke fill;
+    stroke: var(--surface-bg);
+    stroke-width: 3px;
+    pointer-events: none;
+  }
+
+  .d3-nvidia-gpu-specs .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--text-color);
+  }
+
+  .d3-nvidia-gpu-specs .legend .item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .d3-nvidia-gpu-specs .legend .swatch {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    border: 1px solid var(--border-color);
+    display: inline-block;
+  }
+
+  .d3-nvidia-gpu-specs .note {
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--muted-color);
+    line-height: 1.5;
+  }
+
+  .d3-nvidia-gpu-specs .d3-tooltip {
+    z-index: var(--z-tooltip, 20);
+    backdrop-filter: saturate(1.12) blur(8px);
+  }
+
+  .d3-nvidia-gpu-specs .d3-tooltip__inner {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 200px;
+    text-align: left;
+  }
+
+  .d3-nvidia-gpu-specs .d3-tooltip__title {
+    font-weight: 800;
+  }
+
+  .d3-nvidia-gpu-specs .d3-tooltip__sub {
+    font-size: 11px;
+    color: var(--muted-color);
+    margin-bottom: 2px;
+  }
+
+  .d3-nvidia-gpu-specs .d3-tooltip__row {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .d3-nvidia-gpu-specs .d3-tooltip__row span:last-child {
+    font-weight: 600;
+  }
+</style>
+<script>
+  (() => {
+    const ensureD3 = (cb) => {
+      if (window.d3 && typeof window.d3.select === 'function') return cb();
+      let s = document.getElementById('d3-cdn-script');
+      if (!s) {
+        s = document.createElement('script');
+        s.id = 'd3-cdn-script';
+        s.src = 'https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js';
+        document.head.appendChild(s);
+      }
+      const onReady = () => {
+        if (window.d3 && typeof window.d3.select === 'function') cb();
+      };
+      s.addEventListener('load', onReady, { once: true });
+      if (window.d3) onReady();
+    };
+
+    const bootstrap = () => {
+      const scriptEl = document.currentScript;
+      let container = scriptEl ? scriptEl.previousElementSibling : null;
+      if (!(container && container.classList && container.classList.contains('d3-nvidia-gpu-specs'))) {
+        const nodes = Array.from(document.querySelectorAll('.d3-nvidia-gpu-specs'))
+          .filter((el) => !(el.dataset && el.dataset.mounted === 'true'));
+        container = nodes[nodes.length - 1] || null;
+      }
+      if (!container) return;
+      if (container.dataset) {
+        if (container.dataset.mounted === 'true') return;
+        container.dataset.mounted = 'true';
+      }
+
+      const METRICS = [
+        { key: 'memory_bandwidth_gbs', label: 'HBM Bandwidth', unit: 'GB/s', format: (v) => v >= 1000 ? `${(v / 1000).toFixed(2)} TB/s` : `${v} GB/s` },
+        { key: 'bf16_tensor_dense_tflops', label: 'BF16 Tensor', unit: 'TFLOPS', format: (v) => v >= 1000 ? `${(v / 1000).toFixed(2)} PFLOPS` : `${v} TFLOPS` },
+        { key: 'fp8_tensor_dense_tflops', label: 'FP8 Tensor', unit: 'TFLOPS', format: (v) => v >= 1000 ? `${(v / 1000).toFixed(2)} PFLOPS` : `${v} TFLOPS` },
+        { key: 'fp32_tflops', label: 'FP32', unit: 'TFLOPS', format: (v) => `${v} TFLOPS` },
+        { key: 'memory_gb', label: 'Memory', unit: 'GB', format: (v) => `${v} GB` },
+        { key: 'sm_count', label: 'SM Count', unit: 'SMs', format: (v) => `${v}` },
+        { key: 'nvlink_bandwidth_gbs', label: 'NVLink', unit: 'GB/s', format: (v) => v >= 1000 ? `${(v / 1000).toFixed(1)} TB/s` : `${v} GB/s` },
+      ];
+
+      const FALLBACK = [
+        { gpu: 'P100', generation: 'Pascal', year: 2016, sm_count: 56, memory_gb: 16, memory_bandwidth_gbs: 732, nvlink_bandwidth_gbs: 160, fp32_tflops: 10.6, bf16_tensor_dense_tflops: null, fp8_tensor_dense_tflops: null, fp16_tensor_dense_tflops: 21.2 },
+        { gpu: 'V100', generation: 'Volta', year: 2017, sm_count: 80, memory_gb: 32, memory_bandwidth_gbs: 900, nvlink_bandwidth_gbs: 300, fp32_tflops: 15.7, bf16_tensor_dense_tflops: 125, fp8_tensor_dense_tflops: null, fp16_tensor_dense_tflops: 125 },
+        { gpu: 'A100', generation: 'Ampere', year: 2020, sm_count: 108, memory_gb: 80, memory_bandwidth_gbs: 2039, nvlink_bandwidth_gbs: 600, fp32_tflops: 19.5, bf16_tensor_dense_tflops: 312, fp8_tensor_dense_tflops: null, fp16_tensor_dense_tflops: 312 },
+        { gpu: 'H100', generation: 'Hopper', year: 2022, sm_count: 132, memory_gb: 80, memory_bandwidth_gbs: 3350, nvlink_bandwidth_gbs: 900, fp32_tflops: 67, bf16_tensor_dense_tflops: 990, fp8_tensor_dense_tflops: 1979, fp16_tensor_dense_tflops: 990 },
+        { gpu: 'H200', generation: 'Hopper', year: 2023, sm_count: 132, memory_gb: 141, memory_bandwidth_gbs: 4800, nvlink_bandwidth_gbs: 900, fp32_tflops: 67, bf16_tensor_dense_tflops: 990, fp8_tensor_dense_tflops: 1979, fp16_tensor_dense_tflops: 990 },
+        { gpu: 'B200', generation: 'Blackwell', year: 2024, sm_count: 148, memory_gb: 192, memory_bandwidth_gbs: 7700, nvlink_bandwidth_gbs: 1800, fp32_tflops: 75, bf16_tensor_dense_tflops: 2250, fp8_tensor_dense_tflops: 4500, fp16_tensor_dense_tflops: 2250 },
+        { gpu: 'B300', generation: 'Blackwell Ultra', year: 2025, sm_count: 160, memory_gb: 288, memory_bandwidth_gbs: 7700, nvlink_bandwidth_gbs: 1800, fp32_tflops: 75, bf16_tensor_dense_tflops: 2250, fp8_tensor_dense_tflops: 4500, fp16_tensor_dense_tflops: 2250 },
+      ];
+
+      let mode = 'bars';
+      let metricKey = 'bf16_tensor_dense_tflops';
+      let data = [];
+
+      const controls = document.createElement('div');
+      controls.className = 'controls';
+
+      const modeGroup = document.createElement('div');
+      modeGroup.className = 'control-group';
+      modeGroup.innerHTML = '<label>View</label>';
+      const modeToggle = document.createElement('div');
+      modeToggle.className = 'toggle-group';
+      const btnBars = document.createElement('button');
+      btnBars.className = 'toggle-btn active';
+      btnBars.textContent = 'Bars';
+      const btnScatter = document.createElement('button');
+      btnScatter.className = 'toggle-btn';
+      btnScatter.textContent = 'Bandwidth vs FLOPs';
+      modeToggle.appendChild(btnBars);
+      modeToggle.appendChild(btnScatter);
+      modeGroup.appendChild(modeToggle);
+
+      const metricGroup = document.createElement('div');
+      metricGroup.className = 'control-group';
+      metricGroup.innerHTML = '<label>Metric</label>';
+      const metricToggle = document.createElement('div');
+      metricToggle.className = 'toggle-group';
+      const metricButtons = {};
+      METRICS.forEach((m) => {
+        const btn = document.createElement('button');
+        btn.className = 'toggle-btn' + (m.key === metricKey ? ' active' : '');
+        btn.textContent = m.label;
+        btn.dataset.key = m.key;
+        metricButtons[m.key] = btn;
+        metricToggle.appendChild(btn);
+      });
+      metricGroup.appendChild(metricToggle);
+
+      controls.appendChild(modeGroup);
+      controls.appendChild(metricGroup);
+      container.appendChild(controls);
+
+      const card = document.createElement('div');
+      card.className = 'chart-card';
+      container.appendChild(card);
+
+      const legend = document.createElement('div');
+      legend.className = 'legend';
+      container.appendChild(legend);
+
+      const note = document.createElement('div');
+      note.className = 'note';
+      note.textContent = 'Tensor Core values are dense (without sparsity). P100 has no Tensor Cores; its FP16 CUDA peak is shown when BF16 is selected.';
+      container.appendChild(note);
+
+      container.style.position = container.style.position || 'relative';
+      const tip = document.createElement('div');
+      tip.className = 'd3-tooltip';
+      Object.assign(tip.style, {
+        position: 'absolute',
+        top: '0px',
+        left: '0px',
+        transform: 'translate(-9999px, -9999px)',
+        pointerEvents: 'none',
+        padding: '10px 12px',
+        borderRadius: '12px',
+        fontSize: '12px',
+        lineHeight: '1.35',
+        border: '1px solid var(--border-color)',
+        background: 'var(--surface-bg)',
+        color: 'var(--text-color)',
+        boxShadow: '0 8px 32px rgba(0,0,0,.28), 0 2px 8px rgba(0,0,0,.12)',
+        opacity: '0',
+        transition: 'opacity .12s ease',
+      });
+      const tipInner = document.createElement('div');
+      tipInner.className = 'd3-tooltip__inner';
+      tip.appendChild(tipInner);
+      container.appendChild(tip);
+
+      const svg = d3.select(card).append('svg');
+      const gRoot = svg.append('g');
+      const gGrid = gRoot.append('g').attr('class', 'grid');
+      const gAxes = gRoot.append('g').attr('class', 'axes');
+      const gMarks = gRoot.append('g').attr('class', 'marks');
+      const gLabels = gRoot.append('g').attr('class', 'labels');
+
+      const margin = { top: 18, right: 24, bottom: 48, left: 64 };
+      const xBand = d3.scaleBand().padding(0.28);
+      const xLinear = d3.scaleLinear();
+      const y = d3.scaleLinear();
+      const r = d3.scaleSqrt();
+      const color = d3.scaleOrdinal();
+
+      function getColors(n) {
+        try {
+          if (window.ColorPalettes && typeof window.ColorPalettes.getColors === 'function') {
+            const colors = window.ColorPalettes.getColors('categorical', n);
+            if (colors && colors.length) return colors;
+          }
+        } catch (_) {}
+        return (d3.schemeTableau10 || ['#4e79a7', '#f28e2b', '#e15759', '#76b7b2', '#59a14f', '#edc948', '#b07aa1']).slice(0, n);
+      }
+
+      function metricValue(d, key) {
+        if (key === 'bf16_tensor_dense_tflops') {
+          return d.bf16_tensor_dense_tflops ?? d.fp16_tensor_dense_tflops ?? null;
+        }
+        const v = d[key];
+        return Number.isFinite(v) ? v : null;
+      }
+
+      function currentMetric() {
+        return METRICS.find((m) => m.key === metricKey) || METRICS[0];
+      }
+
+      function showTip(html, mx, my) {
+        tipInner.innerHTML = html;
+        tip.style.opacity = '1';
+        tip.style.transform = `translate(${Math.round(mx + 14)}px, ${Math.round(my + 14)}px)`;
+      }
+
+      function hideTip() {
+        tip.style.opacity = '0';
+        tip.style.transform = 'translate(-9999px, -9999px)';
+      }
+
+      function tooltipHtml(d) {
+        const bf16 = metricValue(d, 'bf16_tensor_dense_tflops');
+        const fp8 = d.fp8_tensor_dense_tflops;
+        return `
+          <div class="d3-tooltip__title">${d.gpu}</div>
+          <div class="d3-tooltip__sub">${d.generation} · ${d.year}</div>
+          <div class="d3-tooltip__row"><span>SMs</span><span>${d.sm_count}</span></div>
+          <div class="d3-tooltip__row"><span>Memory</span><span>${d.memory_gb} GB</span></div>
+          <div class="d3-tooltip__row"><span>HBM BW</span><span>${d.memory_bandwidth_gbs >= 1000 ? (d.memory_bandwidth_gbs / 1000).toFixed(2) + ' TB/s' : d.memory_bandwidth_gbs + ' GB/s'}</span></div>
+          <div class="d3-tooltip__row"><span>NVLink</span><span>${d.nvlink_bandwidth_gbs >= 1000 ? (d.nvlink_bandwidth_gbs / 1000).toFixed(1) + ' TB/s' : d.nvlink_bandwidth_gbs + ' GB/s'}</span></div>
+          <div class="d3-tooltip__row"><span>FP32</span><span>${d.fp32_tflops} TFLOPS</span></div>
+          <div class="d3-tooltip__row"><span>BF16/FP16 TC</span><span>${bf16 != null ? (bf16 >= 1000 ? (bf16 / 1000).toFixed(2) + ' PFLOPS' : bf16 + ' TFLOPS') : '—'}</span></div>
+          <div class="d3-tooltip__row"><span>FP8 TC</span><span>${fp8 != null ? (fp8 >= 1000 ? (fp8 / 1000).toFixed(2) + ' PFLOPS' : fp8 + ' TFLOPS') : '—'}</span></div>
+        `;
+      }
+
+      function updateLegend() {
+        const gens = Array.from(new Set(data.map((d) => d.generation)));
+        legend.innerHTML = gens.map((g) => {
+          return `<span class="item"><span class="swatch" style="background:${color(g)}"></span><span>${g}</span></span>`;
+        }).join('');
+      }
+
+      function updateMetricVisibility() {
+        metricGroup.style.display = mode === 'bars' ? '' : 'none';
+      }
+
+      function draw() {
+        const width = container.clientWidth || 820;
+        const height = Math.max(340, Math.round(width * 0.48));
+        const innerWidth = width - margin.left - margin.right;
+        const innerHeight = height - margin.top - margin.bottom;
+        svg.attr('width', width).attr('height', height);
+        gRoot.attr('transform', `translate(${margin.left},${margin.top})`);
+
+        const gens = Array.from(new Set(data.map((d) => d.generation)));
+        color.domain(gens).range(getColors(gens.length));
+        updateLegend();
+        updateMetricVisibility();
+
+        gMarks.selectAll('*').remove();
+        gLabels.selectAll('*').remove();
+        gGrid.selectAll('*').remove();
+        gAxes.selectAll('*').remove();
+
+        if (mode === 'bars') {
+          const metric = currentMetric();
+          const rows = data
+            .map((d) => ({ ...d, value: metricValue(d, metric.key) }))
+            .filter((d) => d.value != null);
+
+          xBand.domain(rows.map((d) => d.gpu)).range([0, innerWidth]);
+          const yMax = d3.max(rows, (d) => d.value) || 1;
+          y.domain([0, yMax * 1.15]).nice().range([innerHeight, 0]);
+
+          gGrid.selectAll('line').data(y.ticks(6)).join('line')
+            .attr('x1', 0).attr('x2', innerWidth)
+            .attr('y1', (d) => y(d)).attr('y2', (d) => y(d));
+
+          gAxes.append('g')
+            .attr('transform', `translate(0,${innerHeight})`)
+            .call(d3.axisBottom(xBand).tickSizeOuter(0))
+            .call((g) => {
+              g.selectAll('path, line').attr('stroke', 'var(--axis-color)');
+              g.selectAll('text').attr('fill', 'var(--tick-color)').style('font-size', '12px').style('font-weight', 700);
+            });
+
+          gAxes.append('g')
+            .call(d3.axisLeft(y).ticks(6).tickSizeOuter(0).tickFormat((d) => {
+              if (metric.key.includes('bandwidth') || metric.key === 'bf16_tensor_dense_tflops' || metric.key === 'fp8_tensor_dense_tflops') {
+                return d >= 1000 ? `${d / 1000}k` : `${d}`;
+              }
+              return `${d}`;
+            }))
+            .call((g) => {
+              g.selectAll('path, line').attr('stroke', 'var(--axis-color)');
+              g.selectAll('text').attr('fill', 'var(--tick-color)');
+            });
+
+          gAxes.append('text')
+            .attr('class', 'axis-label')
+            .attr('transform', 'rotate(-90)')
+            .attr('x', -innerHeight / 2)
+            .attr('y', -46)
+            .attr('text-anchor', 'middle')
+            .text(`${metric.label} (${metric.unit})`);
+
+          const bars = gMarks.selectAll('rect').data(rows, (d) => d.gpu);
+          bars.join('rect')
+            .attr('x', (d) => xBand(d.gpu))
+            .attr('y', (d) => y(d.value))
+            .attr('width', xBand.bandwidth())
+            .attr('height', (d) => Math.max(0, innerHeight - y(d.value)))
+            .attr('rx', 5)
+            .attr('fill', (d) => color(d.generation))
+            .attr('fill-opacity', 0.88)
+            .style('cursor', 'pointer')
+            .on('mouseenter', (event, d) => {
+              d3.select(event.currentTarget).attr('fill-opacity', 1);
+              const [mx, my] = d3.pointer(event, container);
+              showTip(tooltipHtml(d) + `<div class="d3-tooltip__row"><span>${metric.label}</span><span>${metric.format(d.value)}</span></div>`, mx, my);
+            })
+            .on('mousemove', (event) => {
+              const [mx, my] = d3.pointer(event, container);
+              tip.style.transform = `translate(${Math.round(mx + 14)}px, ${Math.round(my + 14)}px)`;
+            })
+            .on('mouseleave', (event) => {
+              d3.select(event.currentTarget).attr('fill-opacity', 0.88);
+              hideTip();
+            });
+
+          gLabels.selectAll('text').data(rows, (d) => d.gpu).join('text')
+            .attr('class', 'bar-label')
+            .attr('text-anchor', 'middle')
+            .attr('x', (d) => xBand(d.gpu) + xBand.bandwidth() / 2)
+            .attr('y', (d) => y(d.value) - 6)
+            .text((d) => {
+              if (metric.key.includes('bandwidth') && d.value >= 1000) return (d.value / 1000).toFixed(1);
+              if ((metric.key === 'bf16_tensor_dense_tflops' || metric.key === 'fp8_tensor_dense_tflops') && d.value >= 1000) return (d.value / 1000).toFixed(1);
+              return Number.isInteger(d.value) ? d.value : d.value.toFixed(1);
+            });
+
+          note.textContent = 'Dense Tensor Core FLOPs (sparse ≈ 2× from Ampere onward). Empty metrics (e.g. FP8 on pre-Hopper) are omitted.';
+        } else {
+          const rows = data.filter((d) => {
+            const flops = metricValue(d, 'bf16_tensor_dense_tflops');
+            return flops != null && Number.isFinite(d.memory_bandwidth_gbs);
+          }).map((d) => ({
+            ...d,
+            flops: metricValue(d, 'bf16_tensor_dense_tflops'),
+          }));
+
+          xLinear.domain([0, (d3.max(rows, (d) => d.memory_bandwidth_gbs) || 1) * 1.08]).nice().range([0, innerWidth]);
+          y.domain([0, (d3.max(rows, (d) => d.flops) || 1) * 1.18]).nice().range([innerHeight, 0]);
+          r.domain(d3.extent(rows, (d) => d.memory_gb)).range([10, 28]);
+
+          gGrid.selectAll('line.h').data(y.ticks(6)).join('line')
+            .attr('class', 'h')
+            .attr('x1', 0).attr('x2', innerWidth)
+            .attr('y1', (d) => y(d)).attr('y2', (d) => y(d));
+          gGrid.selectAll('line.v').data(xLinear.ticks(6)).join('line')
+            .attr('class', 'v')
+            .attr('x1', (d) => xLinear(d)).attr('x2', (d) => xLinear(d))
+            .attr('y1', 0).attr('y2', innerHeight);
+
+          gAxes.append('g')
+            .attr('transform', `translate(0,${innerHeight})`)
+            .call(d3.axisBottom(xLinear).ticks(6).tickFormat((d) => d >= 1000 ? `${d / 1000}` : `${d}`))
+            .call((g) => {
+              g.selectAll('path, line').attr('stroke', 'var(--axis-color)');
+              g.selectAll('text').attr('fill', 'var(--tick-color)');
+            });
+          gAxes.append('g')
+            .call(d3.axisLeft(y).ticks(6).tickFormat((d) => d >= 1000 ? `${d / 1000}` : `${d}`))
+            .call((g) => {
+              g.selectAll('path, line').attr('stroke', 'var(--axis-color)');
+              g.selectAll('text').attr('fill', 'var(--tick-color)');
+            });
+
+          gAxes.append('text')
+            .attr('class', 'axis-label')
+            .attr('x', innerWidth / 2)
+            .attr('y', innerHeight + 40)
+            .attr('text-anchor', 'middle')
+            .text('HBM Bandwidth (TB/s when ≥1000 GB/s)');
+
+          gAxes.append('text')
+            .attr('class', 'axis-label')
+            .attr('transform', 'rotate(-90)')
+            .attr('x', -innerHeight / 2)
+            .attr('y', -46)
+            .attr('text-anchor', 'middle')
+            .text('BF16/FP16 Tensor Dense (TFLOPS)');
+
+          // Diagonal iso-intensity guides (FLOPs / BW)
+          const intensities = [50, 100, 200, 400];
+          const xMax = xLinear.domain()[1];
+          const yMax = y.domain()[1];
+          intensities.forEach((ai) => {
+            const x0 = 0;
+            const y0 = 0;
+            const x1 = Math.min(xMax, yMax / ai);
+            const y1 = ai * x1;
+            if (x1 <= 0 || y1 <= 0) return;
+            gMarks.append('line')
+              .attr('x1', xLinear(x0)).attr('y1', y(y0))
+              .attr('x2', xLinear(x1)).attr('y2', y(y1))
+              .attr('stroke', 'var(--muted-color)')
+              .attr('stroke-opacity', 0.35)
+              .attr('stroke-dasharray', '4,4');
+            gMarks.append('text')
+              .attr('x', xLinear(x1) - 4)
+              .attr('y', y(y1) - 4)
+              .attr('text-anchor', 'end')
+              .attr('fill', 'var(--muted-color)')
+              .attr('font-size', 10)
+              .text(`AI=${ai}`);
+          });
+
+          gMarks.selectAll('circle').data(rows, (d) => d.gpu).join('circle')
+            .attr('cx', (d) => xLinear(d.memory_bandwidth_gbs))
+            .attr('cy', (d) => y(d.flops))
+            .attr('r', (d) => r(d.memory_gb))
+            .attr('fill', (d) => color(d.generation))
+            .attr('fill-opacity', 0.82)
+            .attr('stroke', 'var(--page-bg)')
+            .attr('stroke-width', 1.5)
+            .style('cursor', 'pointer')
+            .on('mouseenter', (event, d) => {
+              const [mx, my] = d3.pointer(event, container);
+              const ai = d.flops / d.memory_bandwidth_gbs;
+              showTip(tooltipHtml(d) + `<div class="d3-tooltip__row"><span>Peak AI</span><span>${ai.toFixed(1)} FLOPs/byte</span></div>`, mx, my);
+            })
+            .on('mousemove', (event) => {
+              const [mx, my] = d3.pointer(event, container);
+              tip.style.transform = `translate(${Math.round(mx + 14)}px, ${Math.round(my + 14)}px)`;
+            })
+            .on('mouseleave', hideTip);
+
+          gLabels.selectAll('text').data(rows, (d) => d.gpu).join('text')
+            .attr('class', 'point-label')
+            .attr('text-anchor', 'middle')
+            .attr('x', (d) => xLinear(d.memory_bandwidth_gbs))
+            .attr('y', (d) => y(d.flops) - r(d.memory_gb) - 6)
+            .text((d) => d.gpu);
+
+          note.textContent = 'Bubble size ∝ HBM capacity. Dashed lines are constant arithmetic intensity (FLOPs/byte). Peak AI = BF16 dense TFLOPS / HBM GB/s.';
+        }
+      }
+
+      function parseRow(row) {
+        const num = (k) => {
+          const v = row[k];
+          if (v == null || String(v).trim() === '') return null;
+          const n = Number(v);
+          return Number.isFinite(n) ? n : null;
+        };
+        return {
+          gpu: String(row.gpu || '').trim(),
+          generation: String(row.generation || '').trim(),
+          year: num('year'),
+          sm_count: num('sm_count'),
+          memory_gb: num('memory_gb'),
+          memory_bandwidth_gbs: num('memory_bandwidth_gbs'),
+          nvlink_bandwidth_gbs: num('nvlink_bandwidth_gbs'),
+          fp32_tflops: num('fp32_tflops'),
+          bf16_tensor_dense_tflops: num('bf16_tensor_dense_tflops'),
+          fp8_tensor_dense_tflops: num('fp8_tensor_dense_tflops'),
+          fp16_tensor_dense_tflops: num('fp16_tensor_dense_tflops'),
+        };
+      }
+
+      async function loadData() {
+        const paths = [
+          '/data/nvidia_gpu_specs.csv',
+          './assets/data/nvidia_gpu_specs.csv',
+          '../assets/data/nvidia_gpu_specs.csv',
+        ];
+        for (const p of paths) {
+          try {
+            const res = await fetch(p, { cache: 'no-cache' });
+            if (!res.ok) continue;
+            const text = await res.text();
+            const rows = d3.csvParse(text).map(parseRow).filter((d) => d.gpu);
+            if (rows.length) return rows;
+          } catch (_) {}
+        }
+        return FALLBACK;
+      }
+
+      btnBars.addEventListener('click', () => {
+        mode = 'bars';
+        btnBars.classList.add('active');
+        btnScatter.classList.remove('active');
+        draw();
+      });
+      btnScatter.addEventListener('click', () => {
+        mode = 'scatter';
+        btnScatter.classList.add('active');
+        btnBars.classList.remove('active');
+        draw();
+      });
+      Object.values(metricButtons).forEach((btn) => {
+        btn.addEventListener('click', () => {
+          metricKey = btn.dataset.key;
+          Object.entries(metricButtons).forEach(([k, b]) => b.classList.toggle('active', k === metricKey));
+          if (mode !== 'bars') {
+            mode = 'bars';
+            btnBars.classList.add('active');
+            btnScatter.classList.remove('active');
+          }
+          draw();
+        });
+      });
+
+      loadData().then((rows) => {
+        data = rows;
+        draw();
+      });
+
+      document.addEventListener('palettes:updated', () => {
+        if (data.length) draw();
+      });
+
+      const rerender = () => { if (data.length) draw(); };
+      if (window.ResizeObserver) {
+        const ro = new ResizeObserver(() => rerender());
+        ro.observe(container);
+      } else {
+        window.addEventListener('resize', rerender);
+      }
+    };
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => ensureD3(bootstrap), { once: true });
+    } else {
+      ensureD3(bootstrap);
+    }
+  })();
+</script>
