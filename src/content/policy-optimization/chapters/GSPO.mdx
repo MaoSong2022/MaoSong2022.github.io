@@ -143,4 +143,4 @@ $$
 
 作者还介绍了以下 MoE 模型中 RL 训练的 expert-activation volatility 现象，也就是说，MoE 模型参数更新之后，对于同一个 response, 激活的专家可能飞铲个不同。作者举例说明，对于 Qwen3-30B-A3B, 更新一次梯度之后，有 $10\%$ 左右的激活专家变得不一样了。
 
-作者最后介绍了以下 GSPO 的两个优势，一个是解决了 GRPO 依赖于 Routing Replay 的问题；第二个是支持 SGLang 和 vLLM 等推理框架。
+作者最后介绍了以下 GSPO 的两个优势，一个是解决了 GRPO 依赖于 Routing Replay 的问题；第二个是支持 [@SGLang] 和 vLLM [@vllm] 等推理框架。

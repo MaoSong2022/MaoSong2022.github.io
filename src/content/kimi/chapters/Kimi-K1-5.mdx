@@ -144,7 +144,7 @@ $$
 1. inference phase: 基于Reference model进行采样，生成推理轨迹。
 2. training phase: 基于采样得到的推理轨迹，更新模型。
 
-如果我们直接使用Megatron和vLLM来实现上述的训练和推理，那么会存在以下问题：
+如果我们直接使用Megatron和 vLLM [@vllm] 来实现上述的训练和推理，那么会存在以下问题：
 
 1. Megatron和vLLM的并行策略可能并不一致，因此很难进行参数共享
 2. 在训练过程中，vLLM可能会保留一些GPU，这就导致了训练和推理的资源分配不均。

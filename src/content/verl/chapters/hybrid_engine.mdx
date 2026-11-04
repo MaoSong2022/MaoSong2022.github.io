@@ -25,5 +25,5 @@ verl 使用 Hybrid Engine 来将 actor 和 rollout 共用同一组 GPU, 由 `Act
 
 写入时，需要做一次跨进程传输，根据推理引擎不同，有不同模式
 
-1. vLLM：ZMQ + CUDA IPC（桶化传输）
-2. SGLang：分桶 + HTTP / 内部 weight sync API
+1. vLLM [@vllm]：ZMQ + CUDA IPC（桶化传输）
+2. SGLang [@SGLang]：分桶 + HTTP / 内部 weight sync API
