@@ -1,3 +1,26 @@
 ## Ultramarine 1 Flash
 
 [Ultramarine 1 Flash](https://www.paperinstruments.com/blog/ultramarine) 是 Paper Instruments 在 26年10月发布的一个基于 GLM-5.3 Flash 的 agentic model.
+
+Ultramarine 1 Flash 主要针对 non-verifiable environments 进行了 scaling.
+为了提供高质量 reward, 作者提出了 rubric grading framework.
+
+RL 训练目标函数基于 CISPO [@MiniMax-M1] 和 PipelineRL [@PipelineRL]
+
+$$
+\mathcal{L}(\theta) = -\frac{1}{N}\sum_{i,t}m_{i,t}\mathrm{sg}\left[\min(\rho_{i,t}(\theta),5)\right]A_i\log \pi_{\theta}(a_{i,t}\mid h_{i,t})
+$$
+
+其中 $m_{i,t}$ 是 token mask, $\rho_{i,t}(\theta)$ 是 importance ratio
+
+$$
+\rho_{i,t}(\theta) = \frac{\pi_{\theta}(a_{i,t}\mid h_{i,t})}{\pi_{\mathrm{rollout}}(a_{i,t}\mid h_{i,t})}
+$$
+
+$A_i$ 是 advantage
+
+$$
+A_i = \tilde{r}_i - \frac{1}{|g|}\sum_{j\in g}\tilde{r}_j
+$$
+
+为了提高训练稳定性，作者还使用了 R3 [@ma2025stabilizingmoereinforcementlearning], DAPO [@DAPO]
