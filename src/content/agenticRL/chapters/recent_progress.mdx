@@ -12,6 +12,18 @@
 2. train on more difficult prompts and tasks
 3. train on more diverse responses，并配以高质量 reward feedback
 
+### Token In Token Out
+
+现代的 agent 在运行过程中，经常会选择编辑或者修改其对话历史，比如：
+
+1. 清除思考过程，比如 DeepSeek-V3.2 [@DeepSeek-V3.2] 会清除每一轮的 CoT
+2. compaction, harness (Clade Code, Codex 等) 在对话长度接近上下文限制时，会主动压缩对话历史
+3. sub-agent, agent 会调用产生 multi-agent
+
+在这些操作下，agent 时即生成并输出的 token, 在下一轮会变成被修改，精简或者摘要后的新内容。
+
+一个解决方法是将产生变动之前的对话历史变为 prompt, 并将这部分内容的 loss mask 设置为 0, 不参与反向传播，其代价在于可计算的 token 数量会变少。
+
 ### Cases
 
 #### Search-R1
