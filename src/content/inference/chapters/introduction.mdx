@@ -6,3 +6,27 @@
 - paged attention
 - speculative decoding
 - PD disaggregation
+
+推理优化根据时间顺序主要分为四个模块：
+
+1. scheduling, 包括 continuous batching 和 chunked prefill
+2. model optimization, 主要是 fast kernels, parallelism
+   1. flash attention, flash infer
+   2. cuda graph
+   3. kernel fusion
+   4. overlap
+   5. quantization
+3. kv cache optimization, 包括 paged attention 和 prefix caching
+4. sampler, 包括 structured outputs 和 speculative decoding.
+
+推理的 metric:
+
+1. TTFT
+2. TPT
+3. throughput
+
+推理优化的原则：
+
+1. never sits GPU idle
+2. never wastes memory
+3. never compute twice
