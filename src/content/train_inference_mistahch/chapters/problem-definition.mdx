@@ -1,0 +1,51 @@
+import Sidenote from "../../../components/Sidenote.astro";
+
+## Problem Definition
+
+我们首先从优化目标的角度来定义 TIM.
+
+### RL Objective and Policy Gradient
+
+RL 的目标函数为
+
+$$
+\mathcal{J}(\theta) = \mathbb{E}_{x\sim\mathcal{D},y\sim\pi_{\theta}(\cdot\mid x)}[R(x,y)]
+$$
+
+其中 $\pi_{\theta}$ 是优化的 policy, $R(x,y)$ 是 reward function.
+
+<Sidenote>
+  See [RL4LLM](https://maosong.website/blog/RL4LLM/) for details.
+</Sidenote>
+
+对应的梯度为
+
+$$
+\nabla_{\theta}\mathcal{J}(\theta) =\mathbb{E}_{x\sim\mathcal{D},y\sim\pi_{\theta}(\cdot\mid x)}[R(x,y)\nabla_{\theta}\log\pi_{\theta}(\theta)]
+$$
+
+其计算过程为，先从 $\pi_{\theta}$ 中采样得到轨迹 $\{(x,y, R(x,y))\}$, 然后更新 $\pi_{\theta}$
+
+### Training and Inference Policies
+
+对于现代 RL 训练框架如 verl [@verl] 来说，由于 training engine 和 inference engine 的不同，我们的采样的输出 $y$ 实际上来源不再是 $\pi_{\theta}$, 而是 inference engine 如 vllm 或 SGLang 对 policy $\pi_{\theta}$ 的实现，我们将这个策略记为 $\mu_{\theta}$.
+
+此时，我们使用的梯度实际上是
+
+$$
+\nabla_{\theta}\mathcal{J}_{\text{biased}}(\theta) =\mathbb{E}_{x\sim\mathcal{D},y\sim\mu_{\theta}(\cdot\mid x)}[R(x,y)\nabla_{\theta}\log\pi_{\theta}(\theta)]
+$$
+
+所以，TIM 其实指的就是
+
+$$
+\nabla_{\theta}\mathcal{J}(\theta) \neq \nabla_{\theta}\mathcal{J}_{\text{biased}}(\theta)
+$$
+
+其具体原因在于
+
+$$
+\pi_{\theta}(\cdot\mid x)\neq \mu_{\theta}(\cdot\mid x)
+$$
+
+也就是说，inference engine 和 training engine 对于同一输入的输出概率不同。

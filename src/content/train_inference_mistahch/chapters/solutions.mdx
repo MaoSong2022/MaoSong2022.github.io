@@ -5,30 +5,7 @@
 1. infra 上进行优化，解决 training engine 和 inference engine 实现不一致的问题
 2. algorithm 上进行优化，通过设计算法来解决不收敛的问题
 
-- KAT coder v1 pro
-- GEPO
-- [DeepSeek-V3](/blog/deepseek-series/#deepseek-v3) [@DeepSeek-V3]
-- GSPO [@GSPO]
-- MiniRL
-- top-p sampling candidate sets [@mai_thinking_1]
-
-thinking machine lab, non-deterministic inference, numerical instability. 但是其问题在于
-
-1. 训练和推理引擎会使用不同的 kernel 来实现 peak performance
-2. 就算是一个 engine, batch-invariant kernels 也会被禁用来实现 maximum throughput.
-
-Ring-Flash-Linear-2.0 手动对齐了不同的 kernels,
-
-[@qi2025defeatingtraininginferencemismatchfp16] 提出了使用 FP16 精度来进行训练。
-作者认为 BF16 精度在 post-training 阶段的精度太低，会影响最终结果。
-FP16 进行训练时需要使用 dynamic scaling factor.
-
 ### Infra Optimizations
-
-MiniMax-M1 [@MiniMax-M1] 提出了使用 FP32 的 lm head.
-Ring-Zero [@Ring-Zero] 进一步使用了 FP32 精度来计算 attention 部分的 softmax.
-
-Thinking Machine labs 提出了 batch-invariant inference kernels, 但是会导致训练效率vjiangdi
 
 [@yao2025offpolicy] 提到，我们可以
 
@@ -36,11 +13,27 @@ Thinking Machine labs 提出了 batch-invariant inference kernels, 但是会导�
 2. 解决 inference engine 和 training engine 的数值不一致性
 3. deterministic kernel implementations
 
-AreaL [@AReaL] 使用了 decoupled PPO [@decoupled_ppo] 来构建 rollout generation 和 gradient computation 之间的关系，但是 AreaL 对于相差比较大的 sample, 会直接丢弃。
+#### Numerical Precision
 
-[@DeepSeek-V3.2] 提出了 sampling mask replay 来解决因为 top-p 和 top-k sampling 导致的 action space 不一致的问题
+MiniMax-M1 [@MiniMax-M1] 提出了使用 FP32 的 lm head.
+Ring-Zero [@Ring-Zero] 进一步使用了 FP32 精度来计算 attention 部分的 softmax.
+
+[@qi2025defeatingtraininginferencemismatchfp16] 提出了使用 FP16 精度来进行训练。
+作者认为 BF16 精度在 post-training 阶段的精度太低，会影响最终结果。
+FP16 进行训练时需要使用 dynamic scaling factor.
 
 [@qi2025defeatingtraininginferencemismatchfp16] 提出了使用 FP16 来进行 RL 训练。相较于 BF16，FP16 的尾数位更多、舍入误差更小，但指数范围也更窄。
+
+#### Kernel Optimization
+
+Ring-Flash-Linear-2.0 手动对齐了不同的 kernels,
+
+Thinking Machine labs 提出了 batch-invariant inference kernels, 但是会导致训练效率降低。
+
+1. 利用 `torch.compile` 来固化 RoPE 实现，底层消除算子行为差异
+2. 通过 `enable_batch_invariant_mode` 来强制训练端采用与 SGLang 一致的算子，消除 batch size 对计算结果的影响
+3. training 和 inference 都使用 FlashAttention3 作为 backend, 来实现 bitwise equal
+4. 使用 DeepGEMM 进行矩阵乘法
 
 #### Router Replay
 
@@ -51,14 +44,15 @@ AreaL [@AReaL] 使用了 decoupled PPO [@decoupled_ppo] 来构建 rollout genera
 
 MiMo-V2.6 [@MiMo-V2.6] 在 RL 训练的时候冻结了 router, 发现这样可以提高负载均衡
 
-#### Kernel Optimization
+#### Sampling Mask Replay
 
-1. 利用 `torch.compile` 来固化 RoPE 实现，底层消除算子行为差异
-2. 通过 `enable_batch_invariant_mode` 来强制训练端采用与 SGLang 一致的算子，消除 batch size 对计算结果的影响
-3. training 和 inference 都使用 FlashAttention3 作为 backend, 来实现 bitwise equal
-4. 使用 DeepGEMM 进行矩阵乘法
+[@DeepSeek-V3.2] 提出了 sampling mask replay 来解决因为 top-p 和 top-k sampling 导致的 action space 不一致的问题
 
 ### Algorithm Optimizations
+
+#### Decoupled PPO and Sample Filtering
+
+AreaL [@AReaL] 使用了 decoupled PPO [@decoupled_ppo] 来构建 rollout generation 和 gradient computation 之间的关系，但是 AreaL 对于相差比较大的 sample, 会直接丢弃。
 
 #### Truncated Importance Sampling
 
@@ -88,6 +82,8 @@ $$
 
 #### Masked Importance Sampling
 
+##### Sequence-Level MIS
+
 [@liu-li-2025-rl-collapse] 提出了 sequence level 的 MIS
 
 $$
@@ -99,6 +95,8 @@ $$
 $$
 \rho = \frac{\pi_{\theta}(y\mid x)}{\mu_{\theta_{\mathrm{old}}}(y\mid x)}
 $$
+
+##### DeepSeek-V3.2: Rollout Masking
 
 DeepSeek-V3.2 [@DeepSeek-V3.2] 提出了针对 rollout 的的 binary mask
 
@@ -121,6 +119,8 @@ $$
 \end{cases}
 $$
 
+##### IcePop: Ratio-Based Masking
+
 IcePop [@IcePop2025] 提出了基于 mask 的 importance sampling 方法，其目标函数如下所示
 
 $$
@@ -136,6 +136,8 @@ $$
 \end{cases}
 $$
 
+##### KPop: Binary KL-Based Masking
+
 但是，随着训练进行， IcePop mask 的 token 数越来越少，导致 TIM 现象仍然存在，为了解决这个问题，KPop [@KPop] 进行了优化，最终目标函数一致，但是 mask 区域变成了
 
 $$
@@ -147,6 +149,8 @@ $$
 $$
 \mathrm{KL}_B(P(x)\mid\mid Q(x)) = P(x)\log \frac{P(x)}{Q(x)} + (1-P(x))\log\frac{1-P(x)}{1-Q(x)}
 $$
+
+##### IPO: Probability-Difference Masking
 
 Prime RL 使用了 IPO [@prime-rl0.10.0], 作者认为 IcePop 使用的比值可能存在较大误差，
 比如概率从 $0.01$ 提高到 $0.06$ 变化了 6 倍而被 mask, 从 $0.9$ 变化到 $0.2$ 仅变化 $0.22$ 倍而被保留。因此，作者的做法是使用 difference 来决定是否 mask:

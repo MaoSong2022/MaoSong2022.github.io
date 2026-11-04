@@ -1,24 +1,39 @@
 import Sidenote from "../../../components/Sidenote.astro";
 
-## Analysis
+## Causes and Theoretical Analysis
 
-### Deterministic Operations
+这一节我们分析如何定量分析 TIM 以及可能导致 TIM 的原因
 
-https://zhuanlan.zhihu.com/p/1980312064305169845
+### Kernel Consistency and Determinism
 
-### Theory
+### Discrepancy and Policy Staleness
 
-基于这个梯度，MiniRL [@MiniRL] 提出了一个分析训练推理不一致性的框架。
+我们使用 MiniRL [@MiniRL] 提出的框架来分析 TIM.
 注意到我们可以将 importance sampling (IS) 重写为
 
 $$
 \frac{\pi_{\theta}(y\mid x)}{\mu_{\theta_{\mathrm{old}}}(y\mid x) } = \frac{\pi_{\theta_{\mathrm{old}}}(y_t\mid x,y_{<t})}{\mu_{\theta_{\mathrm{old}}}(y_t\mid x,y_{<t})}\cdot \frac{\pi_{\theta}(y_t\mid x,y_{<t})}{\pi_{\theta_{\mathrm{old}}}(y_t\mid x,y_{<t})}
 $$
 
-其中第一项代表了 training-inference discrepancy, 第二项代表了 policy staleness.
+其中第一项代表了 TIM, 第二项代表了 policy staleness.
 
-- 对于 training-inference discrepancy, 这一点主要是训练和推理精度不一致导致的，比如训练和推理使用了不同的 kernel 和实现方式等.
-- 对于 policy staleness, 这一点主要是我们使用了 micro batch 来提高训练效率。
+对于 TIM, 这一点主要是训练和推理精度不一致导致的，比如训练和推理使用了不同的 kernel 和实现方式等.
+Thinking Machine Lab, non-deterministic inference, numerical instability. 但是其问题在于
+
+1. 训练和推理引擎会使用不同的 kernel 来实现 peak performance
+2. 就算是一个 engine, batch-invariant kernels 也会被禁用来实现 maximum throughput.
+
+https://zhuanlan.zhihu.com/p/1980312064305169845
+
+对于 policy staleness, 这一点主要是我们使用了 micro batch 来提高训练效率。
+
+早期大家研究的都是针对 dense model 的 RL 训练, dense model 由于连续性比较强，即 $\mu_{\theta}(x)\approx \pi_{\theta}(x)$, 因此 TIM 现象并不严重。
+
+但是，现在大部分模型都是 [MoE 模型](https://maosong.website/blog/moe/)，MoE 模型的 MLP 是一个离散架构，由 router 来选取 topK 专家进行计算，然后再进行加权求和得到最终输出。
+由于 router 的不连续性，现在 $\mu_{\theta}(x)$ 和 $\pi_{\theta}(x)$ 会出现比较大的误差，而这种误差会持续影响模型训练，最终导致训练崩溃。
+
+MoE 模型的训练推理不一致性会进一步被放大，这是因为 MoE 模型中 router 输出的是离散的值，任何一点微小的扰动都会导致最终选取的专家有所不同，而这种不同又会进一步影响后面 layer 的结果。
+随着训练进行，策略更新会进一步改变路由选择，加剧训练推理不一致性。
 
 对于 MoE 模型，我们可以进一步将 IS 重写为
 
@@ -32,4 +47,42 @@ $$
 1. 训练和推理引擎的 expert routing 不一致
 2. policy model $\pi_{\theta}$ 和旧 policy model $\pi_{\theta_{\mathrm{old}}}$ 的 expert routing 不一致
 
-[yao2025offpolicy] 提出了 TODO
+[@yao2025offpolicy] 提出了 TODO
+
+### Measuring TIM with KL Divergence
+
+前面已经提到，TIM 实际指的是 $\pi_{\theta}(\cdot\mid x)\neq \mu_{\theta}(\cdot\mid x)$, 而这其实是两个概率分布，因此，一个比较直观的评估 metric 是衡量 $\mu_{\theta_{\mathrm{old}}}$ 和 $\pi_{\theta}$ 两个分布之间的区别，即 KL divergence
+
+<Sidenote>
+  See [KL divergence](https://maosong.website/blog/kl-divergence/) for details.
+</Sidenote>
+
+$$
+\mathrm{KL}_{\mathrm{TIM}} = \mathbb{E}_{x\sim \mathcal{D}}\left[\mathrm{KL}(\mu_{\theta}(\cdot\mid x)\mid\mid \pi_{\theta}(\cdot\mid x))\right]
+$$
+
+这里我们使用 sequence-wise KL divergence.
+
+$\mathrm{KL}_{\mathrm{TIM}}$ 的计算方式如下
+
+```python
+rollout_log_probs = batch.batch["rollout_log_probs"]
+actor_old_log_probs = batch.batch["old_log_probs"]
+response_mask = batch.batch["response_mask"]
+log_ratio = actor_old_log_probs - rollout_log_probs
+kl_tim_k3 = torch.exp(log_ratio) - log_ratio - 1
+kl_tim_k3 = masked_mean(kl_tim_k3.response_mask)
+```
+
+这里我们使用了 k3 estimator 来近似进行计算。
+
+已有研究发现：
+
+1. $\mathrm{KL}_{\mathrm{TIM}}$ 与 entropy 的 spike 的相关性非常高，而与 reward 的相关性没那么高
+2. 训练引擎会给 inference policy sample 的 token 极低的概率，导致梯度爆炸
+
+TIM 的 pattern: KL divergence 对于推理引擎 $\mu_{\theta_{\mathrm{old}}}$ 采样概率低的 token 更大，特别是在 $\mu_{\theta_{\mathrm{old}}}(y\mid y_{<t})$ 趋近 $0$ 时。
+
+另外，对于 MoE models, 基于前面的分析，我们还可以分析 $\pi_{\theta}$ 和 $\mu_{\theta}$ 的 routing 情况来监控是否有 TIM
+
+TODO

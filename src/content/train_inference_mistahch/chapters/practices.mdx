@@ -1,4 +1,21 @@
-## Practice
+## Engineering Practices
+
+- KAT coder v1 pro
+- GEPO
+- GSPO [@GSPO]
+- top-p sampling candidate sets [@mai_thinking_1]
+
+### Framework Implementations
 
 - Torchtitan: vllm, deterministic kernels, customized backward
 - slime: chunked prefill, CUDA graph, Radix Cache, non-greedy sampling
+
+### Methods Used in Models
+
+| Method       | Models                        | Description              |
+| ------------ | ----------------------------- | ------------------------ |
+| FP32 lm head | MiniMax-M1                    |                          |
+| R3           | MAI-thinking-1, MiMo-V2-Flash | replay routing (default) |
+| IcePop, Kpop | Ling-2.6                      | TIS                      |
+| TIS          | Ring-Zero                     |                          |
+| MIS          | Nemotron-3-Super              |                          |

@@ -1,0 +1,19 @@
+## Recent Progress
+
+### Numerical Precision and Error Amplification
+
+原因：
+
+1. RL 优化器会让模型权重超出 bf16 的精度
+2. kernel 级别的优化会方法这个误差
+
+上述两个步骤会形成一个循环，mismatch 会产生 biased and noise gradients, 这又会导致参数朝着更极端的区域更新，导致 TIM 现象越来越严重。
+
+### Multi-Turn Tool Use and OOD Contexts
+
+TIM 对于多轮工具调用的非第一轮更严重，其原因在于模型接收到的工具调用结果是一个 OOD 的输入，模型对于 OOD context 更容易输出低概率的 token, 而这些低概率的 token 更容易导致 TIM.
+
+结果：
+
+1. vllm log ppl 在 non-first-round 更大，说明模型更容易采样到低概率 token
+2.
