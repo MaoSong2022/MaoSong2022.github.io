@@ -1,6 +1,5 @@
-
-import Image from '../../../components/Image.astro';
-import gpu_roofline_model from '../../../assets/image/GPU-roofline-model.png';
+import Image from "../../../components/Image.astro";
+import gpu_roofline_model from "../../../assets/image/GPU-roofline-model.png";
 
 ## Introduction
 
@@ -16,17 +15,11 @@ import gpu_roofline_model from '../../../assets/image/GPU-roofline-model.png';
 
 首先，我们要回答的第一个问题是，运行时间意味着什么？为什么实际运行时间比理想时间要更多？
 
-容易知道，实际的运行时间由三部分组成
+一个 GPU 程序（一般我们称为 kernel）实际的运行时间由三部分组成
 
-**Computation** 首先，运行时间与我们的算法和 GPU 设备相关，在深度学习中，我们的算法通常由 FLOPs 决定，GPU 决定了算法的运行时间：
-
-$$
-T_{\mathrm{math}}  =\frac{\text{Computation FLOPs}}{\text{Accelerator FLOPs/s}}
-$$
-
-**Communication within a chip** 其次，运行时间还受加载数据的速度的影响，在执行计算之前，我们需要先把数据从 HBM 加载到对应的 core 上，因此，加载数据的速度也会影响最终运行时间。我们将加载数据的速度称之为 **HBM bandwidth**.
-
-**Communication between chips** 最后，当我们在多个 GPU 上运行模型时，我们还需要在 GPU 之间进行通信，相关的通信手段如下表所示 (intra node 代表同一台服务器，inter node 代表不同服务器)，我们将 GPU 的通信速度称之为 **Network bandwidth**.
+1. **Computation** 首先，运行时间与我们的算法和 GPU 设备相关，在深度学习中，我们的算法通常由 FLOPs 决定，GPU 决定了算法的运行时间：
+2. **Communication within a chip** 其次，运行时间还受加载数据的速度的影响，在执行计算之前，我们需要先把数据从 HBM 加载到对应的 core 上，因此，加载数据的速度也会影响最终运行时间。我们将加载数据的速度称之为 **HBM bandwidth**.
+3. **Communication between chips** 最后，当我们在多个 GPU 上运行模型时，我们还需要在 GPU 之间进行通信，相关的通信手段如下表所示 (intra node 代表同一台服务器，inter node 代表不同服务器)，我们将 GPU 的通信速度称之为 **Network bandwidth**.
 
 |            | Method          | Data Path                   | BandWith          | Use cases                        |
 | ---------- | --------------- | --------------------------- | ----------------- | -------------------------------- |
@@ -39,13 +32,19 @@ $$
 |            | RoCE (v2)       | RAME over Ethernet          | 100-400 Gbps      | Cost-effective Ethernet clusters |
 |            | TCP/IP sockets  | GPU -> CPU -> Kernel -> Net | < 100 Gbps        | Standard networking              |
 
-我们将 GPU 的通信 (intra-node 和 inter-node) 效率定义如下
+我们将 GPU 的计算效率定义如下
+
+$$
+T_{\mathrm{math}}  =\frac{\text{Computation FLOPs}}{\text{Accelerator FLOPs/s}}
+$$
+
+将 GPU 的通信 (intra-node 和 inter-node) 效率定义如下
 
 $$
 T_{\mathrm{comm}}  =\frac{\text{Communication Bytes}}{\text{Network/Memory Bandwith Bytes/s}}
 $$
 
-通常来说，我们可以通过计算 - 通信重叠来降低整体的运行时间，比如说 [DeepSeek-V3](/blog/deepseek-series/#deepseek-v3) 等模型提出的优化方法,  此时理论上的最小运行时间就是 $T_{\mathrm{math}}$ 和 $T_{\mathrm{comm}}$ 之间的最大值。另一方面，如果我们不做任何优化，则理论上最大运行时间就是 $T_{\mathrm{math}}$ 和 $T_{\mathrm{comm}}$ 之和。我们定义对应的 bound 如下
+通常来说，我们可以通过计算 - 通信重叠来降低整体的运行时间，比如说 [DeepSeek-V3](/blog/deepseek-series/#deepseek-v3) 等模型提出的优化方法, 此时理论上的最小运行时间就是 $T_{\mathrm{math}}$ 和 $T_{\mathrm{comm}}$ 之间的最大值。另一方面，如果我们不做任何优化，则理论上最大运行时间就是 $T_{\mathrm{math}}$ 和 $T_{\mathrm{comm}}$ 之和。我们定义对应的 bound 如下
 
 $$
 \begin{aligned}
@@ -78,7 +77,7 @@ $$
 \text{Arithmetic Intensity} = \frac{\text{Computation FLOPs}}{\text{Communication Bytes}}
 $$
 
-arithmetic intensity 衡量了一个算法的 *FLOPs per bytes*, 当 arithmetic intensity 比较高时，说明 $T_{\mathrm{math}}>T_{\mathrm{comm}}$, 此时 GPU 的利用效率较高，反之则说明 GPU 出现了空置的情况。这两种情况的交叉点由 GPU 的 **Peak arithmetic intensity** 决定：
+arithmetic intensity 衡量了一个算法的 _FLOPs per bytes_, 当 arithmetic intensity 比较高时，说明 $T_{\mathrm{math}}>T_{\mathrm{comm}}$, 此时 GPU 的利用效率较高，反之则说明 GPU 出现了空置的情况。这两种情况的交叉点由 GPU 的 **Peak arithmetic intensity** 决定：
 
 $$
 \begin{aligned}
@@ -92,13 +91,13 @@ $$
 
 不同 GPU Tensor Core 对应的 intensity 如下所示
 
-| GPU  | Generation | bandwidth  | peak BF16  Tensor Core | intensity |
-| ---- | ---------- | ---------- | ---------------------- | --------- |
-| V100 | Volta      | 300 GB/s   | 125 TFLOPs/s           | 427       |
-| A100 | Amper      | 1,935 GB/s | 156 TFLOPs/s           | 83        |
-| H100 | Hopper     | 3.35TB/s   | 495 TFLOPs/s           | 147       |
-| H200 | Hopper     | 4.8TB/s    | 495 TFLOPs/s           | 147       |
-| B200 | Blackwell  | 576 TB/s   | 2250 TFLOPs/s          | 3.9       |
+| GPU  | Generation | bandwidth  | peak BF16 Tensor Core | intensity |
+| ---- | ---------- | ---------- | --------------------- | --------- |
+| V100 | Volta      | 300 GB/s   | 125 TFLOPs/s          | 427       |
+| A100 | Amper      | 1,935 GB/s | 156 TFLOPs/s          | 83        |
+| H100 | Hopper     | 3.35TB/s   | 495 TFLOPs/s          | 147       |
+| H200 | Hopper     | 4.8TB/s    | 495 TFLOPs/s          | 147       |
+| B200 | Blackwell  | 576 TB/s   | 2250 TFLOPs/s         | 3.9       |
 
 **Example**
 假设我们使用 BF16 精度计算两个长度为 $N$ 的向量的内积，计算时的流程如下：
@@ -117,9 +116,12 @@ $$
 
 接下来，我们可以对 communication-bound 和 compute-bound 进行可视化，如下图所示
 
-<Image src={gpu_roofline_model} alt="Roofline model visualization for two algorithms (sourced from 'How to Scale Your Model')" />
+<Image
+  src={gpu_roofline_model}
+  alt="Roofline model visualization for two algorithms (sourced from 'How to Scale Your Model')"
+/>
 
-这里我们展示了两个算法 Algo 1 和 Algo 2 的 arithmetic intensity, 当 intensity 较小（小于硬件的 intensity）是，算法为 communication bound, 随着 intensity 增加，算法逐渐由 communication bound 过渡到 compute bound.  上面这个模型被称为 *Roofline model*, 其展示了算法计算效率与硬件之间的关系。
+这里我们展示了两个算法 Algo 1 和 Algo 2 的 arithmetic intensity, 当 intensity 较小（小于硬件的 intensity）是，算法为 communication bound, 随着 intensity 增加，算法逐渐由 communication bound 过渡到 compute bound. 上面这个模型被称为 _Roofline model_, 其展示了算法计算效率与硬件之间的关系。
 
 为了提高算法计算效率，我们可以通过提升算法的 arithmetic intensity 或者提高 memory bandwith.
 
