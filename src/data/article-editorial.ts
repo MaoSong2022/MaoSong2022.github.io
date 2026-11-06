@@ -50,6 +50,7 @@ export const ARTICLE_EDITORIAL: Record<string, Editorial> = {
   mimo: report(),
   "LLaMA-series": report(),
   Gemma: report(),
+  step: report(),
   gemini: report(),
   gpt: report(),
   minicpm: report(),
