@@ -1,0 +1,33 @@
+## Ripple 65B
+
+Ripple 65B [@Ripple-65B] 是 Ricursive Intelligence 发布的一个针对 agentic coding 的模型
+
+架构上，为了提高模型在 NVIDIA hardware 上的利用率，作者采用了 dense 架构，结果发现在训练时模型的 MFU 可以达到 $40\%$.
+与 [Step 5 preview](https://maosong.website/blog/step/#step-5-preview) 一致，作者也采用了 thin-and deep 的模型架构，hidden size 为 5120, layers 为 80.
+
+基础模型架构的改动包括：
+
+1. 基于 gpt-oss [@GPT-oss], 对 MLP 使用了 clamp
+2. 使用了 hybrid attention, local attention 为 SWA, global attention 为 GQA, 比例为 4:1.
+
+作者基于 olmo3 [@OLmo3] 的 ladder 来逐步改善模型的表现：
+
+1. 使用了 stepfun 提出的关于 batch size 和 learning rate 的 scaling law
+2. 使用了 thin and deep 的架构
+3. 将 post-norm 替换为 pre+post norm, 从 4B 开始有提升
+4. 使用 gated attention [@GatedAttention]
+5. 使用 global NoPE [@yang2025ropenopeagainnew], 仅对 local attention 应用 RoPE
+6. 使用 value residual [@zhou2025valueresiduallearning]
+
+训练流程包含如下阶段：
+
+| Stage        | Tokens | Step    | Seqlen | Batch Size   |
+| ------------ | ------ | ------- | ------ | ------------ |
+| Pretrain     | 12T    | 877,500 | 8K     | 1408 -> 3072 |
+| Midtrain     | 200B   | 8,000   | 64K    | 384          |
+| Long Context | 6.5B   | 389     | 2M     | 8            |
+| SFT          | 183B   | 7,274   | 128K   | 192          |
+| LC SFT       | 13.5B  | 802     | 2M     | 8            |
+| RL           | N/A    | 700     | 128K   | 2048         |
+
+RL 训练时，作者使用了 [TIS](https://maosong.website/blog/train_inference_mistahch/#truncated-importance-sampling), score centring 和 linear length penalty.
