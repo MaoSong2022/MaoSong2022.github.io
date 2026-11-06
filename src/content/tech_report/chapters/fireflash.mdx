@@ -1,0 +1,49 @@
+import HtmlEmbed from "../../../components/HtmlEmbed.astro";
+
+## FireFlash
+
+FireFlash [@FireFlash] 是 agent ecnomics 提出的一个 agentic model. 模型基于 GLM-5.3 Flash 后训练得到，在 64 张 B300 上训练了 5 天时间。
+
+训练方式为全参训练，训练时保持 ViT 和 DSA indexer 冻结。
+
+RL 训练时，主要有以下经验
+
+**Async RL**
+作者采用了 async RL 训练范式，每条 rollout 的 staleness 至高为 6, 作者发现，staleness 从 1 到 6, log-prob difference 仅从 0.065 上升到 0.08.
+同时，训练和推理使用了不同的精度，训练使用了 BF16 精度，推理使用了 FP8 混合精度。
+
+在数据方面，作者先对数据进行了 profiling, 通过 rollout 多次的平均通过率来保留训练数据，并使用平均通过率在 $[15\%,85\%]$ 之间的数据来进行训练，通过这个方式， zero-signal rollout groups 的比例从 $48\%$ 降低到了 $10.2\%$.
+
+另外，数据配比方面，作者使用了 $52\%$ 的 long horizon agentic work 数据以及 $48\%$ 的 SWE 数据。具体配比如下图所示
+
+<HtmlEmbed
+  src="embeds/d3-pie-domain.html"
+  title="FireFlash RL data mixture"
+  data="fireflash-rl.json"
+/>
+
+训练时，为了减少输出长度，在 reward 为 1 的 sub-group 里，作者根据当前 rollout 相比于 longest rollout 减少 token 使用比例来给予至高 0.2 的 bonus reward, 作者发现这样可以将模型输出 token 长度降低到原来的 $84\%$.
+
+对于 GRPO, 作者进行了以下优化
+
+$$
+A_i = \frac{R_i'-\mathrm{mean}(R_i')}{\mathrm{std}(R_i')} + \frac{b_i - \mathrm{mean}(b_i)}{0.5},i=1,\dots,G
+$$
+
+其中
+
+$$
+R_i'=\begin{cases}
+    1.5, & \text{ if } R_i=1\\
+    0.5 R_i,&\text{ otherwise}
+\end{cases}, b_i = \begin{cases}
+    0.2\times (1 - L_i/\max_{j,R_j=1}(L_{j})), & \text{ if } \max_{j,R_j=1}(L_{j})\neq0\\
+    0,&\text{ otherwise}
+\end{cases}
+$$
+
+训练时，作者使用了 [TIS](https://maosong.website/blog/train_inference_mistahch/#truncated-importance-sampling) 来减少训练推理不一致性。实验发现，仅有 $\sim3\%$ 的 token 会被 mask 掉。
+
+同时，作者还使用了 score centering 来进一步避免 residual drift, 计算时，作者使用了 top-32 log-prob, 实验发现 score centring 仅增加了 $7.6\%$ 的训练时间。
+
+作者还取消了 KL penalty 和 entropy, 作者发现 policy entropy 训练时下降比较缓慢 ($0.46\to 0.33$)

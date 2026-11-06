@@ -1,0 +1,39 @@
+{
+    "title": "FireFlash RL",
+    "total": 1.0,
+    "type": "percentage",
+    "domains": [
+        {
+            "name": "Long-horizon agentic tasks (ours)",
+            "percentage": 30
+        },
+        {
+            "name": "Hard tier of long-horizon agentic tasks (ours)",
+            "percentage": 11
+        },
+        {
+            "name": "Long-horizon coding skills (ours)",
+            "percentage": 9
+        },
+        {
+            "name": "MiMo-TB (public)",
+            "percentage": 1
+        },
+        {
+            "name": "Tasksmith (public)",
+            "percentage": 1
+        },
+        {
+            "name": "MiMo-code (public)",
+            "percentage": 18
+        },
+        {
+            "name": "SWE tasks (mostly Python) (ours)",
+            "percentage": 18
+        },
+        {
+            "name": "SWE tasks (TypeScript, Go, Python, JavaScript, Rust) (ours)",
+            "percentage": 12
+        }
+    ]
+}
