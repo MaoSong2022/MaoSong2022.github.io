@@ -70,9 +70,8 @@ $$
 compute budget 与 model scale, data scale 之间的关系可以近似表示为 $C=6ND$.
 
 <Sidenote>
-  See [LLM FLOPs
-  computation](/blog/llm-resource-computation/#flops-计算) for more
-  details.
+  See [LLM FLOPs computation](/blog/llm-resource-computation/#flops-计算) for
+  more details.
 </Sidenote>
 
 如果我们用 $N_1,N_2$ 分别表示模型的 non-embedding parameter 以及 complete parameters, 则我们可以用 $6N_1$ 或者 $6N_2$ 来近似 model scale, 但是作者认为 $6N_1$ 和 $6N_2$ 均没有考虑 attention 的计算开销，因此这两种近似的误差都比较大。
