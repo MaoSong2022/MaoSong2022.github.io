@@ -51,7 +51,8 @@ Kimi K2[@Kimi-K2] 探究了针对 MoE 模型 sparsity 的 scaling law, 结果也
 因此，其相对于 [DeepSeek-V3](/blog/deepseek-series/#deepseek-v3) [@DeepSeek-V3] 使用了 $50\%$ 额外的的专家数。
 Ling-mini-beta [@EL] 和 MiniMax-M2 [@MiniMax-M2] 也验证了细粒度专家可以提高模型表现的结论。
 
-MiniMax-M2 [@MiniMax-M2] 也验证了细粒度专家可以提高模型表现的结论。
+Mistral Large 4 [@Mistral-Large-4] 发现尽管提高 granularity 可以提高 sample efficiency, 但是训练效率会随之降低。
+作者通过实验发现，将 granularity 从 4 提升到 8, 模型的 sample efficiency 提高了 $4.3\%$, 但是训练效率降低了 $5\%$.
 
 #### Shared Experts
 

@@ -1,0 +1,73 @@
+## Mistral Large 4
+
+Mistral Large 4 [@Mistral-Large-4] 是 Mixtral 在 26 年 10 月发布的一款多模态大模型。
+
+架构上，Mistral Large 4 使用了 Pixtral 的 vision encoder, size 为 1.6B
+
+attention 部分 使用了 DSA [@DeepSeek-V3.2-Exp;@DeepSeek-V3.2], 最终参与 attention 计算的有 2048 个 key/values.
+与 indexer 一样，模型在 layers 之间共享了 kv cache.
+作者通过实验对比了不同的 attention 优化方案，包括 MLA+SWA 的 hybrid attention, CLA [@CLA], YOCO [@YOCO].
+实验结果显示，这些优化在预训练阶段效果显著，但是经过 SFT 之后，作者发现模型的 agentic 能力不及预期。
+作者认为，NLL 不等同于模型的 agentic 能力。
+
+Mistral Large 4 还加入了 NoPE, 每 4 layers 为一组，前三层为 RoPE, 第四层为 NoPE.
+作者还提出了 LeRoPE, 一个 Yarn 的扩展版本
+
+在 MoE 上，模型包含 1 个共享专家 和 128 个路由专家，其中激活专家个数为 4 个。
+作者发现，将 granularity 从 4 提升到 8, 模型的 sample efficiency 提高了 $4.3\%$, 但是训练效率降低了 $5\%$.
+因此，作者最终决定将 granularity 设置为 $4$.
+对于 load balancing, 作者采用了 MAI-Thinking-1 [@mai_thinking_1] 的做法，即在 EP group 中计算 load balancing loss.
+
+预训练包括两个阶段，第一个阶段主要提高数据的广度，包括 domain 和 languages, 数据占比 $65\%$, 第二个阶段提高数据的质量，使用了更多的 STEM 数据，数据占比 $35\%$.
+
+数据配比如下表所示
+
+| Phase   | Domain | Ratio    |
+| ------- | ------ | -------- |
+| Phase 1 | Web    | $56.3\%$ |
+| Phase 1 | Docs   | $18.7\%$ |
+| Phase 1 | Code   | $16.7\%$ |
+| Phase 1 | Misc   | $8.1\%$  |
+| Phase 2 | Code   | $39.0\%$ |
+| Phase 2 | Web    | $32.0\%$ |
+| Phase 2 | Docs   | $19.0\%$ |
+| Phase 2 | Misc   | $10.0\%$ |
+
+预训练使用了 3840 块 GB200, 4.15M GPU hours, MFU 为 $36\%$, goodput 为 $94\%$.
+Infra 上，作者使用了 ZeRO-2 [@ZeRO] 优化。
+作者还使用了 batch-size ramp-up 方案，其核心思想是训练早期不需要精确梯度，因此可以使用比较小的 batch size, 随着训练进行，逐步提高 batch size 以提供更精确的梯度。
+因此，作者将 batch size 逐步从 40M 提高到 80M, 最终到 160M.
+
+RL 训练，作者使用了 CISPO loss [@MiniMax-M1], 损失函数为
+
+$$
+\mathcal{L}(\theta) = \mathbb{E}_{x_i\sim\mathcal{D},y_i\sim\pi_{\theta}(\cdot\mid x)}\left[w_{i,t}A_i\log\pi_{\theta}(y_{i,t}\mid x_i, y_{i, <t})\right]
+$$
+
+其中，
+
+$$
+w_{i,t} = \mathrm{sg}\left(\min\left(\frac{\pi_{\theta}(y_{i,t}\mid x_i, y_{i, <t})}{\pi_{\mathrm{inference}}(y_{i,t}\mid x_i, y_{i, <t})},3\right)\right)
+$$
+
+$A_i$ 的计算方式为
+
+$$
+\tilde{A}_i = r_i - \mathbb{E}_{j\in g(i)}[r_j], A_i=\frac{\tilde{A}_i}{\sqrt{\mathrm{var}_B(\tilde{A})}}
+$$
+
+这里 $g(i)$ 是 $i$-th sample 所在的 group, $\mathrm{var}_B(\tilde{A})$ 是 batch $B$ 的 group centered rewards 的 variance.
+
+计算时，同一个 group 里的 token weight 相同。
+作者还使用了 MiMo-V2.6 [@MiMo-V2.6] 的 segment-level advantage correction 来重新分配不同 rollout 的 advantage.
+作者使用 Muon [@Muon] 进行训练，还加入了 KL penalty.
+
+对于 training inference mismatch, 作者采取了 router replay, FP8 generation 来解决。
+最终，模型的 train inference log prob 在 $5\times 10^{-3}$ 以内，average staleness 为 6 steps.
+
+作者还使用了 length penalty 来提高 reasoning efficiency. 基于不同的 length penalty, 作者得到了 high, medium, low effort 三个不同思考程度的模型。
+
+最后，作者基于 high-reasoning RL checkpoint 作为 student model, 三个不同思考程度的模型分别作为 teacher 来进行 MOPD, KL divergence 在 full vocab 上计算。
+
+在 inference 上，由于 TP 会导致 KV replication, 因此作者使用了 CP 来代替 TP.
+作者还使用了 DSpark 来提高 speculative decoding 效率
