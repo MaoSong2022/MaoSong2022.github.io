@@ -1,12 +1,32 @@
+import Glossary from "../../../components/Glossary.astro";
+import HtmlEmbed from "../../../components/HtmlEmbed.astro";
+
 ## Framework
 
-LEGO-RL [@LEGO-RL] 提出了 harness-native RL 的概念，主要有三个特征
+agentic RL training framework 由三部分组成：
 
-1. faithful optimization
-2. reliable execution
-3. observable training
+1. trainer: 负责更新 agent 或者 policy model
+2. generator: 负责进行 rollout 生成轨迹
+3. environment: 提供与管理 agent 交互的环境
 
-Forge 提出了如下的优化目标形式
+训练过程中，generator 负责提供数据，保存在 trajectory buffer 中，trainer 从 trajectory buffer 中提取数据用于更新模型，这时候，容易出现两个问题：
+
+1. 当 trainer 比 generator 速度更快（消耗速度大于产出速度）时，trajectory buffer 内容不足以支撑 trainer 训练， trainer 会闲置
+2. 当 generator 比 trainer 速度更快（产出速度大于消耗速度）时，trajectory buffer 内容会越来越多导致 policy staleness.
+
+<Glossary
+  term="Trajectory Buffer"
+  definition="轨迹缓冲区，用于暂存 generator 在 rollout 中生成的交互轨迹，包括观测、动作、奖励以及训练所需的相关信息，供 trainer 按批次读取并更新模型，从而解耦数据生成与模型训练，缓冲两者的速度差异。"
+/>
+
+<Glossary
+  term="Policy Staleness"
+  definition="策略陈旧性，指生成轨迹时使用的策略滞后于 trainer 当前正在优化的策略。轨迹排队等待、rollout 耗时或参数同步延迟都可能扩大这一差距，使训练数据偏离当前策略的分布，增加 off-policy 程度，并可能降低样本效率、影响训练稳定性。"
+/>
+
+因此，一个理想的 RL 系统需要兼顾 generator 和 trainer 的 throughput.
+
+为了解决这个问题，Forge [@Forge] 提出了如下的优化目标形式
 
 $$
 \begin{aligned}
@@ -22,11 +42,49 @@ Sample efficiency 表示每个样本带来的性能提升，由 data distributio
 
 作者认为求解这个优化问题，我们需要解决三个挑战：
 
-1.
+1. 提高 agent 的可扩展性
+2. 提高系统整体的效率，包括使用 async controller 和减少 prefix redundancy
+3. 提高 RL 训练的稳定性
 
-OpenForge RL 提出了一个可插拔的 rollout interface 来连接 RL 框架与 harness rollouts. 给定一个 inference server,
+针对这三个问题，作者提出了 Forge, Forge 的框架图如下所示
+
+<HtmlEmbed
+  id="forge-framework"
+  src="forge-framework.html"
+  title="Framework of Forge"
+/>
+
+从框架图中，可以看到，Forge 在 agent 层面进行了统一，将不同 agent harness 抽象成了 agent loop 与 LLM api.
+
+为了支持训练，Forge 使用了 gateway 来连接 agent 与 inference engine, 记录 trajectory 用于训练。
+
+在 engine 层面，作者分别对 inference engine 和 training engine 进行优化
+
+为了平衡 async 和 sync, 作者使用了 windowd FIFO, 让训练策略只能看到某个 window size 以内的 rollout.
+
+为了提高 rollout 效率，作者使用了 prefix tree merging 来解决 multi-turn 场景下 prefix overlap 的问题，作者提到通过 prefix tree merging, 我们可以减少 prefix prefilling, 实现 rollout 加速和更大 batch size 的训练
+
+算法层面，Forge 使用了 CISPO [@MiniMax-M1] 来进行训练，训练策略为 multi-task RL, 覆盖 reasoning, general QA 和 agent 等 domain.
+
+
+
+## SkyRL
+
+SkyRL 支持 FP8 RL 训练，其关键是 on-policy weight sync, 其核心在于在 weight sync 的时候，会同步将 quantized weights 和 weight scale 一起同步给 inference engine.
+
+对于 MoE 模型，skyRL 使用了 R3 和 top-p replay, top-p replay 可以减缓 entropy collapse.
+
+### OpenForge RL
+
+OpenForge RL [@OpenForgeRL] 提出了一个可插拔的 rollout interface 来连接 RL 框架与 harness rollouts. 给定一个 inference server,
 
 1. OpenForge RL 启动一个 Kubernetes orchestrator 来构建，管理与删除 rollout container pods
 2. 创建一个 proxy 来 wrap inference server 来不同的 container 提供服务
 
 Kubernetes orchestrator 基于 Orchard,
+
+LEGO-RL [@LEGO-RL] 提出了 harness-native RL 的概念，主要有三个特征
+
+1. faithful optimization
+2. reliable execution
+3. observable training

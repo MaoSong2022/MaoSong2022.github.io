@@ -1,0 +1,370 @@
+<div id="agent-rl-diagram" style="width: 100%; overflow-x: auto"></div>
+
+<script>
+  (() => {
+    const ensureD3 = (render) => {
+      if (window.d3 && typeof window.d3.select === "function") return render();
+      let script = document.getElementById("d3-cdn-script");
+      if (!script) {
+        script = document.createElement("script");
+        script.id = "d3-cdn-script";
+        script.src = "https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js";
+        script.addEventListener("load", render, { once: true });
+        document.head.appendChild(script);
+      } else {
+        script.addEventListener("load", render, { once: true });
+      }
+    };
+
+    const render = () => {
+      const container = document.getElementById("agent-rl-diagram");
+      if (!container || container.querySelector("svg")) return;
+      const d3 = window.d3;
+      const width = 1200,
+        height = 900;
+
+      const svg = d3
+        .select(container)
+        .append("svg")
+        .attr("viewBox", `0 0 ${width} ${height}`)
+        .attr("width", "100%")
+        .style("font-family", "Arial, sans-serif");
+
+      const colors = {
+        black: "#EDF0F5",
+        white: "#FFF4E6",
+        gateway: "#DDF7FA",
+        pool: "#E8F8EA",
+        engine: "#EDF0F5",
+        stroke: "#292929",
+      };
+
+      // Arrow markers
+      const defs = svg.append("defs");
+      defs
+        .append("marker")
+        .attr("id", "arch-arrow")
+        .attr("viewBox", "0 0 10 10")
+        .attr("refX", 9)
+        .attr("refY", 5)
+        .attr("markerWidth", 7)
+        .attr("markerHeight", 7)
+        .attr("orient", "auto-start-reverse")
+        .append("path")
+        .attr("d", "M 0 0 L 10 5 L 0 10 z")
+        .attr("fill", colors.stroke);
+
+      // Background containers
+      const panels = [
+        { x: 280, y: 30, w: 280, h: 305, label: "Black Box", fill: colors.black },
+        { x: 600, y: 30, w: 550, h: 305, label: "White Box", fill: colors.white },
+        { x: 690, y: 450, w: 460, h: 230, label: "Data Pool", fill: colors.pool },
+      ];
+
+      const panelGroup = svg.append("g");
+
+      panels.forEach((p) => {
+        panelGroup
+          .append("rect")
+          .attr("x", p.x)
+          .attr("y", p.y)
+          .attr("width", p.w)
+          .attr("height", p.h)
+          .attr("rx", 24)
+          .attr("fill", p.fill)
+          .attr("stroke", colors.stroke)
+          .attr("stroke-width", 2);
+
+        panelGroup
+          .append("text")
+          .attr("x", p.x + p.w / 2)
+          .attr("y", p.y + 35)
+          .attr("text-anchor", "middle")
+          .attr("font-size", 25)
+          .attr("font-weight", 600)
+          .text(p.label);
+      });
+
+      // Layer separators
+      [385, 710].forEach((y) => {
+        svg
+          .append("line")
+          .attr("x1", 250)
+          .attr("x2", 1170)
+          .attr("y1", y)
+          .attr("y2", y)
+          .attr("stroke", colors.stroke)
+          .attr("stroke-width", 1.6)
+          .attr("stroke-dasharray", "8 7");
+      });
+
+      // Layer labels
+      [
+        ["AGENT", 170],
+        ["MIDDLEWARE", 550],
+        ["ENGINES", 805],
+      ].forEach(([text, y]) => {
+        svg
+          .append("text")
+          .attr("x", 15)
+          .attr("y", y)
+          .attr("font-size", 24)
+          .attr("font-weight", 700)
+          .text(text);
+      });
+
+      // Draw connections under nodes
+      const edges = [
+        // Black Box to Gateway
+        {
+          d: "M 420 270 L 420 480",
+          both: true,
+        },
+        // White Box to Gateway
+        {
+          d: "M 790 270 C 790 390 500 360 480 480",
+          both: true,
+        },
+        // Gateway to Data Pool
+        {
+          d: "M 575 540 L 690 540",
+        },
+        // Gateway to Rollout
+        {
+          d: "M 420 600 L 420 755",
+          both: true,
+        },
+        // Data Pool to Train Engine
+        {
+          d: "M 975 680 L 975 755",
+        },
+        // Train to Rollout
+        {
+          d: "M 840 805 L 590 805",
+          label: "sync weights",
+          lx: 715,
+          ly: 790,
+        },
+        // Agent Loop to servers
+        {
+          d: "M 825 180 C 850 150 875 140 910 140",
+          both: true,
+        },
+        {
+          d: "M 825 200 L 910 200",
+          both: true,
+        },
+        {
+          d: "M 825 220 C 850 255 875 260 910 260",
+        },
+      ];
+
+      const edgeGroup = svg
+        .append("g")
+        .attr("fill", "none")
+        .attr("stroke", colors.stroke)
+        .attr("stroke-width", 1.8);
+
+      edges.forEach((e) => {
+        const path = edgeGroup
+          .append("path")
+          .attr("d", e.d)
+          .attr("marker-end", "url(#arch-arrow)");
+
+        if (e.both) {
+          path.attr("marker-start", "url(#arch-arrow)");
+        }
+
+        if (e.label) {
+          svg
+            .append("text")
+            .attr("x", e.lx)
+            .attr("y", e.ly)
+            .attr("text-anchor", "middle")
+            .attr("font-size", 16)
+            .text(e.label);
+        }
+      });
+
+      // Node definitions
+      const nodes = [
+        {
+          label: "BlackBox",
+          x: 335,
+          y: 125,
+          w: 170,
+          h: 55,
+          dashed: true,
+          fill: colors.black,
+        },
+        { label: "API", x: 355, y: 225, w: 130, h: 55, fill: colors.black },
+        {
+          label: "Agent Loop",
+          x: 645,
+          y: 170,
+          w: 180,
+          h: 65,
+          ellipse: true,
+          fill: colors.white,
+        },
+        {
+          label: "LLM Server",
+          x: 910,
+          y: 113,
+          w: 180,
+          h: 55,
+          fill: colors.white,
+        },
+        {
+          label: "Env Server",
+          x: 910,
+          y: 190,
+          w: 180,
+          h: 55,
+          fill: colors.white,
+        },
+        {
+          label: "Reward Server",
+          x: 910,
+          y: 267,
+          w: 180,
+          h: 55,
+          fill: colors.white,
+        },
+        {
+          label: "Gateway Server",
+          x: 280,
+          y: 480,
+          w: 295,
+          h: 120,
+          fill: colors.gateway,
+          fontSize: 23,
+        },
+        {
+          label: "Rollout Engine",
+          x: 280,
+          y: 755,
+          w: 310,
+          h: 115,
+          fill: colors.engine,
+          fontSize: 23,
+        },
+        {
+          label: "Train Engine",
+          x: 840,
+          y: 755,
+          w: 310,
+          h: 115,
+          fill: colors.engine,
+          fontSize: 23,
+        },
+      ];
+
+      const nodeGroup = svg.append("g");
+
+      nodes.forEach((n) => {
+        const g = nodeGroup.append("g");
+
+        g.append(n.ellipse ? "ellipse" : "rect")
+          .attr("cx", n.ellipse ? n.x + n.w / 2 : null)
+          .attr("cy", n.ellipse ? n.y + n.h / 2 : null)
+          .attr("rx", n.ellipse ? n.w / 2 : 14)
+          .attr("ry", n.ellipse ? n.h / 2 : 14)
+          .attr("x", n.ellipse ? null : n.x)
+          .attr("y", n.ellipse ? null : n.y)
+          .attr("width", n.ellipse ? null : n.w)
+          .attr("height", n.ellipse ? null : n.h)
+          .attr("fill", n.fill)
+          .attr("stroke", colors.stroke)
+          .attr("stroke-width", 1.6)
+          .attr("stroke-dasharray", n.dashed ? "8 6" : null);
+
+        g.append("text")
+          .attr("x", n.x + n.w / 2)
+          .attr("y", n.y + n.h / 2)
+          .attr("text-anchor", "middle")
+          .attr("dominant-baseline", "middle")
+          .attr("font-size", n.fontSize || 18)
+          .attr("font-weight", 500)
+          .text(n.label);
+      });
+
+      // BlackBox internal flow
+      svg
+        .append("path")
+        .attr("d", "M 420 95 L 420 123 M 420 180 L 420 223")
+        .attr("stroke", colors.stroke)
+        .attr("stroke-width", 1.5)
+        .attr("fill", "none")
+        .attr("marker-end", "url(#arch-arrow)");
+
+      // Data Pool nested groups
+      const dataGroups = [
+        {
+          title: "Completions",
+          x: 715,
+          y: 505,
+          items: ["prompt_ids", "response_ids", "..."],
+        },
+        {
+          title: "Rewards",
+          x: 930,
+          y: 505,
+          items: ["outcome", "process"],
+        },
+      ];
+
+      dataGroups.forEach((group) => {
+        const g = svg.append("g");
+
+        g.append("rect")
+          .attr("x", group.x)
+          .attr("y", group.y)
+          .attr("width", 195)
+          .attr("height", 150)
+          .attr("rx", 18)
+          .attr("fill", "none")
+          .attr("stroke", colors.stroke)
+          .attr("stroke-dasharray", "7 6");
+
+        g.append("text")
+          .attr("x", group.x + 97.5)
+          .attr("y", group.y + 22)
+          .attr("text-anchor", "middle")
+          .attr("font-size", 17)
+          .attr("font-weight", 600)
+          .text(group.title);
+
+        group.items.forEach((item, i) => {
+          const y = group.y + 35 + i * 43;
+
+          if (item !== "...") {
+            g.append("rect")
+              .attr("x", group.x + 15)
+              .attr("y", y)
+              .attr("width", 165)
+              .attr("height", 35)
+              .attr("rx", 8)
+              .attr("fill", "none")
+              .attr("stroke", colors.stroke);
+          }
+
+          g.append("text")
+            .attr("x", group.x + 97.5)
+            .attr("y", y + 18)
+            .attr("text-anchor", "middle")
+            .attr("dominant-baseline", "middle")
+            .attr("font-size", 15)
+            .text(item);
+        });
+      });
+    };
+
+    // Astro's layout scripts are deferred modules; raw embed scripts run earlier.
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", () => ensureD3(render), { once: true });
+    } else {
+      ensureD3(render);
+    }
+  })();
+</script>
