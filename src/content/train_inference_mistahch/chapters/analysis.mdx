@@ -86,3 +86,5 @@ TIM 的 pattern: KL divergence 对于推理引擎 $\mu_{\theta_{\mathrm{old}}}$ 
 另外，对于 MoE models, 基于前面的分析，我们还可以分析 $\pi_{\theta}$ 和 $\mu_{\theta}$ 的 routing 情况来监控是否有 TIM
 
 TODO
+
+实际训练过程中，我们一般要求 rollout logprob diff mean 小于 $0.04$.
