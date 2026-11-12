@@ -27,5 +27,3 @@ SWA 的示意图如下所示
 并且使用了 SWA 之后，我们的 kv cache 也就随之固定了，因此我们可以使用一个 rolling buff cache, 其大小为 $W$, 对于第 $i$ 个 token, 我们将其保存在 cache 中的第 $i \% M$ 个位置。
 
 作者还进一步将 sequence 分割为多个 chunk, 每个 chunk 的大小都是 window size $M$, 这样在计算 attention 的时候，对于当前的 chunk, 我们使用 self-attention, 对于 cache 中的 attention, 我们使用 SWA, 然后对于 past token, 由于这部分不在 sliding window 内因此不参与计算
-
-- [Arxiv](https://arxiv.org/abs/2310.06825v1)
