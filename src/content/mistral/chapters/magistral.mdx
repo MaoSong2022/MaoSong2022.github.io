@@ -1,11 +1,10 @@
-
 Magistral 是 Mistral 提出的一个 reasoning model 系列，主要针对 math 和 code 两个 domain
 
 ## Magistral
 
 本文记录 Magistral 技术报告 [@Magistral] 的阅读笔记。
 
-Mistral 在 2025 年 6 月 12 日发布了 Magistral ，一个 reasoning model, 包含两个模型，一个是由纯 RL 训练得到的 *Magistral Medium*, 另一个是由 SFT 和蒸馏 Magistral Medium 得到的 **Magistral Small**
+Mistral 在 2025 年 6 月 12 日发布了 Magistral ，一个 reasoning model, 包含两个模型，一个是由纯 RL 训练得到的 _Magistral Medium_, 另一个是由 SFT 和蒸馏 Magistral Medium 得到的 **Magistral Small**
 
 作者首先介绍了一下本文的贡献：
 
@@ -15,15 +14,13 @@ Mistral 在 2025 年 6 月 12 日发布了 Magistral ，一个 reasoning model, 
 4. 系统性探究了 RLVR 的能力边界
 5. 开源了 Magistral small (24B)
 
-## Method
-
 ### RL
 
 RL 算法基于 GRPO 改进，主要有以下几点：
 
 1. 去掉了 KL Divergence loss, 这一点跟 [DAPO](https://arxiv.org/abs/2503.14476) 是一致的，提升模型的探索能力
 2. Loss Normalization，在 sample 层面做平均，还是跟 DAPO 一致，减少不同长度输出对训练造成的影响
-3. Advantage Normalization, 作者首先将每个 token 的 Advantage 定义为 $\hat{A}_i=R_i-\mu$,  其中 $\mu$ 是每个 group 的 reward 均值， 然后在每个 mini-batch 里对 advantage 进行 Normalization (这里 $\hat{A}_{mean}$ 和 $\hat{A}_{std}$ 分别为 mini-batch advantage 的均值和方差)：
+3. Advantage Normalization, 作者首先将每个 token 的 Advantage 定义为 $\hat{A}_i=R_i-\mu$, 其中 $\mu$ 是每个 group 的 reward 均值， 然后在每个 mini-batch 里对 advantage 进行 Normalization (这里 $\hat{A}_{mean}$ 和 $\hat{A}_{std}$ 分别为 mini-batch advantage 的均值和方差)：
 
 $$
  \hat{A}_{i,t}^{norm}=\frac{\hat{A}_i-\hat{A}_{mean}}{\hat{A}_{std}}
@@ -78,11 +75,11 @@ $$
 > [!tip] Observation
 > 作者发现，RL 的训练对于 system prompt 非常的敏感，因为 system prompt 会提高 model 的 entropy, 然后提高模型的探索能力。
 
-## Data
+### Data
 
 数据包括 math problems 以及 code problems
 
-### Math
+#### Math
 
 作者首先收集了 700K 样本，然后作者通过预处理以及过滤来保证数据的质量：
 
@@ -97,11 +94,11 @@ $$
 
 最终一共得到 **38K** 的样本
 
-### Code
+#### Code
 
 首先去掉没有 solution 和 test 的问题；然后去除掉标准答案不能通过所有 test 的问题。最终一共得到 **35K** 的样本，包含 Python 和 C++ 两种语言
 
-## Training
+### Training
 
 训练框架如下图所示
 
@@ -126,7 +123,7 @@ Magistral small 训练
 **RL**
 RL 的训练与 Magistral Medium 一致。
 
-## Infra
+### Infra
 
 作者首先介绍了一下 RL 训练的 infra, infra 主要包括三个模块：
 
@@ -150,17 +147,17 @@ RL 的训练与 Magistral Medium 一致。
 
 训练时，对于每个 rank, 只要其收集到足够的 roll-out, 就会进行一次梯度更新。
 
-## Evaluation
+### Evaluation
 
 ![Performance of Magistral Medium](/posts/notes-on-magistral/Magistral_performance_AIME.png)
 
-## Ablation
+### Ablation
 
 **RL 的泛化性**
 作者探究了 RL 的 cross-domain generalization 能力，实验结果如下
 
 | Model               | AIME’24      | LiveCodeBench v5 |
-| ----------------------- | ------------ | ---------------- |
+| ------------------- | ------------ | ---------------- |
 | Starting Checkpoint | 32.2         | 22.7             |
 | RL (Math only)      | 62.5         | 38.3 (+15.6)     |
 | RL (Code only)      | 49.7 (+17.5) | 42.7             |
@@ -199,7 +196,7 @@ RL 的训练与 Magistral Medium 一致。
 
 作者发现，三种方式的区别并不是很大。
 
-## Analysis
+### Analysis
 
 **length dimension**
 作者首先保存模型的 weight, 然后使用 PCA 进行降维，并在 2 维上进行可视化，作者对权重进行扰动，然后记录模型的 reward 以及输出长度。结果发现，模型存在一个 length dimension. 可视化结果如下图所示
@@ -226,11 +223,3 @@ RL 的训练与 Magistral Medium 一致。
 2. entropy bonus loss: 作者发现在损失函数中加入 entropy bonus loss 之后，模型的训练变得不稳定，而且效果不如使用更高的 $\epsilon_{high}$
 3. 作者还进一步验证在 PPO loss 中加入 KL divergence loss, 结果发现效果并不好，这与 DAPO 的结论一致
 4. 作者还尝试先 SFT Magistral Medium, 再进行 RL, 结果发现 RL 可以大幅度提高 SFT checkpoint 的表现。
-
-## Conclusion
-
-本文中，作者提出了 Magistral, 一个针对 math 和 code 的 reasoning model, 作者介绍了训练细节。但是，从方法层面来看，和 DAPO 区别不是很大。关键点应该是作者详细介绍了各种消融实验，为后来相关探索提供了经验。
-
-## References
-
-- [arxiv](https://arxiv.org/abs/2506.10910v1)
