@@ -21,3 +21,12 @@ Agentic 训练数据由三部分构成：
 - R2E-Subset
 
 [@MidTool] 提出了 MidTool，一个合成 mid-training 阶段 general tool-use 数据的 pipeline，以及一个包含 20.3b token 的数据集；该数据可有效提高后续 SFT 与 RL 阶段表现。
+
+
+
+
+
+### Data Process
+
+1. 训练之前，先将 non-model error 降到 0, 用训练的模型先对训练数据集跑一次 rollout.
+2. 保证 harness 正确性，确保模型表现差是模型本身的问题
