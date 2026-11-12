@@ -6,7 +6,7 @@ import Definition from "../../../components/Definition.astro";
 
 传统的偏好优化主要基于 RLHF, 其过程为：SFT, reward modeling, RLHF. 其中 reward model 的训练至关重要，对最终模型的表现有非常大的影响。但是 RLHF 的问题在于其训练复杂且经常不稳定。
 
-为了解决这个问题，[@rafailov2023direct] 提出了 Direct Preference Optimization (DPO), DPO 通过构建 reward function 和最优策略之间的关系，进而通过训练 policy model 来同时完成 reward model 的训练。这样，我们就避免了 reward model 的训练。结果发现，DPO 的表现超过了之前的偏好优化方法。
+为了解决这个问题，[@DPO] 提出了 Direct Preference Optimization (DPO), DPO 通过构建 reward function 和最优策略之间的关系，进而通过训练 policy model 来同时完成 reward model 的训练。这样，我们就避免了 reward model 的训练。结果发现，DPO 的表现超过了之前的偏好优化方法。
 
 作者首先回顾了 RLHF, RLHF 的 pipeline 如下
 
