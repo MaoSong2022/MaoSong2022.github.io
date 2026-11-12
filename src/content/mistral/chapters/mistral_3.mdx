@@ -1,0 +1,97 @@
+## Mistral 3
+
+Mistral 3 是 Mistral 在 25 年 12 月发布的多模态大模型系列，包括
+
+1. Ministral [@Ministral3] 系列，包含3B, 8B, 14B 三个 dense model
+2. [Mistral Large 3](https://huggingface.co/collections/mistralai/mistral-large-3), 一个基于 MoE 的 675B-41B 旗舰模型。
+
+### Ministral
+
+Ministral 的三个模型架构参数如下表所示
+
+| Model               | Layers | Latent dim | Q/KV heads | FFN dim | Tied Embeddings | Context Length |
+| ------------------- | ------ | ---------- | ---------- | ------- | --------------- | -------------- |
+| **Ministral 3 14B** | 40     | 5120       | 32 / 8     | 16384   | NO              | 256k           |
+| **Ministral 3 8B**  | 34     | 4096       | 32 / 8     | 14336   | NO              | 256k           |
+| **Ministral 3 3B**  | 26     | 3072       | 32 / 8     | 9216    | YES             | 256k           |
+
+Ministral 的 vision encoder 使用了一个 410M 的 ViT, 架构与 Pixtral 相同。
+
+Ministral 系列模型使用了 cascaded distillation 策略。从 Mistral Small 3.1 Base (MS3.1) model 开始，我们迭代进行 prune-distill-repeat 方法来得到更小的模型：
+
+1. prune: 通过对一个更大的 base model 进行 pruning 得到一个 child model
+2. distill: 基于蒸馏训练 child model
+3. repeat: 将 child model 作为新的 base model 重复前两个步骤
+
+prune 策略包括：
+
+1. layer pruning: 使用 input to output activation norms 作为 layer importance
+2. hidden dimension pruning: 基于 PCA 来分析和压缩 attention/FFN normalization
+3. FFN dimension pruning: 对 SwiGLU 的 weight matrix 进行 pruning
+
+pruning 伪代码如下所示
+
+```python
+def prune(model, target_size):
+    target_n_layers, target_dim, target_ffn_dim = get_config(target_size)
+
+    # layer pruning
+    scores = []
+    for layer in model.layers:
+        input_norm = layer.input_x.norm(dim=-1)
+        output_norm = layer.output_x.norm(dim=-1)
+        scores.append((output_norm / input_norm).mean())
+
+    layers_to_keep = topk(scores, k=target_n_layers)
+    model = remove_layers(model, layers_to_keep)
+
+    # hidden dimension pruning
+    norm_inputs = []
+    for layer in model.layers:
+        norm_inputs.extend([layer.attn_norm.input_x, layer.ffn_norm.input_x])
+
+    rotation = PCA(norm_inputs, n_components=n_dims)
+    model = apply_rotation(model, rotation, target_dim)
+
+    # feedforward pruning
+    for layer in model.layers:
+        importance = abs(silu(layer.ffn.w1.output_x) * layer.ffn.w3.output_x).mean(
+            dim=(0, 1)
+        )
+        dims_to_keep = topk(importance, k=target_ffn_dim)
+        layer.ffn = prune_hidden_dims(layer.ffn, dims_to_keep)
+    return model
+```
+
+整体的 cascaded distillation 伪代码如下所示
+
+```python
+model = MS3_1
+
+for model_size in [14B, 8B, 3B]:
+    model = prune(model, model_size)
+    # short context distillation
+    model = model.train(data=short_data, teacher_model=MS3_1)
+    # long context distillation
+    final_model = model.train(data=long_data, teacher_model=MS3_1)
+
+    yield (model_size, final_model)
+```
+
+Post-training 包括 SFT 和 online DPO (ODPO, [@OAIF]) 两个阶段。
+
+对于 instruction model, 作者使用了 FP8 quantization 进行训练, 教师模型为 Mistral Medium 3. Vision encoder 保持冻结，仅训练 LLM backbone 和 adapter.
+然后，作者使用了 ODPO 算法进行偏好优化。
+
+对于 reasoning model, 作者首先使用了 CoT samples 进行 SFT.
+然后，作者使用 GRPO [@DeepSeek-Math] 进行 RL 训练，训练包括 STEM domain 和 general domain 两个 stage.
+最后，作者进行了一个 ODPO 来提高模型对话能力。
+
+作者在实验阶段进行了一些 ablation study, 主要结论为蒸馏的时候，教师模型并不是越强越好；教师的类别 (base/instruct/reasoning) 对模型影响比较大；基于人类偏好训练的模型作为教师模型表现更好
+
+### Mistral Large 3
+
+Mistral Large 3 是一个多模态大模型，vision encoder size 为 2.5B.
+模型使用了 3000 H200 进行训练。
+
+Mistral Large 3 结构与 DeepSeek-V3 [@DeepSeek-V3] 相似，主要不同之处在于模型使用了 coarse granularity 专家，相比于 DeepSeek-V3 使用 256-8 的专家配置，Mistral Large 3 使用了 128-4

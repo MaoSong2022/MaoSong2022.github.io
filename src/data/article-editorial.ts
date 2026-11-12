@@ -43,6 +43,7 @@ export const ARTICLE_EDITORIAL: Record<string, Editorial> = {
   composer: report(),
   GLM: report(),
   minimax: report(),
+  mistral: report(),
   olmo: report(),
   "qwen-vl-series": report(),
   internvl: report(),
