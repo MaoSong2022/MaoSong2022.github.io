@@ -9,3 +9,31 @@
 - 常见瓶颈包括大规模 sandbox、长轨迹吞吐，以及用 response mask 区分模型生成与工具观测
 
 待补充：async agent loop、sandbox 调度与长轨迹内存优化。
+
+### Low Precision RL
+
+RL 特别是 agentic RL 训练过程中，rollout 阶段的时间占总训练时间大约为 $80\%$, 另一方面，agentic RL 的超长上下文也会导致 KV cache 占用急剧增加。
+
+而 low precision RL 则是通过使用低精度来进行 rollout 或者训练来提高整体训练效率的一个方法。
+目前，low precision RL 可以分为两种：
+
+1. 仅在 inference engine 上使用低精度
+2. 同时在 training engine 和 inference engine 上使用低精度
+
+对于第一种方式，低精度可以提高推理速度，减少 KV cache 占用，能够比较好提高整体的推理效率。
+已有实验发现，对于 Qwen3-30B-A30B, 方式 1 可以提高 $35\%$ 的 rollout throughput, 对于 Qwen3-8B, 可以提高 $10\%\sim20\%$ 的 rollout throughput. 这个效率的提升是因为我们将 model weights 部分所占用的内存转化为了 KV cache.
+但是，使用 low precision 进行 rollout 会导致 training inference mismatch.
+
+对于第二种方式，对比第一种方式和高精度 RL 之后，我们发现
+
+1. e2e FP8 与 BF16 的准确率差不多
+2. TIM 现象的对比为，方式 1 > 方式 2 > BF16, 但是方式 2 整体可控，方式 1 在 700 step 时 TIM 就会超过 5
+
+对于 MoE router 这部分，使用 BF16 的效果是最好的，方式 1/2 均会导致较差的结果。
+
+| Configuration               | Rollout speedup                      | Mismatch KL             | Verdict                             |
+| --------------------------- | ------------------------------------ | ----------------------- | ----------------------------------- |
+| BF16 baseline               | -                                    | ~1e-3, higher on MoE    | MoE needs correction even at BF16   |
+| W8A8 linear (rollout only)  | 10-20% (8B) / 30-50% (30B)           | higher, stable          | Matches BF16 with token-level TIS   |
+| FP8 KV cache (rollout only) | 38% alone / 44% combined (8B)        | higher again            | Aligned on 8B; MoE trend still open |
+| End2end FP8                 | 30-50% rollout gain, no trainer gain | lower than rollout only | Most stable: hybrid + FP32 scales   |
