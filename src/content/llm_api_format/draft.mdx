@@ -1,6 +1,87 @@
 ## Introduction
 
+OpenAI completions, `/v1/completions`
+
+调用方式，
+
+特点：
+
+1. 没有 system message
+2. 没有多轮对话，只能用户自己拼
+3. 没有 role
+4. 没有 function call
+
+OpenAI GPT-3.5-Turbo 提出的 `v1/chat/completions`,
+
+特点：
+
+- assitant tool call 和 tool 必须成对出现
+
+局限：
+
+必须手动拼接整个 agent loop
+
+```python
+# 第一轮
+resp = client.chat.completions.create(
+    model="gpt-5.5", messages=messages, tools=tools
+)
+msg = resp.choices[0].message
+# 手动解析 JSON string
+fn_args = json.loads(msg.tool_calls[0].function.arguments)
+# 执行工具，拿到结果
+tool_result = call_weather_api(fn_args["city"])
+# 手动拼回 messages
+messages.append(
+    {"role": "tool", "tool_call_id": msg.tool_calls[0].id, "content": tool_result}
+)
+# 第二轮
+resp2 = client.chat.completions.create(model="gpt-5.5", messages=messages)
+print(resp2.choices[0].message.content)
+```
+
+局限2: 嵌套太深， `response.choices[0].message.content` 才能拿到输出内容，并且 tool_call 和 content 是互斥的，需要用户自己判断是文本还是工具调用
+
+局限3: 流式输出基本靠猜，需要自己写状态机分辨
+
+局限4: 每轮都丢 reasoning
+
+局限5: system 混在 messages 里，参数很乱
+
+### v1 response
+
+改进1:不手动拼装消息
+
+```python
+res1 = client.responses.create(
+    model="gpt-6-astra", input="What is the capital of France?", store=True
+)
+
+res2 = client.responses.create(
+    model="gpt-6-astra",
+    input="And its population?",
+    previous_response_id=res1.id,
+    store=True,
+)
+```
+
+不手动拼装消息的代价是将 context 的控制权交出去了，context 压缩/ session 切换时，不一定好用
+
+改进2: 服务端内置工具
+
+改进3:工具延迟加载
+
+改进4:返回结果对象化，代价是事件更多
+
+改进5: reasoning 跨轮持久化
+
 - OpenAI chat completions
 - OpenAI responses
 - Anthropic messages
 - Google generateContent
+
+| ｜ api                | year | role | function call | system prompt | multi-turn | multimodal |
+| --------------------- | ---- | ---- | ------------- | ------------- | ---------- | ---------- |
+| `v1/completions`      | 2020 | no   | no            | no            | no         | no         |
+| `v1/chat/completions` | 2023 | yes  | yes           | yes           |            |            |
+| `v1/responses`        | 2025 |
