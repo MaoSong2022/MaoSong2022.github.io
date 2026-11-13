@@ -1,0 +1,14 @@
+## K2 horizon
+
+K2 horizon [@K2-Horizon] 是 IFM 发布的一个大模型系列，包括 0.9B, 3.7B, 32B, 36B-A4B, 375B-A23B 6 个模型。
+
+这六个模型的架构基本上相同，预训练使用了 20T tokens, 其中包含 $17\%$ 的 problem solving trajectories.
+为了提高数据质量，预训练阶段有 $10$ T token 都是合成数据。
+为了提高多样性，作者提出了 Wzip compressor 作为一个 metric.
+
+架构上，K2 horizon 提出了 MoVA (mixture of value attention), 将 MoE 的 principle 扩展到 attention 上 (在保持 FFN module 计算量不变的同时，提高模型的 capacity)
+
+post-training 从 mid-training 开始, 基于 mid-training checkpoint, 作者基于 RL 训练了 knowledge work, IF, search, tool use 和 reasoning 5 个专家模型，最后通过 model merge 得到 RL checkpoint.
+基于 RL checkpoint, 作者实行了 SFT. 训练细节见 [huggingface 页面](https://huggingface.co/IFM/K2-Horizon-375B-A23B)
+
+为了提高推理效率，K2 horizon 提出了 Uno, 一个 speculative decoding 方法，Uno 使用了 diffusion distillation, 来同时并行生成多个 block.
