@@ -40,7 +40,7 @@ Thinking Machine labs 提出了 batch-invariant inference kernels, 但是会导�
 在训练阶段，使用推理阶段的 MoE router, 避免 sample 时对 policy gradient 引入噪声。
 
 1. vanilla router replay: R2, 梯度更新时，replay inference engine 选中的专家，减少策略滞后性
-2. rollout router replay: R3, 在训练引擎中重放推理引擎选中的专家，减少训练推理差异。相关工作有 DeepSeek-V3.2 [@DeepSeek-V3.2], [@ma2025stabilizingmoereinforcementlearning]
+2. rollout router replay: R3, 在训练引擎中重放推理引擎选中的专家，减少训练推理差异。相关工作有 DeepSeek-V3.2 [@DeepSeek-V3.2], [@R3]
 
 MiMo-V2.6 [@MiMo-V2.6] 在 RL 训练的时候冻结了 router, 发现这样可以提高负载均衡
 
