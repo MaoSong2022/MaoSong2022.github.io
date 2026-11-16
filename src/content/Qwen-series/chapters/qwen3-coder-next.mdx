@@ -1,0 +1,9 @@
+## Qwen3 Coder Next
+
+Qwen3 Coder Next [@Qwen3-Coder-Next] 是 Qwen 在 26 年 1月 发布的一个 80B-A3B 的 coding agent MoE model.
+
+Qwen3 Coder Next 基于 [Qwen3-Next](#qwen3-next) base model 通过 mid-training 和 post-training 得到
+
+mid-training 阶段，上下文为 256K, 作者使用了 next token prediction 以及 fill in the middle 两个目标函数来进行训练。作者还使用了 best-fit packing 策略 来提高计算效率。
+
+post-training 阶段，经过 SFT 之后，作者训练了 web development, user experience, single-turn, SWE experts. 最后通过蒸馏来进行合版。
