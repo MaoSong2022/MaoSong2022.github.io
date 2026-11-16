@@ -83,7 +83,7 @@ GLM-4.5 与 DeepSeek-V3 和 Kimi-k2 的对比如下
 
 训练时，与 Kimi-k2 一样，作者使用了 [Muon](/blog/optimizer/#moonlight) 作为优化器。作者使用了 cosine decay schedule. batch size 从 16M token 到 64M token.
 
-## Post-training
+### Post-training
 
 Post-training 分为两个阶段：
 
@@ -94,7 +94,7 @@ Post-training 分为两个阶段：
 
 <Image src={glm4_5_post_training_framework} alt="Post-training of GLM4.5" />
 
-### SFT
+#### SFT
 
 两个 stage 都由 SFT 开始，
 
@@ -115,9 +115,9 @@ Agentic SFT 数据的构建包括四个步骤：
 3. Trajectory Generation: 采样生成的 rollout
 4. Quality Filtering: 过滤低质量的数据
 
-### RL
+#### RL
 
-#### Reasoning RL
+##### Reasoning RL
 
 这个阶段使用了 GRPO 算法进行训练，与 [DAPO](https://arxiv.org/abs/2503.14476) 一样，作者去除了损失函数中的 KL divergence。
 
@@ -143,7 +143,7 @@ Agentic SFT 数据的构建包括四个步骤：
 
 <Image src={glm4_5_code_science_rl} alt="Ablation on Code and Science RL" />
 
-#### Agent RL
+##### Agent RL
 
 作者主要关注 web-search 以及 code generation 两个任务。对于 web-search, 作者构建了一个数据合成 pipeline, 用于生成 multi-step reasoning 的 QA 数据。构建过程包括基于知识图谱的 multi-hop reasoning 和 human-in-the-loop 的内容提取。对于 code generation, 作者基于 GitHub 的 PR 以及 issues 构建了 benchmark
 
@@ -169,7 +169,7 @@ $$
 
 <Image src={glm4_5_interaction_turns} alt="Interaction turn scaling" />
 
-#### General RL
+##### General RL
 
 General RL 用于提高模型的整体表现，解决潜在的问题以及提升关键能力，作者主要使用了 RLHF 和 RLAIF 两种方法
 
@@ -191,25 +191,3 @@ General RL 用于提高模型的整体表现，解决潜在的问题以及提升
 在训练时，作者使用了 BF16 精度，在推理时，作者使用了 FP8 精度来提高推理效率。
 
 针对 agentic RL 任务，作者还进行了优化。与 Kimi-k2 类似，作者让 inference engine 持续产出 rollout, 然后让 training engine 来更新模型权重，最后同步到 inference engine 上
-
-### Experiments
-
-整体表现如下图所示，GLm4.5 在 ARC benchmark 上的平均表现达到了第三名。
-
-<Image
-  src={glm4_5_average_performance}
-  alt="Average performance on ARC benchmarks"
-/>
-
-具体来看，
-
-1. 在 agentic benchmark 上, GLM4.5 仅次于 o3 的表现
-2. 在 coding benchmark 上，GLM4.5 次于 Claude Opus 4 和 Claude Sonnet 4, 排第三名
-3. 在通用能力上，GLM
-
-人工对比 coding agent 能力的结果如下图所示
-
-<Image
-  src={glm4_5_agent_coding_performance}
-  alt="Comparison of GLM4.5 aginst other models"
-/>
