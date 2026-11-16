@@ -1,0 +1,14 @@
+## Async RL
+
+PipelineRL [@PipelineRL] 给出了一个 RL 训练效率优化的目标
+
+> To effectively use a larger number of accelerators $N$ to make average reward $R(t)$ at time $t$ grow faster.
+
+PipelineRL 将这个目标进行了拆解，即将 $R(t)$ 视作 $R(S)$ 和 $S(t)$ 的复合函数，其中 $S(t)$ 是时间 $t$ 需要处理的样本数量。
+这样，效率优化的目标 (learning speed) 就可以拆解为 learning effectiveness 和 learning throughput 两部分：
+
+$$
+\frac{\Delta R}{\Delta t} = \frac{\Delta R}{\Delta S}\times \frac{\Delta S}{\Delta t}
+$$
+
+on policy 的好处是 learning effectiveness 很高 （因为几乎没有样本被 clip），但是代价是 throughput 会非常低，提高 $N$ 并不一定能够提高 throughput.
