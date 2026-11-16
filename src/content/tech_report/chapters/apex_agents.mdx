@@ -1,0 +1,48 @@
+## Apex Agents
+
+Apex Agents [@Mercor-Agents] 是 Mercor 发布的一个用于 knowledge work 的 agentic RL model.
+
+训练数据为 APEX-Agents, 包含 1928 个训练数据集。
+
+技术改进：
+
+1. 分布式执行架构：使用 harbor 来管理 rollout 生命周期，每个 trail 作为一个独立的 ray task 执行
+   ，环境采用 Modal sandbox
+2. timeout: 为偶有操作设置超时，并区分重试错误和直接失败错误
+3. harness 与 prompt 修复：保证工具调用返回结果有效性，增加工具解析失败重试提示，单词工具返回结果诊断等
+
+作者还加入了 context nudge 策略，在模型使用的上下文超过 $80\%$ 时，提醒模型
+
+对于 TITO, 作者重写了 harness, 直接调用底层 `/completions` 借口来进行原始 token ID 级别的记录
+
+对于 RL 调优，作者使用了 SkyRL 的 async RL 训练框架：
+
+1. 使用了动态微批处理提高吞吐率
+2. 固定训练 GPU 数量之后，动态分配足够多的推理节点是的训练器等待时间为 0. 最终 35B 的训练与推理配置节点比例为 12:4, 397B 的比例为 12:8
+3. 基于 kv cache 和平均轨迹长度来计算并发上限，35B 并发设置为 550, 397B 设置为 300.
+4. 通过优化，将 logprob difference 保持在 0.03 以下
+
+在进行 RL 训练时，作者验证了以下策略：
+
+1. loss aggregation: 对比了 token-mean, sequence-mean, prompt-mean 三种方式，发现 prompt-mean 效果最好
+2. 对于 loss, 对比了 DPPO [@DPPO] 和 GLM-5 loss, 发现 DPPO 效果更好
+3. context nudge, 加入之后发现效果也有所提升
+4. length, 对比了 overlong filtering 和 adaptive length penalty, 发现效果提升均不明显。
+
+实验结果整体如下表所示：
+
+| Run                               | Loss agg    | IS variant | Context nudge | Mean Reward (%)  | Avg turns        | Tokens / turn    | Tool call success (%) |
+| --------------------------------- | ----------- | ---------- | ------------- | ---------------- | ---------------- | ---------------- | --------------------- |
+| **Untrained model**               | —           | —          | —             | 22.74 $\pm$ 1.04 | 16.80 $\pm$ 0.13 | 882.9 $\pm$ 19.0 | 96.60 $\pm$ 0.28      |
+| **1. Baseline**                   | token_mean  | GLM-5 loss | False         | 28.69 $\pm$ 0.80 | 21.21 $\pm$ 0.27 | 834.0 $\pm$ 14.7 | 98.37 $\pm$ 0.32      |
+| **2. prompt_mean**                | prompt_mean | /          | /             | 32.54 $\pm$ 1.19 | 32.12 $\pm$ 0.64 | 837.8 $\pm$ 8.2  | 95.88 $\pm$ 0.02      |
+| **3. DPPO**                       | /           | DPPO       | /             | 29.03 $\pm$ 0.45 | 32.40 $\pm$ 0.66 | 587.5 $\pm$ 13.1 | 97.16 $\pm$ 0.22      |
+| **4. Context nudge**              | /           | /          | True          | 31.64 $\pm$ 0.68 | 38.31 $\pm$ 0.64 | 685.8 $\pm$ 5.8  | 97.31 $\pm$ 0.18      |
+| **5. DPPO + prompt_mean + nudge** | prompt_mean | DPPO       | True          | 31.81 $\pm$ 0.81 | 35.99 $\pm$ 0.44 | 775.3 $\pm$ 8.4  | 97.74 $\pm$ 0.14      |
+
+最终，作者采取了 DPPO, prompt mean 和 context nudge 的方式。
+
+训练之后，基于评估结果，作者给出了以下结论：
+
+1. 训练数据相比于算法层面的改进来说更重要
+2. 模型具有跨 harness 迁移能力，并且 Qwen3.5 35B-A3B 更依赖代码执行，而 Qwen3.6 397B-A17B 更习惯使用 MCP server.
