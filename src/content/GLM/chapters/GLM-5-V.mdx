@@ -1,6 +1,8 @@
 ## GLM-5V-Turbo
 
-### CogViT
+### Architecture
+
+#### CogViT
 
 作者使用了两阶段训练策略
 
@@ -18,7 +20,7 @@
 
 仍然使用 Muon optimizer
 
-### MMTP
+#### MMTP
 
 这里要解决的问题就是，如何支持多模态大模型的 [MTP](https://proceedings.mlr.press/v235/gloeckle24a.html), 与纯文本的 MTP 不同的地方在与，视觉 token 可能占比很高，因此我们需要考虑如何将视觉 token 转化为 MTP 的输入，这里作者尝试了三种方法：
 
