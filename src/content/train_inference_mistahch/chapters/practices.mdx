@@ -19,3 +19,8 @@
 | IcePop, Kpop | Ling-2.6                      | TIS                      |
 | TIS          | Ring-Zero                     |                          |
 | MIS          | Nemotron-3-Super              |                          |
+
+Step 5 Preview [@Step-5-Preview] 采用了如下优化：
+
+1. infra 上，使用了 bitwise alignment, 以 $<10\%$ overhead 的代价在 staleness 为 0 时实现 0 log prob difference.
+2. 算法上，使用了 R3, top-p candidate set 以及 zero-center projection.
