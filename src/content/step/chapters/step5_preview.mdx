@@ -4,12 +4,19 @@ Step 5 Preview [@Step-5-Preview] 是阶跃星辰在 26 年 10 月发布的针对
 
 Step 5 Preview 架构上采用了 hybrid attention, narrow and deep, MoE 三种方案。
 
-对于 attention 模块，作者采取了 hybrid attention 架构，local attention 为 gated SWA, global attention 为 sparse GQA, 比例为 3:1, 这与 Step 3.5 一致
+对于 attention 模块，作者采取了 hybrid attention 架构，local attention 为 gated SWA, global attention 为 gated sparse GQA, 比例为 3:1, 这与 [Step 3.5](#step-35) 一致
 
 对于 layer, Step 5 Preview 采用了 narrow but deep 的方案，来提高模型的 multi-hop reasoning 能力。
-基于这个方案，模型包含 92 layers.
+基于这个方案，Step 5 Preview 包含 92 layers.
 为了解决 deep layer 带来的训练不稳定问题，作者提出了三点改进：
 
 1. 使用 FP32 精度来保存 hidden state
-2. 对 RMSNorm 进行 scale
+2. 使用 FP32 精度来表示 RMSNorm 的 scale factor, 避免 BF16 精度下 scale factor 接近 $-1$ 产生 round error.
 3. 执行细粒度的 gradient clamp.
+
+在 RL 训练时，作者进行了以下优化：
+
+1. 在 staleness 为 0 时，基于 bitwise alignment 实现 zero log prob difference, 这一优化仅增加了不到 $10\%$ 的开销。
+2. 使用 R3 [@R3], top-p candidate set [@mai_thinking_1;@DeepSeek-V3.2] 以及 zero-centering projection 来减少 distribution shift
+
+基于这两点优化，作者发现训练时 logprob diff 在 $1e-2$ 以下。
