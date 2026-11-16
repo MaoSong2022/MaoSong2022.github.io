@@ -1,0 +1,31 @@
+## TITO
+
+TITO (token in token out) 指的是如何在 agentic RL 训练过程中确保 policy model (LLM) 仅对自己生成的 token 进行训练的一个目标。
+
+在训练过程中，我们的训练过程如下：
+
+1. 采样一条 prompt $x$
+2. 由 agent loop 与环境进行多次交互产生轨迹 $(x,y)$
+3. trainer 消耗轨迹 $(x,y)$ 进行训练
+
+这里面，我们的轨迹会在 token ID 和 text 之间频繁转换，比如 agent 拿到的 sequence 为
+
+```python
+# the first turn
+input_ids = tokenizer.tokenize(prompt)
+response_ids = vllm.generate(input_ids)
+response = tokenizer.detokenize(response_ids)
+
+# the next turn
+prompt = prompt + response
+input_ids = tokenizer.tokenize(prompt)
+response_ids = vllm.generate(input_ids)
+response = tokenizer.detokenize(response_ids)
+```
+
+这里面的需要转换的主要原因为 agent 需要纯文本来与环境进行交互，执行 action, 而 inference engine, training 则需要 token IDs 来进行推理/训练。
+而我们的目标在于 **让 polcicy model 仅在自己生成的 token 上进行训练**， 上面这个转换存在的问题在于：
+
+> tokenizer 的 tokenize 和 detokenize 并不是逆运算，也就是说： tokenize(detokenize(x)) != x.
+
+所以，我们就需要一个方法来记录 _policy model 自己生成的 token_, 这也就是 TITO 要解决的核心问题。
