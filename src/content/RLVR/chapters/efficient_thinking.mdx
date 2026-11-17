@@ -1,0 +1,21 @@
+## Efficient Thinking
+
+Efficient Thinking 的目标是让模型使用更少的 token 来完成目标。
+
+### Interruptions
+
+Interruptions 在模型输出超过上下文时强制终止思考，然后输出最终答案。
+
+Qwen3 [@Qwen3] 和 GLM-4.1V [@GLM-4.1V-Thinking] 使用了这种方案，方案通过在输出结尾增加
+
+```
+Okay, time is up, let me stop thinking and formulate a final answer </think>
+```
+
+来引导模型直接输出最终答案。
+
+
+
+### Length Penalty
+
+length penalty 通过对 reward 进行修正来提高模型的 thinking efficiency.  相关工作有 DAPO [@DAPO], Kimi, Magistral [@Magistral], MiMo, MiniMax-M1.
