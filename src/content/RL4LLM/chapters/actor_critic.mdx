@@ -2,14 +2,15 @@ import Algorithm from "../../../components/Algorithm.astro";
 
 ## Actor Critic Methods
 
-上一节使用完整 trajectory return 构造 REINFORCE gradient。这个 estimator
-不需要学习 value function，但在长序列和稀疏 reward 下通常具有较高 variance。
-baseline invariance 允许我们用 advantage 替代原始 return，而不改变期望梯度。
+上一节我们介绍了使用 policy gradient 来直接更新 policy model, 也就是 REINFORCE algorithm. REINFORCE 通过直接优化 policy model 避免了 value function 更新。但是，REINFORCE 的问题在于因 high variance 导致的训练不稳定性。
 
-本节把前面的 policy evaluation 与 policy gradient 合并：**actor**
-$\pi_\theta$ 负责生成和更新策略，**critic** $V_\phi$ 或 $Q_\phi$ 负责估计
-return/advantage。对 LLM 而言，两者分别对应需要优化的语言模型和训练期间使用的
-value estimator。
+因此，我们通过 baseline invariance 来实现 variance reduction, 其代价为重新引入了 value function. 
+
+在上一节中，我们没有考虑 value function 的更新。本节我们把前面的 policy evaluation 与 policy gradient 合并：
+
+>  **actor** $\pi_\theta$ 负责生成和更新策略，**critic** $V_\phi$ 或 $Q_\phi$ 负责估计 return/advantage。
+
+对 LLM 而言，两者分别对应需要优化的语言模型 (policy model) 和训练期间使用的 value estimator.
 
 ### Actor-Critic
 
@@ -25,10 +26,9 @@ $$
 \theta_{k+1} = \theta_k + \alpha \mathbb{E}_{\tau\sim(p_0,\pi_\theta, p)}\left[ \sum_{t=0}^{T-1}\nabla_\theta\log\pi_\theta(a_t\mid s_t)Q^{\pi_\theta}(s_t,a_t)\right]
 $$
 
-在前面的章节中，我们介绍了基于 MC 和 TD 两种方式来估计
-$Q^{\pi_\theta}(s_t,a_t)$。据此可以区分：
+在前面的章节中，我们介绍了基于 MC 和 TD 两种方式来估计 $Q^{\pi_\theta}(s_t,a_t)$. 据此可以区分：
 
-1. 如果 $Q^{\pi_\theta}(s_t,a_t)$ 由 MC 来进行估计，则我们将其称为 REINFORCE 或者 Monte Carlo policy gradient.
+1. 如果 $Q^{\pi_\theta}(s_t,a_t)$ 由 MC 来进行估计，则我们将其称为 REINFORCE.
 2. 如果 $Q^{\pi_\theta}(s_t,a_t)$ 由 TD learning 来进行估计，则我们将其称为 **actor-critic**, 这是我们本节的重点介绍内容
 
 最简单的 actor-critic algorithm 如下所示
@@ -63,7 +63,7 @@ $$
 A^{\pi_\theta}(s_t,a_t)=Q^{\pi_\theta}(s_t,a_t)-V^{\pi_\theta}(s_t) = \mathbb{E}^{\pi_\theta}\left[r_t + \gamma V^{\pi_\theta}(s_{t+1})-V^{\pi_\theta}(s_t)\mid s_t, a_t\right]
 $$
 
-因此我们可以用 TD error 来进行近似：
+我们可以用 1-step TD error 来进行近似：
 
 $$
 \hat{A}_t= r_t + \gamma V_{\phi_t}(s_{t+1})-V_{\phi_t}(s_t)
@@ -93,16 +93,14 @@ $$
 
 ### GAE
 
-在上一节中，我们介绍了我们可以用 1-step TD error 来近似 advantage,
-
-对比结果如下表所示
+在上一节中，我们介绍了使用 1-step TD error 来近似 advantage, 与之相对的，我们也可以使用 MC 来近似，两者对比结果如下表所示
 
 | Method      | bias          | variance      |
 | ----------- | ------------- | ------------- |
 | TD error    | can be biased | low variance  |
 | MC estimate | unbiased      | high variance |
 
-为了实现更好的 bias-variance trade-off, GAE [@GAE] 提出了使用一个参数 $\lambda\in[0,1]$ 来控制 bias 和 variance 之间的权重，其表达式如下所示
+为了实现更好的 bias-variance trade-off, GAE [@GAE] 提出了使用一个参数 $\lambda\in[0,1]$ 来控制 bias 和 variance 的 tradeoff, 其表达式如下所示
 
 $$
 \hat{A}_t^{GAE(\gamma,\lambda)} = \sum_{\ell=0}^{\infty}(\gamma\lambda)^{\ell}\delta_{t+\ell}
@@ -122,7 +120,7 @@ $$
 \hat{A}_t^{GAE(\gamma,0)} = (\gamma\cdot0)^0\delta_t=\delta_t
 $$
 
-此时，GAE 就退化成了 one-step TD error estimate,
+此时，GAE 就退化成了 1-step TD error estimate,
 
 当 $\lambda=1$ 时，我们有
 
@@ -135,6 +133,8 @@ $$
 $$
 \hat{A}_t^{GAE(\gamma,1)} \approx \sum_{\ell=0}^{\infty}\gamma^{\ell}r_{t+\ell+1}-V(s_t)=Q^{\pi_\theta}(s_t,a_t)-V(s_t)
 $$
+
+此时，GAE 就退化成了 MC estimate,
 
 当 $0<\lambda<1$ 时，$GAE$ 是 TD error estimate 与 MC estimate 的一个插值，$\lambda$ 越大，estimate 越依赖 long term reward information, 其 bias 越低，但是相应的 variance 越高。$\lambda$ 越小，estimate 月依赖于当前的 value function estimate, 其 variance 越低，但是相应的其 bias 越高
 
@@ -161,6 +161,8 @@ $$
 GAE 的主要优点在于其相对于 MC estimate 可以大幅度降低 variance, 从而提高训练的稳定性以及效率
 
 ### Why actor critic
+
+最后，我们来对比一下 actor-critic 和 value-based, policy-based methods 的区别：
 
 comparison with value-based methods:
 
