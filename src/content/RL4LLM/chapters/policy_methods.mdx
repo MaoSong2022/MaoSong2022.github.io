@@ -2,12 +2,12 @@ import Algorithm from "../../../components/Algorithm.astro";
 import Theorem from "../../../components/Theorem.astro";
 import Note from "../../../components/Note.astro";
 import Wide from "../../../components/Wide.astro";
+import Sidenote from "../../../components/Sidenote.astro";
 
 ## Policy Based Methods
 
 Value-based methods 先学习 $Q^*$，再通过 $\arg\max_a Q^*(s,a)$ 间接得到策略。
-对 LLM 而言，我们已经有一个参数化的 autoregressive policy $\pi_\theta(y_t\mid x,y_{<t})$, 因此更自然的选择是直接调整 $\theta$，提高高回报 response 的生成概率。
-这就是 policy-based methods 的核心思想。
+对 LLM 而言，我们已经有一个参数化的 auto-regressive policy $\pi_\theta(y_t\mid x,y_{<t})$, 因此更自然的选择是直接调整 $\theta$, 提高高回报 response 的生成概率，这就是 policy-based methods 的核心思想。
 
 <Note title="Core idea" emoji="💡" variant="info">
 
@@ -20,7 +20,9 @@ Value-based methods 先学习 $Q^*$，再通过 $\arg\max_a Q^*(s,a)$ 间接得�
 1. on-policy: 采集数据的 policy 和训练更新的 policy 一致
 2. off-policy: 采集数据的 policy 和训练更新的 policy 不一致
 
-这两者的核心区别在于：我们更新模型所使用的数据是否由当前模型产生？ 如果是，则说明算法是 On-policy, 反之则说明是 Off-policy.
+这两者的核心区别在于：
+
+> 我们更新模型所使用的数据是否由当前模型产生？ 如果是，则说明算法是 on-policy, 反之则说明是 off-policy.
 
 on-policy 和 off-policy 对比如下表所示
 
@@ -34,15 +36,22 @@ on-policy 和 off-policy 对比如下表所示
 |    compute cost    |                high                |           low           |
 |      best for      | fresh rollout and direct policy optimization | reusing past or external data |
 
-目前，主流针对 LLM 的 RL 算法基本都是
+目前，主流针对 LLM 的 RL 算法基本都属于 on-policy 
+
+<sidenote>
+
+async RL 虽然是 off-policy, 但是其 behavior policy 与 current policy 相关性较高，因此我们也归属到 on-policy 的范畴。
+
+</sidenote>
 
 ### Objective
 
-我们的目标与前面一致，仍然是[最大化 return](#rl_objective), 问题形式为
+我们的目标与前面一致，仍然是 [maximize expected return](#rl_objective), 问题形式为
 
 $$
 \max_{\pi}\mathcal{J}(\theta)=\mathbb{E}_{\tau\sim\pi_\theta}\left[G_0(\tau)\right]
 $$
+
 
 
 ### Policy Gradient Theorem
@@ -51,7 +60,7 @@ $$
 
 <Theorem title='Policy Gradient Theorem' id='policy_gradient_theorem'>
 
-目标函数 [最大化 return](#rl_objective) 的梯度为
+目标函数 [maximize expected return](#rl_objective) 的梯度为
 
 $$
 \nabla_\theta \mathcal{J}(\theta) = \mathbb{E}_{\tau\sim\pi_\theta}\left[ \sum_{t=0}^{T-1}\nabla_\theta\log\pi_\theta(a_t\mid s_t)G_0(\tau)\right]
@@ -92,11 +101,11 @@ $$
 
 </Theorem>
 
-注意 policy gradient theorem 将梯度也写成了期望的形式，这方面我们使用 MC 方法来进行估计和优化。
+注意 policy gradient theorem 将梯度也写成了期望的形式，这样方便我们使用 MC 方法来进行估计和优化。
 
 ### Vanilla Policy Gradient Methods
 
-接下来，我们介绍最简单的 policy gradient methods, 令
+我们首先介绍最简单的 policy gradient methods, 令
 
 $$
 \hat{g} := \sum_{t=0}^{T-1}\nabla_\theta\log\pi_\theta(a_t\mid s_t)G_0(\tau)
@@ -104,7 +113,7 @@ $$
 
 由 policy gradient theorem, 我们知道 $\hat{g}$ 是 $\nabla_\theta \mathcal{J}(\theta)$ 的一个无偏估计。
 
-基于 MC 思想，我们可以得到最简单的 policy gradient algorithm, 也就是 REINFORCE 算法
+基于 MC 思想，我们可以得到最简单的 policy gradient algorithm, 也就是 REINFORCE algorithm:
 
 <Algorithm title="Policy Gradient with MC (REINFORCE)">
 
@@ -119,15 +128,13 @@ $$
   $$
 - Update $\theta_k$ using $\hat{g}$ with an optimizer.
 
-**Return** $\pi_{\theta_k}$
+**Return** $\pi_{\theta_k}$.
 
 </Algorithm>
 
 ### Variance Reduction
 
-虽然 $g$ 是 $\nabla_\theta \mathcal{J}(\theta)$ 的一个无偏估计，但是使用 $g$ 作为估计会出现比较大的方差，TODO
-
-因此我们本节主要介绍如何减少 $g$ 作为估计的方差，即 variance reduction.
+虽然 $\hat{g}$ 是 $\nabla_\theta \mathcal{J}(\theta)$ 的一个无偏估计，但是使用 $g$ 作为估计会出现比较大的方差，这是因为 MC 的采样具有较大随机性，这种 high variance 使得 REINFORCE 算法的稳定性比较差。因此我们需要减少 $g$ 作为估计的方差，即 variance reduction.
 
 我们首先介绍 policy gradient 的 baseline invariance 性质。
 
@@ -212,7 +219,7 @@ $$
 \end{align}
 $$
 
-这里不等式使用了 Jensen's inequality. 证毕。$\blacksquare$
+这里不等式使用了 Jensen's inequality. 证毕。
 
 </Theorem>
 
@@ -223,16 +230,12 @@ $$
 Reward to go 的基本思想为
 
 <Note title="Core idea" emoji="💡" variant="info">
-  对于时刻 $t$, 过去的轨迹 $s_0,r_0,\dots,r_{t - 1}$
-  不应该被考虑，因为它们都已经固定了,加入它们会产生额外的 variance,
-  此时，我们对应的 $b(s_t)$ 定义为
-</Note>
-
-其定义的 baseline 如下所示
-
+  对于时刻 $t$, 过去的轨迹 $s_0,r_0,\dots,r_{t - 1}$ 不应该被考虑，因为它们都已经固定了,加入它们会产生额外的 variance,
+  此时，我们对应的 $b(s_t)$ 定义为 
 $$
 b(s_t) = \sum_{k=0}^{t}\gamma^k r_k
 $$
+</Note>
 
 此时，我们的 policy gradient 为
 
@@ -261,13 +264,13 @@ $$
 
 <Theorem variant='lemma'>
 
-令 $s$ 和 $a$ 为随机变量，$w(s,a)$, $Q(s,a)$, $b(s)$ 为函数，则
+令 $s$ 和 $a$ 为随机变量，$w(s,a)$, $Q(s,a)$, $b(s)$ 为函数，则优化问题
 
 $$
-b^* = \arg\min_{b(\cdot)} \mathbb{E}_{a,s}\left[w^2(s,a)\left(Q(s,a)-b(s)\right)^2\right]
+b^*(s) = \arg\min_{b(s)} \mathbb{E}_{a,s}\left[w^2(s,a)\left(Q(s,a)-b(s)\right)^2\right]
 $$
 
-其中
+的解为：
 
 $$
 b^*(s) = \frac{\mathbb{E}_{a\mid s}\left[w^2(s,a)Q(s,a)\mid s\right]}{\mathbb{E}_{a\mid s}\left[w^2(s,a)\mid s\right]}
@@ -278,7 +281,6 @@ $$
 <Wide>
 <Theorem variant='proof'>
 对目标函数进行展开得到
-
 $$
 \begin{aligned}
 \mathbb{E}_{a,s}\left[w^2(s,a)\left(Q(s,a)-b(s)\right)^2\right]&= \mathbb{E}_{a,s}\left[w^2(s,a)\left(Q(s,a)-b^*(s)+b^*(s)-b(s)\right)^2\right]\\
@@ -304,7 +306,7 @@ $$
 </Theorem>
 </Wide>
 
-基于上述引理，我们可以得到关于 baseline invariance 中的最优 baseline:
+基于上述引理，我们可以得到关于 baseline invariance 中的 optimal baseline:
 
 $$
 b^*(s) =\frac{\mathbb{E}_{a_t\sim\pi_\theta(\cdot\mid s_t)}\left[(\nabla_\theta\log\pi_\theta(a_t\mid s_t))^2Q^{\pi_\theta}(s,a)\mid s\right]}{\mathbb{E}_{a_t\sim\pi_\theta(\cdot\mid s_t)}\left[\nabla_\theta\log\pi_\theta(a_t\mid s_t))^2\mid s\right]}
@@ -314,20 +316,19 @@ $$
 
 理论上我们可以使用 $b^*(s_t)$ 作为 baseline,但是实际上由于其表达式太复杂，我们一般使用其简化版本。
 简化版本移除了 $b^*(s)$ 中的 $\nabla_\theta\log\pi_\theta(a_t\mid s_t)$, 这样我们的估计就是
-
 $$
 b(s) = \frac{\mathbb{E}_{a_t\sim\pi_\theta(\cdot\mid s_t)}\left[Q^{\pi_\theta}(s,a)\mid s\right]}{\mathbb{E}_{a_t\sim\pi_\theta(\cdot\mid s_t)}\left[1\mid s\right]} = V^{\pi_\theta}(s)
 $$
 
-$b(s)=V^{\pi_\theta}(s)$ 并不是最优 baseline, 但是其性质比较好。
+虽然 $b(s)=V^{\pi_\theta}(s)$ 不是 optimal baseline, 但是其性质比较好。
 
 我们将 $b(s)=V^{\pi_\theta}(s)$ 带入到目标函数中就得到经典的 policy gradient 表达式
 
 $$
-\nabla_\theta \mathcal{J}(\theta)=\mathbb{E}_{\tau\sim(p_0,\pi_\theta, p)}\left[ \sum_{t=0}^{T-1}\nabla_\theta\log\pi_\theta(a_t\mid s_t)\left(Q^{\pi_\theta}(s_t,a_t)-V^{\pi_\theta}(s_t)\right)\right]
+\nabla_\theta \mathcal{J}(\theta)=\mathbb{E}_{\tau\sim(p_0,\pi_\theta, p)}\left[ \sum_{t=0}^{T-1}\nabla_\theta\log\pi_\theta(a_t\mid s_t)A^{\pi_\theta}(s_t,a_t)\right]
 $$
 
-我们定义
+这里
 
 $$
 \boxed{
@@ -335,7 +336,9 @@ A^{\pi_\theta}(s_t,a_t) := Q^{\pi_\theta}(s_t,a_t)-V^{\pi_\theta}(s_t)
 }
 $$
 
-为 $a_t$ 在 $s_t$ 处的 **advantage**. 注意到 $V^{\pi_\theta}(s_t)$ 评估了当前状态下沿着策略 $\pi_\theta$ 所能够获得的 discounted return, 因此 advantage 说明了 action $a_t$ 对于 $\pi_\theta$ 的平均好坏程度：
+为 $a_t$ 在 $s_t$ 处的 **advantage**. 
+
+注意到 $V^{\pi_\theta}(s_t)$ 评估了当前状态下沿着策略 $\pi_\theta$ 所能够获得的 discounted return, 因此 advantage 说明了 action $a_t$ 对于 $\pi_\theta$ 的平均好坏程度：
 
 - 如果 $A^{\pi_\theta}(s_t,a_t) >0$, 则说明 $a_t$ （平均意义下）相对于 $\pi_\theta$ 来说是一个更好的 action
 - 反之如果 $A^{\pi_\theta}(s_t,a_t) <0$, 则说明 $a_t$ （平均意义下）相对于 $\pi_\theta$ 来说是一个更坏的 action
@@ -373,7 +376,7 @@ $$
 
 ### Overview
 
-最后，我们把前面的 basline 使用统一的公式进行表示，记
+最后，我们把前面的 baseline 使用统一的公式进行表示，记
 
 $$
 \nabla_\theta \mathcal{J}(\theta)=\mathbb{E}_{\tau\sim(p_0,\pi_\theta, p)}\left[\Psi(\tau)\nabla_\theta \log p_\theta(\tau)\right]=\mathbb{E}_{\tau\sim(p_0,\pi_\theta, p)}\left[\sum_{t=0}^T\Psi_t(\tau)\nabla_\theta \log p_\theta(\tau)\right]
