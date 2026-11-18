@@ -36,22 +36,22 @@ $$
 \end{aligned}
 $$
 
-我们进一步展开得到
+这个等式说明，只要 advantage 满足求和为正，我们就可以保证优化效果有收益。但是，现在的轨迹采样依赖于当前 policy $\pi_{\theta}$, 为了解决这个问题，我们进一步展开得到
 
 $$
 \begin{align}
 \mathcal{J}(\theta)  -\mathcal{J}(\theta_{old}) &= \mathbb{E}_{\tau\sim (p_0,\pi_\theta, p)}\left[\sum_{t=0}^{T-1}\gamma^t A^{\pi_{\theta_{old}}}(s_t,a_t)\right]\\
 &= \mathbb{E}_{s_0\sim p_0, a_0\sim\pi_\theta(\cdot\mid s_0)}\left[A^{\pi_{\theta_{old}}}(s_0,a_0)+\mathbb{E}^{\pi_\theta}\left[\sum_{t=1}^{T-1}\gamma^t A^{\pi_{\theta_{old}}}(s_t,a_t)\mid s_0, a_0\right]\right]\\
-&= \mathbb{E}_{s_0\sim p_0, a_0\sim\pi_\theta(\cdot\mid s_0),a_0'\sim \pi_{\theta_{old}}(\cdot\mid s_0)}\left[\frac{\pi_{\theta}(a_0'\mid s_0)}{\pi_{\theta_{old}}(a_0'\mid s_0)}A^{\pi_{\theta_{old}}}(s_0,a_0')+\mathbb{E}^{\pi_\theta}\left[\sum_{t=1}^{T-1}\gamma^t A^{\pi_{\theta_{old}}}(s_t,a_t)\mid s_0, a_0\right]\right]\\
+&= \mathbb{E}_{s_0\sim p_0, a_0'\sim \pi_{\theta_{old}}(\cdot\mid s_0)}\left[\frac{\pi_{\theta}(a_0'\mid s_0)}{\pi_{\theta_{old}}(a_0'\mid s_0)}A^{\pi_{\theta_{old}}}(s_0,a_0')+\mathbb{E}^{\pi_\theta}\left[\sum_{t=1}^{T-1}\gamma^t A^{\pi_{\theta_{old}}}(s_t,a_t)\mid s_0, a_0\right]\right]\\
 &=\dots (\text{keep enrolling the summation})\\
-&= \mathbb{E}_{\tau\sim (p_0,\pi_\theta, p),a_t'\sim \pi_{\theta_{old}}(\cdot\mid s_t)}\left[\sum_{t=0}^{T-1}\gamma^t \frac{\pi_{\theta}(a_t'\mid s_t)}{\pi_{\theta_{old}}(a_t'\mid s_t)}A^{\pi_{\theta_{old}}}(s_t,a_t')\right]\\
+&= \mathbb{E}_{s_0\sim p_0, a_t'\sim \pi_{\theta_{old}}(\cdot\mid s_t)}\left[\sum_{t=0}^{T-1}\gamma^t \frac{\pi_{\theta}(a_t'\mid s_t)}{\pi_{\theta_{old}}(a_t'\mid s_t)}A^{\pi_{\theta_{old}}}(s_t,a_t')\right]\\
 \end{align}
 $$
 
 因此，我们有
 
 $$
-\mathcal{J}(\theta) = \mathbb{E}_{\tau\sim(p_0,\textcolor{red}{\pi_\theta}, p),a_t'\sim\pi_{\theta_{old}}(\cdot\mid s_t)}\left[\sum_{t=0}^{T-1}\gamma^t\frac{\pi_\theta(a_t'\mid s_t)}{\pi_{\theta_{old}}(a_t'\mid s_t)}A^{\pi_{\theta_{old}}}(s_t,a_t')\right]+C
+\mathcal{J}(\theta) = \mathbb{E}_{s_0\sim p_0, a_t'\sim\pi_{\theta_{old}}(\cdot\mid s_t)}\left[\sum_{t=0}^{T-1}\gamma^t\frac{\pi_\theta(a_t'\mid s_t)}{\pi_{\theta_{old}}(a_t'\mid s_t)}A^{\pi_{\theta_{old}}}(s_t,a_t')\right]+C
 $$
 
 但是，现在我们的更姓还是依赖于 $\pi_\theta$, 这很难处理。因此 TRPO 的思想就是，**当 $\pi_\theta$ 与 $\pi_{\theta_{old}}$ 充分接近时，使用 $\pi_{\theta_{old}}$ 来替换 $\pi_\theta$**, 这样，上面目标函数就变成了
