@@ -11,8 +11,7 @@ import rollouts_to_target_error_vs_vocab from "../../../assets/image/rollouts_to
 
 ## Policy Evaluation
 
-在 [Bellman Equation Theorem](#bellman-equation-theorem) 一节中，我们看到 $V^\pi$ 是 Bellman operator $\mathcal T^\pi$ 的唯一不动点。
-Bellman optimality equation 直接寻找最优价值，而本章先解决一个更基础的 **evaluation** 问题：
+在 [Bellman Equation Theorem](#bellman-equation-theorem) 一节中，我们知道了 $V^\pi$ 是 Bellman operator $\mathcal T^\pi$ 的唯一不动点。本节，我们就来具体求解这个不动点，也就是：
 
 <Note variant="info">
 
@@ -216,8 +215,7 @@ $$
 MC 的优点是 [estimator](https://maosong.website/blog/math/#estimator) 是一个 unbiased estimator, 其缺点在于我们必须完整采样完一条轨迹才能得到这个估计，对于 long-horizon task, MC 方法效率很低。
 
 为了解决这个问题，我们可以使用 Temporal difference (TD) learning 方法。
-Temporal difference (TD) learning 通过相邻两步的转换关系来近似 value function.
-其核心思想在于
+Temporal difference (TD) learning 通过相邻两步的转换关系来近似 value function. 其核心思想在于
 
 <Note variant="info">
 
