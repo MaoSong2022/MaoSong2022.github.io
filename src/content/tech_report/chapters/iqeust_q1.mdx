@@ -2,9 +2,59 @@
 
 IQuest-Q1 [@IQuest-Q1] 是 IQuest 在 26 年 9 月发布的一个 320B-A15B 的 MoE 模型，用于 agentic coding, reasoning 以及 multi-step tool-use.
 
-架构：
+### Architecture
 
-1. hybrid attention, SWA : GQA = 3 : 1, window size=4096, heads (Q/KV) = 48/8
-2. MoE, 256/8 experts
-3. MTP, 2 MTP layers
-4. context length, 524k
+对于 attention, 作者使用了 GQA 和 SWA 的 hybrid attention, SWA:GQA = 3:1, 第一层和最后三层使用了 full attention. SWA 的 window size 为 4096, 作者还使用了 attention sink, QKNorm, QKNorm clip, partial RoPE 等策略。
+
+
+
+对于 MoE layer,  第一层使用了 dense layer. MoE layer 共有 256 个 experts, 其中激活 8 个。
+
+
+
+对于 layer norm, 作者使用了 stable split norm 来提高模型的 effective depth, 核心思想是结合 pre-norm 和 post-norm, 具体做法是仅对 attention module 的输入进行 normalization, 计算方式如下
+$$
+z = \mathrm{RMSNorm}(x),h = z+\mathrm{Attention}(z),y=h+\mathrm{FFN}(\mathrm{RMSNorm}(h))
+$$
+为了避免训练不稳定性，作者进一步对 attention module 的输出也进行了 normalization, 即
+$$
+z = \mathrm{RMSNorm}(x),h = z+\mathrm{RMSNorm}(\mathrm{Attention}(z)),y=h+\mathrm{FFN}(\mathrm{RMSNorm}(h))
+$$
+对于第一层，作者还使用了 SandwichNorm 来进一步提高稳定性。
+
+
+
+对于 MTP layer, 作者使用了 depth=2, 训练完成之后，作者将第一层 MTP layer 作为 recursive drafter, 第二层 MTP layer 丢弃，MTP layer 使用了 SWA.
+
+
+
+## Training
+
+Pre-training 包括两个 stage:
+
+1. stage 1 主要提高知识的多样性
+2. stage 2 加入了 STEM 和 code 数据
+
+
+
+Mid-training 结合了 高质量的 natural corpora, QA pairs 以及 agentic trajectories. 训练时，模型上下文逐渐从 32K 过渡到 128K, 256K.
+
+pre-training 和 mid-training 共使用了 **29T token**.
+
+
+
+Post-training 包含 SFT, RL 和 MOPD 三个阶段。
+
+SFT 训练包含 2 个 stage: stage 1 使用了 **240B tokens**, stage 2 使用了 **50B tokens**.
+
+MOPD 训练使用了 agentic user experience, agentic multi-harness, agentic long-horizon, general 四个 expert model.
+
+损失函数为
+$$
+\mathcal{L}(\theta) = -\frac1B\sum_{i=1}^b\frac{m_i}{T_i}\sum_{t\in\mathcal{A}_i}A_{i,t}\log \pi_{\theta}(y_{i,t}\mid h_{i,t})
+$$
+其中
+$$
+A_{i,t} = \mathrm{clip}\left(\log\frac{\pi_{d_i}(y_{i,t}\mid h_{i,t})}{\pi_{\theta}(y_{i,t}\mid h_{i,t})}, -c, c\right), c>0
+$$
+最终，基于 SFT, RL 和 MOPD 的 checkpoint, 作者使用了model merging 来进行合版得到最终的 IQuest-Q1.

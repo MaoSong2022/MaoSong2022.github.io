@@ -17,3 +17,7 @@ Worst-case performance bounds for simple one-dimensional packing algorithms.
 <https://zhuanlan.zhihu.com/p/15860313275>
 
 LoongForge 提出了基于计算开销的 [data packing 方案](https://baidu-baige.github.io/LoongForge/blog/2026-05-loongforge-dp-load-balancing.zh.html).
+
+
+
+IQuest-Q1 [@IQuest-Q1]  使用了 best-fit packing 策略，具体做法是维持一个 $2BS$ 的 window, 然后来 shuffle data 并进行 packing. 为了避免 long context data 一直被 delay, 作者会提高没有被 schdule 数据的优先级。
