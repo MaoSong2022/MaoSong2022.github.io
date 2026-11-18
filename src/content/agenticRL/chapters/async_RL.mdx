@@ -17,15 +17,35 @@ $$
 \frac{\Delta R}{\Delta t} = \frac{\Delta R}{\Delta S}\times \frac{\Delta S}{\Delta t}
 $$
 
-on policy 的好处是 learning effectiveness 很高 （因为几乎没有样本被 clip），但是代价是 throughput 会非常低，提高 $N$ 并不一定能够提高 throughput.
+on policy 的好处是 learning effectiveness 很高 （因为几乎没有样本被 clip），但是代价是 throughput 会非常低，提高 $N$ 并不一定能够提高 throughput. 这是因为 short sequence 生成之后，必须等待 long sequence 生成完毕。
 
+一般的解决方法为使用 mini-batch, 即 "generator 一次 rollout,  trainer 多次 update", 对应的算法如下所示
 
+<Algorithm title="on-policy RL">
+
+- **Input**: current policy $\pi$, number of optimier steps per RL step G, training batch size $B$
+
+**while** TRUE:
+
+1. $\mu\gets \pi$
+
+2. generate $BG$ sequences from $\mu$
+
+3. split sequences in $G$ batches of size $B$
+
+4. **for** batch in batches:
+
+   update policy $\pi$.
+
+</Algorithm>
+
+使用这个算法的相关工作有 Qwen3 [@Qwen3] 和 ProRL [@ProRL].
+
+但是，这种方法的缺陷在于当 $G$ 增大之后，数据会变得越来越 off-policy, 最终降低整体的 learning effectiveness.
 
 ## Related Work
 
-Qwen3 [@Qwen3] 和 ProRL [@ProRL] 提出了  mini-batch 的 async 策略，其做法为
+PipelineRL [@PipelineRL] 与 mini-batch 的策略有两点区别：
 
-1. inference engine 产出 $B$ rollouts
-2. training engine 每次使用 mini-batch $\hat{B}$ rollouts 进行更新， 一共更新 $k=B/\hat{B}$ steps
-
-PipelineRL [@PipelineRL] 则是让 inference engine 持续产生 rollout, 一旦 training engine 收集到 $k$ rollouts 则立马进行参数更新，并将参数同步到 inference engine.
+1. trainer 和 generator 以 async 的方式并行运行
+2. trainer 收集到 $k$ rollouts 则立马进行参数更新，并将参数同步到 generator.
