@@ -1,10 +1,25 @@
+import HtmlEmbed from "../../../components/HtmlEmbed.astro";
+import Algorithm from "../../../components/Algorithm.astro";
+
 ## Async RL
 
 Async RL, 即异步强化学习，是一个相对于 sync RL, 即同步强化学习的概念。
 
 在 sync RL 中，我们一个训练是一个包含三步的循环: inference engine 通过 rollout 产生数据 -> training engine 更新 policy model -> inference engine 更新权重。在这个过程中，不考虑 [training inference mismatch](https://maosong.website/blog/train-inference-mismatch/) 的话，我们可以将训练近似看作是 on-policy, 即模型基于模型本身产生的数据进行训练。
 
+### Background
+
 On-policy training 的好处在于能够减少 bias, 但是其问题在于，training engine 更新时，我们的 inference engine 实际上处于闲置状态，这导致了资源的浪费。因此，Async RL 被提出来用于降低计算资源的空置率。
+
+我们将 trainer 和 generator 之间的区别称之为 staleness, 即假设当前 generator 的参数为 $\theta_k$, trainer 的参数为 $\theta_{n}$ ($n\geq k$), 则
+
+$$
+\mathrm{staleness} = n - k\geq0
+$$
+
+当 $\mathrm{staleness}=0$ 时，代表 on-policy RL, 反之则是 async RL.
+
+### Methods
 
 PipelineRL [@PipelineRL] 给出了一个 RL 训练效率优化的目标
 
@@ -19,7 +34,9 @@ $$
 
 on policy 的好处是 learning effectiveness 很高 （因为几乎没有样本被 clip），但是代价是 throughput 会非常低，提高 $N$ 并不一定能够提高 throughput. 这是因为 short sequence 生成之后，必须等待 long sequence 生成完毕。
 
-一般的解决方法为使用 mini-batch, 即 "generator 一次 rollout,  trainer 多次 update", 对应的算法如下所示
+### Mini-batch
+
+一般的解决方法为使用 mini-batch, 即 "generator 一次 rollout, trainer 多次 update", 对应的算法如下所示
 
 <Algorithm title="on-policy RL">
 
@@ -43,9 +60,53 @@ on policy 的好处是 learning effectiveness 很高 （因为几乎没有样本
 
 但是，这种方法的缺陷在于当 $G$ 增大之后，数据会变得越来越 off-policy, 最终降低整体的 learning effectiveness.
 
-## Related Work
+mini-batch 的 staleness 与 $G$ 和当前 mini-batch 有关，最小为 $0$ (第一个 mini-batch), 最大为 $G-1$ (最后一个 mini-batch).
+
+### PipelineRL
 
 PipelineRL [@PipelineRL] 与 mini-batch 的策略有两点区别：
 
 1. trainer 和 generator 以 async 的方式并行运行
 2. trainer 收集到 $k$ rollouts 则立马进行参数更新，并将参数同步到 generator.
+
+在 mini-batch 策略中，staleness 沿 batch 纬度增加，越往后的 batch, staleness 越大。而在 PipelineRL 中，staleness 沿 action/token 维度增加，同一个 sample 里，越往后的 action/token, 其 staleness 越大。算法伪代码如下所示
+
+<Algorithm title="PipelineRL">
+
+- **Input**: current policy weights $\pi$, generation batch size $H$, training sequence queue $Q_{\text{train}}$, optimizer state $\text{opt\_state}$, training batch size $B$
+
+**Generator Process**:
+
+1. $S_{\text{prog}} \gets []$
+
+2. **while** TRUE:
+   1. $S_{\text{fin}}, S_{\text{prog}} \gets \text{pop finished sequences from } S_{\text{prog}}$
+
+   2. $Q_{\text{train}}.\text{put}(S_{\text{fin}})$
+
+   3. **if** $\text{len}(S_{\text{prog}}) < H$:
+
+      add $H - \text{len}(S_{\text{prog}})$ prompts to $S_{\text{prog}}$
+
+   4. **if** Trainer requests weight update:
+
+      $\mu \gets \text{receive\_weight\_update}()$
+
+   5. $S_{\text{prog}} \gets \text{generate next tokens with } \mu$
+
+**Trainer Process** ($\text{TRAINER}(\pi, \text{opt\_state})$):
+
+1. $\text{batch} \gets []$
+
+2. **while** TRUE:
+   1. $\text{request\_actor\_weight\_update}(\pi)$
+
+   2. $\text{batch} \gets \text{get } B \text{ sequences from } Q_{\text{train}}$
+
+   3. $\pi, \text{opt\_state} \gets \text{optimizer\_step}(\pi, \text{opt\_state}, \text{batch})$
+
+</Algorithm>
+
+sync RL, conventional RL, PipelineRL 三种训练范式的对比如下
+
+<HtmlEmbed src="rl-training-schedules.html" frameless />
