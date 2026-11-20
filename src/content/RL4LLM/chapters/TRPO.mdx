@@ -1,43 +1,69 @@
 import Algorithm from '../../../components/Algorithm.astro';
+import Theorem from "../../../components/Theorem.astro";
 
 ## TRPO
 
-前面的 policy gradient 和 actor-critic 给出了更新方向，但没有回答一个关键问题：
-**一次可以把 policy 更新多远？** 如果新旧 policy 差异过大，旧 policy 生成的
-trajectory 很快失效，近似目标也可能不再可靠。
+前面的 policy gradient methods 和 actor-critic mtehods 给出了优化 policy model 的方法，它们都是在算法上进行的创新。这一节，我们来看一下，如何从效率方面来进行改进。
 
-TRPO (Trust Region Policy Optimization) [@TRPO] 使用旧策略
-$\pi_{\theta_{\mathrm{old}}}$ 的 rollout 构造 surrogate objective，并通过 KL
-constraint 限制新旧策略的距离。它仍然主要是 on-policy 方法；重点不是把
-policy gradient 变成一般的 off-policy learning，而是在一个受控的 trust region
-内安全地复用当前批次。
+### On-policy and off-policy
 
-这一思想对 LLM 尤其重要：生成 rollout 成本很高，但在同一批 rollout 上执行过多
-gradient steps 又会造成 policy drift。TRPO 首先形式化这一稳定性约束，后续 PPO
-会给出更容易实现的一阶近似。
+首先我们来介绍  on-policy 和 off-policy 的概念。
 
-我们的目标函数为
+根据采样策略 (behavior policy) 的不同，policy-based methods 一般会被分为两类：
+
+1. on-policy: 采集数据的 policy 和训练更新的 policy 一致
+2. off-policy: 采集数据的 policy 和训练更新的 policy 不一致
+
+这两者的核心区别在于：
+
+> 我们更新模型所使用的数据是否由当前模型产生？ 如果是，则说明算法是 on-policy, 反之则说明是 off-policy.
+
+根据这个定义，前面介绍的 REINFORCE, Actor-critic 算法都属于 on-policy. On-policy 的优势在于，数据的有效性 (effectiveness) 高。但是相应的，其代价为数据使用效率 (efficiency) 低，这是由于一旦 policy model 更新了，旧有的数据就必须得抛弃，不能再使用。
+
+为了解决已有算法数据使用效率低的问题，TRPO (Trust Region Policy Optimization) [@TRPO] 使用旧策略  $\pi_{\theta_{\mathrm{old}}}$ 的 rollout 构造 surrogate objective，并通过 KL constraint 限制新旧策略的距离。通过这个方式，TRPO 可以利用旧策略产出的数据来提高当前策略的表现。
+后续我们将看到，由于 LLM rollout 成本很高，因此这一思想对 LLM 尤其重要。
+
+
+
+首先，我们回顾 RL 的优化目标为
 
 $$
 \max_{\pi}\mathcal{J}(\theta)=\mathbb{E}_{s_0\sim p_0}\left[V^{\pi_\theta}(s_0)\right]
 $$
 
-我们假设有两个 policy 的参数, $\theta$ 和 $\theta_{old}$, 我们分析一下两个 policy 对应的目标函数之间的 difference:
-
+我们假设有一个 target policy $\pi$ 和一个 behavior policy $\mu$, 则两个 policy 对应的目标函数之间的 difference 为：
 $$
 \begin{aligned}
-\mathcal{J}(\theta)  -\mathcal{J}(\theta_{old}) &= \mathcal{J}(\theta) - \mathbb{E}_{s_0\sim p_0}\left[V^{\pi_{\theta_{old}}}(s_0)\right]\\
-&= \mathcal{J}(\theta) - \mathbb{E}_{\tau\sim (p_0,\pi_\theta, p)}\left[V^{\pi_{\theta_{old}}}(s_0)\right]\\
-&= \mathcal{J}(\theta) - \mathbb{E}_{\tau\sim (p_0,\pi_\theta, p)}\left[\sum_{t=0}^{T-1}\gamma^tV^{\pi_{\theta_{old}}}(s_t)-\sum_{t=1}^{T-1}\gamma^tV^{\pi_{\theta_{old}}}(s_t)\right]\\
-&= \mathbb{E}_{\tau\sim (p_0,\pi_\theta, p)}\left[\sum_{t=0}^{T-1}\gamma^t r_t\right] + \mathbb{E}_{\tau\sim (p_0,\pi_\theta, p)}\left[\sum_{t=0}^{T-1}\gamma^t\left(\gamma V^{\pi_{\theta_{old}}}(s_{t+1})-V^{\pi_{\theta_{old}}}(s_t)\right)\right]\\
-&= \mathbb{E}_{\tau\sim (p_0,\pi_\theta, p)}\left[\sum_{t=0}^{T-1}\gamma^t\left(r_t+\gamma V^{\pi_{\theta_{old}}}(s_{t+1})-V^{\pi_{\theta_{old}}}(s_t)\right)\right]\\
-&= \mathbb{E}_{\tau\sim (p_0,\pi_\theta, p)}\left[\sum_{t=0}^{T-1}\gamma^t\left(\gamma Q^{\pi_{\theta_{old}}}(s_{t}, a_t)-V^{\pi_{\theta_{old}}}(s_t)\right)\right]\\
-&= \mathbb{E}_{\tau\sim (p_0,\pi_\theta, p)}\left[\sum_{t=0}^{T-1}\gamma^t A^{\pi_{\theta_{old}}}(s_t,a_t)\right]\\
+\mathcal{J}(\pi)  -\mathcal{J}(\mu) &= \mathcal{J}(\theta) - \mathbb{E}_{s_0\sim p_0}\left[V^{\mu}(s_0)\right]\\
+&= \mathbb{E}_{\pi}\left[\sum_{t=0}^{T-1}\gamma^t r_t\right] + \mathbb{E}_{\mu}\left[\sum_{t=0}^{T-1}\gamma^t\left(V^{\mu}(s_{t+1})-V^{\mu}(s_t)\right)\right]\\
+&= \mathbb{E}_{\pi}\left[\sum_{t=0}^{T-1}\gamma^t\left(r_t+\gamma V^{\mu}(s_{t+1})-V^{\mu}(s_t)\right)\right]\\
+&= \mathbb{E}_{\pi}\left[\sum_{t=0}^{T-1}\gamma^t\left(\gamma Q^{\mu}(s_{t}, a_t)-V^{\mu}(s_t)\right)\right]\\
+&= \mathbb{E}_{\pi}\left[\sum_{t=0}^{T-1}\gamma^t A^{\mu}(s_t,a_t)\right]\\
 \end{aligned}
 $$
 
-这个等式说明，只要 advantage 满足求和为正，我们就可以保证优化效果有收益。但是，现在的轨迹采样依赖于当前 policy $\pi_{\theta}$, 为了解决这个问题，我们进一步展开得到
+这里我们使用了等式
+$$
+V^{\mu}(s_0) =\sum_{t=0}^{T-1}\gamma^t\left(V^{\mu}(s_{t+1})-V^{\mu}(s_t)\right), V^{\mu}(s_T)=V^{\mu}(\langle\text{term}\rangle) = 0
+$$
 
+和期望的线性性质 $\mathbb{E}_\pi[aX+b]=a\mathbb{E}_{\pi}[X]+b$ .
+
+ 这个等式说明，只要 advantage 满足求和为正，我们就可以保证使用 behavior policy $\pi$ 收集到的数据来进行训练有收益。
+
+但是，现在的轨迹采样依赖于 target policy $\pi_{\theta}$, 为了解决这个问题，TRPO 推导了从 behavior policy 中采样带来的 policy improvement. 即
+
+<Theorem title='Policy Gradient Theorem' id='policy_gradient_theorem'>
+对任意 policy $\pi$ 和 $\mu$, 我们有
+$$
+\mathcal{J}(\pi)  -\mathcal{J}(\mu)\geq \mathbb{E}_{\mu}\left[\frac{\pi(a\mid s)}{\mu(a\mid s)}A^\mu(s,a)\right]-2\xi\gamma D_{TV}^{\max}(\mu\mid\mid \pi)^2
+$$
+其中 $\xi=\max_{s,a}|A^\mu(s,a)|$, $D_{TV}^\max(\mu\mid\mid \pi)=\max_s D_{TV}(\mu(\cdot\mid s)\mid\mid \pi(\cdot\mid\ x))$, 即所有 states 的 maximum Total Variation.
+</Theorem>
+
+<Theorem variant='proof'>
+
+我们进一步展开得到
 $$
 \begin{align}
 \mathcal{J}(\theta)  -\mathcal{J}(\theta_{old}) &= \mathbb{E}_{\tau\sim (p_0,\pi_\theta, p)}\left[\sum_{t=0}^{T-1}\gamma^t A^{\pi_{\theta_{old}}}(s_t,a_t)\right]\\
@@ -54,7 +80,20 @@ $$
 \mathcal{J}(\theta) = \mathbb{E}_{s_0\sim p_0, a_t'\sim\pi_{\theta_{old}}(\cdot\mid s_t)}\left[\sum_{t=0}^{T-1}\gamma^t\frac{\pi_\theta(a_t'\mid s_t)}{\pi_{\theta_{old}}(a_t'\mid s_t)}A^{\pi_{\theta_{old}}}(s_t,a_t')\right]+C
 $$
 
-但是，现在我们的更姓还是依赖于 $\pi_\theta$, 这很难处理。因此 TRPO 的思想就是，**当 $\pi_\theta$ 与 $\pi_{\theta_{old}}$ 充分接近时，使用 $\pi_{\theta_{old}}$ 来替换 $\pi_\theta$**, 这样，上面目标函数就变成了
+</Theorem>
+
+由这个定理，我们得到了 policy improvement $\mathcal{J}(\pi)  -\mathcal{J}(\mu)$ 的一个 surrogate objective, 即
+$$
+\mathcal{K}(\theta;\theta_{old}) = \mathbb{E}_{\tau\sim(p_0,\pi_{\theta_{old}}, p),a_t'\sim\pi_{\theta_{old}}(\cdot\mid s_t)}\left[\sum_{t=0}^{T-1}\gamma^t\frac{\pi_\theta(a_t'\mid s_t)}{\pi_{\theta_{old}}(a_t'\mid s_t)}A^{\pi_{\theta_{old}}}(s_t,a_t')\right]
+$$
+基于 Minimization-Maximization algorithm, 我们知道，最大化 $\mathcal{K}(\theta;\theta_{old})$ 可以保证 $\mathcal{J}(\theta)$ 的 improvement.
+
+$\mathcal{K}(\theta;\theta_{old})$ 实际上是 $\mathcal{J}(\pi)  -\mathcal{J}(\mu)$​ 的一阶近似，我们可以证明
+$$
+\nabla \mathcal{J}(\theta)\mid _{\theta=\theta_{old}} = \nabla_\theta \mathcal{K}(\theta;\theta_{old})\mid _{\theta=\theta_{old}}
+$$
+
+因此，我们可以在一个小的 trust region 里用 $\mathcal{K}(\theta;\theta_{old})$ 来代替 $\mathcal{J}(\pi)  -\mathcal{J}(\mu)$, 这就是 TRPO 的核心改动，也就是在保证 $\pi_{\theta_{old}}$ 和 $\pi$ 充分接近的情况下，优化 surrogate objective  $\mathcal{K}(\theta;\theta_{old})$,  这样，上面目标函数就变成了
 
 $$
 \begin{align}
@@ -63,13 +102,7 @@ $$
 \end{align}
 $$
 
-我们可以证明
-
-$$
-\nabla \mathcal{J}(\theta)\mid _{\theta=\theta_{old}} = \nabla_\theta \mathcal{K}(\theta;\theta_{old})\mid _{\theta=\theta_{old}}
-$$
-
-这就是 TRPO 的核心改进，在实际求解时，我们将上面的问题规范为如下形式
+在实际求解时，我们使用 Total Variation 或者 KL divergence 来表示“充分接近”，这样，我们的目标函数就是
 
 $$
 \begin{align}
