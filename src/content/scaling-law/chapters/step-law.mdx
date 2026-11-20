@@ -1,0 +1,47 @@
+## Step Law
+
+Step Law [@Step-Law] 在前述工作的基础上，进一步探究了 data recipe 和 sparsity 对 scaling law 的影响。并将预测误差降低到了 $0.94\%$.
+
+作者将 performance matrix 定义为:
+
+$$
+\mathcal{L}(\mathbb{A},\mathbb{D},N,D,\mathrm{LR},\mathrm{BS})
+$$
+
+其中：
+
+- $\mathbb{A}$ 代表模型架构
+- $\mathbb{D}$ 代表了 training data distribution
+- $N$ 代表了 non-vocabulary parameters
+- $D$ 代表 number of training tokens
+- $\mathrm{LR}$ 和 $\mathrm{BS}$ 分别代表 learning rate 和 batch size.
+
+作者将超参数优化问题定义如下
+
+> 给定 $\mathbb{A},\mathbb{D},N,D$, 求解 optimal learning rate 和 optimal batch size, 即
+>
+> $$
+> \eta,B=\arg\min_{\mathrm{LR},\mathrm{BS}}\mathcal{L}(\mathrm{LR},\mathrm{BS}\mid \mathbb{A},\mathbb{D},N,D)
+> $$
+>
+> 这里 $\eta,B$ 代表了最优解。
+
+实验结论：
+
+1. $\mathrm{LR}$ 和 $\mathrm{BS}$ 在 $\mathbb{A}$ 和 $\mathbb{D}$ 给定的情况下，是关于 loss 的凸函数，并且最优值所在区域比较平坦，也就是说，小幅度变化$\mathrm{LR}$ 和 $\mathrm{BS}$ , 模型表现不会产生很大变化。
+2. 与 Chinchilla Scaling Law [@Chinchilla] 一致，发现 training loss 可以作为 validation loss 的一个无偏估计
+3. 固定 $D$, $\eta$ 与 $N$ 呈正相关关系，而 $B$ 几乎与 $N$ 独立
+
+作者构建的表达式如下
+
+$$
+\eta(N,D)=cN^\alpha D^\beta, B(D)=dD^\gamma
+$$
+
+其中 $c,\alpha,\beta,d,\gamma$ 均为待定系数，拟合出来的结果如下表所示
+
+| Parameter    | $\alpha$ | $\beta$ | $\gamma$ | $C$    | $D$    |
+| ------------ | -------- | ------- | -------- | ------ | ------ |
+| Fitted Value | $-0.713$ | $0.317$ | $0.571$  | $1.79$ | $0.58$ |
+
+基于上面的结果，作者发现，拟合出来的 scaling law 对模型架构，sparsity, data distribution 都非常 robust.
