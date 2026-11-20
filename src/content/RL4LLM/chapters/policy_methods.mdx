@@ -2,7 +2,6 @@ import Algorithm from "../../../components/Algorithm.astro";
 import Theorem from "../../../components/Theorem.astro";
 import Note from "../../../components/Note.astro";
 import Wide from "../../../components/Wide.astro";
-import Sidenote from "../../../components/Sidenote.astro";
 
 ## Policy Based Methods
 
@@ -15,34 +14,7 @@ Value-based methods 先学习 $Q^*$，再通过 $\arg\max_a Q^*(s,a)$ 间接得�
 
 </Note>
 
-根据采样策略 (behavior policy) 的不同，policy-based methods 一般会被分为两类：
 
-1. on-policy: 采集数据的 policy 和训练更新的 policy 一致
-2. off-policy: 采集数据的 policy 和训练更新的 policy 不一致
-
-这两者的核心区别在于：
-
-> 我们更新模型所使用的数据是否由当前模型产生？ 如果是，则说明算法是 on-policy, 反之则说明是 off-policy.
-
-on-policy 和 off-policy 对比如下表所示
-
-|      Category      |             on-policy              |       off-policy        |
-| :----------------: | :--------------------------------: | :---------------------: |
-|      examples      |             PPO, GRPO              |        DQN, DDPG        |
-|    sampled from    |           current policy           |    behavior policy     |
-| data exploration   |    controlled by current policy    | controlled by behavior policy |
-|  infra efficiency  | low (needs to generate new sample) |          high           |
-| training stability | sensitive to policy update size     | sensitive to distribution shift |
-|    compute cost    |                high                |           low           |
-|      best for      | fresh rollout and direct policy optimization | reusing past or external data |
-
-目前，主流针对 LLM 的 RL 算法基本都属于 on-policy 
-
-<sidenote>
-
-async RL 虽然是 off-policy, 但是其 behavior policy 与 current policy 相关性较高，因此我们也归属到 on-policy 的范畴。
-
-</sidenote>
 
 ### Objective
 
@@ -262,7 +234,7 @@ $$
 
 #### ReMax
 
-
+ReMax [@ReMax]  TODO
 
 #### RLOO
 
@@ -388,6 +360,12 @@ $$
 
 </Algorithm>
 
+### Experiments
+
+TODO
+
+
+
 ### Overview
 
 最后，我们把前面的 baseline 使用统一的公式进行表示，记
@@ -404,11 +382,9 @@ $$
 | Return to go | $\Psi_t(\tau)=\sum_{k=t}^T\gamma^{k-t}r_k$                |
 | Advantage    | $\Psi_t(\tau)=A^{\pi}(s_t,a_t)=Q^\pi(s_t,a_t)-V^\pi(s_t)$ |
 
-### Experiments
 
-TODO
 
-### Value-Based Methods v.s. Policy-Based Methods
+Value-Based Methods 和 Policy-Based Methods 的对比如下表所示
 
 |          | Value-Based                         | Policy-Based                |
 | :------- | :---------------------------------- | :-------------------------- |
