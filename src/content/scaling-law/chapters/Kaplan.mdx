@@ -110,7 +110,7 @@ $$
 
 实验的结果为 $N\propto C_{\min}^{0.73}$, $B\propto C_{\min}^{0.24}$ , $S\propto C_{\min}^{0.03}$. 也就是说，当我们提升算力时，提升模型的参数大小带来的收益是最高的。
 
-## Background
+### Background
 
 首先，transformer 的参数量通过计算可以得到
 
@@ -136,9 +136,9 @@ $$
 
 具体计算过程见 [LLM FLOPs analysis](/blog/llm-resource-computation/#flops-计算)。也就是说，对于参数量为 $N$ 的 transformer model, 每个 token 所需要的 FLOPs 为 $C\approx 6N$
 
-## Empirical Results and Basic Power Laws
+### Empirical Results and Basic Power Laws
 
-### Transformer Shape and Hyper-parameter Independence
+#### Transformer Shape and Hyper-parameter Independence
 
 作者基于 $N=12nd^2$, 在保持总参数量 $N$ 不变的情况下，分别调整 $n$, $d_{ff}$ 和 number of attention heads 的个数 （变化 $d$ 用于维持总参数量不变），结果如下图所示
 
@@ -146,7 +146,7 @@ $$
 
 实验结果发现，损失对于 $d_{ff}/d$, $d/n$, $d/n_h$ 都比较 robust, 说明**模型的损失对模型的 shape 依赖性比较低。**
 
-### Non-embedding Parameter Count
+#### Non-embedding Parameter Count
 
 作者探究了以下 model size 对损失的影响，作者使用了不同的 $n$ 和 $d$, 然后训练得到的损失情况如下图所示
 
@@ -162,7 +162,7 @@ $$
 
 <Image src={Kaplan_parameter_scaling_law_curve} alt="Scaling law with respect to parameters" />
 
-### Comparing to LSTMs and Universal Transformers
+#### Comparing to LSTMs and Universal Transformers
 
 作者比较了 LSTM 和 Transformer 结构的损失，结果如下图所示
 
@@ -170,7 +170,7 @@ $$
 
 可以看到，**transformer 比 LSTM 拥有更强的学习能力**， LSTM 架构对于 early context 表现比较好，但是随着 context 增加，LSTM 的表现逐渐弱于 transformer. **即 transformer 的长上下文能力强于 LSTM 架构**。
 
-### Generalization Among Data Distributions
+#### Generalization Among Data Distributions
 
 模型是在 WebText2 数据集上训练的，作者进一步在其他数据集上评估了以下模型的泛化性，结果如下图所示
 
@@ -184,7 +184,7 @@ $$
 
 实验结果显示，**model depth 对模型泛化性基本没有影响**。
 
-### Performance with Data Size and Compute
+#### Performance with Data Size and Compute
 
 作者探究了损失与 dataset size $D$ 之间的关系。作者固定一个模型，然后当 test loss 不再下降时停止训练，结果发现 test loss 与 dataset size $D$ 之间存在如下关系
 
@@ -212,11 +212,11 @@ $$
 
 结果显示，**随着 model size 增加，sample efficiency 也在增加**
 
-## Charting the Infinite Data Limit and Overfitting
+### Charting the Infinite Data Limit and Overfitting
 
 作者在本节探讨了同时变化 $N$ 和 $D$ 对损失变化的影响。
 
-### Proposed Equation
+#### Proposed Equation
 
 作者基于三个原则进行建模：
 
@@ -256,11 +256,11 @@ $$
 
 也就是说对于参数量为 $N$ 的模型，需要 data size $D \geq (5\times 10^3)N^{0.7379}$ 才能避免过拟合。
 
-## Scaling Laws with Model Size and Training time
+### Scaling Laws with Model Size and Training time
 
 作者在本节构建了损失函数与 model size $N$ 以及训练时间的 scaling law
 
-### Adjustment for Training at Critical Batch Size
+#### Adjustment for Training at Critical Batch Size
 
 已有结论说明，存在一个 critical batch size $B_{crit}$, 当 batch size 接近 $B_{crit}$ 时，增加 batch size 对计算效率影响比较小，但是当 batch size 大于 $B_{crit}$ 时，带来的提升比较小。另一方面，batch size 会影响梯度的噪声程度。因此，训练步数 $S$ 和处理的样本数 $E=BS$ 应该满足：
 
@@ -306,7 +306,7 @@ $$
 C_{\min}(C) := \frac{C}{1+B_{crit}(L)/B}
 $$
 
-### Performance with Model Size and Compute
+#### Performance with Model Size and Compute
 
 作者使用如下公式来探究损失与 model size 和 computer 之间的关系
 
@@ -330,7 +330,7 @@ $$
 
 实验结果显示，上面的公式拟合的很好。
 
-### Lower Bound on Early Stopping step
+#### Lower Bound on Early Stopping step
 
 作者还探究了以下 early step 与模型大小以及数据集之间的关系，作者通过分析得到如下结果
 
@@ -342,11 +342,11 @@ $$
 
 <Image src={Kaplan_early_stop_resultes} alt="Early stop results" />
 
-## Optimal Allocation of the Compute Budget
+### Optimal Allocation of the Compute Budget
 
 作者在本节探究了最优算力与 model size $N$ 和训练数据 $2B_{crit}S_{\min}$ 之间的关系
 
-### Optimal Performance and Allocations
+#### Optimal Performance and Allocations
 
 作者首先基于
 
@@ -405,7 +405,7 @@ $$
 
 因此，基于上面的结果，当我们增加算力时，我们的主要精力应该放在增加模型大小和提高 batch size 上，而训练步数基本可以保持不变。
 
-### Another way of Derivation
+#### Another way of Derivation
 
 作者还给出了另一种建模 $L(C_{\min})$ 的方式，即从 $L(N,S_{\min})$ 中进行推导，作者将 $B_{crit}$ 和 $S_{\min}$ 的表达式带入到 $L(N,S_{\min})$ 然后求解最小值就得到
 
@@ -427,7 +427,7 @@ $$
 
 这个结果也和上面的差不多。
 
-### Contradiction and a Conjecture
+#### Contradiction and a Conjecture
 
 作者发现，尽管拟合的 scaling law 曲线非常好，但是由于自然语言不可能达到 zero entropy, 因此该曲线最终一定会失效。作者基于更大的模型进行了实验，结果发现，模型在某一点开始就比预测的损失曲线下降的更慢。作者认为这是因为 transformer 模型已经达到了 maximal performance 导致的。
 
@@ -460,7 +460,7 @@ $$
 1. $L^*$ 给出了自然语言的 entropy 的一个估计，因此当模型充分大之后，模型可能已经获取到了数据中的所有知识
 2. $L(C_{\min})$ 可以作为数据集噪声的一个量化表现，其衡量了数据集的质量
 
-## Learning Rate Schedule
+### Learning Rate Schedule
 
 附录中，作者还探究了 learning rate 与损失之间的关系，作者使用了不同 learning rate schedule 对模型损失的影响，结果如下图所示
 
@@ -475,13 +475,3 @@ $$
 $$
 
 也就是说，小模型用比较大的学习率，大模型用较小的学习率。
-
-## Conclusion
-
-作者在本文中训练了大量不同配置的大模型，然后构建了损失（损失）与模型参数，数据及大小以及算力之间的关系。实验结果发现，损失与架构和优化参数之间的关系比较小，主要由模型参数量决定，更大的模型拥有更高的采样效率。
-
-作者认为，本文的局限在于损失函数不一定能够反应模型在其他语言任务上的表现。
-
-## References
-
-- [arxiv](http://arxiv.org/abs/2001.08361)
