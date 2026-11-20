@@ -6,9 +6,9 @@ import Chinchilla_overlaied_predictions from '../../../assets/image/Chinchilla-O
 import Chinchilla_comparison_with_kaplan from '../../../assets/image/Chinchilla-Comparison-with-Kaplan.png';
 import Chinchilla_curvature_of_flops_frontier from '../../../assets/image/Chinchilla-curvature-of-FLOPs-frontier.png';
 
-## Introduction
+## Chinchilla
 
-本文中关注的研究问题为：
+Google Deepmind 在 22 年提出了 Chinchilla Scaling Law [@Chinchilla], 其关注的研究问题为：
 
 > 给定一个 FLOPs budget, 如何平衡 model size 和 dataset size 之间的关系？
 
@@ -22,9 +22,9 @@ $$
 
 已有工作如 [Kaplan scaling law](/blog/scaling-law/#kaplan) 已经发现模型参数和大语言模型表现之间的关系，一个结论就是计算最优并不代表达到最优的 loss. 在本文中，作者也有相同结论，但是作者认为大模型应该使用比 Kaplan scaling law 推荐的更多的 training token. 基于这个发现，作者训练了 Chinchilla [@Chinchilla], 一个 70B 的 LLM, Chinchilla 相比 Gopher 表现有了大幅度的提升。
 
-## Scaling Law
+### Scaling Law
 
-### Fix Model Size and Very Dataset Size
+#### Fix Model Size and Very Dataset Size
 
 这个方法中，作者通过改变训练步数，来研究 FLOPs 与模型表现之间的关系，结果如下图所示
 
@@ -32,7 +32,7 @@ $$
 
 通过对实验结果进行拟合，作者发现存在关系 $N_{opt}(C)\propto C^a$ 以及 $D_{opt}(C)\propto C^b$, 拟合的结果为 $a=b=0.5$.
 
-### IsoFLOPS Profiles
+#### IsoFLOPS Profiles
 
 这个方法中，作者使用了不同的模型大小以及算力来构建最优模型参数量与算力之间的关系。作者给定 9 个算力配置，然后选取不同参数量的模型，训练的 token 数由算力和模型参数量决定，实验结果如下图所示
 
@@ -40,7 +40,7 @@ $$
 
 结果显示，不同大小的模型的表现 (loss) 随算力上升先下降后上升。因此给定算力，存在一个最优的 model size. 作者基于拟合出来的曲线得到了 Gopher 使用的算力配置下的最优 model size 和 training tokens. 同样的，作者得到 $a=0.49,b=0.51$.
 
-### Fitting a Parametric Loss Function
+#### Fitting a Parametric Loss Function
 
 这个方法中，作者对 $L(N,D)$ 进行建模，作者使用了如下的公式
 
@@ -62,7 +62,7 @@ $$
 
 <Image src={Chinchilla_parametric_fit} alt="Parametric fit" />
 
-### Optimal Model Scaling
+#### Optimal Model Scaling
 
 作者将三种方法的结果以及 [Kaplan scaling law](/blog/scaling-law/#kaplan) 的结果总结放在下表中，作者假设 $N_{opt}(C)\propto C^a$ 以及 $D_{opt}(C)\propto C^b$
 
@@ -96,7 +96,7 @@ $$
 
 实验结果显示，现有的大模型的 size 应该更小（或者需要更大的算力）。作者最终的结论就是，现有的比较小的模型，需要更多的算力才能达到更好的表现。
 
-## Chinchilla
+### Model
 
 基于上一节的发现，作者提出了 Chinchilla, 一个 70B 的模型，训练使用了 1.4T token. 训练的数据集为 MassiveText 的扩展版本，训练使用的优化器为 AdamW, tokenizer 为 SentencePiece.
 
@@ -131,11 +131,3 @@ $$
 <Image src={Chinchilla_curvature_of_flops_frontier} alt="Curvature of the FLOPs-frontier" />
 
 结果显示，从小模型拟合出来的结果比大模型拥有更高的算力使用效率，作者认为这是未来的一个研究方向。
-
-## Conclusion
-
-本文中作者重新探究了针对 LLM 的 scaling law, 作者发现已有的大模型都存在 under-training 的现象，也就是说，模型需要更多的训练 token, 具体来讲，model size scaling 和 dataset scaling 应该处于同一水平。作者基于这个结论，提出了 Chinchilla, 一个 70B 的 LLM, 其表现超过了 280B 的 LLM.
-
-## References
-
-- [arxiv](http://arxiv.org/abs/2203.15556)
