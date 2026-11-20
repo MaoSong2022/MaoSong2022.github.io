@@ -1,17 +1,60 @@
 ## Recent Progress
 
+### Improvements on REINFORCE
+
+
+
+#### CISPO
+
+#### REINFOCE++
+
+
+
+### Improvements on PPO
+
+#### DPPO
+
+DPPO [@DPPO] 在 LLM 的场景下，使用 TRPO 的方式推导了 policy improvement bound, 并最终给出了 DPPO algorithm.
+
+#### SAO
+
 
 
 ### Improvements on GRPO
 
-1. Dr.GRPO
-2. DAPO
-3. SAPO
-4. GSPO
+
+
+#### Dr.GRPO
+
+Dr.GRPO 认为 GRPO 算法存在 bias, 具体体现在：
+
+1. response-level length bias: 来源为 normalization factor $|o_i|$, 当 $\hat{A}_{i,t}>0$ 时，即模型回答正确时，这个 factor 会导致更短的回答有更大的权重，进而引导模型产生更短的回答；当 $\hat{A}_{i,t}<0$ 时，即模型回答错误时，这个 factor 会导致更长的回答收到惩罚，从而引导模型在回答错误时，产生更长的回答。
+2. question-level difficulty bias: 来源为 $\mathrm{std}(\{r_1,\dots,r_G\})$, 这会导致拥有更低 std (太简单或者太难的问题, reward 全为 1 或者全为 0) 的 group 拥有更大的权重，影响模型更新。
+
+为了解决这两个问题， Dr.GRPO 的做法是去除这两个 normalization terms, 同时，为了保证 objective 的无偏性，作者加入了一个 constant value.
+
+在 Appendix 的推导过程中，我们可以看到 Dr.GRPO 实际上是将 Advantage 的 baseline 定义为
+$$
+b(s_t)= \mathrm{mean}(\{r_1,\dots,r_G\})
+$$
+最终， Dr.GRPO 的训练目标函数为
+$$
+\mathcal{J}(\theta) = \mathbb{E}_{q \sim \mathcal{D}, \, \{o_i\}_{i=1}^G \sim \pi_{\theta_{old}}(\cdot \mid q)}\left[ \frac{1}{G} \sum_{i=1}^G \sum_{t=1}^{|o_i|} \min\left(r_{i,t}(\theta) \tilde{A}_{i}, \; \mathrm{clip}\left(r_{i,t}(\theta), 1 - \epsilon, 1 + \epsilon\right) \tilde{A}_{i}\right) \right]
+$$
+
+其中
+$$
+\tilde{A}_i = r_i -\mathrm{mean}(\{r_1,\dots,r_G\})
+$$
+作者也推导了 $\tilde{A}_i$ 和 [RLOO](#rloo) 的关系如下
+$$
+\frac{G}{G-1}\tilde{A}_i = \hat{A}_{i,t}^{RLOO}
+$$
+
+
+#### DAPO
 
 
 
-Improvements on REINFORCE
+#### SAPO
 
-1. CISPO
-2. 
