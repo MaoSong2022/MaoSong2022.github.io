@@ -20,6 +20,7 @@ export async function GET(context) {
 
   const site = new URL(context.site);
   const items = posts
+    .filter((post) => post.completion !== "outline")
     .map((post) => {
       const publishedMs = Date.parse(post.modified ?? post.published ?? "");
       const pubDate = Number.isNaN(publishedMs)

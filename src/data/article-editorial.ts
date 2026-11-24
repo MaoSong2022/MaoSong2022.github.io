@@ -23,7 +23,7 @@ export type Editorial = {
 };
 
 const learning = (completion: Completion = "growing"): Editorial => ({ contentType: "learning", completion });
-const report = (): Editorial => ({ contentType: "reports", completion: "growing" });
+const report = (completion: Completion = "growing"): Editorial => ({ contentType: "reports", completion });
 const topic = (completion: Completion = "growing"): Editorial => ({ contentType: "topics", completion });
 
 export const ARTICLE_EDITORIAL: Record<string, Editorial> = {
@@ -44,19 +44,19 @@ export const ARTICLE_EDITORIAL: Record<string, Editorial> = {
   GLM: report(),
   minimax: report(),
   mistral: report(),
-  olmo: report(),
-  "qwen-vl-series": report(),
-  internvl: report(),
+  olmo: report("outline"),
+  "qwen-vl-series": report("outline"),
+  internvl: report("outline"),
   "keye-vl": report(),
   mimo: report(),
   "LLaMA-series": report(),
   Gemma: report(),
-  step: report(),
+  step: report("outline"),
   gemini: report(),
   gpt: report(),
-  minicpm: report(),
+  minicpm: report("outline"),
   tech_report: report(),
-  "deepseek-r1": { contentType: "reports", completion: "outline" },
+  "deepseek-r1": report("outline"),
   attention: topic(),
   "long-context": topic(),
   moe: topic(),
