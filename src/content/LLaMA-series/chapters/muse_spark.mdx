@@ -1,8 +1,50 @@
-## Muse Spark
+## Muse Glimmer
 
-[Muse Glimmer](https://huggingface.co/meta-models/Muse-Glimmer-30B) 是 Meta 在 26年8月发布的一个 30B 的 agentic model, 参数量为 29.6B
+[Muse Glimmer](https://huggingface.co/meta-models/Muse-Glimmer-30B) 是 Meta 在 26年8月发布的一个 30B 的 agentic model, 参数量为 29.6B, 该模型主要用于在消费级别显卡上部署。
 
-attention 上， Muse Glimmer 使用了 hybrid attention 架构，local attention 为 SWA (window size = 2048), global attention 为 GQA. 模型还使用了 [gated mechanism](https://maosong.website/blog/attention/#gated-attention).
+### Architecture
+
+对于 attention, Muse Glimmer 使用了 hybrid attention 架构，local attention 为 SWA (window size = 2048), global attention 为 GQA, 比例为 3:1, 模型还使用了 [gated mechanism](https://maosong.website/blog/attention/#gated-attention) 以及 local RoPE (仅 local attention 应用 RoPE).
+
+对于 FFN, 为了能在消费级别显卡上部署，作者探究了 Muse Glimmer 的架构设计，对比 dense model 和 MoE model 之后，作者发现，dense model 相比于 MoE model 有 $2\sim 2.5$ 倍的计算效率提升，因此作者选择使用 dense 架构。
+
+对于 vision encoder, Muse Glimmer 的 vision encoder 为 Perception Encoder, size 为 1.8B. projection layer 为一个两层的 MLP, 然后同一个一个 bias-free linear layer 和一个 RMSNorm 映射到 LLM embedding space.
+
+针对 agentic 任务 KV cache 占用高的问题，作者通过使用 SWA 和 GQA 来进行优化，作者还对比了 MLA, 结果发现效果不如 GQA.
+
+### Training
+
+预训练时，作者通过蒸馏 Muse Spark 来进行训练，蒸馏使用了 top-256 logits. 与 LLaMA4 结合 soft and hard targets 不同，Muse Glimmer 训练分为两个阶段：
+
+1. 在前 $95\%$, 使用 KL divergence 来进行训练
+2. 在最后 $5\%$, 使用 cross entropy loss 来进行训练
+
+预训练结束之后，作者通过 model souping 来获取 pre-training checkpoint. 作者对比几种方案之后，最终选择使用 last checkpoint 以及间隔 600 steps 的 checkpoints 来进行 uniform average.
+
+
+
+Mid-training 包含两个阶段：
+
+1. Domain fusion, 加入合成数据以及 domain-specific 数据来提高模型的能力
+2. agentic capabilities, 将模型的上下文从 32k 扩展到 128k, 使用了 agentic reasoning data.
+
+
+
+Post-training 包含 SFT, OPD 和 RL  三个阶段
+
+1. SFT, SFT 的数据来源为 Muse Spark
+2. OPD, OPD 的教师模型为 Muse Spark, 作者发现加入 OPD 阶段可以得到相比于 SFT then RL 更好的效果
+3. RL, 提高模型的能力
+
+
+
+### Inference
+
+作者探究了不同的 quantization 方法，用 $\Delta \mathrm{NLL}$ 作为 metric, 实验发现， EvoPress 的 validation loss 最低，而 Q4KM 的memory footprint 最小。因此作者选定这两种方法作为 32GB 与 24GB 的配置。
+
+对于 speculative decoding, 作者采取了 DFlash [@DFlash] 方案，使用了一个轻量化的 block-diffusion model.
+
+### Muse Spark Open
 
 [Muse Spark Open](https://huggingface.co/meta-models/Muse-Spark-Open-816B-A42B) 是 Meta 在26年10月发布的一个 816B-A42B 的多模态大模型，支持 text, image/video, audio 三种模态，模型使用了 hybrid attention 和 MoE 架构。
 
