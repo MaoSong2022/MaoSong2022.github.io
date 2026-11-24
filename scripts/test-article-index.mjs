@@ -23,10 +23,10 @@ test('types and completion are independent; scaffolding stays out of the public 
 test('fresh drafts cannot displace curated tutorials and analyses', async () => {
   const rows = await parseArticleGlob(Object.fromEntries([
     entry('deep_learning', '2099-01-01'), entry('kimi'), entry('tokenizer'),
-    entry('RL4LLM'), entry('llm-resource-computation'), entry('kl-divergence'), entry('train_inference_mistahch'),
+    entry('RL4LLM'), entry('llm-resource-computation'), entry('kl-divergence'), entry('train-inference-mismatch'),
   ]));
   assert.deepEqual(selectFeatured(rows, 'learning').map(r => r.slug), ['RL4LLM', 'llm-resource-computation', 'tokenizer']);
-  assert.deepEqual(selectFeatured(rows, 'analysis').map(r => r.slug), ['kl-divergence', 'train_inference_mistahch']);
+  assert.deepEqual(selectFeatured(rows, 'analysis').map(r => r.slug), ['kl-divergence', 'train-inference-mismatch']);
 });
 
 test('lists prioritize completion, then retain update order, without mutating input', () => {
