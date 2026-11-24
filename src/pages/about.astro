@@ -92,48 +92,51 @@ const researchAreas: ResearchArea[] = [
 ];
 
 type TimelineItem = {
-  /** Fill in exact dates (e.g. "2024 – 2026"); leave empty to hide the date label. */
   period: string;
   role: string;
   org: string;
   orgUrl?: string;
-  /** Optional details such as advisor, major, or research focus. */
+  team?: { label: string; href: string };
+  advisor?: { label: string; href: string };
   detail?: string;
-  detailLink?: { label: string; href: string };
 };
 
 const experienceItems: TimelineItem[] = [
   {
-    period: "2026 – Present",
+    period: "2026.09 – Present",
     role: "Researcher",
     org: "SenseTime (商汤科技)",
     orgUrl: "https://www.sensetime.com/",
     detail: "Focusing on LLM post-training and multimodal foundation models.",
   },
   {
-    period: "", // TODO: fill in period at Shanghai AI Lab (e.g. "2024 – 2026")
+    period: "2022.08 – 2026.08",
     role: "Researcher",
     org: "Shanghai Artificial Intelligence Laboratory (上海人工智能实验室)",
     orgUrl: "https://www.shlab.org.cn/",
-    detail: "", // TODO: optionally add research focus or team
+    team: {
+      label: "KnowledgeXLab",
+      href: "https://knowledgexlab.github.io/",
+    },
+    detail: "Worked on MLLMs, LLM post-training, and their applications.",
   },
 ];
 
 const educationItems: TimelineItem[] = [
   {
-    period: "", // TODO: fill in Master's period (e.g. "2022 – 2025")
-    role: "Master's Degree", // TODO: optionally specify major (e.g. "M.S. in Computer Science")
+    period: "2019.09 – 2022.07",
+    role: "M.S. in Computer Science",
     org: "ShanghaiTech University",
     orgUrl: "https://www.shanghaitech.edu.cn/",
-    detail: "Supervised by ",
-    detailLink: {
+    advisor: {
       label: "Prof. Hao Wang",
       href: "https://sist.shanghaitech.edu.cn/wanghao1/main.htm",
     },
+    detail: "Focused on convex & non-convex optimization and its applications.",
   },
   {
-    period: "", // TODO: fill in Bachelor's period (e.g. "2018 – 2022")
-    role: "Bachelor's Degree", // TODO: optionally specify major
+    period: "2015.09 – 2019.07",
+    role: "B.S. in Information and Computing Science",
     org: "Beijing Institute of Technology",
     orgUrl: "https://www.bit.edu.cn/",
   },
@@ -245,7 +248,7 @@ const educationItems: TimelineItem[] = [
       <ul class="about-timeline">
         {experienceItems.map((item) => (
           <li class="about-timeline__item">
-            <span class="about-timeline__period">{item.period || "—"}</span>
+            <span class="about-timeline__period">{item.period}</span>
             <div class="about-timeline__body">
               <div class="about-timeline__headline">
                 <strong>{item.role}</strong>
@@ -258,8 +261,22 @@ const educationItems: TimelineItem[] = [
                   <span>{item.org}</span>
                 )}
               </div>
-              {item.detail && (
-                <p class="about-timeline__detail">{item.detail}</p>
+              {(item.team || item.detail) && (
+                <p class="about-timeline__detail">
+                  {item.team && (
+                    <>
+                      <a
+                        href={item.team.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {item.team.label}
+                      </a>
+                      {item.detail ? " — " : ""}
+                    </>
+                  )}
+                  {item.detail}
+                </p>
               )}
             </div>
           </li>
@@ -270,7 +287,7 @@ const educationItems: TimelineItem[] = [
       <ul class="about-timeline">
         {educationItems.map((item) => (
           <li class="about-timeline__item">
-            <span class="about-timeline__period">{item.period || "—"}</span>
+            <span class="about-timeline__period">{item.period}</span>
             <div class="about-timeline__body">
               <div class="about-timeline__headline">
                 <strong>{item.role}</strong>
@@ -283,18 +300,22 @@ const educationItems: TimelineItem[] = [
                   <span>{item.org}</span>
                 )}
               </div>
-              {(item.detail || item.detailLink) && (
+              {(item.advisor || item.detail) && (
                 <p class="about-timeline__detail">
-                  {item.detail}
-                  {item.detailLink && (
-                    <a
-                      href={item.detailLink.href}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      {item.detailLink.label}
-                    </a>
+                  {item.advisor && (
+                    <>
+                      Supervised by{" "}
+                      <a
+                        href={item.advisor.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {item.advisor.label}
+                      </a>
+                      {item.detail ? ". " : ""}
+                    </>
                   )}
+                  {item.detail}
                 </p>
               )}
             </div>
@@ -536,19 +557,6 @@ const educationItems: TimelineItem[] = [
             </a>
           )}
         </div>
-      </div>
-    </section>
-
-    <section class="about-section" aria-labelledby="blog-heading">
-      <h2 id="blog-heading">About This Blog</h2>
-      <div class="blog-info-section">
-        <p>
-          This site is my digital garden for structured tutorials, deep-dive
-          derivations, paper notes, and engineering reflections on LLMs,
-          reinforcement learning, and multimodal AI. You can browse curated
-          collections on the <a href="/blog">Blog</a> or filter everything by
-          topic on <a href="/browse">Browse</a>.
-        </p>
       </div>
     </section>
 
