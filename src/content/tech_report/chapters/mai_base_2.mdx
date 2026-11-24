@@ -1,0 +1,64 @@
+import HtmlEmbed from "../../../components/HtmlEmbed.astro";
+
+## MAI Base 2
+
+MAI Base 2 [@MAI-Base-2] 是微软在 26 年 10 月发布的一个 2.8T-A80B 的 MoE model.
+
+MAI Base 2 使用了 16K GB200 训练了 38 days.MFU 为 $21\%$, goodput (有效推进训练的时间) 为 $89\%$.
+
+在架构上，MAI Base 2 与 MAI Base 1 的区别如下表所示
+
+|                               | MAI Base 1                                           | MAI Base 2                                                   |
+| ----------------------------- | ---------------------------------------------------- | ------------------------------------------------------------ |
+| Active / total parameters     | 35B / 1T                                             | 80B / 2.8T                                                   |
+| Layers                        | 78                                                   | 102                                                          |
+| Hidden dimension              | 6656                                                 | 8704                                                         |
+| MoE layout                    | Alternating dense FFNs and MoEs                      | MoE in every layer                                           |
+| Dense FFN dimension           | 13312                                                | n/a                                                          |
+| MoE down projection dimension | 3072                                                 | 4096                                                         |
+| MoE expert FFN dimension      | 10240                                                | 8704                                                         |
+| MoE routing / expert count    | 0 shared + 8 / 512 routed                            | 1 shared + 7 / 512 routed(shared expert is not down/up projected) |
+| Attention heads (KV / Q)      | 8 / 80 (global – every 6 layers)<br />8 / 80 (local) | 2 / 96 (global – every 6 layers)<br />16 / 96 (local)        |
+| Embeddings                    | Tied                                                 | Untied                                                       |
+| Training horizon (tokens)     | 30T                                                  | 50T                                                          |
+| Optimizer                     | AdamW                                                | Muon (non-embedding 2D parameters), AdamW                    |
+| FP8 scheme                    | Tensor-wise, delayed scaling E4M3 / E5M2             | MXFP8 E4M3                                                   |
+| Gradient clipping             | Global weight gradient clipping                      | Global weight gradient + activation gradient clipping        |
+| Vision                        | Text only                                            | Native VLM                                                   |
+
+架构上的改进包含关键几点：
+
+1. 使用了 encoder-free 的 native VLM 架构
+2. 去掉了 dense FFN layer, 所有的 FFN 都是 MoE.
+
+
+
+在探究 scaling law 的过程中，作者使用 `num_layers` 来确定模型架构参数，然后保持 tokens per active parameter (TPP) 为常数。对于小模型，作者使用 source scaling, 来保证小模型训练的数据分布和大模型训练的数据分布一致。
+
+作者构建了针对 weight decay 和 learning rate 的 scaling law, 结果为
+
+$$
+\begin{aligned}
+\log \mathrm{LR} &= -1.505-0.572\log \mathrm{steps}+0.174\log\mathrm{TPP}\\
+\mathrm{LR}\times \mathrm{WD} &= 17.04/\mathrm{steps}
+\end{aligned}
+$$
+
+作者还使用了 efficiency gain (EG) 来作为 metric, EG 评估了当前配置到达 baseline evaluation loss 所需要的资源 (FLOPs, time).
+
+预训练作者使用了 Muon optimizer [@Muon]. 为了适配 ZeRO [@ZeRO], 作者在 optimizer step 时对 momentum 进行 reshard. 即现将 FP32 momentum 转换为 BF16, 然后通过一个 all-to-all 来让 GPU 持有完整的 momentum matrix, 在计算完之后，再通过 all-to-all 来将数据转换并返回给原来的 shard.  作者还 cache metadata 来减少逻辑判断
+
+作者还采用了如下方法来来提高训练效率与稳定性
+
+1.  activation gradient clipping 机制，在 network 指定位置对 gradient 进行 clipping
+2. 通过 pre-fetch multiple batches 来实现 communication computation overlap
+3. 将 router weigths 复制到不同的 GPU 上
+
+预训练数据一共有 50T, 包含 18% 多模态数据 (4.5T tokens), 数据分布如下所示
+
+<HtmlEmbed
+  src="embeds/d3-pie-domain.html"
+  title="MAI Base 2 Pre-training (including repeats)"
+  data="mai-base-2-pretraining.json"
+/>
+

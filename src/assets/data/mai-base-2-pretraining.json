@@ -1,0 +1,39 @@
+{
+    "title": "MAI-Base-2 Pretraining (50T)",
+    "total": 50.0,
+    "type": "percentage",
+    "domains": [
+        {
+            "name": "Code",
+            "percentage": 45.0
+        },
+        {
+            "name": "Web",
+            "percentage": 12.0
+        },
+        {
+            "name": "PDFs",
+            "percentage": 9.0
+        },
+        {
+            "name": "STEM",
+            "percentage": 9.0
+        },
+        {
+            "name": "Books",
+            "percentage": 5.0
+        },
+        {
+            "name": "Math",
+            "percentage": 4.0
+        },
+        {
+            "name": "Vision-only",
+            "percentage": 14.0
+        },
+        {
+            "name": "Other",
+            "percentage": 2.0
+        }
+    ]
+}
