@@ -17,7 +17,7 @@ import { SITE_PUBLICATIONS } from "../data/site-publications";
 
 const pageTitle = "About";
 const description =
-  "毛松（Mao Song / 以往的月），商汤科技研究员，聚焦大语言模型后训练（LLM Post-Training）、强化学习（RL）、多模态大模型（MLLM）与分布式训练系统。";
+  "毛松（Mao Song / 以往的月），商汤科技高级算法研究员，聚焦大语言模型后训练（LLM Post-Training）、强化学习（RL）、多模态大模型（MLLM）与分布式训练系统。";
 
 const scholarUrl = `https://scholar.google.com/citations?user=${GOOGLE_SCHOLAR_ID}`;
 const githubUrl = `https://github.com/${GITHUB_USERNAME}`;
@@ -30,7 +30,7 @@ const personJsonLd = {
   url: new URL("/about", Astro.site ?? SITE_URL).toString(),
   image: new URL("/avatar.jpg", Astro.site ?? SITE_URL).toString(),
   email: `mailto:${CONTACT_EMAIL}`,
-  jobTitle: "Researcher",
+  jobTitle: "Senior Algorithm Researcher",
   worksFor: {
     "@type": "Organization",
     name: "SenseTime",
@@ -121,8 +121,8 @@ const experienceItems: TimelineItem[] = [
   {
     periodZh: "2026.09 – 至今",
     periodEn: "2026.09 – Present",
-    roleZh: "研究员",
-    roleEn: "Researcher",
+    roleZh: "高级算法研究员",
+    roleEn: "Senior Algorithm Researcher",
     orgZh: "商汤科技（SenseTime）",
     orgEn: "SenseTime",
     orgUrl: "https://www.sensetime.com/",
@@ -132,8 +132,8 @@ const experienceItems: TimelineItem[] = [
   {
     periodZh: "2022.08 – 2026.08",
     periodEn: "2022.08 – 2026.08",
-    roleZh: "研究员",
-    roleEn: "Researcher",
+    roleZh: "算法研究员",
+    roleEn: "Algorithm Researcher",
     orgZh: "上海人工智能实验室（Shanghai AI Lab）",
     orgEn: "Shanghai Artificial Intelligence Laboratory",
     orgUrl: "https://www.shlab.org.cn/",
@@ -216,8 +216,8 @@ const educationItems: TimelineItem[] = [
           <span class="about-profile__alias">· 以往的月</span>
         </p>
         <p class="about-profile__role">
-          <span data-lang="zh">商汤科技研究员 · LLM 后训练、强化学习与多模态大模型</span>
-          <span data-lang="en">Researcher at SenseTime · LLM Post-Training, RL &amp; MLLMs</span>
+          <span data-lang="zh">商汤科技高级算法研究员 · LLM 后训练、强化学习与多模态大模型</span>
+          <span data-lang="en">Senior Algorithm Researcher at SenseTime · LLM Post-Training, RL &amp; MLLMs</span>
         </p>
         <div class="about-profile__actions">
           <a class="button button--ghost" href={`mailto:${CONTACT_EMAIL}`}>
@@ -266,7 +266,7 @@ const educationItems: TimelineItem[] = [
             href="https://www.sensetime.com/"
             target="_blank"
             rel="noopener noreferrer"
-          >商汤科技（SenseTime）</a>担任研究员，研究重心围绕
+          >商汤科技（SenseTime）</a>担任高级算法研究员，研究重心围绕
           <strong>大语言模型后训练（LLM Post-Training）</strong>、
           <strong>强化学习（RL）</strong>与
           <strong>多模态大模型（MLLM）</strong>。
@@ -282,12 +282,12 @@ const educationItems: TimelineItem[] = [
             href="https://knowledgexlab.github.io/"
             target="_blank"
             rel="noopener noreferrer"
-          >KnowledgeXLab</a> 担任研究员。工作之余，我也以<strong>「以往的月」</strong>为名在知乎、B 站和微信公众号持续分享技术笔记与推导教程。
+          >KnowledgeXLab</a> 担任算法研究员。工作之余，我也以<strong>「以往的月」</strong>为名在知乎、B 站和微信公众号持续分享技术笔记与推导教程。
         </p>
       </div>
       <div class="intro-section" data-lang="en">
         <p>
-          I am <strong>Mao Song (毛松)</strong>, a researcher at{" "}
+          I am <strong>Mao Song (毛松)</strong>, a senior algorithm researcher at{" "}
           <a
             href="https://www.sensetime.com/"
             target="_blank"
@@ -298,7 +298,7 @@ const educationItems: TimelineItem[] = [
           <strong>Multimodal Large Language Models (MLLMs)</strong>.
         </p>
         <p>
-          Previously, I was a researcher in{" "}
+          Previously, I was an algorithm researcher in{" "}
           <a
             href="https://knowledgexlab.github.io/"
             target="_blank"
