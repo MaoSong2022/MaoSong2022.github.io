@@ -31,6 +31,24 @@ const {
   inLanguage = "zh-CN",
 } = Astro.props as Props;
 
+function toIsoDate(raw?: string): string | undefined {
+  if (!raw) return undefined;
+  const trimmed = String(raw).trim();
+  if (!trimmed) return undefined;
+  if (/^\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2})?(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?)?$/.test(trimmed)) {
+    return trimmed.includes(" ") ? trimmed.replace(" ", "T") : trimmed;
+  }
+  const parsed = new Date(trimmed);
+  if (Number.isNaN(parsed.getTime())) return undefined;
+  const y = parsed.getFullYear();
+  const m = String(parsed.getMonth() + 1).padStart(2, "0");
+  const d = String(parsed.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+const publishedIso = toIsoDate(published);
+const modifiedIso = toIsoDate(modified) ?? publishedIso;
+
 const url = Astro.url?.toString?.() ?? "";
 const site = (Astro.site ? String(Astro.site) : "") as string;
 
@@ -58,8 +76,8 @@ const jsonLd = {
   headline: title,
   description: description || undefined,
   inLanguage,
-  datePublished: published || undefined,
-  dateModified: modified || published || undefined,
+  datePublished: publishedIso || undefined,
+  dateModified: modifiedIso || undefined,
   author: (authors.length ? authors : [SITE_AUTHOR]).map((name) => ({
     "@type": "Person",
     name,
@@ -99,8 +117,8 @@ const jsonLd = {
 <meta property="og:site_name" content={brandName} />
 {ogImage && <meta property="og:image" content={ogImage} />}
 {ogImage && <meta property="og:image:alt" content={title} />}
-{published && <meta property="article:published_time" content={published} />}
-{modified && <meta property="article:modified_time" content={modified} />}
+{publishedIso && <meta property="article:published_time" content={publishedIso} />}
+{modifiedIso && <meta property="article:modified_time" content={modifiedIso} />}
 {authors.map((a) => <meta property="article:author" content={a} />)}
 {tags.map((tag) => <meta property="article:tag" content={tag} />)}
 
