@@ -12,8 +12,7 @@ import {
   SITE_LICENSE,
   SITE_TITLE,
 } from "../consts";
-import { ARTICLE_EDITORIAL, CONTENT_TYPES } from "../data/article-editorial";
-import { parseArticleGlob } from "../utils/site-articles";
+import { ARTICLE_EDITORIAL } from "../data/article-editorial";
 import "katex/dist/katex.min.css";
 import "../styles/global.css";
 
@@ -242,58 +241,6 @@ const articleLang: string =
 const articleLocale = articleLang.toLowerCase().startsWith("zh")
   ? "zh_CN"
   : "en_US";
-
-// Compute up to 3 related articles (exclude current, drafts, and outlines)
-const relatedArticles = await (async () => {
-  if (!slug) return [];
-  const allGlob = import.meta.glob<{ frontmatter?: Record<string, unknown> }>(
-    "../content/*/article.{md,mdx}",
-    { eager: true },
-  );
-  const allArticles = await parseArticleGlob(allGlob);
-  const currentTags = new Set(
-    (Array.isArray(tags) ? tags : [])
-      .map((t: unknown) => String(t || "").trim().toLowerCase())
-      .filter(Boolean),
-  );
-  const currentCategory =
-    typeof categories === "string"
-      ? categories.trim().toLowerCase()
-      : Array.isArray(categories) && typeof categories[0] === "string"
-        ? categories[0].trim().toLowerCase()
-        : "";
-  const currentType = editorial?.contentType;
-
-  return allArticles
-    .filter((item) => item.slug !== slug && item.completion !== "outline")
-    .map((item) => {
-      let score = 0;
-      if (currentType && item.contentType === currentType) score += 3;
-      for (const t of item.tags) {
-        if (currentTags.has(t.toLowerCase())) score += 2;
-      }
-      if (
-        currentCategory &&
-        item.categories &&
-        item.categories.toLowerCase() === currentCategory
-      ) {
-        score += 1;
-      }
-      if (item.completion === "complete") score += 1.5;
-      if (item.featuredOrder !== undefined) score += 1;
-      return { item, score };
-    })
-    .filter(({ score }) => score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 3)
-    .map(({ item }) => ({
-      slug: item.slug,
-      url: item.url,
-      title: item.title,
-      description: item.description,
-      contentTypeLabel: CONTENT_TYPES[item.contentType]?.shortLabel,
-    }));
-})();
 ---
 
 <html
@@ -527,7 +474,6 @@ const relatedArticles = await (async () => {
       articleTitle={titleFlat}
       articleUrl={Astro.url.href}
       slug={slug}
-      relatedArticles={relatedArticles}
     />
 
     <script>

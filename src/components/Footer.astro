@@ -1,14 +1,6 @@
 ---
 import { GITHUB_USERNAME } from "../consts";
 
-interface RelatedArticle {
-  slug: string;
-  url: string;
-  title: string;
-  description?: string;
-  contentTypeLabel?: string;
-}
-
 interface Props {
   citationText: string;
   bibtex: string;
@@ -18,7 +10,6 @@ interface Props {
   articleTitle?: string;
   articleUrl?: string;
   slug?: string;
-  relatedArticles?: RelatedArticle[];
 }
 const {
   citationText,
@@ -29,7 +20,6 @@ const {
   articleTitle = "",
   articleUrl = "",
   slug,
-  relatedArticles = [],
 } = Astro.props as Props;
 const isPaper = template === "paper";
 const shareOnXUrl = articleUrl
@@ -76,24 +66,6 @@ const shareOnXUrl = articleUrl
     <section class="references-block">
       <slot />
     </section>
-    {relatedArticles.length > 0 && (
-      <section class="related-block" aria-label="Related articles">
-        <p class="footer-heading" role="heading" aria-level="2">Related</p>
-        <ul class="related-list">
-          {relatedArticles.map((item) => (
-            <li class="related-item">
-              <a class="related-item__title" href={item.url}>{item.title}</a>
-              {item.contentTypeLabel && (
-                <span class="related-item__badge">{item.contentTypeLabel}</span>
-              )}
-              {item.description && (
-                <p class="related-item__desc">{item.description}</p>
-              )}
-            </li>
-          ))}
-        </ul>
-      </section>
-    )}
     <section class="engage-block" aria-label="Share and follow">
       <p class="footer-heading" role="heading" aria-level="2">Share &amp; Follow</p>
       <div class="engage-body">
@@ -485,7 +457,6 @@ const shareOnXUrl = articleUrl
   }
 
   /* Use the parent grid (3 columns like .content-grid) */
-  .related-block,
   .engage-block,
   .citation-block,
   .references-block,
@@ -494,7 +465,6 @@ const shareOnXUrl = articleUrl
     display: contents;
   }
 
-  .related-block > .footer-heading,
   .engage-block > .footer-heading,
   .citation-block > .footer-heading,
   .references-block > .footer-heading,
@@ -508,51 +478,12 @@ const shareOnXUrl = articleUrl
     padding-right: 30px;
   }
 
-  .related-block > :not(.footer-heading),
   .engage-block > :not(.footer-heading),
   .citation-block > :not(.footer-heading),
   .references-block > :not(.footer-heading),
   .reuse-block > :not(.footer-heading),
   .doi-block > :not(.footer-heading) {
     grid-column: 2;
-  }
-
-  .related-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: grid;
-    gap: 14px;
-  }
-
-  .related-item {
-    padding: 12px 14px;
-    border-radius: 6px;
-    border: 1px solid rgba(0, 0, 0, 0.08);
-    background: rgba(0, 0, 0, 0.015);
-  }
-
-  .related-item__title {
-    font-size: 1.05em;
-    font-weight: 600;
-    margin-right: 8px;
-  }
-
-  .related-item__badge {
-    display: inline-block;
-    font-size: 0.78em;
-    padding: 1px 7px;
-    border-radius: 999px;
-    background: rgba(0, 0, 0, 0.06);
-    color: rgba(0, 0, 0, 0.65);
-    vertical-align: middle;
-  }
-
-  .related-item__desc {
-    margin: 5px 0 0;
-    font-size: 0.92em;
-    line-height: 1.5;
-    color: rgba(0, 0, 0, 0.6);
   }
 
   .engage-body {
@@ -644,17 +575,6 @@ const shareOnXUrl = articleUrl
     border-radius: 4px;
   }
 
-  [data-theme="dark"] .related-item {
-    border-color: rgba(255, 255, 255, 0.12);
-    background: rgba(255, 255, 255, 0.03);
-  }
-
-  [data-theme="dark"] .related-item__badge {
-    background: rgba(255, 255, 255, 0.1);
-    color: rgba(220, 220, 220, 0.85);
-  }
-
-  [data-theme="dark"] .related-item__desc,
   [data-theme="dark"] .engage-follow__label {
     color: rgba(200, 200, 200, 0.72);
   }
