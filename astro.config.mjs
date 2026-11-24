@@ -5,6 +5,7 @@ import sitemap from '@astrojs/sitemap';
 import mermaid from 'astro-mermaid';
 import compressor from 'astro-compressor';
 import generateLlmsTxt from './plugins/astro/generate-llms-txt.mjs';
+import generateOgImages from './plugins/astro/generate-og-images.mjs';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import remarkFootnotes from 'remark-footnotes';
@@ -44,6 +45,7 @@ export default defineConfig({
     mdx(),
     svelte(),
     generateLlmsTxt(),
+    generateOgImages(),
     // Precompress output with Gzip only (Brotli disabled due to server module mismatch)
     compressor({ brotli: false, gzip: true, fileExtensions: ['.css', '.js', '.html', '.cjs', '.mjs', '.svg', '.txt'] }),
   ],

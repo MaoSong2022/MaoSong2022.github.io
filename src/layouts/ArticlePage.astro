@@ -27,7 +27,7 @@ interface Props {
 const { articleMod: ArticleMod, lastModified, slug } = Astro.props as Props;
 
 // Default OG image served from public/
-const ogDefaultUrl = "/thumb.auto.jpg";
+const ogDefaultUrl = "/og-default.png";
 const articleFM = (ArticleMod as any).frontmatter ?? {};
 const Article = (ArticleMod as any).default;
 const isDraft = articleFM?.draft === true || articleFM?.draft === "true";
@@ -170,14 +170,15 @@ const modified =
 const template: string = (articleFM as any)?.template ?? "article";
 const tags = articleFM?.tags ?? [];
 const categories = articleFM?.categories ?? undefined;
-// Prefer seoThumbImage from frontmatter if provided
+// Prefer seoThumbImage from frontmatter; otherwise use build-time generated /og/<slug>.png
 const fmOg = articleFM?.seoThumbImage as string | undefined;
+const resolvedOg = fmOg || (slug ? `/og/${slug}.png` : ogDefaultUrl);
 const imageAbs: string =
-  fmOg && fmOg.startsWith("http")
-    ? fmOg
+  resolvedOg.startsWith("http")
+    ? resolvedOg
     : Astro.site
-      ? new URL(fmOg ?? ogDefaultUrl, Astro.site).toString()
-      : (fmOg ?? ogDefaultUrl);
+      ? new URL(resolvedOg, Astro.site).toString()
+      : resolvedOg;
 
 // ---- Build citation text & BibTeX from frontmatter ----
 const rawTitle = articleFM?.title ?? "Untitled article";
