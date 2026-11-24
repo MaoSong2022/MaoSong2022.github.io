@@ -17,7 +17,7 @@ import { SITE_PUBLICATIONS } from "../data/site-publications";
 
 const pageTitle = "About";
 const description =
-  "Mao Song (毛松 / 以往的月), researcher at SenseTime — LLM post-training, reinforcement learning, MLLMs, and training systems.";
+  "毛松（Mao Song / 以往的月），商汤科技研究员，聚焦大语言模型后训练（LLM Post-Training）、强化学习（RL）、多模态大模型（MLLM）与分布式训练系统。";
 
 const scholarUrl = `https://scholar.google.com/citations?user=${GOOGLE_SCHOLAR_ID}`;
 const githubUrl = `https://github.com/${GITHUB_USERNAME}`;
@@ -59,93 +59,144 @@ const personJsonLd = {
 };
 
 type ResearchArea = {
-  title: string;
-  description: string;
+  titleZh: string;
+  titleEn: string;
+  descZh: string;
+  descEn: string;
   tags: string[];
 };
 
 const researchAreas: ResearchArea[] = [
   {
-    title: "LLM Post-Training & RL",
-    description:
+    titleZh: "LLM 后训练与强化学习",
+    titleEn: "LLM Post-Training & RL",
+    descZh: "探索大语言模型后训练范式与强化学习算法，持续提升模型的对齐效果与能力上限。",
+    descEn:
       "Post-training pipelines and reinforcement learning methods that align and scale language model capabilities.",
     tags: ["RLHF", "RLVR", "Agentic RL", "Policy Optimization"],
   },
   {
-    title: "Reasoning Models",
-    description:
+    titleZh: "推理模型",
+    titleEn: "Reasoning Models",
+    descZh: "研究可验证的多步推理、长程规划与自我纠错机制，拓展模型在复杂任务上的深度思考能力。",
+    descEn:
       "Building models capable of verifiable multi-step reasoning, long-horizon planning, and self-correction.",
     tags: ["Test-Time Scaling", "Math & Code", "Long CoT"],
   },
   {
-    title: "Multimodal LLMs",
-    description:
+    titleZh: "多模态大模型（MLLM）",
+    titleEn: "Multimodal LLMs",
+    descZh: "探索视觉感知与语言推理的融合，以及统一理解与生成的多模态基础模型架构。",
+    descEn:
       "Bridging visual perception, language reasoning, and unified understanding & generation across modalities.",
     tags: ["MLLM", "Vision Encoders", "Unified Models"],
   },
   {
-    title: "Training Systems & Efficiency",
-    description:
+    titleZh: "训练系统与效率优化",
+    titleEn: "Training Systems & Efficiency",
+    descZh: "关注大规模分布式训练、训练-推理一致性分析与算力效率优化，弥合算法与系统之间的鸿沟。",
+    descEn:
       "Understanding and optimizing large-scale distributed training, inference alignment, and compute efficiency.",
     tags: ["Parallelism", "FSDP", "Train-Inference Mismatch"],
   },
 ];
 
 type TimelineItem = {
-  period: string;
-  role: string;
-  org: string;
+  periodZh: string;
+  periodEn: string;
+  roleZh: string;
+  roleEn: string;
+  orgZh: string;
+  orgEn: string;
   orgUrl?: string;
   team?: { label: string; href: string };
-  advisor?: { label: string; href: string };
-  detail?: string;
+  advisor?: { labelZh: string; labelEn: string; href: string };
+  detailZh?: string;
+  detailEn?: string;
 };
 
 const experienceItems: TimelineItem[] = [
   {
-    period: "2026.09 – Present",
-    role: "Researcher",
-    org: "SenseTime (商汤科技)",
+    periodZh: "2026.09 – 至今",
+    periodEn: "2026.09 – Present",
+    roleZh: "研究员",
+    roleEn: "Researcher",
+    orgZh: "商汤科技（SenseTime）",
+    orgEn: "SenseTime",
     orgUrl: "https://www.sensetime.com/",
-    detail: "Focusing on LLM post-training and multimodal foundation models.",
+    detailZh: "聚焦大语言模型后训练（LLM Post-Training）与多模态基础模型研究。",
+    detailEn: "Focusing on LLM post-training and multimodal foundation models.",
   },
   {
-    period: "2022.08 – 2026.08",
-    role: "Researcher",
-    org: "Shanghai Artificial Intelligence Laboratory (上海人工智能实验室)",
+    periodZh: "2022.08 – 2026.08",
+    periodEn: "2022.08 – 2026.08",
+    roleZh: "研究员",
+    roleEn: "Researcher",
+    orgZh: "上海人工智能实验室（Shanghai AI Lab）",
+    orgEn: "Shanghai Artificial Intelligence Laboratory",
     orgUrl: "https://www.shlab.org.cn/",
     team: {
       label: "KnowledgeXLab",
       href: "https://knowledgexlab.github.io/",
     },
-    detail: "Worked on MLLMs, LLM post-training, and their applications.",
+    detailZh: "从事多模态大模型（MLLM）、LLM 后训练及其应用研究。",
+    detailEn: "Worked on MLLMs, LLM post-training, and their applications.",
   },
 ];
 
 const educationItems: TimelineItem[] = [
   {
-    period: "2019.09 – 2022.07",
-    role: "M.S. in Computer Science",
-    org: "ShanghaiTech University",
+    periodZh: "2019.09 – 2022.07",
+    periodEn: "2019.09 – 2022.07",
+    roleZh: "计算机科学硕士",
+    roleEn: "M.S. in Computer Science",
+    orgZh: "上海科技大学",
+    orgEn: "ShanghaiTech University",
     orgUrl: "https://www.shanghaitech.edu.cn/",
     advisor: {
-      label: "Prof. Hao Wang",
+      labelZh: "王昊教授（Prof. Hao Wang）",
+      labelEn: "Prof. Hao Wang",
       href: "https://sist.shanghaitech.edu.cn/wanghao1/main.htm",
     },
-    detail: "Focused on convex & non-convex optimization and its applications.",
+    detailZh: "研究方向为凸/非凸优化算法及其应用。",
+    detailEn: "Focused on convex & non-convex optimization and its applications.",
   },
   {
-    period: "2015.09 – 2019.07",
-    role: "B.S. in Information and Computing Science",
-    org: "Beijing Institute of Technology",
+    periodZh: "2015.09 – 2019.07",
+    periodEn: "2015.09 – 2019.07",
+    roleZh: "信息与计算科学学士",
+    roleEn: "B.S. in Information and Computing Science",
+    orgZh: "北京理工大学",
+    orgEn: "Beijing Institute of Technology",
     orgUrl: "https://www.bit.edu.cn/",
   },
 ];
 ---
 
-<BaseLayout pageTitle={pageTitle} description={description}>
+<BaseLayout pageTitle={pageTitle} description={description} lang="zh-CN">
   <script slot="head" type="application/ld+json" set:html={JSON.stringify(personJsonLd)} />
-  <div class="about-page">
+  <div class="about-page" data-about-lang="zh">
+    <div class="about-lang-bar">
+      <div class="about-lang-switch" role="group" aria-label="Language switch">
+        <button
+          type="button"
+          class="about-lang-btn"
+          data-set-lang="zh"
+          aria-pressed="true"
+        >
+          中文
+        </button>
+        <button
+          type="button"
+          class="about-lang-btn"
+          data-set-lang="en"
+          aria-pressed="false"
+        >
+          English
+        </button>
+      </div>
+    </div>
+
     <section class="about-profile" aria-label="Profile overview">
       <div class="about-profile__avatar">
         <Image
@@ -158,14 +209,19 @@ const educationItems: TimelineItem[] = [
       </div>
       <div class="about-profile__body">
         <p class="about-profile__name">
-          Mao Song (毛松)
+          <span data-lang="zh">毛松 (Mao Song)</span>
+          <span data-lang="en">Mao Song (毛松)</span>
           <span class="about-profile__alias">· 以往的月</span>
         </p>
         <p class="about-profile__role">
-          Researcher at SenseTime · LLM Post-Training, RL &amp; MLLMs
+          <span data-lang="zh">商汤科技研究员 · LLM 后训练、强化学习与多模态大模型</span>
+          <span data-lang="en">Researcher at SenseTime · LLM Post-Training, RL &amp; MLLMs</span>
         </p>
         <div class="about-profile__actions">
-          <a class="button button--ghost" href={`mailto:${CONTACT_EMAIL}`}>Email</a>
+          <a class="button button--ghost" href={`mailto:${CONTACT_EMAIL}`}>
+            <span data-lang="zh">邮箱联系</span>
+            <span data-lang="en">Email</span>
+          </a>
           <a
             class="button button--ghost"
             href={scholarUrl}
@@ -197,21 +253,56 @@ const educationItems: TimelineItem[] = [
     </section>
 
     <section class="about-section" aria-labelledby="intro-heading">
-      <h2 id="intro-heading">Introduction</h2>
-      <div class="intro-section">
+      <h2 id="intro-heading">
+        <span data-lang="zh">个人简介</span>
+        <span data-lang="en">Introduction</span>
+      </h2>
+      <div class="intro-section" data-lang="zh">
+        <p>
+          你好，我是<strong>毛松（Mao Song）</strong>，目前就职于{" "}
+          <a
+            href="https://www.sensetime.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >商汤科技（SenseTime）</a>担任研究员，研究重心围绕
+          <strong>大语言模型后训练（LLM Post-Training）</strong>、
+          <strong>强化学习（RL）</strong>与
+          <strong>多模态大模型（MLLM）</strong>。
+        </p>
+        <p>
+          此前，我曾在{" "}
+          <a
+            href="https://www.shlab.org.cn/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >上海人工智能实验室（Shanghai AI Lab）</a>{" "}
+          <a
+            href="https://knowledgexlab.github.io/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >KnowledgeXLab</a> 担任研究员。工作之余，我也以<strong>「以往的月」</strong>为名在知乎、B 站和微信公众号持续分享技术笔记与推导教程。
+        </p>
+      </div>
+      <div class="intro-section" data-lang="en">
         <p>
           I am <strong>Mao Song (毛松)</strong>, a researcher at{" "}
           <a
             href="https://www.sensetime.com/"
             target="_blank"
             rel="noopener noreferrer"
-          >SenseTime (商汤科技)</a>, where I work on{" "}
+          >SenseTime</a>, where I work on{" "}
           <strong>Large Language Model (LLM) post-training</strong>,{" "}
           <strong>reinforcement learning</strong>, and{" "}
           <strong>Multimodal Large Language Models (MLLMs)</strong>.
         </p>
         <p>
-          Previously, I worked as a researcher at{" "}
+          Previously, I was a researcher in{" "}
+          <a
+            href="https://knowledgexlab.github.io/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >KnowledgeXLab</a>{" "}
+          at{" "}
           <a
             href="https://www.shlab.org.cn/"
             target="_blank"
@@ -225,12 +316,21 @@ const educationItems: TimelineItem[] = [
     </section>
 
     <section class="about-section" aria-labelledby="research-heading">
-      <h2 id="research-heading">Research Interests</h2>
+      <h2 id="research-heading">
+        <span data-lang="zh">研究方向</span>
+        <span data-lang="en">Research Interests</span>
+      </h2>
       <div class="about-research-grid">
         {researchAreas.map((area) => (
           <article class="about-research-card">
-            <h3>{area.title}</h3>
-            <p>{area.description}</p>
+            <h3>
+              <span data-lang="zh">{area.titleZh}</span>
+              <span data-lang="en">{area.titleEn}</span>
+            </h3>
+            <p>
+              <span data-lang="zh">{area.descZh}</span>
+              <span data-lang="en">{area.descEn}</span>
+            </p>
             <div class="about-research-card__tags">
               {area.tags.map((tag) => (
                 <span class="article-index__tag">{tag}</span>
@@ -242,26 +342,42 @@ const educationItems: TimelineItem[] = [
     </section>
 
     <section class="about-section" aria-labelledby="experience-heading">
-      <h2 id="experience-heading">Experience &amp; Education</h2>
+      <h2 id="experience-heading">
+        <span data-lang="zh">经历与教育背景</span>
+        <span data-lang="en">Experience &amp; Education</span>
+      </h2>
 
-      <h3 class="about-subheading">Experience</h3>
+      <h3 class="about-subheading">
+        <span data-lang="zh">工作经历</span>
+        <span data-lang="en">Experience</span>
+      </h3>
       <ul class="about-timeline">
         {experienceItems.map((item) => (
           <li class="about-timeline__item">
-            <span class="about-timeline__period">{item.period}</span>
+            <span class="about-timeline__period">
+              <span data-lang="zh">{item.periodZh}</span>
+              <span data-lang="en">{item.periodEn}</span>
+            </span>
             <div class="about-timeline__body">
               <div class="about-timeline__headline">
-                <strong>{item.role}</strong>
+                <strong>
+                  <span data-lang="zh">{item.roleZh}</span>
+                  <span data-lang="en">{item.roleEn}</span>
+                </strong>
                 {" · "}
                 {item.orgUrl ? (
                   <a href={item.orgUrl} target="_blank" rel="noopener noreferrer">
-                    {item.org}
+                    <span data-lang="zh">{item.orgZh}</span>
+                    <span data-lang="en">{item.orgEn}</span>
                   </a>
                 ) : (
-                  <span>{item.org}</span>
+                  <>
+                    <span data-lang="zh">{item.orgZh}</span>
+                    <span data-lang="en">{item.orgEn}</span>
+                  </>
                 )}
               </div>
-              {(item.team || item.detail) && (
+              {(item.team || item.detailZh || item.detailEn) && (
                 <p class="about-timeline__detail">
                   {item.team && (
                     <>
@@ -272,10 +388,11 @@ const educationItems: TimelineItem[] = [
                       >
                         {item.team.label}
                       </a>
-                      {item.detail ? " — " : ""}
+                      {" — "}
                     </>
                   )}
-                  {item.detail}
+                  <span data-lang="zh">{item.detailZh}</span>
+                  <span data-lang="en">{item.detailEn}</span>
                 </p>
               )}
             </div>
@@ -283,39 +400,66 @@ const educationItems: TimelineItem[] = [
         ))}
       </ul>
 
-      <h3 class="about-subheading">Education</h3>
+      <h3 class="about-subheading">
+        <span data-lang="zh">教育背景</span>
+        <span data-lang="en">Education</span>
+      </h3>
       <ul class="about-timeline">
         {educationItems.map((item) => (
           <li class="about-timeline__item">
-            <span class="about-timeline__period">{item.period}</span>
+            <span class="about-timeline__period">
+              <span data-lang="zh">{item.periodZh}</span>
+              <span data-lang="en">{item.periodEn}</span>
+            </span>
             <div class="about-timeline__body">
               <div class="about-timeline__headline">
-                <strong>{item.role}</strong>
+                <strong>
+                  <span data-lang="zh">{item.roleZh}</span>
+                  <span data-lang="en">{item.roleEn}</span>
+                </strong>
                 {" · "}
                 {item.orgUrl ? (
                   <a href={item.orgUrl} target="_blank" rel="noopener noreferrer">
-                    {item.org}
+                    <span data-lang="zh">{item.orgZh}</span>
+                    <span data-lang="en">{item.orgEn}</span>
                   </a>
                 ) : (
-                  <span>{item.org}</span>
+                  <>
+                    <span data-lang="zh">{item.orgZh}</span>
+                    <span data-lang="en">{item.orgEn}</span>
+                  </>
                 )}
               </div>
-              {(item.advisor || item.detail) && (
+              {(item.advisor || item.detailZh || item.detailEn) && (
                 <p class="about-timeline__detail">
                   {item.advisor && (
                     <>
-                      Supervised by{" "}
-                      <a
-                        href={item.advisor.href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        {item.advisor.label}
-                      </a>
-                      {item.detail ? ". " : ""}
+                      <span data-lang="zh">
+                        导师：
+                        <a
+                          href={item.advisor.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {item.advisor.labelZh}
+                        </a>
+                        {item.detailZh ? "；" : ""}
+                      </span>
+                      <span data-lang="en">
+                        Supervised by{" "}
+                        <a
+                          href={item.advisor.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {item.advisor.labelEn}
+                        </a>
+                        {item.detailEn ? ". " : ""}
+                      </span>
                     </>
                   )}
-                  {item.detail}
+                  {item.detailZh && <span data-lang="zh">{item.detailZh}</span>}
+                  {item.detailEn && <span data-lang="en">{item.detailEn}</span>}
                 </p>
               )}
             </div>
@@ -325,7 +469,10 @@ const educationItems: TimelineItem[] = [
     </section>
 
     <section class="about-section" aria-labelledby="highlights-heading">
-      <h2 id="highlights-heading">Selected Work</h2>
+      <h2 id="highlights-heading">
+        <span data-lang="zh">代表工作</span>
+        <span data-lang="en">Selected Work</span>
+      </h2>
       <ul class="site-pubs__list">
         {SITE_PUBLICATIONS.map((pub) => (
           <li class="site-pubs__item">
@@ -354,8 +501,13 @@ const educationItems: TimelineItem[] = [
           <div class="site-pubs__body">
             <span class="site-pubs__title">astro-blog-template</span>
             <p class="site-pubs__summary">
-              The open-source Astro template powering this site, designed for
-              research articles, math-heavy tutorials, and technical blogs.
+              <span data-lang="zh">
+                本站所使用的开源 Astro 博客模板，面向研究型长文、公式推导教程与技术笔记设计。
+              </span>
+              <span data-lang="en">
+                The open-source Astro template powering this site, designed for
+                research articles, math-heavy tutorials, and technical blogs.
+              </span>
             </p>
             <div class="site-pubs__links">
               <a
@@ -371,20 +523,30 @@ const educationItems: TimelineItem[] = [
       </ul>
       <p class="section-more">
         <a href={scholarUrl} target="_blank" rel="noopener noreferrer">
-          Full publication list on Google Scholar →
+          <span data-lang="zh">在 Google Scholar 查看完整论文列表 →</span>
+          <span data-lang="en">Full publication list on Google Scholar →</span>
         </a>
       </p>
     </section>
 
     <section class="about-section" aria-labelledby="contact-heading">
-      <h2 id="contact-heading">Get in Touch</h2>
+      <h2 id="contact-heading">
+        <span data-lang="zh">联系方式</span>
+        <span data-lang="en">Get in Touch</span>
+      </h2>
       <div class="contact-section">
-        <p>
+        <p data-lang="zh">
+          欢迎交流科研合作、技术想法或潜在机会，随时可以通过邮件联系我。
+        </p>
+        <p data-lang="en">
           I&apos;m always glad to discuss research collaborations, technical
           ideas, or potential opportunities. Feel free to reach out!
         </p>
         <p class="about-email-row">
-          <strong>Email:</strong>{" "}
+          <strong>
+            <span data-lang="zh">邮箱：</span>
+            <span data-lang="en">Email:</span>
+          </strong>{" "}
           <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
           <button
             type="button"
@@ -392,19 +554,30 @@ const educationItems: TimelineItem[] = [
             data-copy-email={CONTACT_EMAIL}
             aria-label={`Copy ${CONTACT_EMAIL} to clipboard`}
           >
-            Copy
+            <span data-lang="zh">复制</span>
+            <span data-lang="en">Copy</span>
           </button>
         </p>
         <p>
-          <strong>Resume / CV:</strong>{" "}
+          <strong>
+            <span data-lang="zh">个人简历（CV）：</span>
+            <span data-lang="en">Resume / CV:</span>
+          </strong>{" "}
           {CV_URL ? (
             <a href={CV_URL} target="_blank" rel="noopener noreferrer">
-              Download PDF
+              <span data-lang="zh">下载 PDF</span>
+              <span data-lang="en">Download PDF</span>
             </a>
           ) : (
             <>
-              Available upon request via{" "}
-              <a href={`mailto:${CONTACT_EMAIL}`}>email</a>.
+              <span data-lang="zh">
+                如有需要，欢迎通过 <a href={`mailto:${CONTACT_EMAIL}`}>邮件</a>{" "}
+                联系获取。
+              </span>
+              <span data-lang="en">
+                Available upon request via{" "}
+                <a href={`mailto:${CONTACT_EMAIL}`}>email</a>.
+              </span>
             </>
           )}
         </p>
@@ -412,7 +585,10 @@ const educationItems: TimelineItem[] = [
     </section>
 
     <section class="about-section" aria-labelledby="social-heading">
-      <h2 id="social-heading">Find Me Online</h2>
+      <h2 id="social-heading">
+        <span data-lang="zh">社交平台</span>
+        <span data-lang="en">Find Me Online</span>
+      </h2>
       <div class="social-links-section">
         <div class="social-grid">
           <a
@@ -436,7 +612,10 @@ const educationItems: TimelineItem[] = [
             </div>
             <div class="social-info">
               <h3>Google Scholar</h3>
-              <p>Publications &amp; citations</p>
+              <p>
+                <span data-lang="zh">论文发表与引用记录</span>
+                <span data-lang="en">Publications &amp; citations</span>
+              </p>
             </div>
           </a>
 
@@ -461,7 +640,10 @@ const educationItems: TimelineItem[] = [
             </div>
             <div class="social-info">
               <h3>GitHub</h3>
-              <p>Open source projects &amp; code</p>
+              <p>
+                <span data-lang="zh">开源项目与代码仓库</span>
+                <span data-lang="en">Open source projects &amp; code</span>
+              </p>
             </div>
           </a>
 
@@ -486,7 +668,10 @@ const educationItems: TimelineItem[] = [
             </div>
             <div class="social-info">
               <h3>Bilibili</h3>
-              <p>Learning videos &amp; tutorials</p>
+              <p>
+                <span data-lang="zh">技术讲解视频与课程</span>
+                <span data-lang="en">Learning videos &amp; tutorials</span>
+              </p>
             </div>
           </a>
 
@@ -512,21 +697,30 @@ const educationItems: TimelineItem[] = [
                 </svg>
               </div>
               <div class="social-info">
-                <h3>WeChat Official Account</h3>
-                <p>Click to show QR code</p>
+                <h3>
+                  <span data-lang="zh">微信公众号</span>
+                  <span data-lang="en">WeChat Official Account</span>
+                </h3>
+                <p>
+                  <span data-lang="zh">点击展开二维码关注</span>
+                  <span data-lang="en">Click to show QR code</span>
+                </p>
               </div>
               <span class="wechat-card__chevron" aria-hidden="true">▾</span>
             </button>
             <div id="wechat-qr-popup" class="wechat-qr-popup" hidden>
               <img
                 src="/wechat_avatar.jpg"
-                alt="WeChat Official Account QR code for 以往的月"
+                alt="微信公众号「以往的月」二维码"
                 width="200"
                 height="200"
                 loading="lazy"
                 decoding="async"
               />
-              <p>Scan with WeChat to follow「以往的月」</p>
+              <p>
+                <span data-lang="zh">微信扫码关注「以往的月」</span>
+                <span data-lang="en">Scan with WeChat to follow「以往的月」</span>
+              </p>
             </div>
           </div>
 
@@ -551,8 +745,14 @@ const educationItems: TimelineItem[] = [
                 </svg>
               </div>
               <div class="social-info">
-                <h3>Zhihu (知乎)</h3>
-                <p>Articles &amp; technical answers</p>
+                <h3>
+                  <span data-lang="zh">知乎</span>
+                  <span data-lang="en">Zhihu (知乎)</span>
+                </h3>
+                <p>
+                  <span data-lang="zh">技术专栏与问题回答</span>
+                  <span data-lang="en">Articles &amp; technical answers</span>
+                </p>
               </div>
             </a>
           )}
@@ -561,27 +761,76 @@ const educationItems: TimelineItem[] = [
     </section>
 
     <p class="about-back">
-      <a href="/blog">← Back to the blog</a>
+      <a href="/blog">
+        <span data-lang="zh">← 返回博客</span>
+        <span data-lang="en">← Back to the blog</span>
+      </a>
     </p>
   </div>
 
   <script is:inline>
     (() => {
+      const aboutRoot = document.querySelector(".about-page");
+      const langBtns = document.querySelectorAll("[data-set-lang]");
+
+      const applyLang = (lang, persist) => {
+        const normalized = lang === "en" ? "en" : "zh";
+        if (aboutRoot) {
+          aboutRoot.setAttribute("data-about-lang", normalized);
+        }
+        document.documentElement.lang = normalized === "en" ? "en" : "zh-CN";
+        langBtns.forEach((btn) => {
+          const active = btn.getAttribute("data-set-lang") === normalized;
+          btn.setAttribute("aria-pressed", String(active));
+        });
+        if (persist) {
+          try {
+            localStorage.setItem("about-lang", normalized);
+          } catch {}
+        }
+      };
+
+      // Priority: ?lang=en|zh query param -> saved preference -> default "zh"
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const queryLang = params.get("lang");
+        const savedLang = localStorage.getItem("about-lang");
+        if (queryLang === "en" || queryLang === "zh") {
+          applyLang(queryLang, false);
+        } else if (savedLang === "en" || savedLang === "zh") {
+          applyLang(savedLang, false);
+        }
+      } catch {}
+
+      langBtns.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const targetLang = btn.getAttribute("data-set-lang");
+          if (targetLang) applyLang(targetLang, true);
+        });
+      });
+
       // Copy email button
       document.querySelectorAll("[data-copy-email]").forEach((btn) => {
         btn.addEventListener("click", async () => {
           const email = btn.getAttribute("data-copy-email");
           if (!email) return;
-          const original = btn.textContent || "Copy";
+          const isEn = aboutRoot?.getAttribute("data-about-lang") === "en";
+          const zhSpan = btn.querySelector('[data-lang="zh"]');
+          const enSpan = btn.querySelector('[data-lang="en"]');
+          const origZh = zhSpan?.textContent || "复制";
+          const origEn = enSpan?.textContent || "Copy";
           try {
             await navigator.clipboard.writeText(email);
-            btn.textContent = "Copied!";
+            if (zhSpan) zhSpan.textContent = "已复制!";
+            if (enSpan) enSpan.textContent = "Copied!";
             btn.setAttribute("data-copied", "true");
           } catch {
-            btn.textContent = "Copy failed";
+            if (zhSpan) zhSpan.textContent = "复制失败";
+            if (enSpan) enSpan.textContent = isEn ? "Copy failed" : "复制失败";
           }
           setTimeout(() => {
-            btn.textContent = original;
+            if (zhSpan) zhSpan.textContent = origZh;
+            if (enSpan) enSpan.textContent = origEn;
             btn.removeAttribute("data-copied");
           }, 1600);
         });

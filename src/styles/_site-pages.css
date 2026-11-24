@@ -654,6 +654,61 @@ h2.browse-results-heading {
   width: 100%;
 }
 
+.about-page[data-about-lang="zh"] [data-lang="en"],
+.about-page[data-about-lang="en"] [data-lang="zh"] {
+  display: none;
+}
+
+.about-lang-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--spacing-3);
+}
+
+.about-lang-switch {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: var(--surface-bg);
+}
+
+.about-lang-btn {
+  appearance: none;
+  padding: 4px 12px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted-color);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.4;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.about-lang-btn:hover {
+  color: var(--text-color);
+}
+
+.about-lang-btn[aria-pressed="true"] {
+  background: var(--page-bg);
+  color: var(--text-color);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="dark"] .about-lang-btn[aria-pressed="true"] {
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+
+.about-lang-btn:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
 .about-profile {
   display: flex;
   align-items: flex-start;
@@ -796,7 +851,7 @@ h2.browse-results-heading {
 
 .about-timeline__item {
   display: grid;
-  grid-template-columns: minmax(0, 118px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 140px) minmax(0, 1fr);
   gap: var(--spacing-2) var(--spacing-4);
   padding: var(--spacing-3) 0;
   margin-bottom: 0;
