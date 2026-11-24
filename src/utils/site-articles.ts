@@ -3,6 +3,7 @@ import { ARTICLE_EDITORIAL, type Editorial, type ContentType, type Completion } 
 
 export type SiteArticleEntry = Editorial & {
   classified: boolean;
+  draft: boolean;
   slug: string;
   url: string;
   title: string;
@@ -57,12 +58,16 @@ function normalizeFirstCategory(raw: unknown): string | undefined {
 export async function parseArticleGlob(
   articleGlob: Record<string, { frontmatter?: Record<string, unknown> }>,
   modifiedBySlug: Record<string, string> = {},
+  options: { includeDrafts?: boolean } = {},
 ): Promise<SiteArticleEntry[]> {
-  const articles: SiteArticleEntry[] = Object.entries(articleGlob).filter(([path]) => !/content\/demo\/article\.(md|mdx)$/.test(path)).map(
-    ([path, mod]): SiteArticleEntry => {
+  const includeDrafts = Boolean(options.includeDrafts);
+  const articles: SiteArticleEntry[] = Object.entries(articleGlob)
+    .filter(([path]) => !/content\/demo\/article\.(md|mdx)$/.test(path))
+    .map(([path, mod]): SiteArticleEntry => {
       const match = path.match(/content\/([^/]+)\/article\.(?:md|mdx)$/);
       const slug = match?.[1] ?? "unknown";
       const fm = mod?.frontmatter ?? {};
+      const draft = fm.draft === true || fm.draft === "true";
       const title = flatTitle(fm.title) || slug;
       const published =
         typeof fm.published === "string" ? fm.published : undefined;
@@ -82,6 +87,7 @@ export async function parseArticleGlob(
       return {
         ...(ARTICLE_EDITORIAL[slug] ?? { contentType: "learning", completion: "outline" }),
         classified: Object.hasOwn(ARTICLE_EDITORIAL, slug),
+        draft,
         slug,
         url: `/blog/${slug}/`,
         title,
@@ -92,8 +98,8 @@ export async function parseArticleGlob(
         tags,
         categories,
       };
-    },
-  );
+    })
+    .filter((entry) => includeDrafts || !entry.draft);
 
   articles.sort((a, b) => {
     const ta = Date.parse(a.modified ?? a.published ?? "") || 0;

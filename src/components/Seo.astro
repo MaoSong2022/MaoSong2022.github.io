@@ -13,6 +13,7 @@ interface Props {
   modified?: string;
   tags?: string[];
   image?: string; // Preferred absolute URL
+  noindex?: boolean;
 }
 
 const {
@@ -23,6 +24,7 @@ const {
   modified,
   tags = [],
   image,
+  noindex = false,
 } = Astro.props as Props;
 
 const url = Astro.url?.toString?.() ?? "";
@@ -67,9 +69,11 @@ const jsonLd = {
 <link rel="canonical" href={url} />
 <meta
   name="robots"
-  content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+  content={noindex
+    ? "noindex, nofollow"
+    : "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"}
 />
-<meta name="googlebot" content="index, follow" />
+<meta name="googlebot" content={noindex ? "noindex, nofollow" : "index, follow"} />
 <meta
   name="google-site-verification"
   content={SITE_GOOGLE_SITE_VERIFICATION}

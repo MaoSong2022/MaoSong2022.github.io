@@ -25,6 +25,7 @@ export async function getStaticPaths() {
 }
 
 const { articleMod, lastModified } = Astro.props;
+const { slug } = Astro.params;
 ---
 
-<ArticlePage articleMod={articleMod as any} lastModified={lastModified} />
+<ArticlePage articleMod={articleMod as any} lastModified={lastModified} slug={slug} />

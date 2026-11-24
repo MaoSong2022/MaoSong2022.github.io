@@ -1,5 +1,6 @@
 import { getAllArticleBundleLastModifiedIso } from "../utils/article-modified";
 import { parseArticleGlob } from "../utils/site-articles";
+import { CONTENT_TYPES, collectionHref } from "../data/article-editorial";
 
 function escapeXml(value) {
   return String(value)
@@ -23,10 +24,14 @@ export async function GET(context) {
     { path: "/blog", lastmod: undefined },
     { path: "/browse", lastmod: undefined },
     { path: "/about", lastmod: undefined },
-    { path: "/rss.xml", lastmod: undefined },
+    ...Object.keys(CONTENT_TYPES).map((type) => ({
+      path: collectionHref(type),
+      lastmod: undefined,
+    })),
   ];
 
   for (const article of articles) {
+    if (article.completion === "outline") continue;
     pages.push({
       path: article.url,
       lastmod: article.modified ?? article.published,
