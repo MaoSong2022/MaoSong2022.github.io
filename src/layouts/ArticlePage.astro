@@ -233,10 +233,17 @@ const links: Array<{ label: string; url: string; icon?: string }> =
     url: l.url ?? l.href ?? l.link ?? "#",
     icon: l.icon,
   }));
+const articleLang: string =
+  typeof (articleFM as any)?.lang === "string" && (articleFM as any).lang.trim()
+    ? String((articleFM as any).lang).trim()
+    : "zh-CN";
+const articleLocale = articleLang.toLowerCase().startsWith("zh")
+  ? "zh_CN"
+  : "en_US";
 ---
 
 <html
-  lang="en"
+  lang={articleLang}
   data-theme="light"
   data-template={template}
   data-toc-auto-collapse={tableOfContentAutoCollapse ? "1" : "0"}
@@ -253,6 +260,8 @@ const links: Array<{ label: string; url: string; icon?: string }> =
       tags={tags}
       image={imageAbs}
       noindex={isNoindex}
+      locale={articleLocale}
+      inLanguage={articleLang}
     />
     <script is:inline>
       (() => {
