@@ -20,4 +20,21 @@ export const SITE_PUBLICATIONS: PublicationItem[] = [
       },
     ],
   },
+  {
+    title:
+      "DocGenome: An Open Large-scale Scientific Document Benchmark for Training and Testing Multi-modal Large Language Models",
+    venue: "arXiv 2024",
+    summary:
+      "An open large-scale scientific document benchmark built on 500K arXiv papers across 153 disciplines, providing structured layout, logical relations, and LaTeX annotations for training and evaluating MLLMs.",
+    links: [
+      {
+        label: "Project Page",
+        href: "https://alpha-innovator.github.io/DocGenome_page/",
+      },
+      {
+        label: "arXiv",
+        href: "https://arxiv.org/abs/2406.11633",
+      },
+    ],
+  },
 ];
