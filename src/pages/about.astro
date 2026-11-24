@@ -1,139 +1,354 @@
 ---
+import { Image } from "astro:assets";
 import BaseLayout from "../layouts/BaseLayout.astro";
+import avatarSrc from "../../public/avatar.jpg";
 import {
-  SITE_DESCRIPTION,
-  SITE_SLOGAN,
   SITE_TITLE,
   GITHUB_USERNAME,
   GOOGLE_SCHOLAR_ID,
+  CONTACT_EMAIL,
+  BILIBILI_URL,
+  ZHIHU_URL,
+  CV_URL,
 } from "../consts";
+import { SITE_PUBLICATIONS } from "../data/site-publications";
 
 const pageTitle = "About";
 const description =
-  "Mao Song (毛松), researcher at SenseTime — LLMs, MLLMs, and multimodal AI.";
+  "Mao Song (毛松 / 以往的月), researcher at SenseTime — LLM post-training, reinforcement learning, MLLMs, and training systems.";
+
+const scholarUrl = `https://scholar.google.com/citations?user=${GOOGLE_SCHOLAR_ID}`;
+const githubUrl = `https://github.com/${GITHUB_USERNAME}`;
+
+type ResearchArea = {
+  title: string;
+  description: string;
+  tags: string[];
+};
+
+const researchAreas: ResearchArea[] = [
+  {
+    title: "LLM Post-Training & RL",
+    description:
+      "Post-training pipelines and reinforcement learning methods that align and scale language model capabilities.",
+    tags: ["RLHF", "RLVR", "Agentic RL", "Policy Optimization"],
+  },
+  {
+    title: "Reasoning Models",
+    description:
+      "Building models capable of verifiable multi-step reasoning, long-horizon planning, and self-correction.",
+    tags: ["Test-Time Scaling", "Math & Code", "Long CoT"],
+  },
+  {
+    title: "Multimodal LLMs",
+    description:
+      "Bridging visual perception, language reasoning, and unified understanding & generation across modalities.",
+    tags: ["MLLM", "Vision Encoders", "Unified Models"],
+  },
+  {
+    title: "Training Systems & Efficiency",
+    description:
+      "Understanding and optimizing large-scale distributed training, inference alignment, and compute efficiency.",
+    tags: ["Parallelism", "FSDP", "Train-Inference Mismatch"],
+  },
+];
+
+type TimelineItem = {
+  /** Fill in exact dates (e.g. "2024 – 2026"); leave empty to hide the date label. */
+  period: string;
+  role: string;
+  org: string;
+  orgUrl?: string;
+  /** Optional details such as advisor, major, or research focus. */
+  detail?: string;
+  detailLink?: { label: string; href: string };
+};
+
+const experienceItems: TimelineItem[] = [
+  {
+    period: "2026 – Present",
+    role: "Researcher",
+    org: "SenseTime (商汤科技)",
+    orgUrl: "https://www.sensetime.com/",
+    detail: "Focusing on LLM post-training and multimodal foundation models.",
+  },
+  {
+    period: "", // TODO: fill in period at Shanghai AI Lab (e.g. "2024 – 2026")
+    role: "Researcher",
+    org: "Shanghai Artificial Intelligence Laboratory (上海人工智能实验室)",
+    orgUrl: "https://www.shlab.org.cn/",
+    detail: "", // TODO: optionally add research focus or team
+  },
+];
+
+const educationItems: TimelineItem[] = [
+  {
+    period: "", // TODO: fill in Master's period (e.g. "2022 – 2025")
+    role: "Master's Degree", // TODO: optionally specify major (e.g. "M.S. in Computer Science")
+    org: "ShanghaiTech University",
+    orgUrl: "https://www.shanghaitech.edu.cn/",
+    detail: "Supervised by ",
+    detailLink: {
+      label: "Prof. Hao Wang",
+      href: "https://sist.shanghaitech.edu.cn/wanghao1/main.htm",
+    },
+  },
+  {
+    period: "", // TODO: fill in Bachelor's period (e.g. "2018 – 2022")
+    role: "Bachelor's Degree", // TODO: optionally specify major
+    org: "Beijing Institute of Technology",
+    orgUrl: "https://www.bit.edu.cn/",
+  },
+];
 ---
 
 <BaseLayout pageTitle={pageTitle} description={description}>
   <div class="about-page">
+    <section class="about-profile" aria-label="Profile overview">
+      <div class="about-profile__avatar">
+        <Image
+          src={avatarSrc}
+          alt={`Profile photo — ${SITE_TITLE}`}
+          width={192}
+          height={192}
+          loading="eager"
+        />
+      </div>
+      <div class="about-profile__body">
+        <p class="about-profile__name">
+          Mao Song (毛松)
+          <span class="about-profile__alias">· 以往的月</span>
+        </p>
+        <p class="about-profile__role">
+          Researcher at SenseTime · LLM Post-Training, RL &amp; MLLMs
+        </p>
+        <div class="about-profile__actions">
+          <a class="button button--ghost" href={`mailto:${CONTACT_EMAIL}`}>Email</a>
+          <a
+            class="button button--ghost"
+            href={scholarUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Google Scholar
+          </a>
+          <a
+            class="button button--ghost"
+            href={githubUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            GitHub
+          </a>
+          {CV_URL && (
+            <a
+              class="button button--ghost"
+              href={CV_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              CV
+            </a>
+          )}
+        </div>
+      </div>
+    </section>
+
     <section class="about-section" aria-labelledby="intro-heading">
       <h2 id="intro-heading">Introduction</h2>
       <div class="intro-section">
         <p>
-          <strong>Mao Song (毛松)</strong> is a researcher at{" "}
+          I am <strong>Mao Song (毛松)</strong>, a researcher at{" "}
           <a
             href="https://www.sensetime.com/"
             target="_blank"
             rel="noopener noreferrer"
-          >SenseTime (商汤科技)</a>, where he focuses on pushing the boundaries of artificial intelligence through cutting-edge research in{" "}
-          <strong>Large Language Models (LLMs)</strong> and{" "}
+          >SenseTime (商汤科技)</a>, where I work on{" "}
+          <strong>Large Language Model (LLM) post-training</strong>,{" "}
+          <strong>reinforcement learning</strong>, and{" "}
           <strong>Multimodal Large Language Models (MLLMs)</strong>.
         </p>
         <p>
-          Previously, he was a researcher at{" "}
+          Previously, I worked as a researcher at{" "}
           <a
             href="https://www.shlab.org.cn/"
             target="_blank"
             rel="noopener noreferrer"
-          >Shanghai Artificial Intelligence Laboratory (Shanghai AI Lab, 上海人工智能实验室)</a>.
-        </p>
-        <p>
-          He also goes by the name <strong>“以往的月”</strong> on platforms such as Zhihu, Bilibili, and WeChat Official Account.
+          >Shanghai Artificial Intelligence Laboratory (Shanghai AI Lab)</a>.
+          Outside of papers and code, I write and share technical notes under
+          the handle <strong>“以往的月”</strong> on Zhihu, Bilibili, and WeChat
+          Official Account.
         </p>
       </div>
     </section>
-
-    <hr class="about-divider" />
 
     <section class="about-section" aria-labelledby="research-heading">
       <h2 id="research-heading">Research Interests</h2>
-      <div class="research-section">
-        <p>
-          My research focuses on the intersection of language and vision, with
-          particular emphasis on:
-        </p>
-        <ul>
-          <li>
-            <strong>Large Language Models (LLMs)</strong> — Advancing the
-            capabilities of language understanding and generation
-          </li>
-          <li>
-            <strong>Multimodal Large Language Models (MLLMs)</strong> — Bridging
-            vision and language for unified AI systems
-          </li>
-          <li>
-            <strong>Reasoning Models</strong> — Developing systems capable of
-            complex logical reasoning
-          </li>
-          <li>
-            <strong>Unified Understanding &amp; Generation</strong> — Creating
-            models that seamlessly integrate comprehension and creation
-          </li>
-        </ul>
+      <div class="about-research-grid">
+        {researchAreas.map((area) => (
+          <article class="about-research-card">
+            <h3>{area.title}</h3>
+            <p>{area.description}</p>
+            <div class="about-research-card__tags">
+              {area.tags.map((tag) => (
+                <span class="article-index__tag">{tag}</span>
+              ))}
+            </div>
+          </article>
+        ))}
       </div>
     </section>
 
-    <hr class="about-divider" />
+    <section class="about-section" aria-labelledby="experience-heading">
+      <h2 id="experience-heading">Experience &amp; Education</h2>
 
-    <section class="about-section" aria-labelledby="education-heading">
-      <h2 id="education-heading">Academic Background</h2>
-      <div class="education-section">
-        <ul>
-          <li>
-            <strong>Master&apos;s Degree</strong> —{" "}
-            <a
-              href="https://www.shanghaitech.edu.cn/"
-              target="_blank"
-              rel="noopener noreferrer">ShanghaiTech University</a>
-            <ul>
-              <li>
-                Supervised by{" "}
-                <a
-                  href="https://sist.shanghaitech.edu.cn/wanghao1/main.htm"
-                  target="_blank"
-                  rel="noopener noreferrer">Prof. Hao Wang</a>
-              </li>
-            </ul>
+      <h3 class="about-subheading">Experience</h3>
+      <ul class="about-timeline">
+        {experienceItems.map((item) => (
+          <li class="about-timeline__item">
+            <span class="about-timeline__period">{item.period || "—"}</span>
+            <div class="about-timeline__body">
+              <div class="about-timeline__headline">
+                <strong>{item.role}</strong>
+                {" · "}
+                {item.orgUrl ? (
+                  <a href={item.orgUrl} target="_blank" rel="noopener noreferrer">
+                    {item.org}
+                  </a>
+                ) : (
+                  <span>{item.org}</span>
+                )}
+              </div>
+              {item.detail && (
+                <p class="about-timeline__detail">{item.detail}</p>
+              )}
+            </div>
           </li>
-          <li>
-            <strong>Bachelor&apos;s Degree</strong> —{" "}
-            <a
-              href="https://www.bit.edu.cn/"
-              target="_blank"
-              rel="noopener noreferrer">Beijing Institute of Technology</a>
+        ))}
+      </ul>
+
+      <h3 class="about-subheading">Education</h3>
+      <ul class="about-timeline">
+        {educationItems.map((item) => (
+          <li class="about-timeline__item">
+            <span class="about-timeline__period">{item.period || "—"}</span>
+            <div class="about-timeline__body">
+              <div class="about-timeline__headline">
+                <strong>{item.role}</strong>
+                {" · "}
+                {item.orgUrl ? (
+                  <a href={item.orgUrl} target="_blank" rel="noopener noreferrer">
+                    {item.org}
+                  </a>
+                ) : (
+                  <span>{item.org}</span>
+                )}
+              </div>
+              {(item.detail || item.detailLink) && (
+                <p class="about-timeline__detail">
+                  {item.detail}
+                  {item.detailLink && (
+                    <a
+                      href={item.detailLink.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {item.detailLink.label}
+                    </a>
+                  )}
+                </p>
+              )}
+            </div>
           </li>
-        </ul>
-      </div>
+        ))}
+      </ul>
     </section>
 
-    <hr class="about-divider" />
+    <section class="about-section" aria-labelledby="highlights-heading">
+      <h2 id="highlights-heading">Selected Work</h2>
+      <ul class="site-pubs__list">
+        {SITE_PUBLICATIONS.map((pub) => (
+          <li class="site-pubs__item">
+            <span class="site-pubs__venue">{pub.venue}</span>
+            <div class="site-pubs__body">
+              <span class="site-pubs__title">{pub.title}</span>
+              <p class="site-pubs__summary">{pub.summary}</p>
+              {pub.links.length > 0 && (
+                <div class="site-pubs__links">
+                  {pub.links.map((link) => (
+                    <a
+                      href={link.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {link.label} →
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+          </li>
+        ))}
+        <li class="site-pubs__item">
+          <span class="site-pubs__venue">Open Source</span>
+          <div class="site-pubs__body">
+            <span class="site-pubs__title">astro-blog-template</span>
+            <p class="site-pubs__summary">
+              The open-source Astro template powering this site, designed for
+              research articles, math-heavy tutorials, and technical blogs.
+            </p>
+            <div class="site-pubs__links">
+              <a
+                href="https://github.com/MaoSong2022/astro-blog-template"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                GitHub →
+              </a>
+            </div>
+          </div>
+        </li>
+      </ul>
+      <p class="section-more">
+        <a href={scholarUrl} target="_blank" rel="noopener noreferrer">
+          Full publication list on Google Scholar →
+        </a>
+      </p>
+    </section>
 
     <section class="about-section" aria-labelledby="contact-heading">
       <h2 id="contact-heading">Get in Touch</h2>
       <div class="contact-section">
         <p>
-          I&apos;m always excited to discuss research collaborations, innovative
+          I&apos;m always glad to discuss research collaborations, technical
           ideas, or potential opportunities. Feel free to reach out!
         </p>
         <p>
           <strong>Email:</strong>{" "}
-          <a href="mailto:maosong1@sensetime.com">maosong1@sensetime.com</a>
+          <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
         </p>
         <p>
-          <strong>Resume/CV:</strong>{" "}
-          Available upon request via{" "}
-          <a href="mailto:maosong1@sensetime.com">email</a>.
+          <strong>Resume / CV:</strong>{" "}
+          {CV_URL ? (
+            <a href={CV_URL} target="_blank" rel="noopener noreferrer">
+              Download PDF
+            </a>
+          ) : (
+            <>
+              Available upon request via{" "}
+              <a href={`mailto:${CONTACT_EMAIL}`}>email</a>.
+            </>
+          )}
         </p>
       </div>
     </section>
-
-    <hr class="about-divider" />
 
     <section class="about-section" aria-labelledby="social-heading">
       <h2 id="social-heading">Find Me Online</h2>
       <div class="social-links-section">
         <div class="social-grid">
           <a
-            href={`https://scholar.google.com/citations?user=${GOOGLE_SCHOLAR_ID}`}
+            href={scholarUrl}
             class="social-card scholar-card"
             target="_blank"
             rel="noopener noreferrer"
@@ -141,8 +356,8 @@ const description =
             <div class="social-icon" aria-hidden="true">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                width="32"
-                height="32"
+                width="28"
+                height="28"
                 viewBox="0 0 24 24"
                 fill="currentColor"
               >
@@ -158,7 +373,7 @@ const description =
           </a>
 
           <a
-            href={`https://github.com/${GITHUB_USERNAME}`}
+            href={githubUrl}
             class="social-card github-card"
             target="_blank"
             rel="noopener noreferrer"
@@ -166,8 +381,8 @@ const description =
             <div class="social-icon" aria-hidden="true">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                width="32"
-                height="32"
+                width="28"
+                height="28"
                 viewBox="0 0 24 24"
                 fill="currentColor"
               >
@@ -183,7 +398,7 @@ const description =
           </a>
 
           <a
-            href="https://b23.tv/a0Bb9Z1"
+            href={BILIBILI_URL}
             class="social-card bilibili-card"
             target="_blank"
             rel="noopener noreferrer"
@@ -191,8 +406,8 @@ const description =
             <div class="social-icon" aria-hidden="true">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                width="32"
-                height="32"
+                width="28"
+                height="28"
                 viewBox="0 0 24 24"
                 fill="currentColor"
               >
@@ -216,8 +431,8 @@ const description =
             <div class="social-icon" aria-hidden="true">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                width="32"
-                height="32"
+                width="28"
+                height="28"
                 viewBox="0 0 24 24"
                 fill="currentColor"
               >
@@ -235,46 +450,46 @@ const description =
               <p>Scan with WeChat</p>
             </div>
           </div>
+
+          {ZHIHU_URL && (
+            <a
+              href={ZHIHU_URL}
+              class="social-card zhihu-card"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <div class="social-icon" aria-hidden="true">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="26"
+                  height="26"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
+                  <path
+                    d="M5.721 0C2.251 0 0 2.25 0 5.719V18.28C0 21.751 2.252 24 5.721 24h12.56C21.751 24 24 21.75 24 18.281V5.72C24 2.249 21.75 0 18.281 0zm1.964 4.078c-.274.73-.577 1.464-.907 2.185h4.342c.46 0 .828.368.828.828v.693H9.546c-.048 1.24-.148 2.416-.301 3.516h2.893c.46 0 .828.368.828.828v.693H9.035c-.207.98-.5 1.883-.873 2.707l3.012 2.478c.192.159.222.443.066.638l-.522.648a.453.453 0 0 1-.636.068l-2.587-2.129c-.741 1.106-1.716 2.028-2.927 2.742a.454.454 0 0 1-.619-.158l-.394-.672a.452.452 0 0 1 .16-.618c1.727-1.015 2.86-2.587 3.397-4.696H4.017a.454.454 0 0 1-.454-.454v-.613c0-.25.203-.454.454-.454h3.332c.134-1.045.219-2.192.254-3.44H5.97c-.398.716-.834 1.38-1.307 1.982a.453.453 0 0 1-.637.075l-.553-.44a.453.453 0 0 1-.075-.637c1.095-1.39 1.966-3.175 2.607-5.342a.454.454 0 0 1 .435-.324h.816c.308 0 .527.302.429.595zm6.115 2.02h5.92c.46 0 .832.372.832.831v11.174a.832.832 0 0 1-.832.831h-5.92a.832.832 0 0 1-.832-.831V6.929c0-.46.373-.832.832-.832zm.71 1.54v9.756h4.5V7.638z"
+                  ></path>
+                </svg>
+              </div>
+              <div class="social-info">
+                <h3>Zhihu (知乎)</h3>
+                <p>Articles &amp; technical answers</p>
+              </div>
+            </a>
+          )}
         </div>
       </div>
     </section>
-
-    <hr class="about-divider" />
 
     <section class="about-section" aria-labelledby="blog-heading">
       <h2 id="blog-heading">About This Blog</h2>
       <div class="blog-info-section">
         <p>
-          This blog serves as my digital garden where I share insights, research
-          notes, and explorations in the field of artificial intelligence.
-          Here you&apos;ll find:
-        </p>
-        <ul>
-          <li>
-            <strong>Technical Deep Dives</strong> — In-depth analyses of recent
-            papers and models
-          </li>
-          <li>
-            <strong>Research Notes</strong> — Thoughts and observations from my
-            research journey
-          </li>
-          <li>
-            <strong>Practical Guides</strong> — Tutorials and implementation
-            details
-          </li>
-          <li>
-            <strong>Reflections</strong> — Perspectives on AI trends and future
-            directions
-          </li>
-        </ul>
-        <p>
-          I occasionally create educational content on{" "}
-          <a
-            href="https://b23.tv/a0Bb9Z1"
-            target="_blank"
-            rel="noopener noreferrer">Bilibili</a>{" "}
-          to make complex AI concepts more accessible. Feel free to check it out
-          and share your thoughts!
+          This site is my digital garden for structured tutorials, deep-dive
+          derivations, paper notes, and engineering reflections on LLMs,
+          reinforcement learning, and multimodal AI. You can browse curated
+          collections on the <a href="/blog">Blog</a> or filter everything by
+          topic on <a href="/browse">Browse</a>.
         </p>
       </div>
     </section>

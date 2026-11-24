@@ -12,3 +12,9 @@ export const SITE_LICENSE = "The content of this article is licensed under CC BY
 export const SITE_SLOGAN = "Delving into the latent unknown.";
 export const GOOGLE_SCHOLAR_ID = "BaqGkQQAAAAJ";
 export const GITHUB_USERNAME = "MaoSong2022";
+export const CONTACT_EMAIL = "maosong1@sensetime.com";
+export const BILIBILI_URL = "https://b23.tv/a0Bb9Z1";
+/** Optional: fill in your Zhihu profile URL to display it on the About page & JSON-LD. */
+export const ZHIHU_URL = "";
+/** Optional: fill in your CV/Resume PDF path or URL (e.g. "/cv.pdf"). */
+export const CV_URL = "";
