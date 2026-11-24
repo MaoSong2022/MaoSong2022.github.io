@@ -2,7 +2,7 @@
 import { COMPLETION } from "../data/article-editorial";
 ---
 <details class="completion-legend">
-  <summary>What do these statuses mean?</summary>
-  <p>Status describes reading readiness within the current scope. Ready to Read articles may still receive updates.</p>
+  <summary>阅读状态说明（Status Legend）</summary>
+  <p>状态标签用于说明文章在当前范围内的阅读完成度；标记为 Ready to Read 的文章仍会随技术演进持续更新。</p>
   {Object.entries(COMPLETION).map(([key, value]) => <p><span class={`completion completion--${key}`}>{value.label}</span> {value.description}</p>)}
 </details>

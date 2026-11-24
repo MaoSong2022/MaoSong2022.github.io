@@ -52,7 +52,7 @@ function newsDateIso(raw: string): string | undefined {
 }
 ---
 
-<BaseLayout pageTitle={SITE_TITLE} description={SITE_DESCRIPTION}>
+<BaseLayout pageTitle={SITE_TITLE} description={SITE_DESCRIPTION} lang="zh-CN">
   <div class="site-hero">
     <div class="site-hero__avatar">
       <Image
@@ -79,19 +79,20 @@ function newsDateIso(raw: string): string | undefined {
   <section aria-labelledby="tutorials-heading">
     <p class="section-eyebrow">START HERE</p>
     <h2 id="tutorials-heading">Featured Tutorials</h2>
-    <p class="section-intro">Foundational guides for building a reusable mental model.</p>
+    <p class="section-intro">从这里开始：精选体系化基础教程，帮你快速建立可复用的 LLM 与强化学习心智模型。</p>
     <ArticleList articles={tutorials} compact />
   </section>
 
   <section aria-labelledby="analysis-heading">
     <h2 id="analysis-heading">Deep Dives</h2>
-    <p class="section-intro">Question-driven derivations and comparisons. These articles are in progress; their status reflects the current reading experience.</p>
+    <p class="section-intro">问题驱动的深度推导与误差分析；部分文章仍在持续完善，标签反映当前阅读完成度。</p>
     <ArticleList articles={analyses} compact />
     <p class="section-more"><a href="/blog/collections/analysis/">All Deep Dives →</a></p>
   </section>
 
   <section aria-labelledby="collections-heading">
     <h2 id="collections-heading">Explore by Content Type</h2>
+    <p class="section-intro">按内容类型浏览全站文章：从基础教程、前沿专题综述到模型技术报告与深度剖析。</p>
     <ContentCollections articles={articles} />
     <CompletionLegend />
   </section>

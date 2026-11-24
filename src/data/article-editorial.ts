@@ -1,15 +1,15 @@
 /** Editorial purpose and reading readiness are intentionally separate. */
 export const CONTENT_TYPES = {
-  learning: { label: "Learning Notes & Tutorials", shortLabel: "Learning Notes", description: "Build the mathematical, algorithmic, and systems foundations for understanding LLMs." },
-  reports: { label: "Technical Reports", shortLabel: "Technical Reports", description: "Reading notes on model architectures, training recipes, and experimental evidence." },
-  topics: { label: "Topic Overviews", shortLabel: "Topic Overviews", description: "Follow how problems, methods, and trade-offs evolve within a research area." },
-  analysis: { label: "Deep Dives", shortLabel: "Deep Dives", description: "Explore specific questions through derivations, comparisons, and independent analysis." },
+  learning: { label: "Learning Notes & Tutorials", shortLabel: "Learning Notes", description: "夯实理解大语言模型所需的数学、算法与系统基础，建立可复用的技术心智模型。" },
+  reports: { label: "Technical Reports", shortLabel: "Technical Reports", description: "系统梳理主流模型的架构设计、预训练与后训练配方以及关键实验证据。" },
+  topics: { label: "Topic Overviews", shortLabel: "Topic Overviews", description: "围绕核心研究专题，追踪问题定义、方法演进与工程权衡。" },
+  analysis: { label: "Deep Dives", shortLabel: "Deep Dives", description: "问题驱动的深度推导与对比分析，聚焦容易被忽略的原理细节与反直觉现象。" },
 } as const;
 
 export const COMPLETION = {
-  complete: { label: "Ready to Read", description: "A coherent treatment of the current scope, ready for end-to-end reading." },
-  growing: { label: "In Progress", description: "Substantial content is available; sections, derivations, or validation are still being developed." },
-  outline: { label: "Outline", description: "An outline, source collection, or early notes." },
+  complete: { label: "Ready to Read", description: "当前覆盖范围完整、逻辑连贯，适合从头到尾系统阅读。" },
+  growing: { label: "In Progress", description: "已包含核心内容与主要章节，部分推导、实验或章节仍在持续补充。" },
+  outline: { label: "Outline", description: "处于大纲、资料汇总或早期笔记阶段，供快速查阅方向。" },
 } as const;
 
 export type ContentType = keyof typeof CONTENT_TYPES;

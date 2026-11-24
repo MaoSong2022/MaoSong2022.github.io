@@ -10,8 +10,8 @@ const articleGlob = import.meta.glob<{ frontmatter: Record<string, unknown> }>("
 const articles = await parseArticleGlob(articleGlob, await getAllArticleBundleLastModifiedIso());
 const order: ContentType[] = ["analysis", "learning", "topics", "reports"];
 ---
-<BaseLayout pageTitle="Articles" description="Explore LLM tutorials, technical reports, topic overviews, and deep dives." contentClass="site-page--blog" lang="en">
-  <p class="site-lead">From foundational knowledge to independent analysis. Choose a reading path.</p>
+<BaseLayout pageTitle="Articles" description="浏览全站 LLM 教程、技术报告、专题综述与深度剖析文章。" contentClass="site-page--blog" lang="zh-CN">
+  <p class="site-lead">从基础教程、专题综述到模型技术报告与深度剖析，按内容类型与完成度选择你的阅读路径。</p>
   <ContentCollections articles={articles} />
   <div class="index-tools"><span>{articles.length} articles · Ordered by readiness, then most recently updated</span><a href="/browse">Search & Filter →</a></div>
   <CompletionLegend />
