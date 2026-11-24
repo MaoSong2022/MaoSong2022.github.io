@@ -2,7 +2,7 @@
 
 Async RL, 即异步强化学习，是一个相对于 sync RL, 即同步强化学习的概念。
 
-在 sync RL 中，我们一个训练是一个包含三步的循环: inference engine 通过 rollout 产生数据 -> training engine 更新 policy model -> inference engine 更新权重。在这个过程中，不考虑 [training inference mismatch](https://maosong.website/blog/train_inference_mistahch/) 的话，我们可以将训练近似看作是 on-policy, 即模型基于模型本身产生的数据进行训练。
+在 sync RL 中，我们一个训练是一个包含三步的循环: inference engine 通过 rollout 产生数据 -> training engine 更新 policy model -> inference engine 更新权重。在这个过程中，不考虑 [training inference mismatch](https://maosong.website/blog/train-inference-mismatch/) 的话，我们可以将训练近似看作是 on-policy, 即模型基于模型本身产生的数据进行训练。
 
 On-policy training 的好处在于能够减少 bias, 但是其问题在于，training engine 更新时，我们的 inference engine 实际上处于闲置状态，这导致了资源的浪费。因此，Async RL 被提出来用于降低计算资源的空置率。
 

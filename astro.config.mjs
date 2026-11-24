@@ -36,6 +36,7 @@ export default defineConfig({
     '/p/llm-flops-computation/': '/blog/llm-resource-computation/#flops-计算',
     '/blog/llm-memory-computation/': '/blog/llm-resource-computation/#训练显存计算',
     '/p/llm-memory-computation/': '/blog/llm-resource-computation/#训练显存计算',
+    '/blog/train_inference_mistahch/': '/blog/train-inference-mismatch/',
   },
 	site:"https://maosong.website",
   integrations: [

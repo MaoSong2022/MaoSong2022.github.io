@@ -75,7 +75,7 @@ export const ARTICLE_EDITORIAL: Record<string, Editorial> = {
   "low-precision": topic("outline"),
   "unified-MLLM": topic("outline"),
   "kl-divergence": { contentType: "analysis", completion: "growing", featuredOrder: 1, summary: "围绕 KL 散度的估计与优化展开推导，辨析不同形式的含义和适用条件。" },
-  train_inference_mistahch: { contentType: "analysis", completion: "growing", featuredOrder: 2, summary: "分析训练与推理不一致如何影响策略优化，梳理误差来源与修正思路。" },
+  "train-inference-mismatch": { contentType: "analysis", completion: "growing", featuredOrder: 2, summary: "分析训练与推理不一致如何影响策略优化，梳理误差来源与修正思路。" },
 };
 
 export const collectionHref = (type: ContentType) => `/blog/collections/${type}/`;

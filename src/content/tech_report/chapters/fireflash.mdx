@@ -42,7 +42,7 @@ R_i'=\begin{cases}
 \end{cases}
 $$
 
-训练时，作者使用了 [TIS](https://maosong.website/blog/train_inference_mistahch/#truncated-importance-sampling) 来减少训练推理不一致性。实验发现，仅有 $\sim3\%$ 的 token 会被 mask 掉。
+训练时，作者使用了 [TIS](https://maosong.website/blog/train-inference-mismatch/#truncated-importance-sampling) 来减少训练推理不一致性。实验发现，仅有 $\sim3\%$ 的 token 会被 mask 掉。
 
 同时，作者还使用了 score centering 来进一步避免 residual drift, 计算时，作者使用了 top-32 log-prob, 实验发现 score centring 仅增加了 $7.6\%$ 的训练时间。
 
