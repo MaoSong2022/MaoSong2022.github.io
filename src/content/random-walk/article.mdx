@@ -1,0 +1,481 @@
+---
+title: "随机游走：二维和三维的醉汉能否回家？"
+ogTitle: "Random Walk: Can a Drunk Man Find His Way Home in 2D and 3D?"
+description: "从一维、二维到三维简单对称随机游走出发，借助 Stirling 公式、Green 函数、局部中心极限定理与 Pólya 定理推导不同维度下的常返性与瞬逝性，探讨首次返回时间期望为无穷大的反直觉现象，并通过数值实验验证三维约 34.05% 的回家概率与高维渐近展开。"
+authors:
+  - name: "Mao Song"
+    url: "https://maosong.website/"
+published: "2026-11-24 22:00:00+08:00"
+modified: "2026-11-24 22:00:00+08:00"
+tags:
+  - "Probability"
+  - "Random Walk"
+  - "Math"
+categories:
+  - "Math"
+tableOfContentsAutoCollapse: true
+showPdf: false
+---
+
+import Definition from "../../components/Definition.astro";
+import Image from "../../components/Image.astro";
+import Note from "../../components/Note.astro";
+import Quote from "../../components/Quote.astro";
+import Theorem from "../../components/Theorem.astro";
+
+import figReturnProb from "../../assets/image/random-walk-return-probability-loglog.png";
+import figTruncatedGreen from "../../assets/image/random-walk-truncated-green.png";
+import figReturnVsDim from "../../assets/image/random-walk-return-vs-dimension.png";
+
+<Quote author="Shizuo Kakutani">
+  A drunk man will find his way home, but a drunk bird may get lost forever.
+</Quote>
+
+这篇 blog 将要讨论如下问题：
+
+<Note title="核心问题" emoji="🧭" variant="info">
+
+假如有一个醉汉，从家门口出发，每一步随机选择一个方向移动一个单位，我们考虑不同的情况：
+
+1. **1D**：沿一条无限长的直线行走，每一步向左或者向右移动一个单位；
+2. **2D**：在无限大的二维网格里行走，每一步向上、向下、向左或者向右移动一个单位；
+3. **3D**：在三维空间的无限网格里行走，每一步沿三个坐标轴的正方向或者负方向移动一个单位。
+
+每个方向被选择的概率是相同的，且每一步的选择互相独立。我们的问题是：**如果这个醉汉可以一直走下去，他最终能否回到家？**
+
+</Note>
+
+从直觉上来看，醉汉随机走，应该是很难回到自己的家里的。但实际上，我们可以推导出来，在 1D 和 2D 的情况下，醉汉几乎必然可以回到自己的家，而在 3D 的场景里，醉汉回到自己家的概率为 $34\%$ 左右。
+
+## 1 维随机游走
+
+我们先考虑 1 维的情况。考虑 $1$ 维整数坐标轴 $\mathbb{Z}$，醉汉初始位置在 $S_0=0$ 处，每次醉汉移动 $1$ 个单位，即
+
+$$
+P(X_{n}=+1)=P(X_{n}=-1)=\frac{1}{2}
+$$
+
+醉汉在时刻 $n$ 的位置 $S_n$ 为
+
+$$
+S_n = \sum_{i=1}^n X_i
+$$
+
+接下来，我们考虑醉汉回到原点的概率，也就是 $P(S_n=0)$.
+
+注意到，当 $n=2k+1$ 为奇数时，醉汉不可能位于原点（因为醉汉必定位于一个奇数坐标点上），因此 $P(S_{2k+1}=0)=0$. 当 $n=2k$ 为偶数时，醉汉所有可能的路径数为 $2^{2k}$, 而醉汉在 $2k$ 步之后能够回到原点，这 $2k$ 步必然满足向左的次数和向右的次数相等，因此
+
+$$
+P(S_{2k}=0) = \frac{\binom{2k}{k}}{2^{2k}}, \quad k=1,2,\dots
+$$
+
+使用 Stirling formula, 即
+
+$$
+n!\sim \sqrt{2\pi n}\left(\frac{n}{e}\right)^n
+$$
+
+这里 $n!=1\times 2\times\cdots\times n$ 为阶乘，代入得到
+
+$$
+P(S_{2k}=0) = \frac{\binom{2k}{k}}{2^{2k}}\approx\frac{1}{\sqrt{\pi k}}
+$$
+
+可以看到，随着行走步数 $n=2k$ 的增加，醉汉位于原点的概率不断下降，且最终趋于 $0$.
+
+但是，我们想求的是醉汉**最终返回原点**的概率。令 $T_0$ 为醉汉首次返回原点的时间，即
+
+$$
+T_0=\inf\{n\geq 1: S_n=0\}
+$$
+
+我们实际上要求的是 $T_0$ 与 $\infty$ 之间的关系：如果 $T_0<\infty$, 则说明醉汉可以回家，反之则说明醉汉不能回家。
+
+### Green's function
+
+我们用随机变量 $N$ 来表示醉汉访问原点的总次数，即
+
+$$
+N=\sum_{n=0}^\infty \mathbf{1}[S_n=0]
+$$
+
+这里 $\mathbf{1}[\cdot]$ 是 indicator function. 对 $N$ 求期望得：
+
+$$
+\mathbb{E}[N] = \mathbb{E}\left[\sum_{n=0}^\infty \mathbf{1}[S_n=0]\right]=\sum_{n=0}^\infty \mathbb{E}\left[\mathbf{1}[S_n=0]\right]=\sum_{n=0}^\infty P(S_n=0)
+$$
+
+因此，$\mathbb{E}[N]$ 代表醉汉从原点出发，在无限次游走中访问原点的期望次数，这其实就是随机游走的 Green's function.
+
+<Definition term="Green's Function" id="def-greens-function">
+
+随机游走从原点出发访问原点的期望总次数称为 **Green's function**，记为：
+
+$$
+G(0,0) = \mathbb{E}[N] = \sum_{n=0}^{\infty} P(S_n=0)
+$$
+
+</Definition>
+
+接下来，我们来看 Green's function 与 $T_0$ 之间的关系。我们用 $f$ 来表示醉汉最终至少返回原点一次的概率，即
+
+$$
+f = P(T_0<\infty)
+$$
+
+假设醉汉已经返回了原点，由于随机游走具有 Markov property, 因此再次返回原点的概率仍然是 $f$, 于是
+
+$$
+P(N\geq k)=f^{k-1}, \quad k\geq 1
+$$
+
+从而
+
+$$
+G(0,0) = \mathbb{E}[N]=\sum_{k=1}^{\infty} P(N\geq k) = \sum_{k=1}^{\infty} f^{k-1} = \frac{1}{1-f}
+$$
+
+由此我们得到 Green's function 与首次返回概率之间的核心等价关系：
+
+<Theorem variant="proposition" title="Return Probability and Green's Function" id="prop-green-return">
+
+设 $f = P(T_0 < \infty)$ 为醉汉最终至少返回原点一次的概率，则
+
+$$
+f = 1 - \frac{1}{G(0,0)}
+$$
+
+也就是说：
+
+$$
+G(0,0)=\infty \iff f = 1, \qquad G(0,0)<\infty \iff f < 1
+$$
+
+因此，醉汉最终是否总是能够回家（$T_0<\infty$）等价于 $f=1$, 也等价于 $G(0,0)=\infty$（我们称之为 **recurrent**, 常返）。反之，当 $G(0,0)<\infty$ 时，我们称之为 **transient**（瞬逝）。
+
+</Theorem>
+
+回到 1 维随机游走，由定义我们有
+
+$$
+G(0,0) = 1+\sum_{n=1}^{\infty} P(S_{2n}=0)\sim \sum_{n=1}^{\infty}\frac{1}{\sqrt{\pi n}} =\infty
+$$
+
+因此我们知道 1 维情形下醉汉最终是能回家的。
+
+## 从一维推广到任意维度
+
+我们现在由 1 维的情况来扩展到高维。
+
+<Definition term="d 维简单对称随机游走" id="def-d-dim-random-walk">
+
+考虑 $d$ 维整数格点空间 $\mathbb{Z}^d$, 我们定义简单对称随机游走为：
+
+$$
+S_n=\sum_{i=1}^n X_i, \quad S_0=0
+$$
+
+其中随机变量 $X_i$ 独立同分布（i.i.d.），满足
+
+$$
+P(X_i=e_j)=P(X_i=-e_j) = \frac{1}{2d}, \quad j=1,\dots,d
+$$
+
+这里 $e_j$ 是第 $j$ 个坐标轴方向的单位向量。
+
+</Definition>
+
+对于第 $j$ 个坐标轴，与 1 维的情况一样，其正向移动 $e_j$ 的次数和负向移动 $-e_j$ 的次数必须相等。我们假设这个数量为 $k_j$, 则
+
+$$
+k_1+k_2+\cdots+k_d=n
+$$
+
+即在第 $j$ 个坐标轴上，我们一共移动 $2k_j$ 步，其中 $k_j$ 次正向移动，$k_j$ 次负向移动，从而满足条件的路径数量为
+
+$$
+\frac{(2n)!}{(k_1!)^2(k_2!)^2\cdots(k_d!)^2}
+$$
+
+故
+
+$$
+P(S_{2n}=0) = \frac{(2n)!}{(2d)^{2n}}\sum_{\substack{k_1+k_2+\cdots+k_d=n \\ k_j\geq 0}}\frac{1}{(k_1!)^2(k_2!)^2\cdots(k_d!)^2}
+$$
+
+### 2 维随机游走
+
+当 $d=2$ 时，我们有
+
+$$
+P(S_{2n}=0)=\frac{(2n)!}{16^{n}}\sum_{k=0}^n\frac{1}{(k!)^2((n-k)!)^2}
+$$
+
+由组合数定义以及 Vandermonde identity:
+
+$$
+\sum_{k=0}^n\binom{n}{k}^2=\binom{2n}{n}
+$$
+
+我们有
+
+$$
+\begin{aligned}
+P(S_{2n}=0)&=\frac{(2n)!}{16^{n}}\sum_{k=0}^n\frac{1}{(k!)^2((n-k)!)^2}=\frac{(2n)!}{16^{n}(n!)^2}\sum_{k=0}^n\binom{n}{k}^2\\
+&=\frac{(2n)!}{16^{n}(n!)^2}\binom{2n}{n}=\frac{1}{16^{n}}\binom{2n}{n}^2\\
+&=\left(\frac{\binom{2n}{n}}{4^n}\right)^2
+\end{aligned}
+$$
+
+这个结果恰好是 $1$ 维结果的平方，从而我们有
+
+$$
+G_2(0,0) = 1+\sum_{n=1}^{\infty} P(S_{2n}=0)\sim \sum_{n=1}^{\infty}\frac{1}{\pi n} =\infty
+$$
+
+也就是说，2 维场景下，醉汉也必然会返回原点。
+
+<Note title=" 2 维结果恰好是 1 维结果之间的关系" emoji="💡" variant="info">
+
+实际上，2 维的结果是 1 维结果的平方并不是一个巧合。我们考虑坐标变换：
+
+$$
+U_n=X_n+Y_n, \qquad V_n=X_n-Y_n
+$$
+
+在 2 维随机游走中，$\Delta U$ 和 $\Delta V$ 相互独立且以相同概率取 $\pm 1$. 因此 $U_n$ 和 $V_n$ 是两个独立的 1 维随机游走，且
+
+$$
+S_{2n}=0 \iff U_{2n}=V_{2n}=0
+$$
+
+因此平方关系不是巧合，而是来自旋转坐标变换后的独立性。
+
+</Note>
+
+### 3 维随机游走
+
+与 2 维情形不同，3 维及以上的情形比较复杂，但是我们可以通过局部中心极限定理来推导出 $P(S_n=0)$ 的渐近表达式。
+
+注意到每一步 $X_i$ 的期望为 $0$:
+
+$$
+\mathbb{E}[X_i]=0
+$$
+
+以及协方差矩阵为
+
+$$
+\mathrm{cov}(X_i) = \frac{1}{d}I_d
+$$
+
+由多维中心极限定理，我们有
+
+$$
+\frac{S_n}{\sqrt{n}}\xrightarrow{d} \mathcal{N}\left(0,\frac{1}{d}I_d\right)
+$$
+
+也就是说，经过大量随机移动之后，适当缩放（$\sqrt{n}$）的位置分布趋近于一个多维高斯分布。
+
+对于 $2n$ 步，高斯近似的概率密度为
+
+$$
+g_{2n}(x) = \left(\frac{d}{4\pi n}\right)^{d/2}\exp\left(-\frac{d\|x\|^2}{4n}\right)
+$$
+
+在原点处有
+
+$$
+g_{2n}(0) =\left(\frac{d}{4\pi n}\right)^{d/2}
+$$
+
+不过，简单对称随机游走存在奇偶限制：走偶数步 $2n$ 后，醉汉只能落在坐标和为偶数的格点上（恰好占所有格点的一半）。高斯密度把概率平摊到了所有格点，而实际游走的概率全部集中在这一半可以到达的格点上，因此由局部中心极限定理（Local CLT），原点处的概率还要乘以一个因子 $2$:
+
+$$
+P(S_{2n}=0)\sim 2\left(\frac{d}{4\pi n}\right)^{d/2}
+$$
+
+这个因子使 $d=1,2$ 恰好回到 Stirling 公式给出的 $1/\sqrt{\pi n}$ 和 $1/(\pi n)$.
+
+代入 $d=3$ 我们有
+
+$$
+G_3(0,0)=1+\sum_{n=1}^{\infty} P(S_{2n}=0)\sim \sum_{n=1}^{\infty}\frac{3\sqrt{3}}{4\pi^{3/2}} n^{-3/2} <\infty
+$$
+
+即 3 维的醉汉并不必然能够回到家。
+
+### Pólya Random Walk Theorem
+
+从上一节我们知道，
+
+$$
+P(S_{2n}=0)\sim C_d n^{-d/2}
+$$
+
+因此
+
+$$
+G_d(0,0)<\infty \iff \sum_{n=1}^{\infty} n^{-d/2}<\infty \iff d > 2
+$$
+
+这就得到了著名的 Pólya 随机游走定理 [@Polyas-Random-Walk-Theorem]：
+
+<Theorem variant="theorem" title="Pólya's Random Walk Theorem" id="thm-polya">
+
+对于 $\mathbb{Z}^d$ 上的简单对称随机游走：
+
+$$
+\begin{aligned}
+d\leq 2 &: \mathrm{Recurrent} \quad (f = 1) \\
+d\geq 3 &: \mathrm{Transient} \quad (f < 1)
+\end{aligned}
+$$
+
+即一维和二维简单对称随机游走是常返的（几乎必然回到原点），而三维及更高维则是瞬逝的（存在正概率永远不再回到原点）。
+
+</Theorem>
+
+## 回家的必然性与回家的时间
+
+我们已经看到，原始问题对于 1 维和 2 维，醉汉几乎必然能够回到家，而 3 维及以上则并不能保证这一点。
+
+现在，我们来看一下 1 维和 2 维场景下醉汉回家所需的步数。注意到 1 维情形下：
+
+$$
+P(T_0=2n)=\frac{1}{2n-1}\frac{\binom{2n}{n}}{4^n}\sim\frac{1}{2\sqrt{\pi}}n^{-3/2}
+$$
+
+因此
+
+$$
+\mathbb{E}[T_0] = \sum_{n=1}^{\infty} 2n P(T_0=2n)=\infty
+$$
+
+<Theorem variant="proposition" title="一维与二维随机游走的期望返回时间为无穷大" id="prop-expected-return-time">
+
+尽管 1 维和 2 维简单对称随机游走最终返回原点的概率 $P(T_0 < \infty) = 1$, 但首次返回原点所需步数的期望均为无穷大：
+
+$$
+\mathbb{E}[T_0] = \infty \quad (d = 1, 2)
+$$
+
+</Theorem>
+
+对于 2 维随机游走，由前面的坐标变换可知，回到原点等价于两个独立的 1 维随机游走同时回到原点，回家比 1 维更难，因此 2 维情形下首次返回时间的期望 $\mathbb{E}[T_0]$ 同样是无穷大。
+
+## 实验
+
+为了验证前文的理论推导，我们将步数算至 $2n = 8000$（即 $n = 4000$），依次从**单步返回概率的衰减规律**、**截断 Green 函数的收敛性**以及**回家概率随维度的变化**三个角度进行数值对照。
+
+### 返回概率的幂律衰减与 Local CLT 验证
+
+我们首先比较 $P(S_{2n}=0)$ 的精确组合值与 Local CLT 渐近预测。对于 1 维和 2 维，可以直接使用闭式表达：
+
+$$
+P(S_{2n}=0)=\frac{\binom{2n}{n}}{4^n},\qquad
+P(S_{2n}=0)=\left(\frac{\binom{2n}{n}}{4^n}\right)^2
+$$
+
+3 维情形没有同样简洁的闭式，我们依据前文的多项式公式直接精确求和：
+
+$$
+P(S_{2n}=0)=\frac{(2n)!}{6^{2n}}\sum_{k_1+k_2+k_3=n}\frac{1}{(k_1!)^2(k_2!)^2(k_3!)^2}
+$$
+
+我们在双对数（Log–Log）坐标下绘制步数 $2n$ 与返回概率 $P(S_{2n}=0)$ 的关系，如下图所示：
+
+<Image
+  src={figReturnProb}
+  alt="返回概率的 Log-Log 图"
+  caption="图 1：1D、2D、3D 返回概率的 Log-Log 曲线。精确组合值与 Local CLT 渐近预测高度重合，斜率依次为 -1/2、-1、-3/2。"
+  zoomable
+/>
+
+图中散点为精确值，虚线为 Local CLT 预测 $2\left(\frac{d}{4\pi n}\right)^{d/2}$, 可以看到：
+
+- 即使在较小的步数下，精确值也迅速贴合 Local CLT 虚线，这验证了奇偶限制因子 $2$ 的准确性；
+- 在大 $n$ 区间进行对数线性拟合，1D、2D、3D 的实测斜率分别为 $-0.500$、$-1.000$、$-1.500$，与理论幂律指数 $-d/2$ 完全吻合。
+
+
+
+### 截断 Green 函数的发散与收敛
+
+为了直观观察级数 $G_d(0,0)=\sum_{n=0}^{\infty}P(S_{2n}=0)$ 在临界维度 $d=2$ 与 $d=3$ 之间的质变，我们定义截断 Green 函数：
+
+$$
+G_d^{(N)}(0,0)=\sum_{n=0}^{N} P(S_{2n}=0)
+$$
+
+当截断到 $N=4000$ 时，三个维度呈现出截然不同的增长形态（如图 2）所示
+
+<Image
+  src={figTruncatedGreen}
+  alt="截断 Green 函数"
+  caption="图 2：1D、2D、3D 截断 Green 函数随截断指标 N 的变化。1D 呈根号级增长，2D 呈对数级缓慢增长，3D 则迅速收敛至 Watson 常数。"
+  zoomable
+/>
+
+可以看到：
+
+- **1 维（幂律发散）**：精确求和为 $71.372$，与渐近公式 $\frac{2}{\sqrt{\pi}}\sqrt{N}=71.365$ 几乎重合，整体按 $\sqrt{N}$ 持续攀升；
+- **2 维（对数发散）**：精确求和为 $3.706$，增长明显放缓但仍无界。其渐近主项为 $\frac{1}{\pi}\log N$，补上由 Euler–Mascheroni 常数 $\gamma$ 决定的常数项 $(\gamma+4\log 2)/\pi\approx 1.066$ 后同样得到 $3.706$，与精确曲线严丝合缝；
+- **3 维（快速收敛）**：截断和为 $1.509$，曲线很快贴近一条水平渐近线。利用 $n^{-3/2}$ 补全截断尾部后外推得到 $G_3(0,0)\approx 1.516386$，与经典的 Watson 常数一致，由此可得三维醉汉的回家概率约为
+
+$$
+f=1-\frac{1}{G_3(0,0)}\approx 34.05\%
+$$
+
+### 回家概率随维度的演化与高维渐近
+
+最后进一步考察最终回家概率 $f(d)$ 随维度 $d$ 的变化：$d=1,2$ 时游走常返，$f(d)=1$；一旦进入 $d\geq 3$，回家概率遵循
+
+$$
+f(d)=1-\frac{1}{G_d(0,0)}
+$$
+
+从图 3 可以看到，跨过 $d=2$ 的临界点后，$f(d)$ 在三维骤降至 $34.05\%$，此后随维度增加平滑衰减。
+
+当维度 $d$ 很大时，醉汉每一步面临 $2d$ 个可选方向，一旦走远便极难再绕回原点，此时最常见的回家方式是**走出第一步后立刻原路折返**，该事件的概率为 $\frac{1}{2d}$。若进一步将各步返回概率 $P(S_{2n}=0)$ 按 $1/d$ 展开求和并代入 $f(d)=1-1/G_d(0,0)$，即可得到高维渐近展开式（此处保留前 6 项）：
+
+$$
+f(d)\sim\frac{1}{2d}+\frac{1}{2d^{2}}+\frac{7}{8d^{3}}+\frac{35}{16d^{4}}+\frac{215}{32d^{5}}+\frac{1501}{64d^{6}}
+$$
+
+ Green 函数给出的精确值、六项渐近展开与首项近似 $1/(2d)$ 对照如下图所示：
+
+<Image
+  src={figReturnVsDim}
+  alt="回家概率随维度的变化"
+  caption="图 3：最终回家概率 f(d) 随维度 d 的变化，对比 Green 函数精确值、六项 1/d 渐近展开与首项 1/(2d) 近似。"
+  zoomable
+/>
+
+可以看到：
+
+- **$d=3$**：精确值为 $34.05\%$，六项展开预测为 $34.15\%$（已非常接近），而仅保留首项 $1/(2d)$ 则只有 $16.7\%$，低估了多步折返路径的贡献；
+- **$d=10$**：精确值与六项展开均收敛到 $5.62\%$，首项近似为 $5.0\%$；
+- **$d > 10$**：三条曲线几乎重合，高维回家概率由"一步折返"主导，按 $1/(2d)$ 趋于 $0$。
+
+
+
+下表汇总了不同维度下的返回概率衰减量级、Green 函数行为与最终回家概率：
+
+| 维度 | 返回概率渐近量级 | Green 函数行为 | 最终回家概率 |
+| :--: | :--: | :--: | :--: |
+| 1D | $n^{-1/2}$ | $\sim \frac{2}{\sqrt{\pi}}\sqrt{N} \to \infty$ | $100\%$ |
+| 2D | $n^{-1}$ | $\sim \frac{1}{\pi}\log N \to \infty$ | $100\%$ |
+| 3D | $n^{-3/2}$ | 收敛至 $\approx 1.516386$ | $\approx 34.05\%$ |
+| $d\geq 3$ | $n^{-d/2}$ | 收敛至有限值 | $<100\%$（高维 $\sim \frac{1}{2d}$） |
+
+## 总结
+
+本文中，我们介绍了不同维度下的随机游走问题。通过分析我们发现，1 维和 2 维情形下，随机游走具有常返性，而 3 维以上则不存在这个性质。
+
+<Note title="三个容易混淆的概念" emoji="📌" variant="info">
+
+1. **事件最终发生的概率**：1 维和 2 维场景下，虽然随 $n$ 增大，醉汉第 $n$ 步位于原点的概率 $P(S_n=0)$ 趋于 $0$, 但是醉汉最终回到原点的概率 $P(T_0<\infty)$ 仍然是 $1$。
+2. **事件发生所需时间的分布**：虽然回家是必然的，但是首次回家时间 $T_0$ 的分布衰减非常缓慢（1 维场景下 $P(T_0=2n)\sim n^{-3/2}$），意味着醉汉回家的时间并不短。
+3. **事件发生时间的期望值**：即使醉汉返回原点的概率为 $1$, 但是由于尾部分布过重、回家时间太大，醉汉返回原点的平均步数 $\mathbb{E}[T_0]$ 仍然是无穷大。
+
+</Note>

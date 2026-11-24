@@ -76,6 +76,7 @@ export const ARTICLE_EDITORIAL: Record<string, Editorial> = {
   "unified-MLLM": topic("outline"),
   "kl-divergence": { contentType: "analysis", completion: "growing", featuredOrder: 1, summary: "围绕 KL 散度的估计与优化展开推导，辨析不同形式的含义和适用条件。" },
   "train-inference-mismatch": { contentType: "analysis", completion: "growing", featuredOrder: 2, summary: "分析训练与推理不一致如何影响策略优化，梳理误差来源与修正思路。" },
+  "random-walk": { contentType: "analysis", completion: "complete", summary: "从一维到高维随机游走：通过 Green 函数、局部中心极限定理与 Pólya 定理推导常返性与回家概率。" },
 };
 
 export const collectionHref = (type: ContentType) => `/blog/collections/${type}/`;
