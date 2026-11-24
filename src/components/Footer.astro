@@ -32,11 +32,13 @@ const shareOnXUrl = articleUrl
     {!isPaper && (
       <section class="citation-block">
         <p class="footer-heading" role="heading" aria-level="2">Citation</p>
-        <p>For attribution in academic contexts, please cite this work as</p>
-        <pre class="citation short">{citationText}</pre>
+        <div class="citation-body">
+          <p>For attribution in academic contexts, please cite this work as</p>
+          <pre class="citation short">{citationText}</pre>
 
-        <p>BibTeX citation</p>
-        <pre class="citation long">{bibtex}</pre>
+          <p>BibTeX citation</p>
+          <pre class="citation long">{bibtex}</pre>
+        </div>
       </section>
     )}
     {!isPaper &&
@@ -641,20 +643,22 @@ const shareOnXUrl = articleUrl
   }
 
   /* Distill-like appendix citation styling */
+  .citation-body p {
+    margin: 0 0 8px;
+  }
+
   .citation {
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
       "Liberation Mono", "Courier New", monospace;
     font-size: 11px;
     line-height: 15px;
-    border-left: 1px solid rgba(0, 0, 0, 0.1);
-    padding-left: 18px;
     border: 1px solid rgba(0, 0, 0, 0.1);
     background: rgba(0, 0, 0, 0.02);
     padding: 10px 18px;
     border-radius: 3px;
     color: rgba(150, 150, 150, 1);
     overflow: hidden;
-    margin-top: -12px;
+    margin: 0;
     white-space: pre-wrap;
     word-wrap: break-word;
   }
@@ -665,7 +669,7 @@ const shareOnXUrl = articleUrl
   }
 
   .citation.short {
-    margin-top: -4px;
+    margin-bottom: 16px;
   }
 
   .references-block .footer-heading {
