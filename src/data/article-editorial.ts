@@ -1,9 +1,9 @@
 /** Editorial purpose and reading readiness are intentionally separate. */
 export const CONTENT_TYPES = {
-  learning: { label: "Learning Notes & Tutorials", shortLabel: "Learning Notes", description: "夯实理解大语言模型所需的数学、算法与系统基础，建立可复用的技术心智模型。" },
-  reports: { label: "Technical Reports", shortLabel: "Technical Reports", description: "系统梳理主流模型的架构设计、预训练与后训练配方以及关键实验证据。" },
-  topics: { label: "Topic Overviews", shortLabel: "Topic Overviews", description: "围绕核心研究专题，追踪问题定义、方法演进与工程权衡。" },
-  analysis: { label: "Deep Dives", shortLabel: "Deep Dives", description: "问题驱动的深度推导与对比分析，聚焦容易被忽略的原理细节与反直觉现象。" },
+  learning: { label: "Learning Notes & Tutorials", shortLabel: "Learning Notes", description: "数学、算法与训练系统的基础教程和学习笔记。" },
+  reports: { label: "Technical Reports", shortLabel: "Technical Reports", description: "大模型技术报告阅读笔记，关注架构与训练细节。" },
+  topics: { label: "Topic Overviews", shortLabel: "Topic Overviews", description: "按技术方向整理的专题综述，关注核心工作与演进脉络。" },
+  analysis: { label: "Deep Dives", shortLabel: "Deep Dives", description: "具体技术问题的深入推导与分析。" },
 } as const;
 
 export const COMPLETION = {
