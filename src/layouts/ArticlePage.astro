@@ -10,6 +10,7 @@ import {
   SITE_AUTHOR,
   SITE_AUTHOR_URL,
   SITE_LICENSE,
+  SITE_TITLE,
 } from "../consts";
 import { ARTICLE_EDITORIAL } from "../data/article-editorial";
 import "katex/dist/katex.min.css";
@@ -251,6 +252,15 @@ const articleLocale = articleLang.toLowerCase().startsWith("zh")
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" />
+    <link rel="sitemap" href="/sitemap-index.xml" />
+    <link
+      rel="alternate"
+      type="application/rss+xml"
+      title={SITE_TITLE}
+      href={new URL("/rss.xml", Astro.site ?? Astro.url)}
+    />
     <Seo
       title={docTitle}
       description={description}
@@ -298,10 +308,12 @@ const articleLocale = articleLang.toLowerCase().startsWith("zh")
         };
       })();
     </script>
+    <script async src="https://scripts.simpleanalyticscdn.com/latest.js"></script>
     <script type="module" src="/scripts/color-palettes.js"></script>
 
-    <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
     <script
+      defer
       src="https://cdn.jsdelivr.net/npm/medium-zoom@1.1.0/dist/medium-zoom.min.js"
     ></script>
     <script src="/src/scripts/mermaid-zoom.js"></script>
