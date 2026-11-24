@@ -10,6 +10,7 @@ import {
 } from "../consts";
 import avatarSrc from "../../public/avatar.jpg";
 import { SITE_NEWS } from "../data/site-news";
+import { SITE_PUBLICATIONS } from "../data/site-publications";
 import ArticleList from "../components/ArticleList.astro";
 import ContentCollections from "../components/ContentCollections.astro";
 import CompletionLegend from "../components/CompletionLegend.astro";
@@ -96,6 +97,48 @@ function newsDateIso(raw: string): string | undefined {
     <ContentCollections articles={articles} />
     <CompletionLegend />
   </section>
+
+  {
+    SITE_PUBLICATIONS.length > 0 ? (
+      <section class="site-pubs" aria-labelledby="publications-heading">
+        <h2 id="publications-heading">Selected Publications</h2>
+        <p class="section-intro">代表性研究论文；完整发表列表请见 Google Scholar。</p>
+        <ul class="site-pubs__list">
+          {SITE_PUBLICATIONS.map((pub) => (
+            <li class="site-pubs__item">
+              <span class="site-pubs__venue">{pub.venue}</span>
+              <div class="site-pubs__body">
+                <span class="site-pubs__title">{pub.title}</span>
+                <p class="site-pubs__summary">{pub.summary}</p>
+                {pub.links.length > 0 && (
+                  <div class="site-pubs__links">
+                    {pub.links.map((link) => (
+                      <a
+                        href={link.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {link.label} →
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+        <p class="section-more">
+          <a
+            href={`https://scholar.google.com/citations?user=${GOOGLE_SCHOLAR_ID}`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Full list on Google Scholar →
+          </a>
+        </p>
+      </section>
+    ) : null
+  }
 
   {
     newsItems.length > 0 ? (
