@@ -76,6 +76,7 @@ const websiteJsonLd = {
       <meta name="twitter:image" content={socialImageUrl} />
     ) : null}
     <script type="application/ld+json" set:html={JSON.stringify(websiteJsonLd)} />
+    <slot name="head" />
     <script async src="https://scripts.simpleanalyticscdn.com/latest.js"></script>
     <script is:inline>
       (() => {

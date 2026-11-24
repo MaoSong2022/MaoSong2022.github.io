@@ -3,7 +3,9 @@ import { Image } from "astro:assets";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import avatarSrc from "../../public/avatar.jpg";
 import {
+  SITE_AUTHOR,
   SITE_TITLE,
+  SITE_URL,
   GITHUB_USERNAME,
   GOOGLE_SCHOLAR_ID,
   CONTACT_EMAIL,
@@ -19,6 +21,42 @@ const description =
 
 const scholarUrl = `https://scholar.google.com/citations?user=${GOOGLE_SCHOLAR_ID}`;
 const githubUrl = `https://github.com/${GITHUB_USERNAME}`;
+
+const personJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Person",
+  name: SITE_AUTHOR,
+  alternateName: ["毛松", "以往的月"],
+  url: new URL("/about", Astro.site ?? SITE_URL).toString(),
+  image: new URL("/avatar.jpg", Astro.site ?? SITE_URL).toString(),
+  email: `mailto:${CONTACT_EMAIL}`,
+  jobTitle: "Researcher",
+  worksFor: {
+    "@type": "Organization",
+    name: "SenseTime",
+    url: "https://www.sensetime.com/",
+  },
+  alumniOf: [
+    {
+      "@type": "CollegeOrUniversity",
+      name: "ShanghaiTech University",
+      url: "https://www.shanghaitech.edu.cn/",
+    },
+    {
+      "@type": "CollegeOrUniversity",
+      name: "Beijing Institute of Technology",
+      url: "https://www.bit.edu.cn/",
+    },
+  ],
+  knowsAbout: [
+    "Large Language Models",
+    "LLM Post-Training",
+    "Reinforcement Learning",
+    "Multimodal Large Language Models",
+    "Distributed Training Systems",
+  ],
+  sameAs: [scholarUrl, githubUrl, BILIBILI_URL, ...(ZHIHU_URL ? [ZHIHU_URL] : [])],
+};
 
 type ResearchArea = {
   title: string;
@@ -103,6 +141,7 @@ const educationItems: TimelineItem[] = [
 ---
 
 <BaseLayout pageTitle={pageTitle} description={description}>
+  <script slot="head" type="application/ld+json" set:html={JSON.stringify(personJsonLd)} />
   <div class="about-page">
     <section class="about-profile" aria-label="Profile overview">
       <div class="about-profile__avatar">
