@@ -75,7 +75,7 @@ const researchAreas: ResearchArea[] = [
     descZh: "探索大语言模型后训练范式与强化学习算法，持续提升模型的对齐效果与能力上限。",
     descEn:
       "Post-training pipelines and reinforcement learning methods that align and scale language model capabilities.",
-    tags: ["RLHF", "RLVR", "Agentic RL", "Policy Optimization"],
+    tags: ["RLHF", "RLVR", "OPD", "Agentic RL"],
   },
   {
     titleZh: "模型架构与 Scaling Law",
@@ -269,10 +269,7 @@ const educationItems: TimelineItem[] = [
           >商汤科技（SenseTime）</a>担任高级算法研究员，研究重心围绕
           <strong>大语言模型后训练（LLM Post-Training）</strong>、
           <strong>强化学习（RL）</strong>与
-          <strong>多模态大模型（MLLM）</strong>。
-        </p>
-        <p>
-          此前，我曾在{" "}
+          <strong>多模态大模型（MLLM）</strong>。此前，我曾在{" "}
           <a
             href="https://www.shlab.org.cn/"
             target="_blank"
@@ -282,7 +279,19 @@ const educationItems: TimelineItem[] = [
             href="https://knowledgexlab.github.io/"
             target="_blank"
             rel="noopener noreferrer"
-          >KnowledgeXLab</a> 担任算法研究员。工作之余，我也以<strong>「以往的月」</strong>为名在知乎、B 站和微信公众号持续分享技术笔记与推导教程。
+          >KnowledgeXLab</a> 担任算法研究员。
+        </p>
+        <p>
+          回顾我的研究脉络：硕士期间我主要从事凸优化与非凸优化算法研究；2022
+          年先聚焦于自动驾驶中的轨迹规划问题。2023 年起转向多模态大模型，参与构建了一批高质量多模态文档理解数据集，并设计了多个文档理解专项模型与新型架构。在探索过程中，我逐渐意识到多模态大模型的核心瓶颈仍在于
+          LLM backbone 本身——因此自 2025 年 8 月起，我转向大语言模型后训练（包括
+          RLVR 与 OPD）。目前，我正在深入研究{" "}
+          <strong>Agentic RL</strong>{" "}
+          中的算法、效率、工程与数据问题，希望不断推高 LLM 的智能上限。
+        </p>
+        <p>
+          工作之余，我也以<strong>「以往的月」</strong>为名在知乎、B
+          站和微信公众号持续分享技术笔记与推导教程。
         </p>
       </div>
       <div class="intro-section" data-lang="en">
@@ -292,13 +301,11 @@ const educationItems: TimelineItem[] = [
             href="https://www.sensetime.com/"
             target="_blank"
             rel="noopener noreferrer"
-          >SenseTime</a>, where I work on{" "}
+          >SenseTime</a>, working on{" "}
           <strong>Large Language Model (LLM) post-training</strong>,{" "}
           <strong>reinforcement learning</strong>, and{" "}
-          <strong>Multimodal Large Language Models (MLLMs)</strong>.
-        </p>
-        <p>
-          Previously, I was an algorithm researcher in{" "}
+          <strong>Multimodal Large Language Models (MLLMs)</strong>. Previously,
+          I was an algorithm researcher in{" "}
           <a
             href="https://knowledgexlab.github.io/"
             target="_blank"
@@ -310,6 +317,22 @@ const educationItems: TimelineItem[] = [
             target="_blank"
             rel="noopener noreferrer"
           >Shanghai Artificial Intelligence Laboratory (Shanghai AI Lab)</a>.
+        </p>
+        <p>
+          My research journey has evolved across several connected stages: during
+          my master&apos;s, I focused on convex and non-convex optimization
+          algorithms, and in 2022 worked on trajectory planning for autonomous
+          driving. Starting in 2023, I shifted to MLLMs—building high-quality
+          multimodal document understanding datasets and designing specialized
+          document models and novel architectures. Along the way, I realized
+          that the capability bottleneck of MLLMs still lies largely in the
+          underlying LLM backbone. Since August 2025, I have pivoted to LLM
+          post-training, including RLVR and OPD. Today, I am diving into the
+          algorithmic, efficiency, engineering, and data challenges of{" "}
+          <strong>Agentic RL</strong>, aiming to push the intelligence frontier
+          of LLMs.
+        </p>
+        <p>
           Outside of papers and code, I write and share technical notes under
           the handle <strong>“以往的月”</strong> on Zhihu, Bilibili, and WeChat
           Official Account.
