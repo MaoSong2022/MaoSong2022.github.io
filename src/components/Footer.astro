@@ -39,6 +39,43 @@ const shareOnXUrl = articleUrl
 
 <footer class="footer">
   <div class="footer-inner">
+    {!isPaper && (
+      <section class="citation-block">
+        <p class="footer-heading" role="heading" aria-level="2">Citation</p>
+        <p>For attribution in academic contexts, please cite this work as</p>
+        <pre class="citation short">{citationText}</pre>
+
+        <p>BibTeX citation</p>
+        <pre class="citation long">{bibtex}</pre>
+      </section>
+    )}
+    {!isPaper &&
+      doi && (
+        <section class="doi-block">
+          <p class="footer-heading" role="heading" aria-level="2">DOI</p>
+          <p>
+            <a
+              href={`https://doi.org/${doi}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {doi}
+            </a>
+          </p>
+        </section>
+      )
+    }
+    {
+      licence && (
+        <section class="reuse-block">
+          <p class="footer-heading" role="heading" aria-level="2">Reuse</p>
+          <p set:html={licence} />
+        </section>
+      )
+    }
+    <section class="references-block">
+      <slot />
+    </section>
     {relatedArticles.length > 0 && (
       <section class="related-block" aria-label="Related articles">
         <p class="footer-heading" role="heading" aria-level="2">Related</p>
@@ -108,43 +145,6 @@ const shareOnXUrl = articleUrl
           <a href="/rss.xml">RSS</a>
         </div>
       </div>
-    </section>
-    {!isPaper && (
-      <section class="citation-block">
-        <p class="footer-heading" role="heading" aria-level="2">Citation</p>
-        <p>For attribution in academic contexts, please cite this work as</p>
-        <pre class="citation short">{citationText}</pre>
-
-        <p>BibTeX citation</p>
-        <pre class="citation long">{bibtex}</pre>
-      </section>
-    )}
-    {!isPaper &&
-      doi && (
-        <section class="doi-block">
-          <p class="footer-heading" role="heading" aria-level="2">DOI</p>
-          <p>
-            <a
-              href={`https://doi.org/${doi}`}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {doi}
-            </a>
-          </p>
-        </section>
-      )
-    }
-    {
-      licence && (
-        <section class="reuse-block">
-          <p class="footer-heading" role="heading" aria-level="2">Reuse</p>
-          <p set:html={licence} />
-        </section>
-      )
-    }
-    <section class="references-block">
-      <slot />
     </section>
     <div class="template-credit">
       <p>
