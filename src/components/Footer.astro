@@ -1,17 +1,114 @@
 ---
+import { GITHUB_USERNAME } from "../consts";
+
+interface RelatedArticle {
+  slug: string;
+  url: string;
+  title: string;
+  description?: string;
+  contentTypeLabel?: string;
+}
+
 interface Props {
   citationText: string;
   bibtex: string;
   licence?: string;
   doi?: string;
   template?: string;
+  articleTitle?: string;
+  articleUrl?: string;
+  slug?: string;
+  relatedArticles?: RelatedArticle[];
 }
-const { citationText, bibtex, licence, doi, template = "article" } = Astro.props as Props;
+const {
+  citationText,
+  bibtex,
+  licence,
+  doi,
+  template = "article",
+  articleTitle = "",
+  articleUrl = "",
+  slug,
+  relatedArticles = [],
+} = Astro.props as Props;
 const isPaper = template === "paper";
+const shareOnXUrl = articleUrl
+  ? `https://x.com/intent/tweet?text=${encodeURIComponent(articleTitle)}&url=${encodeURIComponent(articleUrl)}`
+  : undefined;
 ---
 
 <footer class="footer">
   <div class="footer-inner">
+    {relatedArticles.length > 0 && (
+      <section class="related-block" aria-label="Related articles">
+        <p class="footer-heading" role="heading" aria-level="2">Related</p>
+        <ul class="related-list">
+          {relatedArticles.map((item) => (
+            <li class="related-item">
+              <a class="related-item__title" href={item.url}>{item.title}</a>
+              {item.contentTypeLabel && (
+                <span class="related-item__badge">{item.contentTypeLabel}</span>
+              )}
+              {item.description && (
+                <p class="related-item__desc">{item.description}</p>
+              )}
+            </li>
+          ))}
+        </ul>
+      </section>
+    )}
+    <section class="engage-block" aria-label="Share and follow">
+      <p class="footer-heading" role="heading" aria-level="2">Share &amp; Follow</p>
+      <div class="engage-body">
+        <div class="engage-actions">
+          <button
+            type="button"
+            class="engage-btn"
+            data-copy-article-link={articleUrl}
+          >
+            Copy link
+          </button>
+          {shareOnXUrl && (
+            <a
+              class="engage-btn"
+              href={shareOnXUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Share on X
+            </a>
+          )}
+          {slug && (
+            <a class="engage-btn" href={`/blog/${slug}/llms.txt`}>
+              Markdown (llms.txt)
+            </a>
+          )}
+        </div>
+        <div class="engage-follow">
+          <span class="engage-follow__label">关注「以往的月」：</span>
+          <details class="engage-wechat">
+            <summary>微信公众号</summary>
+            <div class="engage-wechat__popover">
+              <img
+                src="/wechat_avatar.jpg"
+                alt="微信公众号「以往的月」二维码"
+                width="144"
+                height="144"
+                loading="lazy"
+                decoding="async"
+              />
+              <span>微信扫码关注</span>
+            </div>
+          </details>
+          <span aria-hidden="true">·</span>
+          <a href="https://b23.tv/a0Bb9Z1" target="_blank" rel="noopener noreferrer">Bilibili</a>
+          <span aria-hidden="true">·</span>
+          <a href={`https://github.com/${GITHUB_USERNAME}`} target="_blank" rel="noopener noreferrer">GitHub</a>
+          <span aria-hidden="true">·</span>
+          <a href="/rss.xml">RSS</a>
+        </div>
+      </div>
+    </section>
     {!isPaper && (
       <section class="citation-block">
         <p class="footer-heading" role="heading" aria-level="2">Citation</p>
@@ -68,6 +165,26 @@ const isPaper = template === "paper";
       document.querySelector("footer.footer");
     const footer = getFooter();
     if (!footer) return;
+    // Copy article link handler
+    footer.querySelectorAll("[data-copy-article-link]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const url = btn.getAttribute("data-copy-article-link") || window.location.href;
+        const original = btn.textContent || "Copy link";
+        try {
+          await navigator.clipboard.writeText(url);
+          btn.textContent = "Copied!";
+          setTimeout(() => {
+            btn.textContent = original;
+          }, 1500);
+        } catch {
+          btn.textContent = "Copy failed";
+          setTimeout(() => {
+            btn.textContent = original;
+          }, 1500);
+        }
+      });
+    });
+
     const target = footer.querySelector(".references-block");
     if (!target) return;
 
@@ -368,6 +485,8 @@ const isPaper = template === "paper";
   }
 
   /* Use the parent grid (3 columns like .content-grid) */
+  .related-block,
+  .engage-block,
   .citation-block,
   .references-block,
   .reuse-block,
@@ -375,6 +494,8 @@ const isPaper = template === "paper";
     display: contents;
   }
 
+  .related-block > .footer-heading,
+  .engage-block > .footer-heading,
   .citation-block > .footer-heading,
   .references-block > .footer-heading,
   .reuse-block > .footer-heading,
@@ -387,11 +508,167 @@ const isPaper = template === "paper";
     padding-right: 30px;
   }
 
+  .related-block > :not(.footer-heading),
+  .engage-block > :not(.footer-heading),
   .citation-block > :not(.footer-heading),
   .references-block > :not(.footer-heading),
   .reuse-block > :not(.footer-heading),
   .doi-block > :not(.footer-heading) {
     grid-column: 2;
+  }
+
+  .related-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 14px;
+  }
+
+  .related-item {
+    padding: 12px 14px;
+    border-radius: 6px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    background: rgba(0, 0, 0, 0.015);
+  }
+
+  .related-item__title {
+    font-size: 1.05em;
+    font-weight: 600;
+    margin-right: 8px;
+  }
+
+  .related-item__badge {
+    display: inline-block;
+    font-size: 0.78em;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.06);
+    color: rgba(0, 0, 0, 0.65);
+    vertical-align: middle;
+  }
+
+  .related-item__desc {
+    margin: 5px 0 0;
+    font-size: 0.92em;
+    line-height: 1.5;
+    color: rgba(0, 0, 0, 0.6);
+  }
+
+  .engage-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .engage-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .engage-btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 12px;
+    font-size: 0.92em;
+    line-height: 1.5;
+    border-radius: 5px;
+    border: 1px solid rgba(0, 0, 0, 0.14);
+    background: transparent;
+    color: var(--text-color);
+    cursor: pointer;
+    text-decoration: none;
+  }
+
+  .footer a.engage-btn {
+    color: var(--text-color);
+    border: 1px solid rgba(0, 0, 0, 0.14);
+  }
+
+  .engage-btn:hover,
+  .footer a.engage-btn:hover {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+  }
+
+  .engage-follow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.95em;
+  }
+
+  .engage-follow__label {
+    color: rgba(0, 0, 0, 0.6);
+  }
+
+  .engage-wechat {
+    position: relative;
+    display: inline-block;
+  }
+
+  .engage-wechat summary {
+    cursor: pointer;
+    color: var(--primary-color);
+    list-style: none;
+    border-bottom: 1px solid var(--link-underline);
+  }
+
+  .engage-wechat summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .engage-wechat__popover {
+    position: absolute;
+    left: 0;
+    bottom: calc(100% + 8px);
+    z-index: 20;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    background: var(--page-bg, #fff);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85em;
+    color: var(--text-color);
+    width: 166px;
+  }
+
+  .engage-wechat__popover img {
+    display: block;
+    border-radius: 4px;
+  }
+
+  [data-theme="dark"] .related-item {
+    border-color: rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  [data-theme="dark"] .related-item__badge {
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(220, 220, 220, 0.85);
+  }
+
+  [data-theme="dark"] .related-item__desc,
+  [data-theme="dark"] .engage-follow__label {
+    color: rgba(200, 200, 200, 0.72);
+  }
+
+  [data-theme="dark"] .engage-btn,
+  [data-theme="dark"] .footer a.engage-btn {
+    border-color: rgba(255, 255, 255, 0.2);
+    color: rgba(235, 235, 235, 0.9);
+  }
+
+  [data-theme="dark"] .engage-wechat__popover {
+    border-color: rgba(255, 255, 255, 0.18);
+    background: var(--page-bg, #161b22);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
   }
 
   .citation-block .footer-heading {
