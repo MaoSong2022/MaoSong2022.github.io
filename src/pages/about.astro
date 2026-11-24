@@ -323,9 +323,17 @@ const educationItems: TimelineItem[] = [
           I&apos;m always glad to discuss research collaborations, technical
           ideas, or potential opportunities. Feel free to reach out!
         </p>
-        <p>
+        <p class="about-email-row">
           <strong>Email:</strong>{" "}
           <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
+          <button
+            type="button"
+            class="about-copy-btn"
+            data-copy-email={CONTACT_EMAIL}
+            aria-label={`Copy ${CONTACT_EMAIL} to clipboard`}
+          >
+            Copy
+          </button>
         </p>
         <p>
           <strong>Resume / CV:</strong>{" "}
@@ -422,32 +430,43 @@ const educationItems: TimelineItem[] = [
             </div>
           </a>
 
-          <div
-            class="social-card wechat-card"
-            tabindex="0"
-            role="group"
-            aria-label="WeChat Official Account — hover or focus to show QR code"
-          >
-            <div class="social-icon" aria-hidden="true">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="28"
-                height="28"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-              >
-                <path
-                  d="M8.691 2.188C3.891 2.188 0 5.476 0 9.53c0 2.212 1.17 4.203 3.002 5.55a.59.59 0 0 1 .213.665l-.39 1.48c-.019.07-.048.141-.048.213 0 .163.13.295.29.295a.326.326 0 0 0 .167-.054l1.903-1.114a.864.864 0 0 1 .717-.098 10.16 10.16 0 0 0 2.837.403c.276 0 .543-.027.811-.05-.857-2.578.157-4.972 1.932-6.446 1.703-1.415 3.882-1.98 5.853-1.838-.576-3.583-4.196-6.348-8.596-6.348zM5.785 5.991c.642 0 1.162.529 1.162 1.18a1.17 1.17 0 0 1-1.162 1.178A1.17 1.17 0 0 1 4.623 7.17c0-.651.52-1.18 1.162-1.18zm5.813 0c.642 0 1.162.529 1.162 1.18a1.17 1.17 0 0 1-1.162 1.178 1.17 1.17 0 0 1-1.162-1.178c0-.651.52-1.18 1.162-1.18zm5.34 2.867c-1.797-.052-3.746.512-5.28 1.786-1.72 1.428-2.687 3.72-1.78 6.22.942 2.453 3.666 4.229 6.884 4.229.826 0 1.622-.12 2.361-.336a.722.722 0 0 1 .598.082l1.584.926a.272.272 0 0 0 .14.047c.134 0 .24-.111.24-.247 0-.06-.023-.12-.038-.177l-.327-1.233a.582.582 0 0 1 .166-.555c1.548-1.18 2.485-2.87 2.485-4.716 0-3.503-3.161-6.026-6.799-6.026h-.234zm-.24 1.66c.567 0 1.027.467 1.027 1.042 0 .573-.46 1.04-1.027 1.04-.566 0-1.027-.467-1.027-1.04 0-.575.461-1.041 1.027-1.041zm4.81 0c.567 0 1.027.467 1.027 1.042 0 .573-.46 1.04-1.027 1.04-.565 0-1.027-.467-1.027-1.04 0-.575.462-1.041 1.027-1.041z"
-                ></path>
-              </svg>
-            </div>
-            <div class="social-info">
-              <h3>WeChat Official Account</h3>
-              <p>Scan QR code to follow</p>
-            </div>
-            <div class="wechat-qr-popup">
-              <img src="/wechat_avatar.jpg" alt="WeChat QR code to follow the account" width="200" height="200" loading="lazy" decoding="async" />
-              <p>Scan with WeChat</p>
+          <div class="social-card wechat-card" data-wechat-card>
+            <button
+              type="button"
+              class="wechat-card__trigger"
+              aria-expanded="false"
+              aria-controls="wechat-qr-popup"
+              data-wechat-toggle
+            >
+              <div class="social-icon" aria-hidden="true">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="28"
+                  height="28"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
+                  <path
+                    d="M8.691 2.188C3.891 2.188 0 5.476 0 9.53c0 2.212 1.17 4.203 3.002 5.55a.59.59 0 0 1 .213.665l-.39 1.48c-.019.07-.048.141-.048.213 0 .163.13.295.29.295a.326.326 0 0 0 .167-.054l1.903-1.114a.864.864 0 0 1 .717-.098 10.16 10.16 0 0 0 2.837.403c.276 0 .543-.027.811-.05-.857-2.578.157-4.972 1.932-6.446 1.703-1.415 3.882-1.98 5.853-1.838-.576-3.583-4.196-6.348-8.596-6.348zM5.785 5.991c.642 0 1.162.529 1.162 1.18a1.17 1.17 0 0 1-1.162 1.178A1.17 1.17 0 0 1 4.623 7.17c0-.651.52-1.18 1.162-1.18zm5.813 0c.642 0 1.162.529 1.162 1.18a1.17 1.17 0 0 1-1.162 1.178 1.17 1.17 0 0 1-1.162-1.178c0-.651.52-1.18 1.162-1.18zm5.34 2.867c-1.797-.052-3.746.512-5.28 1.786-1.72 1.428-2.687 3.72-1.78 6.22.942 2.453 3.666 4.229 6.884 4.229.826 0 1.622-.12 2.361-.336a.722.722 0 0 1 .598.082l1.584.926a.272.272 0 0 0 .14.047c.134 0 .24-.111.24-.247 0-.06-.023-.12-.038-.177l-.327-1.233a.582.582 0 0 1 .166-.555c1.548-1.18 2.485-2.87 2.485-4.716 0-3.503-3.161-6.026-6.799-6.026h-.234zm-.24 1.66c.567 0 1.027.467 1.027 1.042 0 .573-.46 1.04-1.027 1.04-.566 0-1.027-.467-1.027-1.04 0-.575.461-1.041 1.027-1.041zm4.81 0c.567 0 1.027.467 1.027 1.042 0 .573-.46 1.04-1.027 1.04-.565 0-1.027-.467-1.027-1.04 0-.575.462-1.041 1.027-1.041z"
+                  ></path>
+                </svg>
+              </div>
+              <div class="social-info">
+                <h3>WeChat Official Account</h3>
+                <p>Click to show QR code</p>
+              </div>
+              <span class="wechat-card__chevron" aria-hidden="true">▾</span>
+            </button>
+            <div id="wechat-qr-popup" class="wechat-qr-popup" hidden>
+              <img
+                src="/wechat_avatar.jpg"
+                alt="WeChat Official Account QR code for 以往的月"
+                width="200"
+                height="200"
+                loading="lazy"
+                decoding="async"
+              />
+              <p>Scan with WeChat to follow「以往的月」</p>
             </div>
           </div>
 
@@ -498,4 +517,65 @@ const educationItems: TimelineItem[] = [
       <a href="/blog">← Back to the blog</a>
     </p>
   </div>
+
+  <script is:inline>
+    (() => {
+      // Copy email button
+      document.querySelectorAll("[data-copy-email]").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const email = btn.getAttribute("data-copy-email");
+          if (!email) return;
+          const original = btn.textContent || "Copy";
+          try {
+            await navigator.clipboard.writeText(email);
+            btn.textContent = "Copied!";
+            btn.setAttribute("data-copied", "true");
+          } catch {
+            btn.textContent = "Copy failed";
+          }
+          setTimeout(() => {
+            btn.textContent = original;
+            btn.removeAttribute("data-copied");
+          }, 1600);
+        });
+      });
+
+      // Click-to-toggle WeChat QR card (desktop popover + mobile inline drawer)
+      const wechatCard = document.querySelector("[data-wechat-card]");
+      const toggleBtn = wechatCard?.querySelector("[data-wechat-toggle]");
+      const qrPopup = wechatCard?.querySelector("#wechat-qr-popup");
+      if (wechatCard && toggleBtn && qrPopup) {
+        const setOpen = (open) => {
+          toggleBtn.setAttribute("aria-expanded", String(open));
+          wechatCard.classList.toggle("is-open", open);
+          qrPopup.hidden = !open;
+        };
+
+        toggleBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const isOpen = toggleBtn.getAttribute("aria-expanded") === "true";
+          setOpen(!isOpen);
+        });
+
+        document.addEventListener("click", (e) => {
+          if (
+            toggleBtn.getAttribute("aria-expanded") === "true" &&
+            !wechatCard.contains(e.target)
+          ) {
+            setOpen(false);
+          }
+        });
+
+        document.addEventListener("keydown", (e) => {
+          if (
+            e.key === "Escape" &&
+            toggleBtn.getAttribute("aria-expanded") === "true"
+          ) {
+            setOpen(false);
+            toggleBtn.focus();
+          }
+        });
+      }
+    })();
+  </script>
 </BaseLayout>
