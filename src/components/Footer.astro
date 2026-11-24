@@ -57,14 +57,6 @@ const shareOnXUrl = articleUrl
         </section>
       )
     }
-    {
-      licence && (
-        <section class="reuse-block">
-          <p class="footer-heading" role="heading" aria-level="2">Reuse</p>
-          <p set:html={licence} />
-        </section>
-      )
-    }
     <section class="references-block">
       <slot />
     </section>
@@ -120,6 +112,14 @@ const shareOnXUrl = articleUrl
         </div>
       </div>
     </section>
+    {
+      licence && (
+        <section class="reuse-block">
+          <p class="footer-heading" role="heading" aria-level="2">Reuse</p>
+          <p set:html={licence} />
+        </section>
+      )
+    }
     <div class="template-credit">
       <p>
         Made with ❤️ with <a
