@@ -13,8 +13,8 @@ export const SITE_SLOGAN = "Delving into the latent unknown.";
 export const GOOGLE_SCHOLAR_ID = "BaqGkQQAAAAJ";
 export const GITHUB_USERNAME = "MaoSong2022";
 export const CONTACT_EMAIL = "maosong1@sensetime.com";
-export const BILIBILI_URL = "https://b23.tv/a0Bb9Z1";
+export const BILIBILI_URL = "https://space.bilibili.com/188482974";
 /** Optional: fill in your Zhihu profile URL to display it on the About page & JSON-LD. */
-export const ZHIHU_URL = "";
+export const ZHIHU_URL = "https://www.zhihu.com/people/mao-song-88";
 /** Optional: fill in your CV/Resume PDF path or URL (e.g. "/cv.pdf"). */
 export const CV_URL = "";
