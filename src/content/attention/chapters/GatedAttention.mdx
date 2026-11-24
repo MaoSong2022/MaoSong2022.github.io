@@ -61,7 +61,7 @@ $$
 
 这里 $\sigma$ 是激活函数，$W_\theta$ 是激活函数的可学习参数，我们可以将其理解为一个 linear layer, 即当前模块的输出取决于输入 hidden sates 经过一个线性层和激活层之后的结果，相似的做法还有 [MoE](/blog/moe/) 中的 gating layer, [NSA](/blog/attention/#natively-trainable-sparse-attention-nsa) 中的 gating layer 等。对应的示意图如下所示
 
-![Positions of different gating methods](/posts/notes-on-gated-attention/Gated-attention-position.png)
+{/* Missing legacy Hugo image: ![Positions of different gating methods](/posts/notes-on-gated-attention/Gated-attention-position.png) */}
 
 **granularity**
 作者设计了不同粒度的 gating（假设输入为 $X\in\mathbb{R}^{n\times h\times d_k}$）：
@@ -104,7 +104,7 @@ $$
 
 首先是不同 gating 方法对 MoE model 影响，结果如下图所示
 
-![Performance of different gating variants](/posts/notes-on-gated-attention/Gated-attention-gating-variant-performance.png)
+{/* Missing legacy Hugo image: ![Performance of different gating variants](/posts/notes-on-gated-attention/Gated-attention-gating-variant-performance.png) */}
 
 结论如下：
 
@@ -118,11 +118,11 @@ $$
 接下来是不同 gating 方法对 dense model 的影响，作者构建了两个 dense 模型，参数都是 1.7B, 这两个模型的 layers 和 FFN hidden size 不同（通过调整保持总参数一致）。作者对比了 G1 和 baseline 的表现， 结果如下图所示
 
 
-![Performance of dense models with Gated attention](/posts/notes-on-gated-attention/Gated-attention-dense-model-performance.png)
+{/* Missing legacy Hugo image: ![Performance of dense models with Gated attention](/posts/notes-on-gated-attention/Gated-attention-dense-model-performance.png) */}
 
 结论验证了 gating 机制可以有效提高模型的表现。作者还发现使用 gating 之后，模型的训练也更加稳定，训练的损失变化曲线如下图所示
 
-![training loss curve of gated attention](/posts/notes-on-gated-attention/Gated-attention-training-loss-curve.png)
+{/* Missing legacy Hugo image: ![training loss curve of gated attention](/posts/notes-on-gated-attention/Gated-attention-training-loss-curve.png) */}
 
 #### Analysis
 
@@ -145,13 +145,13 @@ $$
 
 通过 gating 的非线性机制，我们提高的矩阵的秩，进而提高了模型的表达能力，而 G5 提升有限的原因也在于此。实验结果如下图所示
 
-![Performance of different non-linearity variants](/posts/notes-on-gated-attention/Gated-attention-non-linearity-performance.png)
+{/* Missing legacy Hugo image: ![Performance of different non-linearity variants](/posts/notes-on-gated-attention/Gated-attention-non-linearity-performance.png) */}
 
 可以看到，不同的 non-linearity 方法对模型表现都有提升，这验证了矩阵秩会影响模型表达能力的分析。
 
 接下来，作者探究了 gating 机制对 attention score distribution 的影响，结果如下图所示
 
-![attention score distribution of different methods](/posts/notes-on-gated-attention/Gated-attention-score-distribution.png)
+{/* Missing legacy Hugo image: ![attention score distribution of different methods](/posts/notes-on-gated-attention/Gated-attention-score-distribution.png) */}
 
 实验结果说明：
 
@@ -162,7 +162,7 @@ $$
 
 通过前面的分析和实验结果，作者认为 gating 机制还可以缓解 attention sink 现象，作者对 baseline 以及 G1 两种方法的 attention 分布进行了可视化，结果如下图所示
 
-![Visualization of attention sink](/posts/notes-on-gated-attention/Gated-attention-sink-visualization.png)
+{/* Missing legacy Hugo image: ![Visualization of attention sink](/posts/notes-on-gated-attention/Gated-attention-sink-visualization.png) */}
 
 实验结果整理如下表所示
 

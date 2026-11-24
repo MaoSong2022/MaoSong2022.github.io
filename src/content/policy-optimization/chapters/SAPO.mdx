@@ -44,7 +44,7 @@ $$
 
 $\mathcal{J}_{\mathrm{SAPO}}(\theta)$ 和 $w_{i,t}(\theta)$ 与 $r_{i,t}(\theta)$ 的关系如下图所示
 
-![illustration of gating mechanism](/posts/notes-on-sapo/SAPO-gating-illustration.png)
+{/* Missing legacy Hugo image: ![illustration of gating mechanism](/posts/notes-on-sapo/SAPO-gating-illustration.png) */}
 
 为了保证当 $r_{i,t}(\theta)=1$ 时，SAPO 等价于 $r_{i,t}(\theta)\hat{A}_{i,t}$ 而与 $\tau_{i,t}$ 无关，作者在 $f_{i,t}(x)$ 加入了系数 $4/\tau_{i,t}$.
 
@@ -117,18 +117,18 @@ $$
 
 作者对比了 SAPO, GSPO 以及 GRPO-R2(GRPO with routing replay) 三种方法，实验结果如下图所示
 
-![Performance of SAPO](/posts/notes-on-sapo/SAPO-performance.png)
+{/* Missing legacy Hugo image: ![Performance of SAPO](/posts/notes-on-sapo/SAPO-performance.png) */}
 
 实验结果显示，SAPO 的表现超过了 GSPO 以及 GRPO
 
 作者还探究了超参数 $\tau_{pos}$ 和 $\tau_{neg}$ 的影响，结果如下图所示
 
-![Ablation study on temperature](/posts/notes-on-sapo/SAPO-ablation-on-temperature.png)
+{/* Missing legacy Hugo image: ![Ablation study on temperature](/posts/notes-on-sapo/SAPO-ablation-on-temperature.png) */}
 
 实验结果显示，当 $\tau_{neg}>\tau_{pos}$ 时，模型训练最稳定，这说明了 negative token 是导致训练不稳定的主要原因。
 
 作者还在 [Qwen3-VL](/blog/qwen-vl-series/#qwen3-vl) 上进行了验证，结果如下图所示
 
-![Performance of SAPO on Qwen3-VL](/posts/notes-on-sapo/SAPO-Qwen3-VL-perfornance.png)
+{/* Missing legacy Hugo image: ![Performance of SAPO on Qwen3-VL](/posts/notes-on-sapo/SAPO-Qwen3-VL-perfornance.png) */}
 
 实验结果显示，SAPO 的表现超过了 GSPO 以及 GRPO-R2

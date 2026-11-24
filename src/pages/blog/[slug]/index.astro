@@ -9,6 +9,7 @@ export async function getStaticPaths() {
       const match = path.match(/content\/([^/]+)\/article\.(?:md|mdx)$/);
       if (!match) return null;
       const slug = match[1];
+      if (slug === "demo") return null;
       const articleMod = await load();
       const lastModified = await getArticleBundleLastModifiedIso(slug);
       return {

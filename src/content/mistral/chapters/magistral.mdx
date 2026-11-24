@@ -102,7 +102,7 @@ $$
 
 训练框架如下图所示
 
-![Magistral_data_training](/posts/notes-on-magistral/Magistral_data_training.png)
+{/* Missing legacy Hugo image: ![Magistral_data_training](/posts/notes-on-magistral/Magistral_data_training.png) */}
 
 对于两个模型，作者采用了不同的方式进行训练
 
@@ -140,7 +140,7 @@ RL 的训练与 Magistral Medium 一致。
 3. 收集 roll-out 以及对应的 reward, 直到达到给定的 batch 大小
 4. 使用 Trainer 更新 Generator 的权重, 将更新后的权重同步给 Generator，这样其他 generator 在生成新的 token 时用的就是新的权重
 
-![Magistral_infra](/posts/notes-on-magistral/Magistral_infra.png)
+{/* Missing legacy Hugo image: ![Magistral_infra](/posts/notes-on-magistral/Magistral_infra.png) */}
 
 > [!tip] Recall
 > MiMo 里的做法是，当我们收集到给定数量的 roll-out 之后，我们就基于这些 roll-out 更新权重，然后进行下一次采样
@@ -149,7 +149,7 @@ RL 的训练与 Magistral Medium 一致。
 
 ### Evaluation
 
-![Performance of Magistral Medium](/posts/notes-on-magistral/Magistral_performance_AIME.png)
+{/* Missing legacy Hugo image: ![Performance of Magistral Medium](/posts/notes-on-magistral/Magistral_performance_AIME.png) */}
 
 ### Ablation
 
@@ -170,7 +170,7 @@ RL 的训练与 Magistral Medium 一致。
 **Distillation v.s. RL for small models**
 作者探究了对于小语言模型，使用 RL 进行训练的效果更好，还是使用蒸馏的效果更好。
 
-![Performance of RL v.s. distillation](/posts/notes-on-magistral/Magistral_distillation_vs_rl_performance.png)
+{/* Missing legacy Hugo image: ![Performance of RL v.s. distillation](/posts/notes-on-magistral/Magistral_distillation_vs_rl_performance.png) */}
 
 > [!tip] Observation
 > 实验结果发现，仅使用 RL 的效果与蒸馏差不多，甚至更好
@@ -178,7 +178,7 @@ RL 的训练与 Magistral Medium 一致。
 **Batch size**
 作者还探究了 batch size $n_{batch}$ 以及 mini-batch size $n_{mini}$ 的影响。这里 batch size 指的是用于更新梯度的 roll-out 数量，mini-batch size 指的是计算梯度的 roll-out 数量，作者还定义了并行生成 roll-out 的数量 $n_{async}$. 当 $n_{async} \gg  n_{batch}$ 时，生成的 sequence 就很可能是 off-policy 的。作者固定 $n_{async}=4096$, 然后对比了不同的 $n_{batch}$ 和 $n_{mini}$ 对模型表现的影响，结果如下：
 
-![Ablation study on batch size](/posts/notes-on-magistral/Magistral_batch_ablation.png)
+{/* Missing legacy Hugo image: ![Ablation study on batch size](/posts/notes-on-magistral/Magistral_batch_ablation.png) */}
 
 > ![tip] Observation
 > 当 $n_{batch}=n_{mini}$ 时，模型表现差不太多（左图）；当 $n_{batch}$ 为常数，而 $n_{mini}$ 逐渐减小时，模型表现会逐渐变差。
@@ -192,7 +192,7 @@ RL 的训练与 Magistral Medium 一致。
 
 实验结果如下
 
-![Ablation study on normalization](/posts/notes-on-magistral/Magistral_normalization.png)
+{/* Missing legacy Hugo image: ![Ablation study on normalization](/posts/notes-on-magistral/Magistral_normalization.png) */}
 
 作者发现，三种方式的区别并不是很大。
 
@@ -201,12 +201,12 @@ RL 的训练与 Magistral Medium 一致。
 **length dimension**
 作者首先保存模型的 weight, 然后使用 PCA 进行降维，并在 2 维上进行可视化，作者对权重进行扰动，然后记录模型的 reward 以及输出长度。结果发现，模型存在一个 length dimension. 可视化结果如下图所示
 
-![Magistral length dimension visualization](/posts/notes-on-magistral/Magistral_length_dimension.png)
+{/* Missing legacy Hugo image: ![Magistral length dimension visualization](/posts/notes-on-magistral/Magistral_length_dimension.png) */}
 
 **multimodal extension**
 由于 Magistral medium 和 Magistral small 都是基于 MLLM 中的 LLM 开发得到的，作者还探究了更换 LLM 的 checkpoint 之后，原始 MLLM 的表现，结果发现，模型在多模态 reasoning 相关任务上的表现也得到了提升，结果如下图所示：
 
-![Magistral multimodal performance](/posts/notes-on-magistral/Magistral_multimodal_extention.png)
+{/* Missing legacy Hugo image: ![Magistral multimodal performance](/posts/notes-on-magistral/Magistral_multimodal_extention.png) */}
 
 **Impact on other capabilities**
 作者还探究了 RL 训练对模型其他表现的影响，结果发现，RL 训练可以提高模型的 tool calling 和指令跟随能力，实验结果如下表所示

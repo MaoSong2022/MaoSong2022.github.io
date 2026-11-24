@@ -15,7 +15,7 @@
 
 k1.5 base model是一个基于transformer的多模态大模型，论文没有给出详细的模型结构，只有如下的示意图
 
-![Architecture of k1.5 base model](/posts/notes-on-kimi-k1-5/k1-5-model-arch.png)
+{/* Missing legacy Hugo image: ![Architecture of k1.5 base model](/posts/notes-on-kimi-k1-5/k1-5-model-arch.png) */}
 
 k1.5 base model的训练包括三个阶段：
 
@@ -126,7 +126,7 @@ $$
 
 #### Training System
 
-![Large Scale Reinforcement Learning Training System for LLM](/posts/notes-on-kimi-k1-5/k1-5-training-system.png)
+{/* Missing legacy Hugo image: ![Large Scale Reinforcement Learning Training System for LLM](/posts/notes-on-kimi-k1-5/k1-5-training-system.png) */}
 
 为了高效地进行RL训练，作者构建了一个iterative synchronous RL训练框架。框架如上图所示。框架的创新之处在于**Partial Rollout**，该方法可以更高效的处理复杂的推理轨迹。框架包含了以下几部分：
 
@@ -152,7 +152,7 @@ $$
 
 因此，作者构建了一个hybrid deployment framework来解决上述问题，其框架如下图所示。
 
-![Hybrid Deployment Framework](/posts/notes-on-kimi-k1-5/k1-5-hybrid-deployment-framework.png)
+{/* Missing legacy Hugo image: ![Hybrid Deployment Framework](/posts/notes-on-kimi-k1-5/k1-5-hybrid-deployment-framework.png) */}
 
 该框架的主要优势在于使用Kubernetes Sidecar containers来在一个pod中共享所有的GPU资源。这样就避免了资源分配不均的问题。
 
@@ -203,18 +203,18 @@ $$
 
 1. K1.5在long-CoT任务上的表现
 
-![Long-CoT-benchmark](/posts/notes-on-kimi-k1-5/k1-5-long-cot-benchmark.png)
+{/* Missing legacy Hugo image: ![Long-CoT-benchmark](/posts/notes-on-kimi-k1-5/k1-5-long-cot-benchmark.png) */}
 
 2. K1.5在Short-CoT任务上的表现
 
-![Short-CoT-benchmark](/posts/notes-on-kimi-k1-5/k1-5-short-cot-benchmark.png)
+{/* Missing legacy Hugo image: ![Short-CoT-benchmark](/posts/notes-on-kimi-k1-5/k1-5-short-cot-benchmark.png) */}
 
 3. Long Context Scaling
    作者在实验中还探究了上下文长度对模型推理能力的影响。作者针对几个模型进行了实验，结果在图5和图6里面。结果发现，随着上下文长度的增加，模型的推理能力会逐渐提升。
 
 4. Long2short
 
-![Long2short](/posts/notes-on-kimi-k1-5/k1-5-long2short.png)
+{/* Missing legacy Hugo image: ![Long2short](/posts/notes-on-kimi-k1-5/k1-5-long2short.png) */}
 
 #### Ablation study
 
