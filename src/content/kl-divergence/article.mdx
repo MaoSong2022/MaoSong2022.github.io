@@ -1,5 +1,5 @@
 ---
-title: KL divergence from machine learning to reinforcement learning 
+title: "KL Divergence：从机器学习到 LLM 强化学习的估计、梯度偏差与方差分析"
 description: 在强化学习中，KL divergence 常被用作 policy 正则项，但很多不稳定现象并非来自 KL 本身，而是来自其估计方式。本文展示了为什么“无偏的 KL 估计”并不能保证“无偏的 KL 梯度”，并系统分析了不同 KL estimator 在 on-policy 与 off-policy 场景下的行为差异。通过理论推导与实验验证，文章揭示了 KL 作为 loss 与 reward shaping 时的本质区别，并解释了实践中低方差 KL 设计背后的原因
 authors:
 - name: Mao Song
@@ -13,6 +13,18 @@ categories:
 showPdf: false
 seoThumbImage: "/og/KL-divergence-estimator-gradient-bias.png"
 ---
+
+import Note from "../../components/Note.astro";
+
+<Note title="TL;DR" emoji="💡" variant="info">
+
+在 LLM 强化学习中，KL 正则导致的训练不稳定，根源往往不在 KL 本身，而在 **KL estimator 的梯度偏差与方差**：
+
+- **反直觉核心结论**：**无偏的 KL 估计 $\neq$ 无偏的 KL 梯度**（$\mathbb{E}[\widehat{D_{\mathrm{KL}}}] = D_{\mathrm{KL}} \nRightarrow \mathbb{E}[\nabla_\theta \widehat{D_{\mathrm{KL}}}] = \nabla_\theta D_{\mathrm{KL}}$），因为采样分布本身可能依赖参数 $\theta$。
+- **KL 作为 Loss 项**：on-policy 直接用 $k_1$ 期望梯度为 $0$、用 $k_3$ 实际优化的是 forward KL，只有 $k_2$ 给出无偏的 reverse KL 梯度；显式引入重要性权重 $\rho = \pi_\theta / \mathrm{sg}(\pi_{\mathrm{old}})$ 后（兼顾 on/off-policy），**$\rho k_3$ 与 $\mathrm{sg}(\rho)k_2$ 同时实现无偏且低方差**。
+- **KL 作为 Reward Shaping 项**：不参与反向传播时，只有 **$k_1 = -\log(\pi_{\mathrm{ref}}/\pi_\theta)$** 能给出无偏梯度。
+
+</Note>
 
 ## Introduction
 

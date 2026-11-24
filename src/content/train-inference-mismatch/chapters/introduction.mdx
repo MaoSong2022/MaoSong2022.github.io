@@ -1,3 +1,15 @@
+import Note from "../../../components/Note.astro";
+import HtmlEmbed from "../../../components/HtmlEmbed.astro";
+
+<Note title="TL;DR" emoji="💡" variant="info">
+
+现代 LLM RL 框架通常将高吞吐推理引擎（vLLM / SGLang）与高精度训练引擎（FSDP / Megatron）解耦，导致同一组权重 $\theta$ 在两端给出不同概率分布（$\pi_\theta \neq \mu_\theta$），引发 **Training-Inference Mismatch (TIM)**：
+
+- **危害机制**：TIM 将名义上的 on-policy 训练悄悄变为有偏的 off-policy 更新；在 **MoE 模型**中，离散的 Top-K 路由差异会进一步放大这一误差，导致低概率 token 处 $\mathrm{KL}_{\mathrm{TIM}}$ 飙升、梯度范数爆炸与奖励崩塌。
+- **修正路径**：一方面在 **Infra 层**对齐精度与算子（FP32 lm_head/softmax、FP16 训练、Batch-Invariant Kernels、MoE Router Replay R2/R3）；另一方面在 **算法层**通过截断或掩码重要性采样（TIS、Seq-MIS、Rollout Masking、IcePop、KPop、IPO）抑制高方差离群样本。
+
+</Note>
+
 ## Introduction
 
 现代的 RL 框架比如 verl [@verl] 会使用不同的框架来完成 inference engine 和 training engine, 比如说使用 megatron [@Megatron] 或者 FSDP [@FSDP] 进行训练，使用 vLLM [@vllm] 或者 SGLang [@SGLang] 进行推理。
@@ -5,7 +17,13 @@
 尽管使用的模型一致，但由于 training engine 和 inference engine 的优化目标不同：前者要求数值稳定性和精度， 后者强调最大化 throughput.
 
 这种优化目标的不一致使得 inference engine 和 training engine 的实现和最终输出不完全一致，最终体现为随着 RL 训练进行，gradient norm 会突然爆炸，reward 突然下降，模型训练崩溃。
-实验结果如下图所示 【TODO】
+典型现象如下图所示：
+
+<HtmlEmbed
+  src="tim-training-collapse.html"
+  title="Training-Inference Mismatch (TIM) 引发 RL 训练崩溃的典型现象示意图"
+  desc="左：训推引擎分离导致同一权重下的策略分布偏离；右：未修正 TIM 时 Reward 骤降与 Gradient Norm / KL_TIM 尖峰同步出现，与修正后的平稳收敛形成对比。"
+/>
 
 我们将这个问题称为 training-inference mismatch (TIM) 问题。
 

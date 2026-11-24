@@ -1,6 +1,6 @@
 ---
-title: Tokenizer
-description: Tokenizer 总结与 BPE tokenizer 的高效实现
+title: "Tokenizer 原理与实践：BPE、Unigram 分词算法与工程实现"
+description: "系统解析大语言模型 Tokenizer 原理与实践：对比 Word、Character、Byte 与 Subword 分词取舍，详解 BPE、WordPiece 与 Unigram 算法及高效增量实现，并梳理 tiktoken、SentencePiece 与 HuggingFace Tokenizers 选型。"
 authors:
   - name: Mao Song
     url: https://maosong.website/
@@ -13,10 +13,21 @@ tableOfContentsAutoCollapse: true
 ---
 
 import Image from "../../components/Image.astro";
+import Note from "../../components/Note.astro";
 import tokenization_pipeline from "../../assets/image/tokenization_pipeline.png";
 import bpe_algorithm from "../../assets/image/bpe_algorithm.png";
 import unigram from "../../assets/image/unigram.png";
 import Embeds from "../../assets/embeds/tokenizer-comparison-with-classification.html";
+
+<Note title="TL;DR" emoji="💡" variant="info">
+
+Tokenizer 是文本进入大语言模型的第一道关口，核心是在**词表大小、OOV 覆盖与 token 序列长度**之间取得平衡：
+
+- **为什么是 Subword**：Word 分词存在 OOV 与长尾稀疏问题，Byte 分词词表极小但序列过长（放大 Attention 的 $O(N^2)$ 开销）；现代 LLM 普遍采用 Subword 分词作为折中。
+- **三大主流算法**：**BPE** 自底向上按频次合并高频 pair（GPT 系列），**WordPiece** 按互信息得分合并（BERT），**Unigram** 自顶向下基于 EM 与动态规划剪枝词表（T5 / SentencePiece）。
+- **工程实现与选型**：通过 `pair_to_word` 索引与增量更新 `pair_freq` 可大幅加速 BPE 训练；工程落地优先考虑 **HuggingFace Tokenizers**（Rust 加速、生态完善）、**SentencePiece**（多语言友好）或 **tiktoken**（GPT 计数与推理）。
+
+</Note>
 
 ## Introduction
 

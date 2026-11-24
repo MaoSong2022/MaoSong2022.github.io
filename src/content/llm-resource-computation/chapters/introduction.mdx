@@ -1,3 +1,15 @@
+import Note from "../../../components/Note.astro";
+
+<Note title="TL;DR" emoji="💡" variant="info">
+
+本文以 Qwen3 的 Decoder-only Transformer 为统一口径，建立 **Dense 与 MoE** 架构的资源心智模型：
+
+- **参数量**：区分决定存储规模的总参数量 $P$ 与决定单 token 计算量的激活参数量 $P_{\mathrm{active}}$，并完整计入 GQA、SwiGLU、词表与共享 Embedding。
+- **训练 FLOPs**：从逐层矩阵乘法推出单步前向约 $2 P_{\mathrm{active}}$、训练总计约 $6 P_{\mathrm{active}} D$（含长序列 Attention 的 $O(s^2)$ 项），并与 Chinchilla Scaling Law 衔接。
+- **显存构成与优化**：拆解训练期四类静态/动态显存（权重、梯度、AdamW 优化器状态、激活值）与推理期 **KV Cache** 瓶颈，定量比较混合精度、ZeRO、模型并行与 Activation Checkpointing 的时空权衡。
+
+</Note>
+
 ## 统一记号与计算口径
 
 评估一个 LLM 的资源需求，需要分别回答三个问题：**模型有多少参数、一次训练或推理需要多少计算、运行时需要多少显存**。三者相关，但不能互相替代：MoE 的总参数量决定权重存储规模，激活专家数影响计算量；上下文变长不会增加参数，却会增加 attention 计算和 KV cache。

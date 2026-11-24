@@ -1,19 +1,17 @@
 import Note from "../../../components/Note.astro";
 
+<Note title="TL;DR" emoji="💡" variant="info">
 
+本文围绕一个核心问题展开：**我们是如何使用强化学习来提高大语言模型的能力上限的？**
 
-## Introduction
-
-
-本文围绕一个核心问题展开：
-
-<Note variant="info">
-
-我们是如何使用强化学习来提高大语言模型的能力上限的？
+- **主线推导**：沿着 **MDP 与 Bellman 方程 → 策略评估与价值方法 → 策略梯度与 Actor-Critic → TRPO / PPO / GRPO** 四阶段，把经典 RL 理论与 LLM 自回归生成一一对应。
+- **关键洞见**：解释为何高维离散词表与序列级奖励使 Q-learning/DQN 难以直接用于 LLM，以及现代 LLM 后训练为何收敛到以 **PPO（信赖域裁剪 + GAE）** 和 **GRPO（组内相对优势、去除 Critic）** 为代表的策略优化范式。
 
 </Note>
 
-为了解决这个问题，我们需要回答：
+## Introduction
+
+为了回答上述核心问题，我们需要逐步理清：
 
 1. 强化学习是如何建模的？
 2. 强化学习有哪些算法？哪些强化学习算法适用/不适用于大语言模型？这些算法背后的原理是什么？
