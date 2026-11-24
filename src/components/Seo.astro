@@ -13,6 +13,9 @@ interface Props {
   modified?: string;
   tags?: string[];
   image?: string; // Preferred absolute URL
+  noindex?: boolean;
+  locale?: string;
+  inLanguage?: string;
 }
 
 const {
@@ -23,6 +26,9 @@ const {
   modified,
   tags = [],
   image,
+  noindex = false,
+  locale = "zh_CN",
+  inLanguage = "zh-CN",
 } = Astro.props as Props;
 
 const url = Astro.url?.toString?.() ?? "";
@@ -30,6 +36,12 @@ const site = (Astro.site ? String(Astro.site) : "") as string;
 
 // Build base URL: prefer Astro.site, fallback to origin from Astro.url
 const baseUrl = site || (Astro.url ? `${Astro.url.protocol}//${Astro.url.host}` : "");
+
+const brandName =
+  SITE_TITLE && SITE_TITLE.toLowerCase() !== "homepage"
+    ? SITE_TITLE
+    : SITE_AUTHOR;
+const fullTitle = title.includes(brandName) ? title : `${title} | ${brandName}`;
 
 const ogImage =
   image && image.length > 0
@@ -45,6 +57,7 @@ const jsonLd = {
   "@type": "Article",
   headline: title,
   description: description || undefined,
+  inLanguage,
   datePublished: published || undefined,
   dateModified: modified || published || undefined,
   author: (authors.length ? authors : [SITE_AUTHOR]).map((name) => ({
@@ -53,7 +66,7 @@ const jsonLd = {
   })),
   publisher: {
     "@type": "Organization",
-    name: SITE_TITLE,
+    name: brandName,
     url: baseUrl || undefined,
   },
   keywords: tags.length ? tags.join(", ") : undefined,
@@ -62,14 +75,16 @@ const jsonLd = {
 };
 ---
 
-<title>{title}</title>
+<title>{fullTitle}</title>
 <meta name="description" content={description} />
 <link rel="canonical" href={url} />
 <meta
   name="robots"
-  content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+  content={noindex
+    ? "noindex, nofollow"
+    : "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"}
 />
-<meta name="googlebot" content="index, follow" />
+<meta name="googlebot" content={noindex ? "noindex, nofollow" : "index, follow"} />
 <meta
   name="google-site-verification"
   content={SITE_GOOGLE_SITE_VERIFICATION}
@@ -80,8 +95,8 @@ const jsonLd = {
 <meta property="og:title" content={title} />
 {description && <meta property="og:description" content={description} />}
 <meta property="og:url" content={url} />
-<meta property="og:locale" content="en_US" />
-<meta property="og:site_name" content={SITE_TITLE} />
+<meta property="og:locale" content={locale} />
+<meta property="og:site_name" content={brandName} />
 {ogImage && <meta property="og:image" content={ogImage} />}
 {ogImage && <meta property="og:image:alt" content={title} />}
 {published && <meta property="article:published_time" content={published} />}

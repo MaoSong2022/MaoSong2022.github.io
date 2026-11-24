@@ -32,7 +32,7 @@ $$
 
 具体细节参考 [Position Encoding](/blog/position-encoding/) 中的 RoPE 部分介绍。这里面的关键在于，最后的结果只与相对位置 $i-j$ 相关，而与绝对位置 $i$ 和 $j$ 无关。因此，我们可以用一个相对位置矩阵 $M\in\mathbb{R}^{L\times L}$ 来表示这个信息，其中 $M_{ij}=P_{\mathbf{q},i}-  P_{\mathbf{k},j}$ 代表了第 $i$ 个位置的 query $\mathbf{q}$ 和第 $j$ 个位置的 key $\mathbf{k}$ 的相对位置信息，其示意图如下所示
 
-![Relative Position Visualization](/posts/dual-chunk-attention/DCA_relative_position_visualization.png)
+{/* Missing legacy Hugo image: ![Relative Position Visualization](/posts/dual-chunk-attention/DCA_relative_position_visualization.png) */}
 
 原始版本的 RoPE 的问题在于，在训练时，模型没有见过更长的上下文，因此其泛化性也最差，这一点在 YaRN [@YaRN] 已经得到了验证
 
@@ -77,7 +77,7 @@ $$
 
 对其进行可视化，我们就得到
 
-![Intra Chunk Attention Visualization](/posts/dual-chunk-attention/DCA_intra_chunk_attention_visualization.png)
+{/* Missing legacy Hugo image: ![Intra Chunk Attention Visualization](/posts/dual-chunk-attention/DCA_intra_chunk_attention_visualization.png) */}
 
 #### Inter-Chunk Attention
 
@@ -115,7 +115,7 @@ $$
 
 对其进行可视化，得到
 
-![Inter Chunk Attention Visualization](/posts/dual-chunk-attention/DCA_inter_chunk_attention_visualization.png)
+{/* Missing legacy Hugo image: ![Inter Chunk Attention Visualization](/posts/dual-chunk-attention/DCA_inter_chunk_attention_visualization.png) */}
 
 #### Successive-Chunk Attention
 
@@ -149,7 +149,7 @@ $$
 
 对其进行可视化，得到
 
-![Successive Chunk Attention Visualization](/posts/dual-chunk-attention/DCA_successive_chunk_attention_visualization.png)
+{/* Missing legacy Hugo image: ![Successive Chunk Attention Visualization](/posts/dual-chunk-attention/DCA_successive_chunk_attention_visualization.png) */}
 
 #### Computation
 
@@ -259,17 +259,17 @@ class Attention(nn.Module):
 
 #### Evaluation
 
-![Perplexity evaluation on PG19](/posts/dual-chunk-attention/DCA_perplexity_evaluation_PG19.png)
+{/* Missing legacy Hugo image: ![Perplexity evaluation on PG19](/posts/dual-chunk-attention/DCA_perplexity_evaluation_PG19.png) */}
 
 作者还分析了一下 DCA 的效率，结果如下
 
-![Efficiency of DCA](/posts/dual-chunk-attention/DCA_efficiency_analysis.png)
+{/* Missing legacy Hugo image: ![Efficiency of DCA](/posts/dual-chunk-attention/DCA_efficiency_analysis.png) */}
 
 可以看到，在 flash attention [@FlashAttention] 的基础上加上 DCA 之后，内存占用和推理时间并没有发生太大变化
 
 作者还分析了三种 attention 对结果的贡献，如下图所示
 
-![Ablation study on three modules](/posts/dual-chunk-attention/DCA_ablation_study.png)
+{/* Missing legacy Hugo image: ![Ablation study on three modules](/posts/dual-chunk-attention/DCA_ablation_study.png) */}
 
 结果显示，intra block 的 perplexity 是最低的，但是其在下游任务上表现是最差的。当三者结合在一起之后，perplexity 和下游任务上的表现都是最好的。
 

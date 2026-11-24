@@ -54,13 +54,13 @@ PPO的传统设置为：
 
 另一方面，作者认为 reward model 和 value model 虽然都是提供关于 response 的信息，但是他们之间还是存在一些差距的。作者给出了使用PPO来进行 long CoT 任务相关的实验结果
 
-![failue_PPO](/posts/notes-on-vc-ppo/failue_PPO.png)
+{/* Missing legacy Hugo image: ![failue_PPO](/posts/notes-on-vc-ppo/failue_PPO.png) */}
 
 可以看到，随着训练的进行，模型的context length以及在AIME benchmark上的表现都出现了下降。
 
 在本文中，作者主要是在 verifiable tasks 上进行实验，答案的正确性与 response length 长度关系不大，因此, response length 可以反应模型的训练情况。 作者绘制了训练过程中， value 和 advantage 与 token position 的关系图
 
-![value_advantage_position](/posts/notes-on-vc-ppo/value_against_pos.png)
+{/* Missing legacy Hugo image: ![value_advantage_position](/posts/notes-on-vc-ppo/value_against_pos.png) */}
 
 从上图可以看到，value 和 advantage 更倾向与给最初的 token 更高的 bias, 作者认为出现这个情况的原因是 value model 和 reward model 的目标并不匹配。 reward model 的目标是给 $\omega$ 也就是 `<eos>` token reward, 对于一开始的 token, reward model会给出比较低的奖励；而 value model 的目标是给整个 response 一个奖励，因此，value model 会倾向于给最初的 token 更高的奖励。我们对 GAE 进行改写得到：
 
@@ -86,7 +86,7 @@ $$
 
 可以看到，当 $\lambda < 1.0$ 并且 $T-t-1$ 比较大时，`<eos>` token 的reward就非常接近于0了，作者通过实验验证了这一点。
 
-![reward_signal_decay](/posts/notes-on-vc-ppo/reward_signal_decay.png)
+{/* Missing legacy Hugo image: ![reward_signal_decay](/posts/notes-on-vc-ppo/reward_signal_decay.png) */}
 
 可以看到，当我们降低 $\lambda$ 时，reward signal 的稀疏性会显著增加，从而提高了模型的训练难度。
 
@@ -125,7 +125,7 @@ $$
 
 最终，我们就可以得到 VC-PPO 的算法：
 
-![vc_ppo](/posts/notes-on-vc-ppo/vc-ppo.png)
+{/* Missing legacy Hugo image: ![vc_ppo](/posts/notes-on-vc-ppo/vc-ppo.png) */}
 
 # 实验
 
@@ -141,29 +141,29 @@ $$
 
 实验结果如下图所示
 
-![results](/posts/notes-on-vc-ppo/results.png)
+{/* Missing legacy Hugo image: ![results](/posts/notes-on-vc-ppo/results.png) */}
 
 作者还分析了以下模型在AIME数据集上随着训练步数增加准确率的变化情况
 
-![results_aime](/posts/notes-on-vc-ppo/AIME_acc_dynamics.png)
+{/* Missing legacy Hugo image: ![results_aime](/posts/notes-on-vc-ppo/AIME_acc_dynamics.png) */}
 
 ## Ablation Study
 
 作者首先探究了 value pretraining 以及 decoupled GAE 对于模型性能的影响
 
-![ablation_study](/posts/notes-on-vc-ppo/ablation_vc_ppo_componenets.png)
+{/* Missing legacy Hugo image: ![ablation_study](/posts/notes-on-vc-ppo/ablation_vc_ppo_componenets.png) */}
 
 从上图可以看到，直接使用PPO并不能提升模型的表现，而使用value pretraining 以及 decoupled GAE 能够显著提升模型的表现。
 
 作者接下来探究了不同的value pretraining steps对模型的影响，结果如下图
 
-![ablation_study_2](/posts/notes-on-vc-ppo/ablation_value_pretraining.png)
+{/* Missing legacy Hugo image: ![ablation_study_2](/posts/notes-on-vc-ppo/ablation_value_pretraining.png) */}
 
 从上表可以看到，value pretraining 的训练步数并不是越多越好，随着训练步数的增加，模型可能会出现过拟合的现象。
 
 最后作者还分析了以下 $\lambda_{\text{actor}}$ 对于模型性能的影响，结果如下图
 
-![ablation_study_3](/posts/notes-on-vc-ppo/ablation_lambda_actor.png)
+{/* Missing legacy Hugo image: ![ablation_study_3](/posts/notes-on-vc-ppo/ablation_lambda_actor.png) */}
 
 可以看到， $\lambda_{\text{actor}} =1.0$ 的效果是最差的，但是 $\lambda_{\text{actor}}$ 也不是越小越好，实验发现当 $\lambda_{\text{actor}} \in [0.95, 1.0)$ 时结果比较好
 
@@ -173,7 +173,7 @@ $$
 
 1. 作者认为，在LLM中进行RL的训练与传统的RL训练不同，我们不再是从一个随机policy开始，而是从一个SFT之后的policy开始，因此，这就会引入 prior，我们需要将 value model 与 policy model 进行对齐，才能使得训练更加稳定。
 2. 作者认为，value pretraining 可以王value model 中注入先验知识，作者通过实验发现，value pretraining 的过程可以分为两个阶段，第一个阶段是random alignment，这个和传统的RL训练类似，第二个阶段是knowledge injection，这个阶段，value model 开始学习如何给重要的token 更高的权重。
-![value-pretraining](/posts/notes-on-vc-ppo/value-pretraining.png)
+{/* Missing legacy Hugo image: ![value-pretraining](/posts/notes-on-vc-ppo/value-pretraining.png) */}
 3. 作者发现， value model 倾向于更大的 $\lambda$, 因此结果会导致更小的 bias 和 更大的 variance. 而 policy model 倾向于更小的 $\lambda$. 这种差异启发我们需要使用一些基于policy gradient 的目标来训练 value model.
 
 # 结论

@@ -12,26 +12,26 @@ export type SiteNewsItem = {
 export const SITE_NEWS: SiteNewsItem[] = [
   {
     date: "2026-09-01",
-    title: "I have joined the SenseTime as a Researcher",
-    summary: "I have joined the SenseTime as a Researcher. I will continue to focus on post training of LLMs.",
+    title: "Joined SenseTime as a Researcher",
+    summary: "I joined SenseTime as a Researcher, focusing on LLM post-training.",
   },
   {
     date: "2026-05-13",
-    title: "Make this blog framework as a blog template",
-    summary: "A blog template for research articles and blog posts.",
+    title: "Released this blog framework as an Astro template",
+    summary: "An open-source Astro template for research articles and technical blogs.",
     href: "https://github.com/MaoSong2022/astro-blog-template",
   },
   {
     date: "2026-05-04",
-    title: "Update the blog framework from Hugo to Astro",
+    title: "Migrated the blog from Hugo to Astro",
     summary:
-      "I update the blog framework from Hugo to Astro. Now the blog is more flexible and easier to maintain.",
+      "Migrated the blog framework from Hugo to Astro for better flexibility and maintainability.",
     href: "/blog",
   },
   {
     date: "2026-01-26",
     title: "Investigating Redundancy in Multimodal Large Language Models with Multiple Vision Encoders",
-    summary: "We invalidate the hypothesis that 'adding more vision encoders will always improve the performance of multimodal large language models'.\n Accetpted by ICLR2026.",
+    summary: "We invalidate the hypothesis that 'adding more vision encoders will always improve the performance of multimodal large language models'.\n Accepted to ICLR 2026.",
     href: "https://maosong.website/Encoder-Redundancy/",
   },
 ];

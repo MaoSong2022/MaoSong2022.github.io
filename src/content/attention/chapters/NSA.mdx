@@ -45,7 +45,7 @@ $$
 
 作者在本文中使用了三种方法 $\mathcal{C}=\{\mathrm{cmp},\mathrm{slc},\mathrm{win}\}$, 分别代表了 compression, selection 以及 sliding window, $g_t^c\in[0,1]$ 代表了不同方法对应的 gating score, 类似于 MoE 的 gating layer, $g_t^c$ 由一个 MLP 和一个 sigmoid activation 生成。最终 NSA 的架构如下图所示
 
-![Overview of NSA architecture](/posts/notes-on-nsa/NSA-architecture.png)
+{/* Missing legacy Hugo image: ![Overview of NSA architecture](/posts/notes-on-nsa/NSA-architecture.png) */}
 
 作者定义 $N_t$ 代表参与计算的 KV 的总个数：
 
@@ -160,17 +160,17 @@ NSA 配置如下
 
 模型先在 8K 的上下文长度下使用 270B token 进行预训练，接下来在使用 [YARN](/blog/long-context/#yarn) 将模型上下文通过 continual pre-training 以及 SFT 扩展到 32K. 训练过程的损失如下图所示
 
-![Training loss of NSA](/posts/notes-on-nsa/NSA-training-loss.png)
+{/* Missing legacy Hugo image: ![Training loss of NSA](/posts/notes-on-nsa/NSA-training-loss.png) */}
 
 作者从 general performance, long-context performance 以及 CoT reasoning performance 三个层面来评估 NSA 的表现。
 
 首先是 NSA 与其他 sparse attention 以及 baseline 在通用任务上表现的对比，结果如下图所示
 
-![Performance of NSA on general benchmarks](/posts/notes-on-nsa/NSA-general-performance.png)
+{/* Missing legacy Hugo image: ![Performance of NSA on general benchmarks](/posts/notes-on-nsa/NSA-general-performance.png) */}
 
 接下来是 NSA 在 LongBench 上的表现：
 
-![Performance of NSA on LongBench](/posts/notes-on-nsa/NSA-long-context-performance.png)
+{/* Missing legacy Hugo image: ![Performance of NSA on LongBench](/posts/notes-on-nsa/NSA-long-context-performance.png) */}
 
 作者还使用了 [DeepSeek-R1](/blog/deepseek-r1/) 中的知识蒸馏方法，结果如下表所示
 
@@ -185,7 +185,7 @@ NSA 配置如下
 
 接下来，作者分析了 NSA 的性质。作者首先对比了 NSA 和 flash attention 2 [@FlashAttention2] 的训练速度，结果如下图所示
 
-![Performance comparison between NSA and flash attention 2](/posts/notes-on-nsa/NSA-training-speed-performance.png)
+{/* Missing legacy Hugo image: ![Performance comparison between NSA and flash attention 2](/posts/notes-on-nsa/NSA-training-speed-performance.png) */}
 
 可以看到，相比于 flash attention 2, NSA 在 forward 过程和 backward 过程的的效率分别提升了 9 倍和 6 倍。作者认为这是由于两个优点：
 

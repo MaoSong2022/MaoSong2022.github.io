@@ -120,10 +120,8 @@ const description =
         </p>
         <p>
           <strong>Resume/CV:</strong>{" "}
-          <a
-            href="https://github.com/MaoSong2022/MaoSong2022.github.io/blob/master/assets/%E6%AF%9B%E6%9D%BE_%E7%AE%80%E5%8E%86.pdf"
-            target="_blank"
-            rel="noopener noreferrer">Download PDF</a>
+          Available upon request via{" "}
+          <a href="mailto:maosong@pjlab.org.cn">email</a>.
         </p>
       </div>
     </section>
@@ -135,7 +133,7 @@ const description =
       <div class="social-links-section">
         <div class="social-grid">
           <a
-            href="https://scholar.google.com/citations?user=${GOOGLE_SCHOLAR_ID}"
+            href={`https://scholar.google.com/citations?user=${GOOGLE_SCHOLAR_ID}`}
             class="social-card scholar-card"
             target="_blank"
             rel="noopener noreferrer"
@@ -160,7 +158,7 @@ const description =
           </a>
 
           <a
-            href="https://github.com/${GITHUB_USERNAME}"
+            href={`https://github.com/${GITHUB_USERNAME}`}
             class="social-card github-card"
             target="_blank"
             rel="noopener noreferrer"

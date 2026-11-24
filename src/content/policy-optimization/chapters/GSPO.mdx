@@ -131,11 +131,11 @@ $$
 
 作者使用 Qwen3-30B-A3B 进行测试。对于 GRPO，作者发现必须使用 Routing Replay training strategy 才能提升 MoE RL 的收敛性， Routing Replay 的具体做法就是保留 $\pi_{\theta_{old}}$ 的激活专家，在 $\pi_{\theta}$ 中使用相同的专家来保持稳定性。但是，GSPO 则不需要这个技巧。
 
-![Routing Replay strategy for GRPO](/posts/notes-on-gspo/GSPO-GRPO-routing-replay.png)
+{/* Missing legacy Hugo image: ![Routing Replay strategy for GRPO](/posts/notes-on-gspo/GSPO-GRPO-routing-replay.png) */}
 
 实验结果如下图所示。
 
-![Comparison of GSPO and GRPO](/posts/notes-on-gspo/GSPO-performance.png)
+{/* Missing legacy Hugo image: ![Comparison of GSPO and GRPO](/posts/notes-on-gspo/GSPO-performance.png) */}
 
 从实验结果可以看到，GSPO 比 GRPO 更加高效，效果也更好。
 

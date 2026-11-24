@@ -11,6 +11,7 @@ import {
   SITE_AUTHOR_URL,
   SITE_LICENSE,
 } from "../consts";
+import { ARTICLE_EDITORIAL } from "../data/article-editorial";
 import "katex/dist/katex.min.css";
 import "../styles/global.css";
 
@@ -20,14 +21,38 @@ interface Props {
     frontmatter?: Record<string, unknown>;
   };
   lastModified?: string;
+  slug?: string;
 }
 
-const { articleMod: ArticleMod, lastModified } = Astro.props as Props;
+const { articleMod: ArticleMod, lastModified, slug } = Astro.props as Props;
 
 // Default OG image served from public/
-const ogDefaultUrl = "/thumb.auto.jpg";
+const ogDefaultUrl = "/og-default.png";
 const articleFM = (ArticleMod as any).frontmatter ?? {};
 const Article = (ArticleMod as any).default;
+const isDraft = articleFM?.draft === true || articleFM?.draft === "true";
+const editorial = slug ? ARTICLE_EDITORIAL[slug] : undefined;
+const completion = editorial?.completion;
+const isNoindex = isDraft || completion === "outline";
+const statusBanner = isDraft
+  ? {
+      kind: "draft",
+      badge: "Draft",
+      text: "本文尚处于草稿阶段，内容未完成且暂未公开索引。",
+    }
+  : completion === "outline"
+    ? {
+        kind: "outline",
+        badge: "Outline",
+        text: "本文目前为大纲与早期笔记，核心章节仍在补充中。",
+      }
+    : completion === "growing"
+      ? {
+          kind: "growing",
+          badge: "In Progress",
+          text: "本文已包含主要内容，部分章节与推导仍在持续完善中。",
+        }
+      : null;
 // Helper to strip HTML tags
 const stripHtml = (text: string) => String(text || "").replace(/<[^>]*>/g, "");
 // docTitle without HTML tags for SEO/meta
@@ -145,14 +170,15 @@ const modified =
 const template: string = (articleFM as any)?.template ?? "article";
 const tags = articleFM?.tags ?? [];
 const categories = articleFM?.categories ?? undefined;
-// Prefer seoThumbImage from frontmatter if provided
+// Prefer seoThumbImage from frontmatter; otherwise use build-time generated /og/<slug>.png
 const fmOg = articleFM?.seoThumbImage as string | undefined;
+const resolvedOg = fmOg || (slug ? `/og/${slug}.png` : ogDefaultUrl);
 const imageAbs: string =
-  fmOg && fmOg.startsWith("http")
-    ? fmOg
+  resolvedOg.startsWith("http")
+    ? resolvedOg
     : Astro.site
-      ? new URL(fmOg ?? ogDefaultUrl, Astro.site).toString()
-      : (fmOg ?? ogDefaultUrl);
+      ? new URL(resolvedOg, Astro.site).toString()
+      : resolvedOg;
 
 // ---- Build citation text & BibTeX from frontmatter ----
 const rawTitle = articleFM?.title ?? "Untitled article";
@@ -207,10 +233,17 @@ const links: Array<{ label: string; url: string; icon?: string }> =
     url: l.url ?? l.href ?? l.link ?? "#",
     icon: l.icon,
   }));
+const articleLang: string =
+  typeof (articleFM as any)?.lang === "string" && (articleFM as any).lang.trim()
+    ? String((articleFM as any).lang).trim()
+    : "zh-CN";
+const articleLocale = articleLang.toLowerCase().startsWith("zh")
+  ? "zh_CN"
+  : "en_US";
 ---
 
 <html
-  lang="en"
+  lang={articleLang}
   data-theme="light"
   data-template={template}
   data-toc-auto-collapse={tableOfContentAutoCollapse ? "1" : "0"}
@@ -226,6 +259,9 @@ const links: Array<{ label: string; url: string; icon?: string }> =
       modified={modified}
       tags={tags}
       image={imageAbs}
+      noindex={isNoindex}
+      locale={articleLocale}
+      inLanguage={articleLang}
     />
     <script is:inline>
       (() => {
@@ -407,6 +443,12 @@ const links: Array<{ label: string; url: string; icon?: string }> =
         tableOfContentAutoCollapse={tableOfContentAutoCollapse}
       />
       <main>
+        {statusBanner && (
+          <aside class={`article-status-banner article-status-banner--${statusBanner.kind}`} role="note">
+            <span class="article-status-banner__badge">{statusBanner.badge}</span>
+            <span class="article-status-banner__text">{statusBanner.text}</span>
+          </aside>
+        )}
         <Article />
       </main>
     </section>
@@ -474,3 +516,39 @@ const links: Array<{ label: string; url: string; icon?: string }> =
     </script>
   </body>
 </html>
+
+<style>
+  .article-status-banner {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 10px 14px;
+    margin: 0 0 24px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color, rgba(0, 0, 0, 0.12));
+    background: var(--surface-bg, rgba(0, 0, 0, 0.03));
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+  .article-status-banner--draft {
+    border-color: rgba(217, 119, 6, 0.4);
+    background: rgba(217, 119, 6, 0.08);
+  }
+  .article-status-banner--outline {
+    border-color: rgba(107, 114, 128, 0.35);
+    background: rgba(107, 114, 128, 0.07);
+  }
+  .article-status-banner__badge {
+    flex-shrink: 0;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.08);
+  }
+  :global([data-theme="dark"]) .article-status-banner__badge {
+    background: rgba(255, 255, 255, 0.12);
+  }
+</style>
