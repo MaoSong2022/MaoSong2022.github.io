@@ -2,7 +2,17 @@
 
 ### Improvements on REINFORCE
 
+#### ReMax
 
+ReMax [@ReMax]  TODO
+
+#### RLOO
+
+RLOO [@RLOO] (REINFORCE Leave-One-Out) 在 time-step $t$, 采样 $K$ 条 trajectories $\{\tau_{1,t},\dots,\tau_{K,t}\}$, 然后定义 baseline 为
+$$
+b_i(s_t)= \frac{1}{K-1}\sum_{j\neq i}R_j
+$$
+TODO 我们来证明这个 baseline 满足 baseline invariance.
 
 #### CISPO
 
