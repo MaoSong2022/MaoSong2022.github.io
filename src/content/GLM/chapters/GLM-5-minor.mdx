@@ -29,3 +29,52 @@ GLM-5.3 Flash 首次提出了结合稀疏注意力和线性注意力的混合架
 模型还使用了 mHC[@mHC] 来提高 scaling efficiency.
 
 预训练阶段，模型使用了 30T 多模态 token.
+
+作者发现，对于 memory-intensive 的任务，参数越多，模型表现越好；而对于 reaosning-intensive 的任务，effective compute 越多，模型表现越好。
+
+### GLM 5.4
+
+GLM 5.4 [@GLM-5.4] 是 Zhipu AI 在 26 年 11 月发布的一个基于 loop transformer 架构的模型。
+
+作者提到，从零开始预训练一个 loop transformer model 的表现不如 native transformer model, 因此 GLM 5.4 基于 GLM-5 base model, loop 2 次然后 continual pre-training 得到。
+
+GLM-5 base model 包含 78 layers, GLM 5.4 将其拆分为 prelude (26 layers), loop (28 layers), coda (24 layers) 三个部分，loop 部分 forward 两次，参数共享
+
+作者做了如下改进：
+
+**Gated progressive updates**
+
+直接 overwritting hidden states, 即 $x_1=\mathrm{loop\_layers}(h_0)$, $h_1=\mathrm{loop\_layers}(x_1)$, 这里 $h_0, h_1$ 分别是 loop 部分的输入和输出 hidden states, $x_1$ 是第一次 loop 的输出，直接计算会导致 activation norm 爆炸，因此，作者加入了一个 per-token gates 来渐进式覆盖 hidden states. 具体做法是，第一次 loop 通过 scale 保守覆盖 hidden states, 第二次 loop 则更激进一些。这样，第一次输出为
+
+$$
+x_1=h_0+\beta_1(\mathrm{loop\_layers}(h_0)-h_0),\beta_1=\sigma(\mathrm{Linear}(\mathrm{RMSNorm}(x_0))\in(0,1)
+$$
+
+第二次输出为
+
+$$
+h_1 = x_1+\beta_2(\mathrm{loop\_layers}(x_1)-x_1),\beta_2=\sigma(\mathrm{Linear}(\mathrm{RMSNorm}(x_1))\in(0,1)
+$$
+
+**Hybrid KV Cache**
+
+作者构建了一个 cross-loop LV sharing 来减少 KV cache 的内存占用。具体做法就是，第二次 loop 的 SWA 复用第一次 loop 的 selected KV cache. 然后再生成当前 loop 对应的 KV cache.
+
+**Sparse Attention Index Reuse**
+
+在第二次 loop 时，aprse attention 的 index 直接复用第一次 loop 的 index 结果
+
+作者对比 baseline 得到如下结果
+
+| **Benchmark** | **Baseline** | **+ Loop**    | **Avg. Length Change** |
+| ------------- | ------------ | ------------- | ---------------------- |
+| AIME25        | 19.17        | 30.42 (+11.3) | -635 tokens (-2%)      |
+| GPQA-Diamond  | 47.58        | 56.26 (+8.7)  | -2,473 tokens (-11.7%) |
+| AA-LCR        | 40.33        | 47.67 (+7.3)  | -539 tokens (-9.7%)    |
+| MMLU-Pro      | 71.65        | 75.05 (+3.4)  | -863 tokens (-14.9%)   |
+| IFBench       | 50.20        | 53.47 (+3.3)  | -763 tokens (-13.0%)   |
+
+由实验结果可以看到：
+
+1. loop 之后，模型在 math, reasoning , long contexgt 能力均有提升
+2. loop 之后，模型思考效率也有提升，具体表现为输出 token 减少，作者认为这是因为 loop 可以将 explicit thinking 转化为 implicit thinking 所导致的
