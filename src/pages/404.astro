@@ -16,7 +16,7 @@ const knownArticleSlugs = Array.from(
 );
 ---
 
-<BaseLayout pageTitle={pageTitle} description={description}>
+<BaseLayout pageTitle={pageTitle} description={description} noindex={true}>
   <script is:inline define:vars={{ knownArticleSlugs }}>
     (() => {
       const knownSlugs = new Set(knownArticleSlugs);

@@ -10,7 +10,13 @@ const articleGlob = import.meta.glob<{ frontmatter: Record<string, unknown> }>("
 const articles = await parseArticleGlob(articleGlob, await getAllArticleBundleLastModifiedIso());
 const order: ContentType[] = ["analysis", "learning", "topics", "reports"];
 ---
-<BaseLayout pageTitle="Articles" description="浏览全站 LLM 教程、技术报告、专题综述与深度剖析文章。" contentClass="site-page--blog" lang="zh-CN">
+<BaseLayout
+  pageTitle="Articles"
+  seoTitle="LLM 技术文章与专题索引：教程、技术报告与深度剖析"
+  description="浏览毛松（Mao Song）全站大语言模型技术文章：涵盖 LLM 数学与系统教程、主流大模型技术报告、注意力与强化学习专题综述及深度推导剖析。"
+  contentClass="site-page--blog"
+  lang="zh-CN"
+>
   <ContentCollections articles={articles} />
   <div class="index-tools"><span>{articles.length} articles · Ordered by readiness, then most recently updated</span><a href="/browse">Search & Filter →</a></div>
   <CompletionLegend />

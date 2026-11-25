@@ -1,9 +1,33 @@
 /** Editorial purpose and reading readiness are intentionally separate. */
 export const CONTENT_TYPES = {
-  learning: { label: "Learning Notes & Tutorials", shortLabel: "Learning Notes", description: "数学、算法与训练系统的基础教程和学习笔记。" },
-  reports: { label: "Technical Reports", shortLabel: "Technical Reports", description: "大模型技术报告阅读笔记，关注架构与训练细节。" },
-  topics: { label: "Topic Overviews", shortLabel: "Topic Overviews", description: "按技术方向整理的专题综述，关注核心工作与演进脉络。" },
-  analysis: { label: "Deep Dives", shortLabel: "Deep Dives", description: "具体技术问题的深入推导与分析。" },
+  learning: {
+    label: "Learning Notes & Tutorials",
+    shortLabel: "Learning Notes",
+    description: "数学、算法与训练系统的基础教程和学习笔记。",
+    seoTitle: "LLM 基础教程与学习笔记：数学、算法与分布式训练系统",
+    seoDescription: "系统梳理大语言模型所需的数学基础、Transformer 架构、强化学习（RL4LLM）、资源计算与分布式并行训练教程，建立可复用的技术心智模型。",
+  },
+  reports: {
+    label: "Technical Reports",
+    shortLabel: "Technical Reports",
+    description: "大模型技术报告阅读笔记，关注架构与训练细节。",
+    seoTitle: "大模型技术报告阅读笔记：DeepSeek、Qwen、Kimi 与 Gemma",
+    seoDescription: "系统梳理 DeepSeek、Qwen、Kimi、LLaMA、Gemma、GLM、Gemini 等主流大语言模型与多模态模型技术报告，深入拆解架构设计、预训练与后训练配方。",
+  },
+  topics: {
+    label: "Topic Overviews",
+    shortLabel: "Topic Overviews",
+    description: "按技术方向整理的专题综述，关注核心工作与演进脉络。",
+    seoTitle: "LLM 核心技术专题综述：Attention、MoE、长上下文与强化学习",
+    seoDescription: "围绕 Attention 机制、MoE 架构、长上下文、优化器、RLHF/策略优化、On-Policy Distillation、推理加速与多模态大模型等核心方向梳理技术演进。",
+  },
+  analysis: {
+    label: "Deep Dives",
+    shortLabel: "Deep Dives",
+    description: "具体技术问题的深入推导与分析。",
+    seoTitle: "LLM 深度推导与专题剖析：KL 散度、训推不一致与数学原理解析",
+    seoDescription: "问题驱动的深度数学推导与对比分析，聚焦 KL 散度估计、训练与推理不一致（Train-Inference Mismatch）及随机游走等容易被忽略的原理细节。",
+  },
 } as const;
 
 export const COMPLETION = {

@@ -49,12 +49,14 @@ const browseArticles: BrowseRow[] = articles.map((a: SiteArticleEntry) => ({
 }));
 
 const pageTitle = "Browse Articles";
+const seoTitle = "Browse LLM Articles by Topic, Status, and Tags";
 const description =
-  "Search articles by content type, status, subject, and tags.";
+  "Search and filter LLM technical articles on Mao Song's blog by content type, reading readiness, subject category, and tags across RL, MLLM, and systems.";
 ---
 
 <BaseLayout
   pageTitle={pageTitle}
+  seoTitle={seoTitle}
   description={description}
   contentClass="site-page--browse"
   lang="en"
