@@ -2,6 +2,20 @@
 
 ### Float
 
+一个浮点数 (floating-point number) 由 $n$ bits 来进行表示，由三部分组成：
+
+1. Sign: $1$ bit, 表示浮点数的符号，$0$ 代表正数，$1$ 代表负数
+2. Exponent: $2$ 的幂次，以二进制表示
+3. Mantissa: 浮点数的有效数字，以二进制表示
+
+一个浮点数的表示方式为：
+
+$$
+x = (-1)^{\mathrm{sign}}\times 2^{\mathrm{exponent}}\times \mathrm{mantissa}
+$$
+
+常见的数据类型有 FP32, FP16, BF16, FP8,
+
 | Property                 | FP16                           | BF16                          |
 | :----------------------- | :----------------------------- | :---------------------------- |
 | Exponent Bits            | 5                              | 8                             |
