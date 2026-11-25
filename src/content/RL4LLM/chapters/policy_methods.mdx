@@ -3,7 +3,7 @@ import Theorem from "../../../components/Theorem.astro";
 import Note from "../../../components/Note.astro";
 import Wide from "../../../components/Wide.astro";
 
-## Policy Based Methods
+## Policy Gradient Methods
 
 Value-based methods 先学习 $Q^*$，再通过 $\arg\max_a Q^*(s,a)$ 间接得到策略。
 对 LLM 而言，我们已经有一个参数化的 auto-regressive policy $\pi_\theta(y_t\mid x,y_{<t})$, 因此更自然的选择是直接调整 $\theta$, 提高高回报 response 的生成概率，这就是 policy-based methods 的核心思想。
@@ -232,18 +232,6 @@ $$
 
 
 
-#### ReMax
-
-ReMax [@ReMax]  TODO
-
-#### RLOO
-
-RLOO [@RLOO] (REINFORCE Leave-One-Out) 在 time-step $t$, 采样 $K$ 条 trajectories $\{\tau_{1,t},\dots,\tau_{K,t}\}$, 然后定义 baseline 为
-$$
-b_i(s_t)= \frac{1}{K-1}\sum_{j\neq i}R_j
-$$
-TODO 我们来证明这个 baseline 满足 baseline invariance.
-
 #### Optimal Baseline
 
 我们可以从理论上推导出最优 baseline.
@@ -378,8 +366,11 @@ $$
 
 | Method       | Expression                                                |
 | ------------ | --------------------------------------------------------- |
-| Vallinna     | $\Psi_t(\tau)=G_0(\tau)=Q^\pi(s_t,a_t)$                   |
+| Vallinna     | $\Psi_t(\tau)=G_0(\tau)=V^\pi(s_0)$                       |
 | Return to go | $\Psi_t(\tau)=\sum_{k=t}^T\gamma^{k-t}r_k$                |
+| MC           |                                                           |
+| TD           |                                                           |
+| Q-function   | $\Psi_t(\tau)=Q^\pi(s_t,a_t)$                             |
 | Advantage    | $\Psi_t(\tau)=A^{\pi}(s_t,a_t)=Q^\pi(s_t,a_t)-V^\pi(s_t)$ |
 
 
