@@ -1,9 +1,9 @@
 import Algorithm from '../../../components/Algorithm.astro';
 import Theorem from "../../../components/Theorem.astro";
 
-## TRPO
+## Trust Region & Proximal Policy Optimization
 
-前面的 policy gradient methods 和 actor-critic mtehods 给出了优化 policy model 的方法，它们都是在算法上进行的创新。这一节，我们来看一下，如何从效率方面来进行改进。
+前面章节介绍的方法都是基于 policy gradient, policy gradient 一般使用 MC 来进行估计，而 MC 估计会有比较大的 variance, 尽管我们通过 baseline 可以实现 variance reduction, 但是我们仍然不能保证每一步都带来性能上的提升。为了解决这个问题，我们在本节介绍 policy improvement methods, 这类方法能够保证模型性能是单调增加的。
 
 ### On-policy and off-policy
 
@@ -50,6 +50,8 @@ $$
 和期望的线性性质 $\mathbb{E}_\pi[aX+b]=a\mathbb{E}_{\pi}[X]+b$ .
 
  这个等式说明，只要 advantage 满足求和为正，我们就可以保证使用 behavior policy $\pi$ 收集到的数据来进行训练有收益。
+
+### TRPO
 
 但是，现在的轨迹采样依赖于 target policy $\pi_{\theta}$, 为了解决这个问题，TRPO 推导了从 behavior policy 中采样带来的 policy improvement. 即
 
@@ -121,7 +123,7 @@ $$
 
 这里 $\hat{A}_t\approx A^{\pi_{\theta_{old}}}(s_t,a_t)$ 是一个 advantage estimator. 注意上面的 estimator 当 $N$ 变大以及 $\pi_{\theta}\approx \pi_{\theta_{old}}$ 时比较准确。
 
-### Gamma Trick
+#### Gamma Trick
 
 在实际实现中，由于 discount factor $\gamma < 1$, 远期 advantage 对梯度的贡献会指数级衰减。为了提高效率，TRPO 中常常使用 $\gamma = 1$ 来简化计算，但此时需要另外一种形式的约束来保证目标函数的有界性。这被称为 **gamma trick**：通过适当选择 $\gamma$ 的值来平衡 bias 和 variance.
 
@@ -131,7 +133,9 @@ $$
 2. 有助于减少远期估计的方差（远期的 $V^{\pi}$ 估计不确定性更大）.
 3. 在 TRPO 的 derivation 中，$\gamma$ 出现在目标函数的 discount 和中，使用较小的 $\gamma$ 可以使 $\pi_{\theta} \approx \pi_{\theta_{old}}$ 的近似更准确.
 
-### Overview
+
+
+#### Overview
 
 我们把上面的结果整理为如下算法
 
@@ -157,11 +161,7 @@ $$
 
 关于这个优化问题的解法可以参考后续 discussion 章节
 
-### Experiments
-
-### Discussion
-
-### Connection with TRO
+#### Connection with TRO
 
 我们将目标函数和约束进行泰勒展开得到
 
@@ -195,6 +195,77 @@ $$
 
 其中 $\alpha\in(0,1)$ 是 backtracking line search 的参数， $j$ 是使得 $\theta_{k+1}$ 满足 KL divergence 约束的最小正整数 $k$.
 
-### Drawbacks
 
-虽然 TRPO 的理论形式非常简单，但是实际上实现起来很麻烦。其根本原因在于这个约束比较难以满足，原始论文中使用了 line search 来解决这个问题，但是当状态空间大了之后，速度会显著下降，这也是 PPO 的核心贡献之一。
+
+### PPO
+
+在上一节中，我们介绍了 TRPO 算法，TRPO 算法是一个二阶算法，TRPO 大幅度提高了 sample efficiency, 但是其问题在于计算/优化太过复杂。因此，PPO 就通过 clip 等技巧保留了 TRPO 思想并降低了计算难度。
+
+在 TRPO 算法中，我们的优化问题形式为：
+
+$$
+\begin{align}
+\max_{\theta}\ &\mathcal{K}(\theta;\theta_{old}) = \mathbb{E}_{\tau\sim(p_0,\pi_{\theta_{old}}, p),a_t'\sim\pi_{\theta_{old}}(\cdot\mid s_t)}\left[\sum_{t=0}^{T-1}\frac{\pi_\theta(a_t'\mid s_t)}{\pi_{\theta_{old}}(a_t'\mid s_t)}A^{\pi_{\theta_{old}}}(s_t,a_t')\right]\\
+\mathrm{s.t.}\ &\max_{s\in\mathcal{S}}\mathrm{KL}(\pi_{\theta_{old}}(\cdot\mid s)\mid\mid \pi_{\theta}(\cdot\mid s))\leq \delta
+\end{align}
+$$
+
+TRPO 的核心思想为，当 $\pi_{\theta}$ 和 $\pi_{\theta_{old}}$ 比较接近时，我们的目标函数 $\mathcal{K}(\theta;\theta_{old})$ 与 policy gradient 的目标函数 $\mathcal{J}(\theta)$ 梯度误差比较小。
+
+基于下面的结果
+$$
+\mathbb{E}[\mathrm{TV}(\pi,\pi_k)(s)] = \frac12\mathbb{E}\left[\left\vert\frac{\pi_{\theta}(a\mid s)}{\pi_{\theta_{old}}(a\mid s)}-1\right\vert\right]
+$$
+PPO 通过另一种形式来约束 **$\pi_{\theta}$ 和 $\pi_{\theta_{old}}$ 比较接近**，即
+$$
+r_t(\theta) := \frac{\pi_\theta(a_t'\mid s_t)}{\pi_{\theta_{old}}(a_t'\mid s_t)} \approx 1
+$$
+
+基于这个思想，我们可以丢弃 TRPO 的约束，直接对 $r_t(\theta)$ 进行约束，这个约束可以使用 $\mathrm{clip}$ 函数来实现，此时优化的目标函数就变成了
+
+$$
+\mathcal{J}(\theta) = \mathbb{E}_{(q,a)\sim\mathcal{D},o_{\leq t}\sim \pi_{\theta_{old}}(\cdot\mid q)}\left[ \mathrm{clip}\left(r_t(\theta), 1-\epsilon, 1+\epsilon\right)\hat{A}_t \right]
+$$
+
+这里 $\epsilon>0$ 是一个超参数，类似于 TRPO 中的 $\delta$.
+
+$$
+\mathrm{clip}(x,\ell, r)=\begin{cases}
+\ell, &\text{ if }x\leq \ell\\
+x, &\text{ if }\ell<x<r\\
+r, &\text{ if }x \geq r
+\end{cases}
+$$
+
+现在我们已经通过 $\mathrm{clip}$ 抛弃了 TRPO 复杂的约束了。我们来分析一下目标函数的性质，我们将不同的结果总结为下表
+
+| $\hat{A}_t$ | $r_t$                     | objective               | gradient                     | description                              |
+| ----------- | ------------------------- | ----------------------- | ---------------------------- | ---------------------------------------- |
+| $>0$        | $r>1+\epsilon$            | $(1+\epsilon)\hat{A}_t$ | 0                            | 好动作，比 old policy 概率更大，不更新   |
+| $>0$        | $[1-\epsilon,1+\epsilon]$ | $r_t\hat{A}_t$          | $\nabla_\theta r_t\hat{A}_t$ | 好动作，与 old policy 概率差不多，更新   |
+| $>0$        | $r<1-\epsilon$            | $(1-\epsilon)\hat{A}_t$ | 0                            | 好动作，比 old policy 概率更小，不更新   |
+| $<0$        | $r>1+\epsilon$            | $(1+\epsilon)\hat{A}_t$ | 0                            | 坏动作，比 old policy 概率更大，不更新   |
+| $<0$        | $[1-\epsilon,1+\epsilon]$ | $r_t\hat{A}_t$          | $\nabla_\theta r_t\hat{A}_t$ | 坏动作，比 old policy 概率差不多，更新   |
+| $<0$        | $r<1-\epsilon$            | $(1-\epsilon)\hat{A}_t$ | 0                            | 坏动作，比 old policy 概率差更小，不更新 |
+
+从结果中我们可以看出，只有当 $r_t\approx 1$ 时，我们才会更新我们的模型，对于 $\hat{A}_t>0, r_t<1-\epsilon$ 和 $\hat{A}_t<0, r_t<1-\epsilon$ 这两种应该更新的情况，我们并没有更新，我们的 sample efficiency 很低。为了解决这个问题，我们在 $\mathrm{clip}$ 的基础上，进一步加入一个 $\min$ 函数来进行控制，这样，我们就得到了 PPO 的目标函数：
+
+$$
+\mathcal{J}_{\mathrm{PPO}}(\theta) = \mathbb{E}_{(q,a)\sim\mathcal{D},o_{\leq t}\sim \pi_{\theta_{old}}(\cdot\mid q)}\left[ \min\left(r_t(\theta)\hat{A}_t,\mathrm{clip}\left(r_t(\theta), 1-\epsilon, 1+\epsilon\right)\hat{A}_t\right) \right]
+$$
+
+此时，我们再对目标函数进行分析，就得到
+
+| $\hat{A}_t$ | $r_t$            | objective               | gradient                     | description                                      |
+| ----------- | ---------------- | ----------------------- | ---------------------------- | ------------------------------------------------ |
+| $>0$        | $>1+\epsilon$    | $(1+\epsilon)\hat{A}_t$ | $0$                          | 好动作，比 old policy 概率更大，不需要更新       |
+| $>0$        | $\leq1+\epsilon$ | $r_t\hat{A}_t$          | $\nabla_\theta r_t\hat{A}_t$ | 好动作，与 old policy 概率差不多或更小，需要更新 |
+| $<0$        | $\geq1-\epsilon$ | $r_t\hat{A}_t$          | $\nabla_\theta r_t\hat{A}_t$ | 坏动作，比 old policy 概率更小，不需要概率       |
+| $<0$        | $<1-\epsilon$    | $(1-\epsilon)\hat{A}_t$ | $0$                          | 坏动作，与 old policy 概率差不多或更高，概率     |
+
+可以看到，此时 PPO 的目标函数就解决了 sample efficiency 过低的问题了。
+
+### Experiments
+
+### Discussion
+
