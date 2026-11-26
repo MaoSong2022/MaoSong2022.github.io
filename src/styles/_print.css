@@ -14,7 +14,8 @@
   }
 
   /* Keep the banner (hero), hide non-essential UI elements */
-  #theme-toggle {
+  #theme-toggle,
+  .back-to-top {
     display: none !important;
   }
 

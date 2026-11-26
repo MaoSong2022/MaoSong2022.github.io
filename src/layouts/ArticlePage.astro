@@ -3,6 +3,7 @@ import HeroArticle from "../components/HeroArticle.astro";
 import HeroPaper from "../components/HeroPaper.astro";
 import Footer from "../components/Footer.astro";
 import Header from "../components/Header.astro";
+import BackToTop from "../components/BackToTop.astro";
 import Seo from "../components/Seo.astro";
 import TableOfContents from "../components/TableOfContents.astro";
 import HtmlEmbed from "../components/HtmlEmbed.astro";
@@ -475,6 +476,8 @@ const articleLocale = articleLang.toLowerCase().startsWith("zh")
       articleUrl={Astro.url.href}
       slug={slug}
     />
+
+    <BackToTop />
 
     <script>
       // Open external links in a new tab; keep internal anchors in-page
