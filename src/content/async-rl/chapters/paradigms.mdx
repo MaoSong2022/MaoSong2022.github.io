@@ -1,0 +1,86 @@
+import HtmlEmbed from "../../../components/HtmlEmbed.astro";
+import Algorithm from "../../../components/Algorithm.astro";
+
+## Methods
+
+### Conventional RL
+
+Conventional RL [@PipelineRL] 的解决方法为使用 mini-batch 来完成更新, 即 "generator 一次 rollout, trainer 多次 update", 对应的算法如下所示
+
+<Algorithm title="Conventional RL">
+
+- **Input**: current policy $\pi$, number of optimier steps per RL step G, training batch size $B$
+
+**while** TRUE:
+
+1. $\mu\gets \pi$
+
+2. generate $BG$ sequences from $\mu$
+
+3. split sequences in $G$ mini-batches of size $B$
+
+4. **for** batch in batches:
+
+   update policy $\pi$.
+
+</Algorithm>
+
+使用这个算法的相关工作有 Qwen3 [@Qwen3] 和 ProRL [@ProRL].
+
+当 $G=1$ 时，算法退化成 on-policy RL.
+
+Conventional RL 的缺陷在于
+
+1. 当 $G$ 增大之后，数据会变得越来越 off-policy, 最终降低整体的 learning effectiveness.
+2. 提高 $N$ 并不能保证 learning throughput 提升，当 $N$ 足够大时，单个 accelerator 的 throughput 反而会下降。
+
+因此，Conventional RL 的上限同时由 staleness 和 throughput 决定。
+
+### PipelineRL
+
+PipelineRL [@PipelineRL] 与 Conventional RL 的策略有两点区别：
+
+1. trainer 和 generator 以 async 的方式并行运行
+2. trainer 收集到 $k$ rollouts 则立马进行参数更新，并将参数同步到 generator.
+
+在 Conventional RL 策略中，staleness 沿 batch 纬度增加，越往后的 batch, staleness 越大，同一个 mini-batch sample 的 staleness 相等。而在 PipelineRL 中，staleness 沿 action/token 维度增加，同一个 sample 里，越往后的 action/token, 其 staleness 越大。算法伪代码如下所示
+
+<Algorithm title="PipelineRL">
+
+- **Input**: current policy weights $\pi$, generation batch size $H$, training sequence queue $Q_{\text{train}}$, optimizer state $\text{opt\_state}$, training batch size $B$
+
+**Generator Process**:
+
+1. $S_{\text{prog}} \gets []$
+
+2. **while** TRUE:
+   1. $S_{\text{fin}}, S_{\text{prog}} \gets \text{pop finished sequences from } S_{\text{prog}}$
+
+   2. $Q_{\text{train}}.\text{put}(S_{\text{fin}})$
+
+   3. **if** $\text{len}(S_{\text{prog}}) < H$:
+
+      add $H - \text{len}(S_{\text{prog}})$ prompts to $S_{\text{prog}}$
+
+   4. **if** Trainer requests weight update:
+
+      $\mu \gets \text{receive\_weight\_update}()$
+
+   5. $S_{\text{prog}} \gets \text{generate next tokens with } \mu$
+
+**Trainer Process** ($\text{TRAINER}(\pi, \text{opt\_state})$):
+
+1. $\text{batch} \gets []$
+
+2. **while** TRUE:
+   1. $\text{request\_actor\_weight\_update}(\pi)$
+
+   2. $\text{batch} \gets \text{get } B \text{ sequences from } Q_{\text{train}}$
+
+   3. $\pi, \text{opt\_state} \gets \text{optimizer\_step}(\pi, \text{opt\_state}, \text{batch})$
+
+</Algorithm>
+
+sync RL, conventional RL, PipelineRL 三种训练范式的对比如下
+
+<HtmlEmbed src="rl-training-schedules.html" frameless />

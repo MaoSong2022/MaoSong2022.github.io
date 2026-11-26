@@ -1,0 +1,24 @@
+## Algorithmic Stabilization
+
+异步强化学习通过放宽 on-policy 约束换取吞吐量提升，但随之引入的 staleness 会扩大行为策略 $\mu$ 与目标策略 $\pi_\theta$ 之间的分布偏移。本章围绕算法侧如何控制 off-policy 偏差、保持训练稳定展开。
+
+### Importance Sampling & Clipping
+
+- 待补充：高 staleness 下的 importance ratio 漂移、clipping fraction 上升与有效样本率下降问题
+- 待补充：针对 off-policy / async 场景的目标函数改进（如 Decoupled PPO、Clip-Higher / DAPO、CISPO、GSPO 等）
+
+### Staleness Control
+
+- 待补充：Hard staleness threshold（超过最大滞后步数 $\tau_{\max}$ 直接丢弃或截断）
+- 待补充：Windowed FIFO 与 bounded-staleness 队列控制
+- 待补充：基于 staleness 的样本加权与梯度衰减策略
+
+### In-Flight Policy Shifts
+
+- 待补充：当单条序列在生成过程中经历多次权重更新（$\theta_k \to \theta_{k+1} \to \dots$）时，token-level behavior logprob 的追踪方式
+- 待补充：PipelineRL 与 Partial Rollout 场景下混合策略轨迹的 importance ratio 计算与方差控制
+
+### Interaction with Training-Inference Mismatch
+
+- 待补充：异步 staleness 与 [Training-Inference Mismatch](/blog/train-inference-mismatch/) 的叠加放大效应
+- 待补充：结合 TIS / MIS 等训推修正方法时的联合稳定性分析

@@ -1,0 +1,25 @@
+## Frameworks & Industry Practices
+
+本章汇总主流开源框架与工业界大模型技术报告中的异步 RL 实践方案，并给出工程选型与调参参考。
+
+### Open-Source Frameworks
+
+- 待补充：主流框架在部署拓扑、权重同步机制与 staleness 控制粒度上的对比
+
+| Framework  | Topology | Weight Sync | Staleness Control | Notes |
+| ---------- | -------- | ----------- | ----------------- | ----- |
+| PipelineRL | 待补充   | 待补充      | Token-level       |       |
+| AReaL      | 待补充   | 待补充      | Trajectory-level  |       |
+| veRL       | 待补充   | 待补充      | 待补充            |       |
+| Slime      | 待补充   | 待补充      | 待补充            |       |
+| OpenRLHF   | 待补充   | 待补充      | 待补充            |       |
+
+### Model Technical Reports
+
+- 待补充：Kimi k1.5 / K2（Partial Rollout 与长尾调度）
+- 待补充：Seed1.5-Thinking / Magistral / Qwen3 / ProRL 等模型中的异步与 off-policy 配方
+
+### Practical Tuning Guidelines
+
+- 待补充：不同规模与任务下的范式选型（Sync RL vs. One-Step Off-Policy vs. Disaggregated Full Async）
+- 待补充：关键超参经验（Rollout/Trainer 卡配比 $I/(N-I)$、最大 staleness 上限 $\tau_{\max}$、队列容量与 batch size 设定）

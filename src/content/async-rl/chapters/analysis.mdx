@@ -1,0 +1,76 @@
+## Analysis
+
+两种范式的对比如下表所示
+
+| Mode            | learning effectiveness                     | Learning throughput                                |
+| --------------- | ------------------------------------------ | -------------------------------------------------- |
+| on-policy RL    | highest                                    | lowest                                             |
+| Conventional RL | depends on $G$, lower is better            | depends on $G$, within the optimal range is better |
+| PipelineRL      | depens on sequence length, lower is better | None                                               |
+
+我们来定量分析一下两种范式的 throughput 和 lag.
+
+我们先介绍几个符号：
+
+1. $N$ 总 GPU 数量，我们假设使用其中 $I$ 张用于 generation, $H-I$ 张用于 training.
+2. $H$ 是每张 GPU 同时处理的 sequence 数量，$B$ 是训练使用的 sequence 数量
+3. $L$ 为 max sequence length, $\bar{L}$ 为平均 sequence length
+4. $\tau$ 为每个 token 的训练耗时
+
+Conventional RL 在生成过程中， 处理的 sequence 数量会逐渐减少，我们将第 $\ell$ 步仍在生成的序列记为 $h(\ell)$. 若我们有 $N$ 张 GPU, 则每张 GPU 平均处理 $h(\ell)/N$ 条仍然生成的序列，利用率为 $U(h(\ell)/N)$. 总的生成时间为
+
+$$
+t_{gen}^{Conv} = \sum_{\ell=1}^{L} \frac{h(\ell)/N}{U(h(\ell)/N)}
+$$
+
+训练阶段一共处理 $K$ tokens, 每个 token 的耗时为 $\tau/N$, 故总的训练时间为
+
+$$
+t_{train}^{Conv}=\frac{K\tau}{N}
+$$
+
+Conventional RL 的训练与生成是串行的，总时间为生成时间与训练时间之和，throughput 为
+
+$$
+r_{conv} = \frac{K}{t_{gen}^{Conv}+t_{train}^{Conv}}=\frac{1}{\frac{1}{r_{gen}^{conv}}+\frac{1}{r_{train}^{conv}}}
+$$
+
+这里 $r_{gen}^{conv}$ 和 $r_{train}^{conv}$ 分别为生成和训练阶段的 throughput.
+
+因此，对于 Conventional RL 来说，生成或者训练任一阶段的 low throughput 都会降低整体的 throughput.
+
+对 PipelineRL 来说，训练与生成并行工作，生成使用 $I$ 张 GPU, 每张以 batch size $H$ 运行，throughput 为
+
+$$
+r_{gen}^{pipeline}=U(H)I
+$$
+
+训练使用 $N-I$ 张 GPU, throughput 为
+
+$$
+r_{train}^{pipeline}=\frac{N-I}{\tau}
+$$
+
+总的 throughput 由训练和生成更慢的一个阶段决定
+
+$$
+r_{pipeline} =\min(r_{gen}^{pipeline}, r_{train}^{pipeline})
+$$
+
+因此，对于 PipelineRL 来说，整体的 throughput 取决于生成和训练两个阶段中较低的那一个，并且这两者会动态变化（因为总的资源固定）。
+
+关于 staleness, Conventional RL 的 staleness 与 $G$ 和当前 mini-batch 有关，最小为 $0$ (第一个 mini-batch), 最大为 $G-1$ (最后一个 mini-batch).
+
+在 PipelineRL 中，最长序列生成的 $L$ 个 decoding step 里，生成使用 $I$ 张 GPU, 每张 GPU 维护 $H$ 个序列，总共产生 $HIL$ tokens, 用 $\bar{L}$ 来换算，相当于
+
+$$
+\frac{HIL}{\bar{L}}
+$$
+
+条 sequence, 每 $B$ sequences 训练一次，相当于
+
+$$
+g_{\max}= \lceil \frac{HIL}{\bar{LB}} \rceil
+$$
+
+次优化更新，这就是 PipelineRL 的 staleness.

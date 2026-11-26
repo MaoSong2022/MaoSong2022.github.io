@@ -1,0 +1,19 @@
+## System & Infrastructure Design
+
+Async RL 的实际加速效果高度依赖底层训练与推理系统的协同设计。本章讨论部署拓扑、权重同步以及队列流控三个核心工程模块。
+
+### Deployment Topology
+
+- 待补充：Colocated（Hybrid Engine + Sleep/Wake 显存切换）vs. Disaggregated（Rollout 与 Trainer 节点池分离）的优缺点与适用规模
+- 待补充：动态弹性配比（根据 rollout / train 耗时波动动态调整 $I$ 与 $N-I$）
+
+### Weight Synchronization
+
+- 待补充：权重同步链路（NCCL broadcast、RDMA、参数服务器 / checkpoint）与计算-通信重叠
+- 待补充：In-flight weight update 对推理引擎 KV Cache 的影响（保留旧 KV Cache 的近似误差 vs. 局部/全局重算的开销权衡）
+
+### Rollout Queue & Backpressure
+
+- 待补充：Rollout 队列设计（FIFO、Windowed Queue、按长度/难度分桶）
+- 待补充：Backpressure（背压）机制——当 generator 吞吐高于 trainer 时如何限流以避免 staleness 失控
+- 待补充：超长 CoT 与多轮 Agent 场景下的 Partial Rollout（Pause-and-Resume）及长短序列负载均衡

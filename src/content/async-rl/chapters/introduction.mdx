@@ -1,0 +1,30 @@
+## Introduction
+
+Async RL, 即异步强化学习，是一个相对于 on-policy RL 的概念。
+
+在 on-policy RL 中，我们一个训练是一个包含三步的循环: generator 通过 rollout 产生数据 -> trainer 更新 policy model -> generator 更新权重。在这个过程中，不考虑 [training inference mismatch](https://maosong.website/blog/train_inference_mistahch/) 的话，我们可以将训练近似看作是 on-policy, 即模型基于模型本身产生的数据进行训练。
+
+On-policy training 的好处在于能够减少 bias, 但是其问题在于，trainer 更新时，我们的 generator 实际上处于闲置状态，这导致了资源的浪费。因此，Async RL 被提出来用于降低计算资源的空置率。
+
+### Background
+
+PipelineRL [@PipelineRL] 给出了一个 RL 训练效率优化的目标
+
+> To effectively use a larger number of accelerators $N$ to make average reward $R(t)$ at time $t$ grow faster.
+
+PipelineRL 将这个目标进行了拆解，即将 $R(t)$ 视作 $R(S)$ 和 $S(t)$ 的复合函数，其中 $S(t)$ 是时间 $t$ 需要处理的样本数量。
+这样，效率优化的目标 (learning speed) 就可以拆解为 learning effectiveness 和 learning throughput 两部分：
+
+$$
+\frac{\Delta R}{\Delta t} = \frac{\Delta R}{\Delta S}\times \frac{\Delta S}{\Delta t}
+$$
+
+on policy 的好处是 learning effectiveness 很高 （因为几乎没有样本被 clip），但是代价是 throughput 会非常低，提高 $N$ 并不一定能够提高 throughput. 这是因为 short sequence 生成之后，必须等待 long sequence 生成完毕。
+
+我们将 trainer 和 generator 之间的区别称之为 staleness, 即假设当前 generator 的参数为 $\theta_k$, trainer 的参数为 $\theta_{n}$ ($n\geq k$), 则
+
+$$
+\mathrm{staleness} = n - k\geq0
+$$
+
+当 $\mathrm{staleness}=0$ 时，代表 on-policy RL, 反之则是 async RL.
