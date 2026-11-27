@@ -1,6 +1,6 @@
 ## Hunyuan Large
 
-腾讯混元提出了 Hunyuan-Large, 一个 389B-A52B 的 MoE LLM, 上下文长度为 256K.
+Hunyuan-Large [@Hunyuan-Large] 是腾讯在 24 年 11 月发布的一个 389B-A52B 的 MoE 大语言模型，上下文长度为 256K.
 
 Hunyuan-Large 主要在三个方向进行了改进：
 
@@ -24,8 +24,6 @@ Hunyuan-Large 是一个基于 MoE 的 transformer 架构，attention 部分使�
 | Activation Function             | SwiGLU        |
 | Vocabulary Size                 | 128K          |
 | Hidden Size                     | 6,400         |
-
-![Configuration of Hunyuan-Large](hunyuan-large-architecture-config.png)
 
 #### KV Cache Compression
 
@@ -91,10 +89,6 @@ $$
 3. Response generation: 使用 specialized model 来生成回答
 4. response filtering: 对生成的回答进行过滤
 
-数据合成的流程如下图所示
-
-![Data synthesis pipeline](Hunyuan-large-data-synthesis.png)
-
 tokenizer 大小为 128K, 由 tittoken tokenizer 和额外的 28K token 组成。
 
 ### Pre-training Recipe
@@ -125,15 +119,3 @@ SFT 训练了 3 个 epoch, 学习率从 2e-5 降低到 2e-6, 为了避免 overfi
 作者使用 [DPO](/blog/RLHF/#dpo) 来进行 RLHF, 作者同时使用了 offline 和 online 的数据来进行训练，前者是收集的数据，后者是当前 policy 生成的数据。与 [LLaMA 3](/blog/LLaMA-series/#llama3) 和 [[Nemotron-4]] 一样，为了提高训练稳定性，对于 chosen reponse, 作者使用了 SFT loss.
 
 作者还是用了 exponential moving average 策略来减少 reward hacking 现象，以及降低 alignment tax.
-
-### Experiment
-
-对于 base 版本，作者对比了 [LLaMA 3](/blog/LLaMA-series/#llama3), [Mixtral MoE](https://arxiv.org/abs/2401.04088), [DeepSeek-V2](/blog/deepseek-series/#deepseek-v2), 实验结果如下图所示
-
-![Performance of Hunyuan-Large-Base](Hunyuan-large-base-performance.png)
-
-Instruction 版本的表现如下图所示
-
-![Performance of Hunyuan-Large Instuct](Hunyuan-large-intruction-performance.png)
-
-- [arxiv](https://arxiv.org/pdf/2411.02265)
