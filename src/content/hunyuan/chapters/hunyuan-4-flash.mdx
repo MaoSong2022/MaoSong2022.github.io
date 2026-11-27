@@ -1,0 +1,21 @@
+## Hunyuan 4 Flash
+
+Hunyuan 4 Flash [@Hy4Flash] 是腾讯在 26 年 11 月发布的一个 224B-A12B (包含64B Engram 参数)的原生多模态大模型，支持 1M context.
+
+### Architecture
+
+在 attention 上，Hunyuan 4 Flash 使用了 hybrid attention, local attention 为 SWA (window size=512), global attention 为 MLA, ratio 为 3:1.
+
+在 FFN 上，Hunyuan 4 Flash 使用了 LatentMoE, MoE layer 包含 1 个 shared expert 和 512 个 routed expert, 其中激活 16 个
+
+对于 layernorm, Hunyuan 4 Flash 使用了 iHC (identity Hyper-Connections)
+
+对于 vision encoder, Hunyuan 4 Flash 使用了 SigLIP2-SO400M.
+
+对于 draft layer, Hunyuan 4 Flash 使用了 DFly2.
+
+Hunyuan 4 Flash 还使用了 Engram.
+
+### Inference
+
+对于 inference, Hunyuan 4 Flash 使用了 Megakernels, 4-bit quantization 和 DFly 来提高推理速度，最终模型的 decoding speed 到了 150 token/s.
