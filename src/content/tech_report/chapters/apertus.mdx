@@ -1,19 +1,68 @@
+import HtmlEmbed from "../../../components/HtmlEmbed.astro";
+
 ## Apertus
-
-
 
 Apertus [@Apertus] 是 Swiss AI 在 25 年 9 月发布的一个全开源大模型。模型基于开源数据训练，支持 1800 多种语言。
 
-
-
 ### Architecture
 
-模型在 LLaMA3 的基础上做了以下改动：1. 加入 QKNorm; 使用 xIELU 作为激活函数
+模型在 LLaMA3 的基础上做了以下改动：1. 加入 QKNorm [@QK-Norm]; 2. 使用 xIELU [@xIELU] 作为激活函数
 
-
+最终包含 8B 和 70B 两个 size.
 
 ### Training
 
+预训练基于 Megatron [@Megatron], 使用了 AdEMAMix optimizer, WSD learning rate schedule [@MiniCPM] 和 Goldfish loss, 其中 Goldfish loss 定义为
 
+$$
+\mathcal{L}(\theta)=-\frac{1}{|G|}\sum_{i=1}^LG_i(x_i)\log P_{\theta}(x_i\mid x_{<i})
+$$
 
-预训练基于 Megatron [@Megatron]
+这里 $G_i(x_i)\in\{0,1\}$ 是一个 random mask.
+
+模型先在 4k 上下文进行 pre-training, 包含以下几个阶段：
+
+1. Warmup, 16.8B tokens, 从 $0.1\times\mathrm{MaxLR}$ 线性提升到 $\mathrm{MaxLR}$, global batch size 为 $4.2M/8.4M$
+2. Stable, 持续到 13.5T, $\mathrm{MaxLR}$, global batch size, global batch size double. 训练阶段数翻倍。
+3. cooldown, 持续到 15T, 采用 1-sqrt 退货曲线
+
+然后是 long context extention, 逐渐将 context 从 4k 扩展到 64k, 参数配置如下表所示
+
+| Model       | GBS | LR       | Context (k) | RoPE $\theta$ (M) | TP/PP/DP/CP | Tokens/GPU/s |
+| ----------- | --- | -------- | ----------- | ----------------- | ----------- | ------------ |
+| Apertus-8B  | 8M  | $1.1e-5$ | 8           | 1                 | 2/1/1024/1  | $\sim 6150$  |
+|             | 8M  | $1.1e-5$ | 16          | 2                 | 4/1/512/1   | $\sim 4300$  |
+|             | 8M  | $1.1e-5$ | 32          | 4                 | 4/1/256/2   | $\sim 3700$  |
+|             | 8M  | $1.1e-5$ | 64          | 12                | 4/1/128/4   | $\sim 1800$  |
+| Apertus-70B | 16M | $1e-6$   | 8           | 1                 | 4/8/64/1    | $\sim 780$   |
+|             | 16M | $1e-6$   | 16          | 2                 | 4/8/32/2    | $\sim 710$   |
+|             | 16M | $1e-6$   | 32          | 4                 | 4/8/16/4    | $\sim 480$   |
+|             | 16M | $1e-6$   | 64          | 12                | 4/8/8/8     | $\sim 160$   |
+
+Post-training 包含 SFT, alignment 两个阶段。训练使用 HuggingFace TRL 和 DeepSpeed framework.
+
+SFT 数据有 4.1M samples, 数据比例如下图所示
+
+<HtmlEmbed
+  src="embeds/d3-pie-domain.html"
+  title="Apertus SFT data mixture"
+  data="apertus_sft.json"
+/>
+
+alignment 阶段使用了 380K non-controversial prompts 和 72K controversial prompts. 训练时使用了 QRPO 算法 [@QRPO], 目标函数如下
+
+$$
+\mathcal{L}=\mathbb{E}_{(x,y)}\left[\left(R_q(x,y)-\beta_{KL}\log Z_q(x)-\beta_{KL}\log\frac{\pi_{\theta}(y\mid x)}{\pi_{ref}(y\mid x)}\right)^2\right]
+$$
+
+其中 $R_q(x,y)$ 是 quantile reward,
+
+$$
+R_q(x,y) = \mathrm{Pr}_{y'\sim\pi_{ref}(\cdot \mid x)}\{R(x,y')\leq R(x,y)\}
+$$
+
+$Z_q(x)$ 是 partition function:
+
+$$
+Z_q(x) = \beta_{KL}(\exp(1/\beta_{KL})-1)
+$$

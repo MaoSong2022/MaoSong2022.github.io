@@ -1,0 +1,31 @@
+{
+    "title": "SFT data mixture of Apertus",
+    "total": 4184087,
+    "type": "count",
+    "domains": [
+        {
+            "name": "Foundation Instruction",
+            "count": 400364
+        },
+        {
+            "name": "Math and Reasoning",
+            "count": 485526
+        },
+        {
+            "name": "Code and Functions",
+            "count": 377688
+        },
+        {
+            "name": "Multilingual",
+            "count": 1432107
+        },
+        {
+            "name": "Regional",
+            "count": 943427
+        },
+        {
+            "name": "Domain-specific",
+            "count": 544975
+        }
+    ]
+}
