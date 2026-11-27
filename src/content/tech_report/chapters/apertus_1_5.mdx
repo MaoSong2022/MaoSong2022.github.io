@@ -1,0 +1,13 @@
+## Apertus 1.5
+
+Apertus 1.5 [@Apertus1_5] 是 Swiss AI 在 26 年 10 月发布的一款基于 Apertus 的多模态大模型，包含 8B/70B 两个 size.
+
+### Architecture
+
+与 Emu3 和 Chameleon 一样，Apertus 1.5 将 image 和 audio 表示为 discrete token.
+
+其中，image tokenizer 使用了 Emu3.5 的 vision tokenizer, 包含 131,072 entries， audio tokenizer 使用了 WavTokenizer [@WavTokenizer], 包含 4096 entries, text tokenizer 本身有 $131,072$ entries, 因此 tokenizer 一共有 $131,072+131,072+4,096=$266,240$ entries.
+
+### Training
+
+Post-training 分为 SFT, long-context SFT, RL, DPO 和 SDPO 五个阶段。
