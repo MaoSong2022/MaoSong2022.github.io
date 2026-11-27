@@ -6,9 +6,68 @@ K2 horizon [@K2-Horizon] 是 IFM 发布的一个大模型系列，包括 0.9B, 3
 为了提高数据质量，预训练阶段有 $10$ T token 都是合成数据。
 为了提高多样性，作者提出了 Wzip compressor 作为一个 metric.
 
-架构上，K2 horizon 提出了 MoVA (mixture of value attention), 将 MoE 的 principle 扩展到 attention 上 (在保持 FFN module 计算量不变的同时，提高模型的 capacity)
+### Architecture
+
+K2 horizon 认为 传统的 RMSNorm 的 bound $(-\sqrt{d},\sqrt{d})$ (这里 $d$ 是 hidden size) 对于 wide models 会导致训练不稳定。为了解决这个问题，作者提出了 Grouped RMSNorm
+$$
+v_{g}=\sqrt{\frac1d_g\sum_{i\in\mathcal{G}_g}x_{i}^2+\epsilon},g=1,\dots,k
+$$
+这里作者将 $x$ 的 elements 分割为 $k$ 个 group, 然后在每个 group 里单独进行 RMSNorm 的计算，这样输出的 bound 就是 $(-\sqrt{d_g},\sqrt{d_g})$, 作者通过实验发现这可以提高训练稳定性。
+
+对于 attention, K2 horizon 提出了 MoVA (mixture of value attention), 将 MoE 的 principle 扩展到 attention 上, 具体做法是将 $v=xW_V$ 转换为一个 MoE layer,
+$$
+V_i(x)=xW_V^{(i)}, V(x) = \sum_{i\in\mathcal{V}(x)}p_i(x)\phi_{silu}(V_i(x))
+$$
+这里 $|\mathcal{V}(x)|=k$ 是挑选出来的 index, $p_i(x)$ 是 routing weights.
+
+作者还对 gated mechanism 进行了改进，作者发现 [@GatedAttention] 使用的 sigmoid activation function 会 down scale attention output, 因此，作者使用了 softplus activation function:
+$$
+\begin{aligned}
+\mathrm{softplus}(x,\beta)=\frac1\beta\cdot\log(1+\exp(\beta x))
+\end{aligned}
+$$
+其中 $\beta$ 是一个超参数。
+
+
+
+### Training
+
+pre-training 阶段，3.7B, 7B, 32B, 36B-A4B 使用了 22T tokens, 375B-A23B 使用了 15T tokens. 预训练数据基于 K2-V2, 作者额外增加了 10T 的 syntheci token.
+
+
+
+Mid-training 将模型的上下文从 8k 扩展到 512k, 扩展分为多个 stage,
+
+- 在 stage1,上下文扩展到 32k, RoPE base frequency 为 1M, learning rate 通过 warmup 到 peak learning rate, 然后 decay 到 peak learning rate 的 $10\%$, 这个阶段消耗 1.1T tokens.
+
+- stage 2-stage4, 上下文分别扩展到 128k, 512k, , RoPE base frequency 为 10M, 与 [K2-V2] 一样，learning rate 保持在 peak learning rate 的 $10\%$.
+
+对于 0.9B 的模型，作者做了几点修改，首先 0.9B 的模型 pre-training 阶段使用了 cosine LR decay, 因此不再进行 model merge. 然后，模型上下文仅扩展到 128K, 以适应端侧设备内存限制。并且在 stage1 0.9B 的 context 为 40K, 这是因为其  vocab 较小，导致 sequence 更长。
 
 post-training 从 mid-training 开始, 基于 mid-training checkpoint, 作者基于 RL 训练了 knowledge work, IF, search, tool use 和 reasoning 5 个专家模型，最后通过 model merge 得到 RL checkpoint.
 基于 RL checkpoint, 作者实行了 SFT. 训练细节见 [huggingface 页面](https://huggingface.co/IFM/K2-Horizon-375B-A23B)
 
 为了提高推理效率，K2 horizon 提出了 Uno, 一个 speculative decoding 方法，Uno 使用了 diffusion distillation, 来同时并行生成多个 block.
+
+
+
+### Infra
+
+K2 horizon 的 pre-training 和 mid-trainng 基于 xLLM, 并行配制如下：
+
+1. 使用 ZeRO3
+2. 限制 TP=8, 固定在一个 node 里
+3. EP 和 TP 绑定
+4. 8k context 不开启 CP, context 升到 512k 时逐渐提高 CP
+5. 与 K2-V2 一致，不开启 PP
+
+最终，训练的并行配制如下表所示
+
+| **Model**     | **TP/EP** | **CP (Pre-training)** | **CP (Mid-1)** | **CP (Mid-2)** | **CP (Mid-3)** | **CP (Mid-4)** |
+| ------------- | --------- | --------------------- | -------------- | -------------- | -------------- | -------------- |
+| **0.9B**      | 1         | 1                     | 1              | 1              | -              | -              |
+| **3.7B**      | 1         | 1                     | 1              | 2              | 8              | 8              |
+| **7B**        | 1         | 1                     | 1              | 4              | 16             | 16             |
+| **32B**       | 2         | 1                     | 1              | 4              | 16             | 16             |
+| **36B-A4B**   | 2         | 1                     | 1              | 2              | 8              | 8              |
+| **375B-A23B** | 8         | 1                     | 1              | 1              | 4              | 4              |
