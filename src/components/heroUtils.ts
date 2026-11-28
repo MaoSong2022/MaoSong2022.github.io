@@ -4,6 +4,24 @@ export type Author = {
   affiliationIndices?: number[];
 };
 
+export interface HeroCollection {
+  label: string;
+  href: string;
+}
+
+export interface HeroProgress {
+  kind: "complete" | "growing" | "outline" | "draft" | "brief";
+  label: string;
+  description?: string;
+}
+
+export interface HeroReadingTime {
+  minutes: number;
+  words: number;
+  label: string;
+  title?: string;
+}
+
 export interface HeroProps {
   title: string;
   titleRaw?: string;
@@ -21,8 +39,11 @@ export interface HeroProps {
   links?: Array<{ label: string; url: string; icon?: string }>;
   banner?: string | false;
   bannerAspectRatio?: string;
-  categories?: string;
+  categories?: string | string[];
   tags?: string[];
+  collection?: HeroCollection;
+  readingTime?: HeroReadingTime;
+  progress?: HeroProgress;
 }
 
 export function normalizeAuthors(

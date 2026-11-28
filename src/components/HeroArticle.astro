@@ -6,11 +6,10 @@ import {
   normalizeAuthors,
 } from "./heroUtils";
 import { formatDisplayDate } from "../utils/date-format";
-import { browseCategoryHref } from "../utils/browse-links";
+import { browseCategoryHref, browseTagHref } from "../utils/browse-links";
 
 const {
   title,
-  titleRaw,
   description,
   authors = [],
   affiliations = [],
@@ -21,6 +20,10 @@ const {
   banner,
   bannerAspectRatio,
   categories,
+  tags = [],
+  collection,
+  readingTime,
+  progress,
 } = Astro.props as HeroProps;
 
 const normalizedAuthors: Author[] = normalizeAuthors(authors as any);
@@ -35,6 +38,8 @@ for (const author of normalizedAuthors) {
   }
 }
 const shouldShowAffiliationSupers = authorAffiliationIndexSet.size > 1;
+const hasAffiliations =
+  (Array.isArray(affiliations) && affiliations.length > 0) || Boolean(affiliation);
 const hasMultipleAffiliations =
   Array.isArray(affiliations) && affiliations.length > 1;
 
@@ -42,7 +47,50 @@ const normalizedCategory = Array.isArray(categories)
   ? categories[0]
   : categories;
 
-const visibleDate = formatDisplayDate(modified ?? published);
+const normalizedTags = Array.isArray(tags)
+  ? tags.map((t) => String(t || "").trim()).filter(Boolean)
+  : [];
+
+const visibleUpdated = formatDisplayDate(modified ?? published);
+const visiblePublished = formatDisplayDate(published);
+
+type DateState = { key: "updated" | "published"; label: string; value: string };
+const dateStates: DateState[] = [];
+if (visibleUpdated) {
+  dateStates.push({ key: "updated", label: "Updated", value: visibleUpdated });
+}
+if (visiblePublished) {
+  dateStates.push({ key: "published", label: "Published", value: visiblePublished });
+}
+
+type TaxonomyKey = "category" | "collection" | "tags";
+const taxonomyStates: Array<{ key: TaxonomyKey; label: string }> = [];
+if (normalizedCategory) {
+  taxonomyStates.push({ key: "category", label: "Category" });
+}
+if (collection) {
+  taxonomyStates.push({ key: "collection", label: "Collection" });
+}
+if (normalizedTags.length > 0) {
+  taxonomyStates.push({ key: "tags", label: "Tags" });
+}
+
+type ReadingKey = "reading" | "progress";
+const readingStates: Array<{ key: ReadingKey; label: string }> = [];
+if (readingTime) {
+  readingStates.push({ key: "reading", label: "Reading Time" });
+}
+if (progress) {
+  readingStates.push({ key: "progress", label: "Progress" });
+}
+
+const isStandardQuad =
+  !hasAffiliations &&
+  !doi &&
+  normalizedAuthors.length > 0 &&
+  dateStates.length > 0 &&
+  taxonomyStates.length > 0 &&
+  readingStates.length > 0;
 ---
 
 <section class="hero">
@@ -66,26 +114,28 @@ const visibleDate = formatDisplayDate(modified ?? published);
 </script>
 
 <header class="meta" aria-label="Article meta information">
-  <div class="meta-container">
+  <div class:list={["meta-container", { "meta-container--quad": isStandardQuad }]}>
     {
       normalizedAuthors.length > 0 && (
-        <div class="meta-container-cell">
+        <div class="meta-container-cell meta-container-cell--authors">
           <h3>Author{normalizedAuthors.length > 1 ? "s" : ""}</h3>
-          <ul class="authors">
-            {normalizedAuthors.map((a, i) => {
-              const supers =
-                shouldShowAffiliationSupers &&
-                Array.isArray(a.affiliationIndices) &&
-                a.affiliationIndices.length ? (
-                  <sup>{a.affiliationIndices.join(", ")}</sup>
-                ) : null;
-              return (
-                <li>
-                  {a.url ? <a href={a.url}>{a.name}</a> : a.name}{supers}{i < normalizedAuthors.length - 1 && <span set:html=",&nbsp;" />}
-                </li>
-              );
-            })}
-          </ul>
+          <div class="meta-cell-body">
+            <ul class="authors">
+              {normalizedAuthors.map((a, i) => {
+                const supers =
+                  shouldShowAffiliationSupers &&
+                  Array.isArray(a.affiliationIndices) &&
+                  a.affiliationIndices.length ? (
+                    <sup>{a.affiliationIndices.join(", ")}</sup>
+                  ) : null;
+                return (
+                  <li>
+                    {a.url ? <a href={a.url}>{a.name}</a> : a.name}{supers}{i < normalizedAuthors.length - 1 && <span set:html=",&nbsp;" />}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
         </div>
       )
     }
@@ -93,35 +143,37 @@ const visibleDate = formatDisplayDate(modified ?? published);
       Array.isArray(affiliations) && affiliations.length > 0 && (
         <div class="meta-container-cell meta-container-cell--affiliations">
           <h3>Affiliation{affiliations.length > 1 ? "s" : ""}</h3>
-          {hasMultipleAffiliations ? (
-            <ol class="affiliations">
-              {affiliations.map((af) => (
-                <li value={af.id}>
-                  {af.url ? (
-                    <a href={af.url} target="_blank" rel="noopener noreferrer">
-                      {af.name}
-                    </a>
-                  ) : (
-                    af.name
-                  )}
-                </li>
-              ))}
-            </ol>
-          ) : (
-            <p>
-              {affiliations[0]?.url ? (
-                <a
-                  href={affiliations[0].url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  {affiliations[0].name}
-                </a>
-              ) : (
-                affiliations[0]?.name
-              )}
-            </p>
-          )}
+          <div class="meta-cell-body">
+            {hasMultipleAffiliations ? (
+              <ol class="affiliations">
+                {affiliations.map((af) => (
+                  <li value={af.id}>
+                    {af.url ? (
+                      <a href={af.url} target="_blank" rel="noopener noreferrer">
+                        {af.name}
+                      </a>
+                    ) : (
+                      af.name
+                    )}
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p>
+                {affiliations[0]?.url ? (
+                  <a
+                    href={affiliations[0].url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {affiliations[0].name}
+                  </a>
+                ) : (
+                  affiliations[0]?.name
+                )}
+              </p>
+            )}
+          </div>
         </div>
       )
     }
@@ -129,34 +181,236 @@ const visibleDate = formatDisplayDate(modified ?? published);
       (!affiliations || affiliations.length === 0) && affiliation && (
         <div class="meta-container-cell meta-container-cell--affiliations">
           <h3>Affiliation</h3>
-          <p>{affiliation}</p>
+          <div class="meta-cell-body">
+            <p>{affiliation}</p>
+          </div>
         </div>
       )
     }
-    {visibleDate && (
-      <div class="meta-container-cell meta-container-cell--published">
-        <h3>Updated</h3>
-        <p>{visibleDate}</p>
+    {dateStates.length > 0 && (
+      <div
+        class:list={[
+          "meta-container-cell",
+          "meta-container-cell--date",
+          { "meta-container-cell--cycle": dateStates.length > 1 },
+        ]}
+        data-meta-cycle={dateStates.length > 1 ? "date" : undefined}
+        data-click-cell={dateStates.length > 1 ? "true" : undefined}
+        data-active-index="0"
+      >
+        {dateStates.length > 1 ? (
+          <h3>
+            <button
+              type="button"
+              class="meta-switch"
+              data-meta-trigger
+              title={`Switch to ${dateStates[1].label}`}
+              aria-label={`${dateStates[0].label}, click to switch to ${dateStates[1].label}`}
+            >
+              <span data-meta-label>{dateStates[0].label}</span>
+              <svg class="meta-switch__icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                <path d="M2.5 5.5h11m0 0-2.5-2.5m2.5 2.5L11 8M13.5 10.5h-11m0 0L5 8m-2.5 2.5L5 13" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
+          </h3>
+        ) : (
+          <h3>{dateStates[0].label}</h3>
+        )}
+        <div class="meta-cell-body">
+          {dateStates.map((state, idx) => (
+            <div
+              class="meta-panel"
+              data-meta-panel
+              data-label={state.label}
+              hidden={idx !== 0}
+            >
+              <p class="meta-value-text">{state.value}</p>
+            </div>
+          ))}
+        </div>
       </div>
     )}
-    {normalizedCategory && (
-      <div class="meta-container-cell meta-container-cell--categories">
-        <h3>Category</h3>
-        <a class="article-meta__category" href={browseCategoryHref(normalizedCategory)}>
-          {normalizedCategory}
-        </a>
+    {taxonomyStates.length > 0 && (
+      <div
+        class:list={[
+          "meta-container-cell",
+          "meta-container-cell--taxonomy",
+          { "meta-container-cell--cycle": taxonomyStates.length > 1 },
+        ]}
+        data-meta-cycle={taxonomyStates.length > 1 ? "taxonomy" : undefined}
+        data-active-index="0"
+      >
+        {taxonomyStates.length > 1 ? (
+          <h3>
+            <button
+              type="button"
+              class="meta-switch"
+              data-meta-trigger
+              title={`Switch to ${taxonomyStates[1].label}`}
+              aria-label={`${taxonomyStates[0].label}, click to switch to ${taxonomyStates[1].label}`}
+            >
+              <span data-meta-label>{taxonomyStates[0].label}</span>
+              <svg class="meta-switch__icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                <path d="M2.5 5.5h11m0 0-2.5-2.5m2.5 2.5L11 8M13.5 10.5h-11m0 0L5 8m-2.5 2.5L5 13" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
+          </h3>
+        ) : (
+          <h3>{taxonomyStates[0].label}</h3>
+        )}
+        <div class="meta-cell-body">
+          {taxonomyStates.map((state, idx) => (
+            <div
+              class="meta-panel"
+              data-meta-panel
+              data-label={state.label}
+              hidden={idx !== 0}
+            >
+              {state.key === "category" && normalizedCategory && (
+                <a class="article-meta__category" href={browseCategoryHref(normalizedCategory)}>
+                  {normalizedCategory}
+                </a>
+              )}
+              {state.key === "collection" && collection && (
+                <a class="article-meta__collection" href={collection.href}>
+                  {collection.label}
+                </a>
+              )}
+              {state.key === "tags" && normalizedTags.length > 0 && (
+                <div class="article-meta__tags">
+                  {normalizedTags.map((tag) => (
+                    <a class="article-meta__tag" href={browseTagHref(tag)}>
+                      {tag}
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
+    {readingStates.length > 0 && (
+      <div
+        class:list={[
+          "meta-container-cell",
+          "meta-container-cell--reading",
+          { "meta-container-cell--cycle": readingStates.length > 1 },
+        ]}
+        data-meta-cycle={readingStates.length > 1 ? "reading" : undefined}
+        data-click-cell={readingStates.length > 1 ? "true" : undefined}
+        data-active-index="0"
+      >
+        {readingStates.length > 1 ? (
+          <h3>
+            <button
+              type="button"
+              class="meta-switch"
+              data-meta-trigger
+              title={`Switch to ${readingStates[1].label}`}
+              aria-label={`${readingStates[0].label}, click to switch to ${readingStates[1].label}`}
+            >
+              <span data-meta-label>{readingStates[0].label}</span>
+              <svg class="meta-switch__icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                <path d="M2.5 5.5h11m0 0-2.5-2.5m2.5 2.5L11 8M13.5 10.5h-11m0 0L5 8m-2.5 2.5L5 13" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
+          </h3>
+        ) : (
+          <h3>{readingStates[0].label}</h3>
+        )}
+        <div class="meta-cell-body">
+          {readingStates.map((state, idx) => (
+            <div
+              class="meta-panel"
+              data-meta-panel
+              data-label={state.label}
+              hidden={idx !== 0}
+            >
+              {state.key === "reading" && readingTime && (
+                <p class="meta-value-text" title={readingTime.title}>
+                  {readingTime.label}
+                </p>
+              )}
+              {state.key === "progress" && progress && (
+                <span
+                  class={`article-meta__progress article-meta__progress--${progress.kind}`}
+                  title={progress.description}
+                >
+                  {progress.label}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
     )}
     {doi && (
       <div class="meta-container-cell meta-container-cell--doi">
         <h3>DOI</h3>
-        <p><a href={`https://doi.org/${doi}`} target="_blank" rel="noopener noreferrer">{doi}</a></p>
+        <div class="meta-cell-body">
+          <p><a href={`https://doi.org/${doi}`} target="_blank" rel="noopener noreferrer">{doi}</a></p>
+        </div>
       </div>
     )}
   </div>
 </header>
 
+<script is:inline>
+  (() => {
+    const initMetaCycles = () => {
+      document.querySelectorAll("[data-meta-cycle]").forEach((cell) => {
+        if (cell.dataset.metaCycleBound === "1") return;
+        cell.dataset.metaCycleBound = "1";
 
+        const panels = Array.from(cell.querySelectorAll("[data-meta-panel]"));
+        const trigger = cell.querySelector("[data-meta-trigger]");
+        const labelEl = cell.querySelector("[data-meta-label]");
+        if (panels.length < 2 || !trigger || !labelEl) return;
+
+        const advance = () => {
+          const current = Number(cell.dataset.activeIndex || "0");
+          const next = (current + 1) % panels.length;
+          const afterNext = (next + 1) % panels.length;
+          cell.dataset.activeIndex = String(next);
+
+          panels.forEach((panel, i) => {
+            panel.hidden = i !== next;
+          });
+
+          const nextLabel = panels[next].getAttribute("data-label") || "";
+          const afterNextLabel = panels[afterNext].getAttribute("data-label") || "";
+          labelEl.textContent = nextLabel;
+          trigger.setAttribute("title", `Switch to ${afterNextLabel}`);
+          trigger.setAttribute(
+            "aria-label",
+            `${nextLabel}, click to switch to ${afterNextLabel}`,
+          );
+        };
+
+        trigger.addEventListener("click", (e) => {
+          e.stopPropagation();
+          advance();
+        });
+
+        if (cell.dataset.clickCell === "true") {
+          cell.addEventListener("click", (e) => {
+            const target = e.target instanceof Element ? e.target : null;
+            if (target && target.closest("a, button")) return;
+            advance();
+          });
+        }
+      });
+    };
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", initMetaCycles, { once: true });
+    } else {
+      initMetaCycles();
+    }
+    document.addEventListener("astro:page-load", initMetaCycles);
+  })();
+</script>
 
 <style>
   .hero {
@@ -217,11 +471,21 @@ const visibleDate = formatDisplayDate(modified ?? published);
     justify-content: space-between;
     margin: 0 auto;
     padding: 0 var(--content-padding-x);
-    gap: 8px;
+    gap: 12px 24px;
     flex-wrap: wrap;
+  }
+  .meta-container--quad {
+    display: grid;
+    grid-template-columns:
+      minmax(0, 0.85fr)
+      minmax(0, 1fr)
+      minmax(0, 1.55fr)
+      minmax(0, 0.9fr);
+    align-items: start;
+    column-gap: 24px;
     row-gap: 12px;
   }
-  .meta-container a:not(.button) {
+  .meta-container a:not(.button):not(.article-meta__category):not(.article-meta__collection):not(.article-meta__tag) {
     color: var(--primary-color);
     text-decoration: underline;
     text-underline-offset: 2px;
@@ -239,13 +503,17 @@ const visibleDate = formatDisplayDate(modified ?? published);
   .meta-container-cell {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    max-width: 400px;
+    gap: 6px;
+    min-width: 0;
+  }
+  .meta-container-cell[data-click-cell="true"] {
+    cursor: pointer;
   }
   .meta-container-cell h3 {
     margin: 0;
     font-size: 12px;
     font-weight: 400;
+    line-height: 1.4;
     color: var(--muted-color);
     text-transform: uppercase;
     letter-spacing: 0.02em;
@@ -253,6 +521,66 @@ const visibleDate = formatDisplayDate(modified ?? published);
   .meta-container-cell p {
     margin: 0;
   }
+  .meta-cell-body {
+    min-height: 26px;
+    display: flex;
+    align-items: center;
+  }
+  .meta-panel {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+  }
+  .meta-panel[hidden] {
+    display: none;
+  }
+  .meta-value-text {
+    font-variant-numeric: tabular-nums;
+    line-height: 1.4;
+  }
+
+  /* Minimal toggle header button */
+  .meta-switch {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 0;
+    margin: 0;
+    border: none;
+    background: transparent;
+    font: inherit;
+    color: inherit;
+    text-transform: inherit;
+    letter-spacing: inherit;
+    cursor: pointer;
+    transition: color 0.15s ease;
+  }
+  .meta-switch:hover,
+  .meta-container-cell[data-click-cell="true"]:hover .meta-switch {
+    color: var(--text-color);
+  }
+  .meta-switch:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 3px;
+    border-radius: 3px;
+  }
+  .meta-switch__icon {
+    width: 11px;
+    height: 11px;
+    flex-shrink: 0;
+    opacity: 0.45;
+    transition: opacity 0.15s ease, color 0.15s ease, transform 0.15s ease;
+  }
+  .meta-switch:hover .meta-switch__icon,
+  .meta-container-cell[data-click-cell="true"]:hover .meta-switch__icon {
+    opacity: 0.95;
+    color: var(--primary-color);
+  }
+  .meta-switch:active .meta-switch__icon {
+    transform: scale(0.9);
+  }
+
   .authors {
     margin: 0;
     list-style-type: none;
@@ -272,35 +600,110 @@ const visibleDate = formatDisplayDate(modified ?? published);
     margin: 0;
   }
 
-  .meta-container-cell--categories {
-    align-items: center;
-  }
-  .article-meta__category {
+  /* Taxonomy pills: Category, Collection, Tags */
+  .article-meta__category,
+  .article-meta__collection {
     display: inline-block;
     padding: 2px 8px;
     font-size: 0.75rem;
     font-weight: 600;
     letter-spacing: 0.04em;
     text-transform: uppercase;
+    line-height: 1.45;
     border: 1px solid color-mix(in srgb, var(--primary-color) 32%, var(--border-color));
     border-radius: var(--button-radius);
     background: color-mix(in srgb, var(--primary-color) 8%, var(--surface-bg));
     color: var(--primary-color);
     text-decoration: none;
     cursor: pointer;
+    transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
   }
-  .article-meta__category:hover {
+  .article-meta__category:hover,
+  .article-meta__collection:hover {
+    color: var(--primary-color-hover);
+    border-color: color-mix(in srgb, var(--primary-color-hover) 45%, var(--border-color));
+  }
+  .article-meta__tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .article-meta__tag {
+    display: inline-block;
+    padding: 1px 8px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1.5;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--primary-color) 28%, var(--border-color));
+    background: color-mix(in srgb, var(--primary-color) 6%, var(--surface-bg));
+    color: var(--primary-color);
+    text-decoration: none;
+    white-space: nowrap;
+    transition: color 0.15s ease, border-color 0.15s ease;
+  }
+  .article-meta__tag:hover {
     color: var(--primary-color-hover);
     border-color: color-mix(in srgb, var(--primary-color-hover) 42%, var(--border-color));
   }
 
+  /* Progress pill (matches site completion tokens) */
+  .article-meta__progress {
+    display: inline-block;
+    padding: 1px 9px;
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1.55;
+    color: var(--muted-color);
+    background: var(--surface-bg);
+    white-space: nowrap;
+  }
+  .article-meta__progress--complete {
+    color: #226845;
+    background: #edf8f0;
+    border-color: #b8d9c2;
+  }
+  .article-meta__progress--growing,
+  .article-meta__progress--draft {
+    color: #805b1b;
+    background: #fcf5e8;
+    border-color: #e7d4ac;
+  }
+  :global([data-theme="dark"]) .article-meta__progress--complete {
+    color: #a0dbb7;
+    background: #1c3529;
+    border-color: #365c46;
+  }
+  :global([data-theme="dark"]) .article-meta__progress--growing,
+  :global([data-theme="dark"]) .article-meta__progress--draft {
+    color: #e7cb93;
+    background: #352c1c;
+    border-color: #645332;
+  }
+
   @media (max-width: 768px) {
-    .meta-container-cell:nth-child(even) { text-align: right; }
-    .meta-container-cell:last-child:nth-child(odd) {
-      flex-grow: 0;
-      flex-basis: auto;
-      margin-left: auto;
-      text-align: right;
+    header.meta .meta-container--quad {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      column-gap: 16px;
+      row-gap: 14px;
+      max-width: 100%;
+      padding: 0 var(--spacing-4);
+    }
+    header.meta .meta-container--quad .meta-container-cell {
+      flex: initial;
+      text-align: left;
+    }
+  }
+
+  @media (max-width: 380px) {
+    header.meta .meta-container--quad {
+      grid-template-columns: 1fr;
+    }
+    header.meta .meta-container--quad .meta-container-cell {
+      text-align: left;
     }
   }
 </style>

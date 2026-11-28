@@ -14,7 +14,17 @@ import {
   SITE_TITLE,
   SITE_URL,
 } from "../consts";
-import { ARTICLE_EDITORIAL } from "../data/article-editorial";
+import {
+  ARTICLE_EDITORIAL,
+  COMPLETION,
+  CONTENT_TYPES,
+  collectionHref,
+} from "../data/article-editorial";
+import type {
+  HeroCollection,
+  HeroProgress,
+  HeroReadingTime,
+} from "../components/heroUtils";
 import {
   buildArticleCitation,
   flattenCitationTitle,
@@ -38,6 +48,7 @@ interface Props {
     frontmatter?: Record<string, unknown>;
   };
   lastModified?: string;
+  readingTime?: HeroReadingTime;
   slug?: string;
   ogImage?: string;
   reportMeta?: ReportMeta;
@@ -46,6 +57,7 @@ interface Props {
 const {
   articleMod: ArticleMod,
   lastModified,
+  readingTime,
   slug,
   ogImage,
   reportMeta,
@@ -199,8 +211,47 @@ const modified =
   (articleFM as any)?.lastmod ??
   published;
 const template: string = (articleFM as any)?.template ?? "article";
-const tags = articleFM?.tags ?? [];
+const rawTags = articleFM?.tags ?? reportMeta?.tags ?? [];
+const tags: string[] = Array.isArray(rawTags)
+  ? rawTags
+      .map((t) => (typeof t === "string" ? t.trim() : t != null ? String(t).trim() : ""))
+      .filter(Boolean)
+  : typeof rawTags === "string" && rawTags.trim()
+    ? [rawTags.trim()]
+    : [];
 const categories = articleFM?.categories ?? undefined;
+const resolvedContentType = editorial?.contentType ?? (reportMeta ? "reports" : undefined);
+const heroCollection: HeroCollection | undefined = resolvedContentType
+  ? {
+      label: CONTENT_TYPES[resolvedContentType].shortLabel,
+      href: collectionHref(resolvedContentType),
+    }
+  : undefined;
+const heroProgress: HeroProgress | undefined = isDraft
+  ? {
+      kind: "draft",
+      label: "Draft",
+      description: "本文尚处于草稿阶段，内容未完成且暂未公开索引。",
+    }
+  : reportMeta?.kind === "brief"
+    ? {
+        kind: "brief",
+        label: "Brief Note",
+        description: "简短的技术报告速记，后续如有更完整资料会继续补充。",
+      }
+    : completion
+      ? {
+          kind: completion,
+          label: COMPLETION[completion].label,
+          description: COMPLETION[completion].description,
+        }
+      : reportMeta
+        ? {
+            kind: "complete",
+            label: COMPLETION.complete.label,
+            description: COMPLETION.complete.description,
+          }
+        : undefined;
 // Prefer explicit ogImage / frontmatter seoThumbImage; otherwise use build-time generated /og/<slug>.png
 const fmOg = articleFM?.seoThumbImage as string | undefined;
 const resolvedOg = ogImage || fmOg || (slug ? `/og/${slug}.png` : ogDefaultUrl);
@@ -456,6 +507,10 @@ const articleLocale = articleLang.toLowerCase().startsWith("zh")
         banner={articleFM?.banner}
         bannerAspectRatio={articleFM?.bannerAspectRatio}
         categories={categories as any}
+        tags={tags}
+        collection={heroCollection}
+        readingTime={readingTime}
+        progress={heroProgress}
       />
     )}
 

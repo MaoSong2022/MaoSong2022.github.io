@@ -1,6 +1,7 @@
 ---
 import ArticlePage from "../../../layouts/ArticlePage.astro";
 import { getArticleBundleLastModifiedIso } from "../../../utils/article-modified";
+import { getArticleBundleReadingTime } from "../../../utils/reading-time";
 
 export async function getStaticPaths() {
   const loaders = import.meta.glob("../../../content/*/article.{md,mdx}");
@@ -10,22 +11,29 @@ export async function getStaticPaths() {
       if (!match) return null;
       const slug = match[1];
       if (slug === "demo") return null;
-      const articleMod = await load();
-      const lastModified = await getArticleBundleLastModifiedIso(slug);
+      const [articleMod, lastModified, readingTime] = await Promise.all([
+        load(),
+        getArticleBundleLastModifiedIso(slug),
+        getArticleBundleReadingTime(slug),
+      ]);
       return {
         params: { slug },
-        props: { articleMod, lastModified },
+        props: { articleMod, lastModified, readingTime },
       };
     }),
   );
   return entries.filter(
-    (e): e is { params: { slug: string }; props: { articleMod: unknown } } =>
-      e !== null,
+    (e): e is NonNullable<typeof e> => e !== null,
   );
 }
 
-const { articleMod, lastModified } = Astro.props;
+const { articleMod, lastModified, readingTime } = Astro.props;
 const { slug } = Astro.params;
 ---
 
-<ArticlePage articleMod={articleMod as any} lastModified={lastModified} slug={slug} />
+<ArticlePage
+  articleMod={articleMod as any}
+  lastModified={lastModified}
+  readingTime={readingTime}
+  slug={slug}
+/>

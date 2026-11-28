@@ -1,6 +1,7 @@
 ---
 import ArticlePage from "../../../../layouts/ArticlePage.astro";
 import { getFileLastModifiedIso } from "../../../../utils/article-modified";
+import { getContentFileReadingTime } from "../../../../utils/reading-time";
 
 export async function getStaticPaths() {
   const loaders = import.meta.glob("../../../../content/tech-reports/*.{md,mdx}");
@@ -13,17 +14,21 @@ export async function getStaticPaths() {
       const articleMod = await load();
       const fm = (articleMod as any)?.frontmatter ?? {};
       if (fm.draft === true || fm.draft === "true") return null;
-      const lastModified = await getFileLastModifiedIso(`tech-reports/${slug}.${ext}`);
+      const relPath = `tech-reports/${slug}.${ext}`;
+      const [lastModified, readingTime] = await Promise.all([
+        getFileLastModifiedIso(relPath),
+        getContentFileReadingTime(relPath),
+      ]);
       return {
         params: { slug },
-        props: { articleMod, lastModified },
+        props: { articleMod, lastModified, readingTime },
       };
     }),
   );
   return entries.filter((e): e is NonNullable<typeof e> => e !== null);
 }
 
-const { articleMod, lastModified } = Astro.props;
+const { articleMod, lastModified, readingTime } = Astro.props;
 const { slug } = Astro.params;
 const fm = (articleMod as any)?.frontmatter ?? {};
 
@@ -41,6 +46,7 @@ const reportMeta = {
 <ArticlePage
   articleMod={articleMod as any}
   lastModified={lastModified}
+  readingTime={readingTime}
   slug={`reports/${slug}`}
   ogImage={`/og/reports-${slug}.png`}
   reportMeta={reportMeta}
