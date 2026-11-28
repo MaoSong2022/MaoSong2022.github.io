@@ -17,7 +17,9 @@ const { articles, id, compact = false } = Astro.props;
       {a.displayDate && <span class="article-index__meta">Updated {a.displayDate}</span>}
       {!compact && <div class="article-index__tags">
         {a.categories && <a class="article-index__tag" href={browseCategoryHref(a.categories)}>{a.categories}</a>}
-        {a.tags.map(t => <a class="article-index__tag" href={browseTagHref(t)}>{t}</a>)}
+        {a.tags
+          .filter(t => t.toLowerCase() !== a.categories?.toLowerCase())
+          .map(t => <a class="article-index__tag" href={browseTagHref(t)}>{t}</a>)}
       </div>}
     </li>
   ))}

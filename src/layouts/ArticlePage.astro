@@ -14,6 +14,7 @@ import {
   SITE_TITLE,
   SITE_URL,
 } from "../consts";
+import { normalizeTagList } from "../utils/tags";
 import {
   ARTICLE_EDITORIAL,
   COMPLETION,
@@ -212,13 +213,7 @@ const modified =
   published;
 const template: string = (articleFM as any)?.template ?? "article";
 const rawTags = articleFM?.tags ?? reportMeta?.tags ?? [];
-const tags: string[] = Array.isArray(rawTags)
-  ? rawTags
-      .map((t) => (typeof t === "string" ? t.trim() : t != null ? String(t).trim() : ""))
-      .filter(Boolean)
-  : typeof rawTags === "string" && rawTags.trim()
-    ? [rawTags.trim()]
-    : [];
+const tags: string[] = normalizeTagList(rawTags);
 const categories = articleFM?.categories ?? undefined;
 const resolvedContentType = editorial?.contentType ?? (reportMeta ? "reports" : undefined);
 const heroCollection: HeroCollection | undefined = resolvedContentType

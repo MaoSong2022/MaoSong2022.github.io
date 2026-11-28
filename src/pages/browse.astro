@@ -6,6 +6,7 @@ import { CONTENT_TYPES, COMPLETION, type ContentType, type Completion } from "..
 import { getDigestSearchText } from "../utils/tech-reports";
 import { parseArticleGlob, sortByCompletion, type SiteArticleEntry } from "../utils/site-articles";
 import { getAllArticleBundleLastModifiedIso } from "../utils/article-modified";
+import { collectUniqueTags } from "../utils/tags";
 
 const articleGlob = import.meta.glob<{ frontmatter: Record<string, unknown> }>(
   "../content/*/article.{md,mdx}",
@@ -19,9 +20,7 @@ const categories = [
   ...new Set(articles.map((a) => a.categories).filter(Boolean) as string[]),
 ].sort((a, b) => a.localeCompare(b));
 
-const allTags = [
-  ...new Set(articles.flatMap((a) => a.tags)),
-].sort((a, b) => a.localeCompare(b));
+const allTags = collectUniqueTags(articles.map((a) => a.tags));
 
 type BrowseRow = {
   contentType: ContentType;

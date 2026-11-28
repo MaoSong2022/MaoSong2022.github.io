@@ -2,6 +2,7 @@
 import ArticlePage from "../../../../layouts/ArticlePage.astro";
 import { getFileLastModifiedIso } from "../../../../utils/article-modified";
 import { getContentFileReadingTime } from "../../../../utils/reading-time";
+import { normalizeTagList } from "../../../../utils/tags";
 
 export async function getStaticPaths() {
   const loaders = import.meta.glob("../../../../content/tech-reports/*.{md,mdx}");
@@ -39,7 +40,7 @@ const reportMeta = {
   quarter: typeof fm.quarter === "string" ? fm.quarter : undefined,
   digest: typeof fm.digest === "string" ? fm.digest : undefined,
   kind: fm.kind === "brief" ? ("brief" as const) : ("note" as const),
-  tags: Array.isArray(fm.tags) ? fm.tags.map(String) : [],
+  tags: normalizeTagList(fm.tags),
 };
 ---
 

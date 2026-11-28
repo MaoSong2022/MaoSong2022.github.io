@@ -1,4 +1,5 @@
 import { formatDisplayDate } from "./date-format";
+import { normalizeTagList } from "./tags";
 import { ARTICLE_EDITORIAL, type Editorial, type ContentType, type Completion } from "../data/article-editorial";
 
 export type SiteArticleEntry = Editorial & {
@@ -29,21 +30,6 @@ const flatTitle = (raw: unknown): string => {
         : "Untitled";
   return stripHtml(s).replace(/\\n/g, " ").replace(/\n/g, " ").trim();
 };
-
-function normalizeTags(raw: unknown): string[] {
-  if (raw == null) return [];
-  if (Array.isArray(raw)) {
-    const out: string[] = [];
-    for (const x of raw) {
-      if (typeof x === "string" && x.trim()) out.push(x.trim());
-      else if (x != null && typeof x !== "object")
-        out.push(String(x).trim());
-    }
-    return out.filter(Boolean);
-  }
-  if (typeof raw === "string" && raw.trim()) return [raw.trim()];
-  return [];
-}
 
 function normalizeFirstCategory(raw: unknown): string | undefined {
   if (typeof raw === "string" && raw.trim()) return raw.trim();
@@ -82,7 +68,7 @@ export async function parseArticleGlob(
       const modified = modifiedBySlug[slug] ?? frontmatterModified ?? published;
       const description =
         typeof fm.description === "string" ? fm.description : undefined;
-      const tags = normalizeTags(fm.tags);
+      const tags = normalizeTagList(fm.tags);
       const categories = normalizeFirstCategory(fm.categories);
       return {
         ...(ARTICLE_EDITORIAL[slug] ?? { contentType: "learning", completion: "outline" }),

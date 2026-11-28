@@ -7,6 +7,7 @@ import {
 } from "./heroUtils";
 import { formatDisplayDate } from "../utils/date-format";
 import { browseCategoryHref, browseTagHref } from "../utils/browse-links";
+import { normalizeTagList } from "../utils/tags";
 
 const {
   title,
@@ -47,9 +48,7 @@ const normalizedCategory = Array.isArray(categories)
   ? categories[0]
   : categories;
 
-const normalizedTags = Array.isArray(tags)
-  ? tags.map((t) => String(t || "").trim()).filter(Boolean)
-  : [];
+const normalizedTags = normalizeTagList(tags);
 
 const visibleUpdated = formatDisplayDate(modified ?? published);
 const visiblePublished = formatDisplayDate(published);

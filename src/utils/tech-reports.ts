@@ -1,3 +1,5 @@
+import { collectUniqueTags, normalizeTagList } from "./tags";
+
 export type TechReportKind = "note" | "brief";
 
 export type TechReportEntry = {
@@ -36,16 +38,6 @@ const reportGlob = import.meta.glob<RawReportModule>(
   { eager: true },
 );
 
-function normalizeStringArray(raw: unknown): string[] {
-  if (Array.isArray(raw)) {
-    return raw
-      .map((v) => (typeof v === "string" ? v.trim() : String(v ?? "").trim()))
-      .filter(Boolean);
-  }
-  if (typeof raw === "string" && raw.trim()) return [raw.trim()];
-  return [];
-}
-
 function parseTechReports(): TechReportEntry[] {
   const entries: TechReportEntry[] = [];
 
@@ -70,7 +62,7 @@ function parseTechReports(): TechReportEntry[] {
         : typeof fm.description === "string"
           ? fm.description.trim()
           : "";
-    const tags = normalizeStringArray(fm.tags);
+    const tags = normalizeTagList(fm.tags);
 
     entries.push({
       slug,
@@ -114,9 +106,7 @@ export function getTechReportsByDigest(digestSlug: string): TechReportEntry[] {
 }
 
 export function getAllReportTags(): string[] {
-  return [...new Set(parseTechReports().flatMap((r) => r.tags))].sort((a, b) =>
-    a.localeCompare(b),
-  );
+  return collectUniqueTags(parseTechReports().map((r) => r.tags));
 }
 
 export function getAllReportQuarters(): Array<{ digest: string; quarter: string }> {
