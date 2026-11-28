@@ -1,8 +1,31 @@
-## IQuest-Q1
+---
+title: "IQuest-Q1"
+description: "29T Token 预训练与中训练；SWA:GQA=3:1、Stable Split Norm、MTP 递归草稿与 4 专家 MOPD 合版。"
+authors:
+  - name: "Mao Song"
+    url: "https://maosong.website/"
+published: "2026-10-09"
+org: "IQuest"
+release: "2026-09"
+quarter: "2026 Q4"
+digest: "tech-reports-2026-q4"
+baseOrArch: "320B-A15B MoE"
+kind: "note"
+tags:
+  - "Code"
+  - "Pre-training"
+  - "MoE"
+  - "Hybrid Attention"
+  - "Architecture"
+  - "Agentic RL"
+categories:
+  - "LLM"
+showPdf: false
+---
 
 IQuest-Q1 [@IQuest-Q1] 是 IQuest 在 26 年 9 月发布的一个 320B-A15B 的 MoE 模型，用于 agentic coding, reasoning 以及 multi-step tool-use.
 
-### Architecture
+## Architecture
 
 对于 attention, 作者使用了 GQA 和 SWA 的 hybrid attention, SWA:GQA = 3:1, 第一层和最后三层使用了 full attention. SWA 的 window size 为 4096, 作者还使用了 attention sink, QKNorm, QKNorm clip, partial RoPE 等策略。
 
@@ -28,7 +51,7 @@ $$
 
 
 
-### Training
+## Training
 
 Pre-training 包括两个 stage:
 

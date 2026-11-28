@@ -1,0 +1,29 @@
+---
+title: "Marin 535B"
+description: "完全开源的大规模 MoE 训练项目，采用 SWA:GQA=2:1 与 LatentMoE（384 选 8）。"
+authors:
+  - name: "Mao Song"
+    url: "https://maosong.website/"
+published: "2026-10-09"
+org: "Open Athena / Stanford"
+release: "2026-10"
+quarter: "2026 Q4"
+digest: "tech-reports-2026-q4"
+baseOrArch: "535B-A23B LatentMoE"
+kind: "brief"
+tags:
+  - "Open Source"
+  - "Pre-training"
+  - "MoE"
+  - "Hybrid Attention"
+categories:
+  - "LLM"
+showPdf: false
+---
+
+Marin [@Marin535B] 是 Stanford 提出的一个完全开源的 MoE 模型，参数为 535.3B / 22.76B。
+
+## Architecture
+
+- Hybrid Attention：`SWA : GQA = 2 : 1`
+- MoE：LatentMoE [@LatentMoE]，384 / 8 experts

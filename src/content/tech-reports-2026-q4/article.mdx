@@ -1,6 +1,6 @@
 ---
-title: "Tech Reports Digest (2026 Q4)：单篇大模型技术报告季报"
-description: "2026 年第 4 季度单篇大模型技术报告阅读汇总与趋势复盘，涵盖 Rufus-Air、K2-Horizon、Apex Agents、FireFlash、Ripple 65B、IQuest-Q1 等 13 篇模型的架构、后训练与 Agentic RL 实践。"
+title: "Tech Reports Review (2026 Q4)：单篇大模型进展季度总结"
+description: "2026 年第 4 季度单篇大模型技术报告的行业趋势复盘与精读导航，聚焦 Hybrid Attention 架构收敛、强开源基座后训练爆发与 Agentic RL 工程共识。"
 authors:
   - name: "Mao Song"
     url: "https://maosong.website/"
@@ -18,42 +18,33 @@ showPdf: false
 ---
 
 import ReportDigestTable from "../../components/ReportDigestTable.astro";
-import RufusAir from "./chapters/rufus_air.mdx";
-import K2Horizon from "./chapters/k2_horizon.mdx";
-import ApexAgents from "./chapters/apex_agents.mdx";
-import FireFlash from "./chapters/fireflash.mdx";
-import Ripple from "./chapters/ripple.mdx";
-import UltramarineFlash from "./chapters/ultramarine_flash.mdx";
-import IQuestQ1 from "./chapters/iquest_q1.mdx";
-import NorthMiniCode from "./chapters/north_mini_code.mdx";
-import MacaronV1 from "./chapters/macaron_v1.mdx";
-import Ornith from "./chapters/ornith.mdx";
-import Laguna from "./chapters/laguna.mdx";
-import BriefNotes from "./chapters/brief_notes.mdx";
 
-本文是 **2026 Q4** 阅读的单篇（尚未独立成系列）前沿大模型技术报告季报。如需跨季度按标签检索所有单篇模型，可前往 [Technical Reports 单篇索引表](/blog/collections/reports/#single-report-index)。
+本文是对 **2026 Q4** 期间阅读的单篇（尚未独立成系列）前沿大模型技术报告的**简略复盘与行业趋势总结**。每篇报告的完整公式推导、数据配比表与训练细节均保存在各自独立的阅读心得页中，可从下方速览表或 [跨季度单篇索引表](/blog/collections/reports/#single-report-index) 进入查阅。
 
 ## 本期行业进展总结
 
-回顾本季度整理的 13 篇单篇报告，行业在大模型架构与后训练工程上呈现出几条清晰主线：
+### 1. 架构趋同与训练稳定性微创新
 
-1. **Hybrid Attention 与稳定性改进成为新基座标配**：从 `IQuest-Q1`、`North Mini Code`、`Ripple 65B` 到 `Marin`，`SWA + GQA` 混合注意力（常见 3:1 或 4:1 配比）几乎成为长上下文效率的默认选择；与此同时，各家针对深宽模型的稳定性持续做细粒度创新，例如 `K2-Horizon` 的 Grouped RMSNorm 与 Softplus Gating、`IQuest-Q1` 的 Stable Split Norm，以及 `Ripple 65B` 的薄深（Thin & Deep）Dense 架构 + Global NoPE + Value Residual。
-2. **基于强开源基座的垂直 Agentic 后训练全面爆发**：越来越多团队不再从头预训练，而是直接基于 `GLM-4.5 / 5.1 / 5.3 Flash` 或 `Qwen3.5 / 3.6` 打造专精后训练配方（如 `Rufus-Air`、`FireFlash`、`Ultramarine 1 Flash`、`Macaron-V1`、`Apex Agents`、`Ornith 1.0`），把算力与工程重心集中到数据构建、沙箱环境（Harbor / Modal）与长程轨迹优化上。
-3. **Agentic RL 工程配方走向收敛**：异步 RL（Async RL）配合 Staleness 控制已成为主流；针对训练推理不一致（[TIM](/blog/train-inference-mismatch/)），`TIS` 与 `R3` 被广泛采用；策略优化算法集中于 `CISPO`、`GSPO`、`DPPO` 与改进版 `GRPO`；面对不可验证的长程知识工作任务，基于 `Rubric` 的评分框架、任务通过率过滤（如 `[15%, 85%]`）以及 `Self-Evolution`（模型与 Harness/Scaffold 协同演化）正在成为新的突破口。
+- **Hybrid Attention 成为默认基座范式**：本季度多篇从头预训练报告几乎一致采用 `SWA + GQA` 混合注意力（常见 3:1 或 4:1 配比），包括 [IQuest-Q1](/blog/reports/iquest-q1/)、[North Mini Code](/blog/reports/north-mini-code/)、[Ripple 65B](/blog/reports/ripple-65b/) 与 [Marin 535B](/blog/reports/marin/)。
+- **Normalization 与门控持续演进**：针对超深/超宽模型的训练不稳定问题，各家给出了不同角度的精细改动——[K2-Horizon](/blog/reports/k2-horizon/) 提出 Grouped RMSNorm、MoVA 与 Softplus Gating；[IQuest-Q1](/blog/reports/iquest-q1/) 引入 Stable Split Norm；[Ripple 65B](/blog/reports/ripple-65b/) 则以 80 层瘦深 Dense 架构（MFU 40%）验证了 Pre+Post Norm、Gated Attention、Global NoPE 与 Value Residual 的组合收益。
 
-## 本期收录模型速览
+### 2. 基于强开源基座的垂直后训练爆发
+
+越来越多团队跳过高昂的预训练，直接基于 `GLM-4.5 / 5.1 / 5.3 Flash` 或 `Qwen3.5 / 3.6` 专注打磨后训练数据、沙箱环境与强化学习配方：
+
+- **通用与多阶段后训练配方**：Amazon 的 [Rufus-Air](/blog/reports/rufus-air/) 基于 GLM-4.5-Air-Base 完整公开了 `SFT → RLVR → Agentic RL → RLHF` 的四阶段渐进方案及细粒度数据配比。
+- **垂直 Agentic / 知识工作模型**：[FireFlash](/blog/reports/fireflash/) 与 [Ultramarine 1 Flash](/blog/reports/ultramarine-1-flash/) 均基于 GLM-5.3 Flash 探索长程 Agentic RL；[Apex Agents](/blog/reports/apex-agents/) 基于 Qwen3.5/3.6 在知识工作场景给出详尽消融；[Macaron-V1-Preview](/blog/reports/macaron-v1-preview/) 则在 GLM-5.1 上探索了 Mixture of LoRA（MoL）与跨 LoRA KV Cache 复用。
+
+### 3. Agentic RL 工程共识正在形成
+
+从多篇实战报告（[Apex Agents](/blog/reports/apex-agents/)、[FireFlash](/blog/reports/fireflash/)、[Ultramarine 1 Flash](/blog/reports/ultramarine-1-flash/)、[Rufus-Air](/blog/reports/rufus-air/)、[North Mini Code](/blog/reports/north-mini-code/)、[Laguna](/blog/reports/laguna/)、[Ornith 1.0](/blog/reports/ornith-1-0/)）可以明显看到几个高度一致的工程实践：
+
+- **异步训练与 TIM 修正**：Async RL（SkyRL、PipelineRL 等）配合 Staleness 控制已成为主流；针对训练推理不一致（[TIM](/blog/train-inference-mismatch/)），`TIS` 与 `R3` 几乎成为标配，部分团队辅以 Score Centering 进一步抑制漂移。
+- **策略优化与数据过滤**：算法集中在 `CISPO`、`GSPO`、`DPPO` 与长度惩罚改进版 `GRPO`；数据侧高度重视**难度/可学习性过滤**（如保留通过率 `[15%, 85%]` 的任务以降低 zero-signal groups 比例）。
+- **超越纯可验证环境**：在不可验证的长程任务上，Rubric Grading 奖励框架（[Ultramarine 1 Flash](/blog/reports/ultramarine-1-flash/)、[Rufus-Air](/blog/reports/rufus-air/)）与 LLM-Harness 协同自演化（[Ornith 1.0](/blog/reports/ornith-1-0/)、[Macaron-V1-Preview](/blog/reports/macaron-v1-preview/)）正成为新的探索重点。
+
+## 本期单篇报告速览
+
+点击模型名可进入对应的独立阅读心得页查看完整公式、表格与训练配置：
 
 <ReportDigestTable digest="tech-reports-2026-q4" />
-
-<RufusAir />
-<K2Horizon />
-<ApexAgents />
-<FireFlash />
-<Ripple />
-<UltramarineFlash />
-<IQuestQ1 />
-<NorthMiniCode />
-<MacaronV1 />
-<Ornith />
-<Laguna />
-<BriefNotes />

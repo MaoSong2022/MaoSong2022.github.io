@@ -1,4 +1,27 @@
-## North Mini Code
+---
+title: "North Mini Code"
+description: "30B-A3B 代码 MoE：SWA:GQA=3:1，70K 可验证仓库任务 Async RLVR（CISPO + Harbor/SWE-agent）。"
+authors:
+  - name: "Mao Song"
+    url: "https://maosong.website/"
+published: "2026-10-15"
+org: "Cohere"
+release: "2026-09"
+quarter: "2026 Q4"
+digest: "tech-reports-2026-q4"
+baseOrArch: "30B-A3B MoE"
+kind: "note"
+tags:
+  - "Code"
+  - "MoE"
+  - "Hybrid Attention"
+  - "Async RL"
+  - "RLVR"
+  - "CISPO"
+categories:
+  - "LLM"
+showPdf: false
+---
 
 North Mini Code 是 Cohere 在 26 年 9 月提出的一个 30B-A3B 的用于 agentic coding 的 MoE 模型
 
@@ -7,7 +30,7 @@ North Mini Code 是 Cohere 在 26 年 9 月提出的一个 30B-A3B 的用于 age
 - MoE, 总专家个数为 128 个，激活专家个数为 8 个, 第一层为 dense layer
 - Attention, local attention 为 SWA (window size=4096), global attention 为 GQA (32/4), local:global=3:1
 
-### Post-training
+## Post-training
 
 Post-training 包含 2 阶段，SFT 和 RLVR
 
@@ -18,7 +41,7 @@ SFT 包含 2 个 stage,
 
 RLVR 阶段作者使用了 70K verifiable tasks, 覆盖 5K unique repos.
 
-### Infra
+## Infra
 
 Infra 上，作者使用了 async RL 进行训练，训练算法为 CISPO [@MiniMax-M1]
 

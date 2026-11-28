@@ -1,4 +1,26 @@
-## K2-Horizon
+---
+title: "K2-Horizon"
+description: "6 尺寸开源模型族；提出 Grouped RMSNorm、MoVA、Softplus Gating 与扩散蒸馏投机解码 Uno。"
+authors:
+  - name: "Mao Song"
+    url: "https://maosong.website/"
+published: "2026-11-13"
+org: "IFM"
+release: "2026-11"
+quarter: "2026 Q4"
+digest: "tech-reports-2026-q4"
+baseOrArch: "0.9B–375B-A23B (Dense/MoE)"
+kind: "note"
+tags:
+  - "Pre-training"
+  - "MoE"
+  - "Architecture"
+  - "Long Context"
+  - "Open Source"
+categories:
+  - "LLM"
+showPdf: false
+---
 
 K2 horizon [@K2-Horizon] 是 IFM 发布的一个大模型系列，包括 0.9B, 3.7B, 32B, 36B-A4B, 375B-A23B 6 个模型。
 
@@ -6,7 +28,7 @@ K2 horizon [@K2-Horizon] 是 IFM 发布的一个大模型系列，包括 0.9B, 3
 为了提高数据质量，预训练阶段有 $10$ T token 都是合成数据。
 为了提高多样性，作者提出了 Wzip compressor 作为一个 metric.
 
-### Architecture
+## Architecture
 
 K2 horizon 认为 传统的 RMSNorm 的 bound $(-\sqrt{d},\sqrt{d})$ (这里 $d$ 是 hidden size) 对于 wide models 会导致训练不稳定。为了解决这个问题，作者提出了 Grouped RMSNorm
 $$
@@ -30,7 +52,7 @@ $$
 
 
 
-### Training
+## Training
 
 pre-training 阶段，3.7B, 7B, 32B, 36B-A4B 使用了 22T tokens, 375B-A23B 使用了 15T tokens. 预训练数据基于 K2-V2, 作者额外增加了 10T 的 syntheci token.
 
@@ -51,7 +73,7 @@ post-training 从 mid-training 开始, 基于 mid-training checkpoint, 作者基
 
 
 
-### Infra
+## Infra
 
 K2 horizon 的 pre-training 和 mid-trainng 基于 xLLM, 并行配制如下：
 
