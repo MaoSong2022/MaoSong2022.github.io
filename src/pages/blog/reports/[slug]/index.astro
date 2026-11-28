@@ -1,0 +1,47 @@
+---
+import ArticlePage from "../../../../layouts/ArticlePage.astro";
+import { getFileLastModifiedIso } from "../../../../utils/article-modified";
+
+export async function getStaticPaths() {
+  const loaders = import.meta.glob("../../../../content/tech-reports/*.{md,mdx}");
+  const entries = await Promise.all(
+    Object.entries(loaders).map(async ([path, load]) => {
+      const match = path.match(/tech-reports\/([^/]+)\.(md|mdx)$/);
+      if (!match) return null;
+      const slug = match[1];
+      const ext = match[2];
+      const articleMod = await load();
+      const fm = (articleMod as any)?.frontmatter ?? {};
+      if (fm.draft === true || fm.draft === "true") return null;
+      const lastModified = await getFileLastModifiedIso(`tech-reports/${slug}.${ext}`);
+      return {
+        params: { slug },
+        props: { articleMod, lastModified },
+      };
+    }),
+  );
+  return entries.filter((e): e is NonNullable<typeof e> => e !== null);
+}
+
+const { articleMod, lastModified } = Astro.props;
+const { slug } = Astro.params;
+const fm = (articleMod as any)?.frontmatter ?? {};
+
+const reportMeta = {
+  org: typeof fm.org === "string" ? fm.org : undefined,
+  release: typeof fm.release === "string" ? fm.release : undefined,
+  baseOrArch: typeof fm.baseOrArch === "string" ? fm.baseOrArch : undefined,
+  quarter: typeof fm.quarter === "string" ? fm.quarter : undefined,
+  digest: typeof fm.digest === "string" ? fm.digest : undefined,
+  kind: fm.kind === "brief" ? ("brief" as const) : ("note" as const),
+  tags: Array.isArray(fm.tags) ? fm.tags.map(String) : [],
+};
+---
+
+<ArticlePage
+  articleMod={articleMod as any}
+  lastModified={lastModified}
+  slug={`reports/${slug}`}
+  ogImage={`/og/reports-${slug}.png`}
+  reportMeta={reportMeta}
+/>

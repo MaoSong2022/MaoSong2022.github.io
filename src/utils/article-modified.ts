@@ -69,6 +69,26 @@ export async function getArticleBundleLastModifiedIso(
   }
 }
 
+export async function getFileLastModifiedIso(
+  relativePathFromContent: string,
+): Promise<string | undefined> {
+  const fullPath = join(CONTENT_ROOT, relativePathFromContent);
+  if (!existsSync(fullPath)) return undefined;
+  try {
+    const output = execSync(
+      `git log -1 --format=%cI -- "${fullPath}"`,
+      {
+        encoding: "utf-8",
+        timeout: 10000,
+        stdio: ["pipe", "pipe", "ignore"],
+      },
+    ).trim();
+    return output || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function getAllArticleBundleLastModifiedIso(): Promise<
   Record<string, string>
 > {

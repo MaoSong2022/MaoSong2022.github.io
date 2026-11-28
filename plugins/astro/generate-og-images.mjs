@@ -27,7 +27,7 @@ const OG_ENGLISH_TITLES = {
   "kat-coder": "KAT-Coder Series: Multi-Expert Agentic Coding Models",
   apertus: "Apertus Series: Open Multilingual & Multimodal LLMs",
   mai: "MAI Series: Large-Scale MoE Pre-training at Microsoft AI",
-  "tech-reports-2026-q4": "Tech Reports Digest (2026 Q4)",
+  "tech-reports-2026-q4": "Tech Reports Review (2026 Q4)",
 };
 
 const CONTENT_TYPE_BADGES = {
@@ -270,6 +270,35 @@ export default function generateOgImages() {
             console.warn(`[og-images] failed for ${slug}:`, err?.message || err);
           }
         }
+
+        // Also generate OG cards for standalone single-model report notes in src/content/tech-reports/
+        const reportsDir = resolve(contentRoot, "tech-reports");
+        try {
+          const reportFiles = await fs.readdir(reportsDir, { withFileTypes: true });
+          for (const file of reportFiles) {
+            if (!file.isFile() || !/\.(md|mdx)$/.test(file.name)) continue;
+            const slug = file.name.replace(/\.(md|mdx)$/, "");
+            const raw = await fs.readFile(resolve(reportsDir, file.name), "utf-8");
+            const fm = extractFrontmatter(raw);
+            if (fm.draft === "true" || fm.seoThumbImage) continue;
+
+            const cardTitle = toSafeCardTitle(fm, slug);
+            const svg = buildOgSvg({
+              title: cardTitle,
+              slug: `reports/${slug}`,
+              published: fm.published || fm.release,
+              contentType: "reports",
+            });
+            try {
+              await sharp(Buffer.from(svg))
+                .png({ compressionLevel: 9 })
+                .toFile(resolve(outDir, `reports-${slug}.png`));
+              generated += 1;
+            } catch (err) {
+              console.warn(`[og-images] failed for reports/${slug}:`, err?.message || err);
+            }
+          }
+        } catch {}
 
         console.log(`[og-images] Generated ${generated} OG card images in dist/og/`);
       },

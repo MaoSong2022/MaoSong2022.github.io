@@ -1,5 +1,6 @@
 import { getAllArticleBundleLastModifiedIso } from "../utils/article-modified";
 import { parseArticleGlob } from "../utils/site-articles";
+import { getAllTechReports } from "../utils/tech-reports";
 import { CONTENT_TYPES, collectionHref } from "../data/article-editorial";
 
 function escapeXml(value) {
@@ -35,6 +36,14 @@ export async function GET(context) {
     pages.push({
       path: article.url,
       lastmod: article.modified ?? article.published,
+    });
+  }
+
+  for (const report of getAllTechReports()) {
+    if (report.kind === "brief") continue;
+    pages.push({
+      path: report.url,
+      lastmod: report.published,
     });
   }
 
