@@ -1,0 +1,59 @@
+---
+title: "Tech Reports Digest (2026 Q4)：单篇大模型技术报告季报"
+description: "2026 年第 4 季度单篇大模型技术报告阅读汇总与趋势复盘，涵盖 Rufus-Air、K2-Horizon、Apex Agents、FireFlash、Ripple 65B、IQuest-Q1 等 13 篇模型的架构、后训练与 Agentic RL 实践。"
+authors:
+  - name: "Mao Song"
+    url: "https://maosong.website/"
+published: "2026-10-14"
+tags:
+  - "Technical Report"
+  - "Agentic RL"
+  - "MoE"
+  - "Code"
+categories:
+  - "LLM"
+tableOfContentsAutoCollapse: true
+pdfProOnly: false
+showPdf: false
+---
+
+import ReportDigestTable from "../../components/ReportDigestTable.astro";
+import RufusAir from "./chapters/rufus_air.mdx";
+import K2Horizon from "./chapters/k2_horizon.mdx";
+import ApexAgents from "./chapters/apex_agents.mdx";
+import FireFlash from "./chapters/fireflash.mdx";
+import Ripple from "./chapters/ripple.mdx";
+import UltramarineFlash from "./chapters/ultramarine_flash.mdx";
+import IQuestQ1 from "./chapters/iquest_q1.mdx";
+import NorthMiniCode from "./chapters/north_mini_code.mdx";
+import MacaronV1 from "./chapters/macaron_v1.mdx";
+import Ornith from "./chapters/ornith.mdx";
+import Laguna from "./chapters/laguna.mdx";
+import BriefNotes from "./chapters/brief_notes.mdx";
+
+本文是 **2026 Q4** 阅读的单篇（尚未独立成系列）前沿大模型技术报告季报。如需跨季度按标签检索所有单篇模型，可前往 [Technical Reports 单篇索引表](/blog/collections/reports/#single-report-index)。
+
+## 本期行业进展总结
+
+回顾本季度整理的 13 篇单篇报告，行业在大模型架构与后训练工程上呈现出几条清晰主线：
+
+1. **Hybrid Attention 与稳定性改进成为新基座标配**：从 `IQuest-Q1`、`North Mini Code`、`Ripple 65B` 到 `Marin`，`SWA + GQA` 混合注意力（常见 3:1 或 4:1 配比）几乎成为长上下文效率的默认选择；与此同时，各家针对深宽模型的稳定性持续做细粒度创新，例如 `K2-Horizon` 的 Grouped RMSNorm 与 Softplus Gating、`IQuest-Q1` 的 Stable Split Norm，以及 `Ripple 65B` 的薄深（Thin & Deep）Dense 架构 + Global NoPE + Value Residual。
+2. **基于强开源基座的垂直 Agentic 后训练全面爆发**：越来越多团队不再从头预训练，而是直接基于 `GLM-4.5 / 5.1 / 5.3 Flash` 或 `Qwen3.5 / 3.6` 打造专精后训练配方（如 `Rufus-Air`、`FireFlash`、`Ultramarine 1 Flash`、`Macaron-V1`、`Apex Agents`、`Ornith 1.0`），把算力与工程重心集中到数据构建、沙箱环境（Harbor / Modal）与长程轨迹优化上。
+3. **Agentic RL 工程配方走向收敛**：异步 RL（Async RL）配合 Staleness 控制已成为主流；针对训练推理不一致（[TIM](/blog/train-inference-mismatch/)），`TIS` 与 `R3` 被广泛采用；策略优化算法集中于 `CISPO`、`GSPO`、`DPPO` 与改进版 `GRPO`；面对不可验证的长程知识工作任务，基于 `Rubric` 的评分框架、任务通过率过滤（如 `[15%, 85%]`）以及 `Self-Evolution`（模型与 Harness/Scaffold 协同演化）正在成为新的突破口。
+
+## 本期收录模型速览
+
+<ReportDigestTable digest="tech-reports-2026-q4" />
+
+<RufusAir />
+<K2Horizon />
+<ApexAgents />
+<FireFlash />
+<Ripple />
+<UltramarineFlash />
+<IQuestQ1 />
+<NorthMiniCode />
+<MacaronV1 />
+<Ornith />
+<Laguna />
+<BriefNotes />

@@ -82,7 +82,7 @@ export const ARTICLE_EDITORIAL: Record<string, Editorial> = {
   "kat-coder": report(),
   apertus: report(),
   mai: report(),
-  tech_report: report(),
+  "tech-reports-2026-q4": report(),
   "deepseek-r1": report("outline"),
   attention: topic(),
   "long-context": topic(),

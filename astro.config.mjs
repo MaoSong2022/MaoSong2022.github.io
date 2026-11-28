@@ -38,6 +38,7 @@ export default defineConfig({
     '/blog/llm-memory-computation/': '/blog/llm-resource-computation/#训练显存计算',
     '/p/llm-memory-computation/': '/blog/llm-resource-computation/#训练显存计算',
     '/blog/train_inference_mistahch/': '/blog/train-inference-mismatch/',
+    '/blog/tech_report/': '/blog/tech-reports-2026-q4/',
   },
 	site:"https://maosong.website",
   integrations: [

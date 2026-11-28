@@ -27,6 +27,7 @@ const OG_ENGLISH_TITLES = {
   "kat-coder": "KAT-Coder Series: Multi-Expert Agentic Coding Models",
   apertus: "Apertus Series: Open Multilingual & Multimodal LLMs",
   mai: "MAI Series: Large-Scale MoE Pre-training at Microsoft AI",
+  "tech-reports-2026-q4": "Tech Reports Digest (2026 Q4)",
 };
 
 const CONTENT_TYPE_BADGES = {

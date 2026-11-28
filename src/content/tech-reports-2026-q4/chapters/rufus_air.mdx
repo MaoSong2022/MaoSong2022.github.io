@@ -1,0 +1,67 @@
+## Rufus-Air
+
+
+
+Rufus-Air [@Rufus-Air] 是 Amazon 在 26 年 9 月发布的一个开源的大语言模型，模型基于 GLM-4.5-Air-Base [@glm45] post-training 得到
+
+Post-training 包含 SFT, RLVR, agentic RL, RLHF 四个大的 stage, RLVR 和 agentic RL 又分为若干个小的 stage. 
+
+RL 的训练遵循了两个原则：1. 能力从基础到高级；2. reward 从 verifiable 到 judge-based.
+
+SFT 阶段的数据配比如下表所示
+
+| Category      | Samples       | Sample ratio | Train tokens | Token ratio |
+| ------------- | ------------- | ------------ | ------------ | ----------- |
+| General Agent | 3,568,388     | $39.6\%$     | 3.84B        | $14.2\%$    |
+| General Chat  | 1,599,070     | $17.7\%$     | 3.30B        | $12.2\%$    |
+| STEM          | 1,359,334     | $15.1\%$     | 2.37B        | $8.8\%$     |
+| Math          | 1,146,108     | $12.7\%$     | 7.96B        | $29.4\%$    |
+| Code          | 792,807       | $8.8\%$      | 4.25B        | $15.7\%$    |
+| Coding Agent  | 549,222       | $6.1\%$      | 5.32B        | $19.7\%$    |
+| **Total**     | **9,014,929** | **100%**     | **27.04B**   | **100%**    |
+
+最终 SFT 共使用了 9.01M samples, 44.5B tokens, 其中 27.0B tokens 参与 loss 计算。
+
+训练基于 slime, 训练后端为 megatron, 一共使用了 64 个 8*H200 nodes.
+
+
+
+RLVR 分为了 reasoning 和 coding 两个小的 stage.
+
+对 reasoning RL, 作者使用了 math reasoning, puzzle 和 science 三个 domain 的数据，数据分布如下表所示
+
+| task    | sources                | verifier                    | prompts (count) | prompts (ratio) | tokens (count) | tokens (ratio) |
+| ------- | ---------------------- | --------------------------- | --------------: | --------------: | -------------: | -------------: |
+| Math    | HF crawl; synthesis    | Math-Verify  [@Math-Verify] |          57,736 |           47.7% |          6.34M |          25.3% |
+| Science | HF crawl               | Fuzzy string matching       |          43,199 |           35.7% |          4.81M |          19.2% |
+| Puzzles | Enigmata; ReasoningGym | Generated Python Checkers   |          20,226 |           16.7% |         13.91M |          55.5% |
+| Total   | —                      | —                           |     **121,161** |        **100%** |     **25.07M** |       **100%** |
+
+为了得到高质量数据，作者进一步对数据进行了过滤，作者首先使用一个 strong teacher 来过滤无法做对的任务，然后，作者使用了一个可学习的 filter 来得到对于当前 policy 高质量的数据。
+
+训练时，作者使用了 GSPO [@GSPO] 算法来进行训练，同时使用了 R3 [@R3] 来减少 [TIM](https://maosong.website/blog/train-inference-mismatch/). batch size 为 256, group size 为 16, 更新 2 次。训练策略为 sync, colocated mode. generator 使用了 FP8 quantization.
+
+对于 coding RL, 作者使用了多个 domain 的数据，数据分布如下表所示
+
+| Source                  | Modality                 |   Problems | % of set |
+| ----------------------- | ------------------------ | ---------: | -------: |
+| EvolveCoder (synthetic) | functional               |     14,743 |    50.1% |
+| Nemotron (competitive)  | stdin/stdout             |      9,393 |    31.9% |
+| Dolci (mixed)†          | mixed                    |      3,109 |    10.6% |
+| ADR (algorithmic)       | stdin/stdout             |      2,160 |     7.3% |
+| **Total**               | **53.2% fn / 46.8% i/o** | **29,405** | **100%** |
+
+训练时，算法仍然是 GSPO, 使用了 TIS 来减少 TIM, batch size 为 128, group size 为 64, 更新 8 次。
+
+
+
+对于 instruction following RL, 作者按照 multi-constraint 和 multi-turn 两个维度来构造训练数据，前者合成了 python 可以检查的 14K single turn 数据，后者合成了 13K 数据。reward 使用了 rubric-based binary reward, 包含 code-verifiable rubrics 和 LLM-as-a-judge rubrics. 训练算法使用了 GRPO, batch size 为 256, group size 为 16.
+
+对于 general agentic RL, 这一阶段的目的是提高模型的 general tool use 能力，作者使用了 AgentWorldModel [@AgentWorldModel] 的 MCP 任务，经过正确性和难度过滤后留下了 2K 任务。
+
+对于 coding agentic RL, 这一阶段用于提高模型的 terminal 以及 SWE 能力，数据使用了 Endless-Terminal, SETA-Env 和 Scale-SWE, 作者还使用了 structural filters 以及 learnability filter 来对数据进行过滤。
+
+对于 search agentic RL, 作者使用了 MiroVerse 的 verifiable QA pairs, 留下了 36,614 条数据和包含 4069 条数据的验证集，过滤掉不需要工具调用也可以回答的任务以及 DAPO 预先过滤之后。留下了 2.2k 任务用于训练。reward 使用了 LLM-as-a-judge 和 partial credit, 算法基于 Dr.GRPO [@DrGRPO]
+
+对于 RLHF, 作者使用了 Arena Human Preferene, HelpSteer3, HH-RLHF 等数据集，然后使用 Skywork-Reward-V2-Qwen3 作为 reward model.
+
