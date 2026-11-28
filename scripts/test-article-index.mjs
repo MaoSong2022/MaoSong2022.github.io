@@ -89,7 +89,8 @@ test('all article and tech-report frontmatter tags follow unified format without
     if (article) targetFiles.push(`src/content/${dir.name}/${article}`);
   }
 
-  const BANNED_META_TAGS = new Set(['tutorial', 'technical report']);
+  const BANNED_META_TAGS = new Set(['tutorial', 'technical report', 'rl', 'math']);
+  const ALLOWED_PUBLIC_SUBJECTS = new Set(['LLM', 'MLLM', 'RL', 'Infra', 'Math']);
   const seenCanonical = new Map();
   const issues = [];
 
@@ -102,6 +103,20 @@ test('all article and tech-report frontmatter tags follow unified format without
     }
     const fm = fmMatch[1];
     const isDraft = /^draft:\s*true$/m.test(fm);
+    const isDemo = file === 'src/content/demo/article.mdx';
+    const isReport = file.startsWith('src/content/tech-reports/');
+    if (!isDraft && !isDemo && !isReport) {
+      const catMatch = fm.match(/^categories:[^\r\n]*((?:\r?\n[ \t]*-[^\r\n]*)*)/m);
+      const firstCat = catMatch
+        ? catMatch[1]
+            .split(/\r?\n/)
+            .map((l) => l.replace(/^[ \t]*-\s*/, '').replace(/^["']|["']$/g, '').trim())
+            .find(Boolean)
+        : undefined;
+      if (!firstCat || !ALLOWED_PUBLIC_SUBJECTS.has(firstCat)) {
+        issues.push(`${file}: primary subject must be one of ${[...ALLOWED_PUBLIC_SUBJECTS].join(', ')}, got ${JSON.stringify(firstCat)}`);
+      }
+    }
     const tagMatch = fm.match(/^tags:([^\r\n]*)((?:\r?\n[ \t]+-[^\r\n]*)*)/m);
     if (!tagMatch) {
       if (!isDraft) issues.push(`${file}: missing tags`);

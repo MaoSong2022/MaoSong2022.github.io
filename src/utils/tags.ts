@@ -3,11 +3,12 @@
  *
  * Canonical tag conventions across articles and single-report notes:
  * - Title Case with canonical acronyms/proper nouns preserved (e.g. "Long Context",
- *   "Position Encoding", "Agentic RL", "Pre-training", "Post-training", "MoE", "OpenAI").
+ *   "Position Encoding", "Agentic RL", "Pre-training", "Post-training", "MoE", "Qwen").
  * - YAML frontmatter uses a double-quoted block list (`- "Tag"`).
- * - Organization/vendor tags use canonical org names (e.g. "Alibaba", "Google", "Meta",
- *   "Microsoft", "Moonshot", "OpenAI", "NVIDIA", "Kuaishou", "Zhipu", "Xiaomi").
- * - No content-type meta tags (e.g. "tutorial", "Technical Report") — use `ARTICLE_EDITORIAL`.
+ * - Model-series report articles use canonical model series names (e.g. "Qwen", "DeepSeek",
+ *   "Gemini", "Gemma", "GLM", "GPT", "Kimi", "LLaMA", "Mistral", "Nemotron", "OLMo").
+ * - High-level subjects ("LLM", "MLLM", "RL", "Infra", "Math") belong in `categories`,
+ *   and content types belong in `ARTICLE_EDITORIAL` — avoid meta or overly narrow tags.
  */
 
 const MULTI_SPACE_RE = /\s+/g;

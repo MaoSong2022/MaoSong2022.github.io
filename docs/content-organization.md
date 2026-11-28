@@ -29,16 +29,17 @@
 
 列表每类先按完成度排序，同完成度保留更新时间倒序。搜索支持 `type`、`completion`、`q`、`category` 和多个 `tag` 参数，可分享筛选结果，例如 `/browse?type=learning&completion=complete`。
 
-## Tags 统一格式规范
+## Subjects 与 Tags 统一格式规范
 
-1. **YAML 格式**：统一使用双引号多行列表格式，不混用无引号或行内数组：
+1. **Subjects（`categories`）**：主学科统一归入 5 个公开主题：`LLM`、`MLLM`、`RL`、`Infra`、`Math`（草稿可暂用 `Deep Learning`）。`RL` 与 `Math` 作为 Subject 管理，不再重复挂入 `tags`。
+2. **YAML 格式**：`tags` 统一使用双引号多行列表格式，不混用无引号或行内数组：
    ```yaml
    tags:
      - "MoE"
      - "Pre-training"
    ```
-2. **命名风格**：统一使用 **Title Case + 保留专有缩写与官方写法**，例如 `Attention`、`Position Encoding`、`Long Context`、`Hybrid Attention`、`Pre-training`、`Post-training`、`Agentic RL`、`Async RL`、`MoE`、`MLLM`、`TIM`、`CS336`。
-3. **厂商标签**：模型系列技术报告文章保留并统一使用**官方厂商/机构名**（如 `Alibaba`、`Allen AI`、`Cursor`、`DeepSeek`、`Google`、`Kuaishou`、`Meta`、`Microsoft`、`MiniMax`、`Mistral`、`Moonshot`、`NVIDIA`、`OpenAI`、`OpenBMB`、`Shanghai AI Lab`、`StepFun`、`Swiss AI`、`Tencent`、`Xiaomi`、`Zhipu`），不混用模型系列名与公司名；通用技术综述不挂载零散厂商标签。
-4. **去重与避免元标签**：不使用与 `contentType` 重复的元标签（如 `tutorial`、`Technical Report`），全站与单篇内均不出现仅大小写不同的重复标签（由 `src/utils/tags.ts` 与 `scripts/test-article-index.mjs` 共同约束）。
+3. **命名风格**：统一使用 **Title Case + 保留专有缩写与官方写法**，例如 `Attention`、`Position Encoding`、`Long Context`、`Hybrid Attention`、`Pre-training`、`Post-training`、`Agentic RL`、`Async RL`、`MoE`、`MLLM`、`TIM`、`CS336`。
+4. **模型系列标签**：模型系列技术报告文章使用**模型系列名**而非厂商名（如 `Qwen`、`DeepSeek`、`Gemini`、`Gemma`、`GLM`、`GPT`、`Hunyuan`、`InternVL`、`KAT-Coder`、`Keye-VL`、`Kimi`、`LLaMA`、`MAI`、`MiMo`、`MiniCPM`、`MiniMax`、`Mistral`、`Nemotron`、`OLMo`、`Step`、`Apertus`、`Composer`）；通用技术综述不挂载零散模型名标签。
+5. **粒度控制与去重**：避免过于特化、仅服务单篇子主题的标签（如 `KL Divergence`、`DPO`、`Random Walk`、`Sampling`、`Roofline`）及与 `contentType` 重复的元标签（如 `tutorial`、`Technical Report`）；全站与单篇内均不出现仅大小写不同的重复标签（由 `src/utils/tags.ts` 与 `scripts/test-article-index.mjs` 共同约束）。
 
 模板文章 demo 不出现在公共文章索引和 RSS 中，原有直接访问路径保留。其他提纲仍在对应分类页和搜索中可见。
