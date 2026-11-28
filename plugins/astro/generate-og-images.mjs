@@ -24,6 +24,9 @@ const OG_ENGLISH_TITLES = {
   OPD: "On-Policy Distillation (OPD): Principles & Progress",
   agenticRL: "Agentic RL: POMDP, Infrastructure & Algorithms",
   "GPU-TPU": "GPU vs TPU Architecture for Large-Scale LLM Training",
+  "kat-coder": "KAT-Coder Series: Multi-Expert Agentic Coding Models",
+  apertus: "Apertus Series: Open Multilingual & Multimodal LLMs",
+  mai: "MAI Series: Large-Scale MoE Pre-training at Microsoft AI",
 };
 
 const CONTENT_TYPE_BADGES = {
