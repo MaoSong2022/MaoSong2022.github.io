@@ -66,7 +66,7 @@ Sample efficiency 表示每个样本带来的性能提升，由 data distributio
 
 算法层面，Forge 使用了 CISPO [@MiniMax-M1] 来进行训练，训练策略为 multi-task RL, 覆盖 reasoning, general QA 和 agent 等 domain.
 
-## SkyRL
+### SkyRL
 
 SkyRL 支持 FP8 RL 训练，其关键是 on-policy weight sync, 其核心在于在 weight sync 的时候，会同步将 quantized weights 和 weight scale 一起同步给 inference engine.
 
