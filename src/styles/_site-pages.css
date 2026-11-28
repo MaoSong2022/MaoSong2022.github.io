@@ -150,12 +150,12 @@ body.site-chrome .site-shell {
   line-height: 1.65;
 }
 
-.site-page ul:not(.article-index) {
+.site-page ul:not(.article-index):not(.site-news__list):not(.site-pubs__list) {
   padding-left: 1.25rem;
   margin: 0 0 var(--spacing-4);
 }
 
-.site-page li {
+.site-page li:not(.article-index__item):not(.site-news__item):not(.site-pubs__item) {
   margin-bottom: var(--spacing-2);
 }
 
@@ -225,6 +225,8 @@ body.site-chrome .site-shell {
 .site-news__date {
   font-size: 0.8125rem;
   font-weight: 600;
+  line-height: 1.45;
+  font-variant-numeric: tabular-nums;
   color: var(--muted-color);
   white-space: nowrap;
 }
@@ -272,9 +274,10 @@ body.site-chrome .site-shell {
 }
 
 .site-news--compact .site-news__item {
-  grid-template-columns: minmax(0, 88px) minmax(0, 1fr);
+  grid-template-columns: 80px minmax(0, 1fr);
   gap: var(--spacing-2) var(--spacing-4);
-  padding: var(--spacing-2-5, 0.625rem) 0;
+  padding: 10px 0;
+  margin: 0;
   align-items: baseline;
 }
 
