@@ -12,8 +12,13 @@ import {
   SITE_AUTHOR_URL,
   SITE_LICENSE,
   SITE_TITLE,
+  SITE_URL,
 } from "../consts";
 import { ARTICLE_EDITORIAL } from "../data/article-editorial";
+import {
+  buildArticleCitation,
+  flattenCitationTitle,
+} from "../utils/citation";
 import "katex/dist/katex.min.css";
 import "../styles/global.css";
 
@@ -208,37 +213,22 @@ const imageAbs: string =
 
 // ---- Build citation text & BibTeX from frontmatter ----
 const rawTitle = articleFM?.title ?? "Untitled article";
-const titleFlat = stripHtml(String(rawTitle))
-  .replace(/\\n/g, " ")
-  .replace(/\n/g, " ")
-  .replace(/\s+/g, " ")
-  .trim();
-const extractYear = (val: string | undefined): number | undefined => {
-  if (!val) return undefined;
-  const d = new Date(val);
-  if (!Number.isNaN(d.getTime())) return d.getFullYear();
-  const m = String(val).match(/(19|20)\d{2}/);
-  return m ? Number(m[0]) : undefined;
-};
-
-const year = extractYear(published);
-const citationAuthorsText = authorNames.join(", ");
-const citationText = `${citationAuthorsText}${year ? ` (${year})` : ""}. "${titleFlat}".`;
-
-const authorsBib = authorNames.join(" and ");
-const keyAuthor = (authorNames[0] || "article")
-  .split(/\s+/)
-  .slice(-1)[0]
-  .toLowerCase();
-const keyTitle = titleFlat
-  .toLowerCase()
-  .replace(/[^a-z0-9]+/g, "_")
-  .replace(/^_|_$/g, "");
-const bibKey = `${keyAuthor}${year ?? ""}_${keyTitle}`;
+const titleFlat = flattenCitationTitle(String(rawTitle));
+const canonicalArticleUrl = new URL(
+  Astro.url.pathname,
+  Astro.site ?? SITE_URL,
+).toString();
 const doi = (ArticleMod as any)?.frontmatter?.doi
   ? String((ArticleMod as any).frontmatter.doi)
   : undefined;
-const bibtex = `@misc{${bibKey},\n  title={${titleFlat}},\n  author={${authorsBib}},\n  ${year ? `year={${year}},\n  ` : ""}${doi ? `doi={${doi}},\n  ` : ""}url={${Astro.url.href}}\n}`;
+const { citationText, bibtex } = buildArticleCitation({
+  title: titleFlat,
+  authors: authorNames,
+  published: (articleFM as any)?.published,
+  url: canonicalArticleUrl,
+  slug,
+  doi,
+});
 const envCollapse = false;
 const tableOfContentAutoCollapse = Boolean(
   (articleFM as any)?.tableOfContentAutoCollapse ??
@@ -526,7 +516,7 @@ const articleLocale = articleLang.toLowerCase().startsWith("zh")
       doi={doi}
       template={template}
       articleTitle={titleFlat}
-      articleUrl={Astro.url.href}
+      articleUrl={canonicalArticleUrl}
       slug={slug}
     />
 
