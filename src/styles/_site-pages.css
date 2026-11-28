@@ -615,7 +615,7 @@ a.article-index__tag:hover {
   font-size: 0.9375rem;
   line-height: 1.4;
   color: var(--text-color);
-  background: var(--page-bg);
+  background-color: var(--page-bg);
   border: 1px solid var(--border-color);
   border-radius: var(--button-radius);
   transition:
@@ -642,16 +642,18 @@ a.article-index__tag:hover {
   width: 100%;
 }
 
-.browse-select {
+select.browse-select,
+[data-theme="dark"] select.browse-select {
   appearance: none;
   -webkit-appearance: none;
+  background-image: none;
   padding-right: 34px;
   cursor: pointer;
 }
 
-.browse-select[data-selected="true"] {
+select.browse-select[data-selected="true"] {
   border-color: color-mix(in srgb, var(--primary-color) 45%, var(--border-color));
-  background: color-mix(in srgb, var(--primary-color) 6%, var(--page-bg));
+  background-color: color-mix(in srgb, var(--primary-color) 6%, var(--page-bg));
 }
 
 .browse-select-wrap__chevron {
