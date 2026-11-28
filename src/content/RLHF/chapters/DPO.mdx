@@ -10,13 +10,15 @@ import Definition from "../../../components/Definition.astro";
 
 作者首先回顾了 RLHF, RLHF 的 pipeline 如下
 
+{/* TODO: 补充 RLHF pipeline 示意图 */}
+
 其包含了三个步骤：
 
 **SFT**
 RLHF 首先基于 base model 通过 SFT 得到一个初始模型 $\pi^{\mathrm{SFT}}$.
 
 **Reward modeling**
-接下来，我们给定输入 $x$, 对 $\pi^{\mathrm{SFT}}$ 采样得到 $(y_1,y_2)\sim \pi^{\mathrm{SFT}}(y\mid x)$. 输出 $y_1, y_2$ 然后由人类进行打分得到偏好关系 $y_w<y_l\mid x$, 表示 $y_w$ 比 $y_l$ 更符合人类的 pian hao 偏好，一般来说我们假设真实的偏好是由一个 reward function $r^*(x,y)$ 产生的，即 $y_w\succ y_l \Leftrightarrow r^*(x, y_w)>r^*(x, y_l)$. reward modeling 通常基于 Bradley-Terry (BT) 模型得到，BT model 定义人类真实偏好分布 $p^*$ 如下：
+接下来，我们给定输入 $x$, 对 $\pi^{\mathrm{SFT}}$ 采样得到 $(y_1,y_2)\sim \pi^{\mathrm{SFT}}(y\mid x)$. 输出 $y_1, y_2$ 然后由人类进行打分得到偏好关系 $y_w \succ y_l \mid x$, 表示 $y_w$ 比 $y_l$ 更符合人类的偏好，一般来说我们假设真实的偏好是由一个 reward function $r^*(x,y)$ 产生的，即 $y_w\succ y_l \Leftrightarrow r^*(x, y_w)>r^*(x, y_l)$. reward modeling 通常基于 Bradley-Terry (BT) 模型得到，BT model 定义人类真实偏好分布 $p^*$ 如下：
 
 $$
 p^*(y_1>y_2\mid x)= \frac{\exp(r^*(x, y_1))}{\exp(r^*(x, y_1))+\exp(r^*(x, y_2))}
@@ -28,7 +30,7 @@ $$
 \mathcal{L}_R(r_\phi, D) = -\mathbb{E}_{(x,y_w,y_l)\sim \mathcal{D}}\left[\log \sigma\left(r_\phi(x,y_w)-r_\phi(x,y_l)\right)\right]
 $$
 
-其中 $\sigma$ 是 logistic function. 在 LLM 中，$r_\phi(x,y)$ 通常由 $\pi^{\mathrm{SFT}}$ 初始化得到，然后我们在 $\pi^{\mathrm{SFT}}$ 最后一层加入一个 linear layer 来得到对应的 reward 的预测值。一般地，为了降低 reward function 的 variance, 之前的工作会进行 normalization, 即 $\mathbb{E}_{(x,y)}\sim\mathcal{D}[r_{\phi}(x,y)]=0$ for all $x$.
+其中 $\sigma$ 是 logistic function. 在 LLM 中，$r_\phi(x,y)$ 通常由 $\pi^{\mathrm{SFT}}$ 初始化得到，然后我们在 $\pi^{\mathrm{SFT}}$ 最后一层加入一个 linear layer 来得到对应的 reward 的预测值。一般地，为了降低 reward function 的 variance, 之前的工作会进行 normalization, 即 $\mathbb{E}_{(x,y)\sim\mathcal{D}}[r_{\phi}(x,y)]=0$ for all $x$.
 
 **RL fine-tuning**
 这个阶段，我们基于学习到的 reward function $r_\phi(x,y)$ 来为 LLM 的训练提供奖励，作者使用了和 RLHF 一样的目标函数：
@@ -82,13 +84,13 @@ $$
 \pi_\theta^*(y\mid x) = \pi^*(y\mid x) = \frac{1}{Z(x)}\pi_{\mathrm{ref}}(y\mid x)\exp\left(\frac1\beta r_\phi(x,y)\right),\ \forall x\in\mathcal{D}
 $$
 
-直接求解 $\pi_\theta^*$ 非常困难，因为这涉及到 $Z(x)$ 的计算，这个时候作者就提出了一个关键改变，即我们从上述的 $\pi_\theta^*$ 反向推到出 $r(x,y)$:
+直接求解 $\pi_\theta^*$ 非常困难，因为这涉及到 $Z(x)$ 的计算，这个时候作者就提出了一个关键改变，即我们从上述的 $\pi_\theta^*$ 反向推导出 $r(x,y)$:
 
 $$
 r(x,y) = \beta\log\frac{\pi_\theta(y\mid x)}{\pi_{\mathrm{ref}}(y\mid x)}+\beta\log Z(x)
 $$
 
-我们可以基于这个公式来推到出最优的 reward function $r^*$ 以及对应的最优策略 $\pi^*$.
+我们可以基于这个公式来推导出最优的 reward function $r^*$ 以及对应的最优策略 $\pi^*$.
 
 此时，我们的表达式里仍然含有 $Z(x)$, 但是当我们使用 Bradley-Terry 模型之后，我们就可以得到真实的人类偏好分布，计算过程如下所示
 
@@ -102,7 +104,7 @@ $$
 这样，基于 MLE 的目标函数就是
 
 $$
-\mathcal{L}_{\mathrm{DPO}}(\pi_{\theta};\pi_{\mathrm{ref}})= -\mathbb{E}_{(x,y_w,y_l)\in\mathcal{D}}\left[\sigma\left(\beta\log\frac{\pi_\theta(y_w\mid x)}{\pi_{\mathrm{ref}}(y_w\mid x)}-\beta\log\frac{\pi_\theta(y_l\mid x)}{\pi_{\mathrm{ref}}(y_l\mid x)}\right)\right]
+\mathcal{L}_{\mathrm{DPO}}(\pi_{\theta};\pi_{\mathrm{ref}})= -\mathbb{E}_{(x,y_w,y_l)\in\mathcal{D}}\left[\log\sigma\left(\beta\log\frac{\pi_\theta(y_w\mid x)}{\pi_{\mathrm{ref}}(y_w\mid x)}-\beta\log\frac{\pi_\theta(y_l\mid x)}{\pi_{\mathrm{ref}}(y_l\mid x)}\right)\right]
 $$
 
 通过这种方式，我们就避免了 reward model 的训练。
@@ -114,17 +116,17 @@ $$
 $$
 \begin{aligned}
 \nabla_\theta \mathcal{L}_{\mathrm{DPO}}(\pi_{\theta};\pi_{\mathrm{ref}})&=-\nabla_\theta \mathbb{E}_{(x,y_w,y_l)\in\mathcal{D}}\left[\log\sigma(u)\right]\\
-&= -\mathbb{E}_{(x,y_w,y_l)\in\mathcal{D}}\left[\frac{\nabla_\theta \sigma(u)}{\sigma(u)}\nabla_\theta u\right]\\
+&= -\mathbb{E}_{(x,y_w,y_l)\in\mathcal{D}}\left[\frac{\sigma'(u)}{\sigma(u)}\nabla_\theta u\right]\\
 &= -\mathbb{E}_{(x,y_w,y_l)\in\mathcal{D}}\left[\frac{\sigma(u)(1-\sigma(u))}{\sigma(u)}\nabla_\theta u\right]\\
 &= -\mathbb{E}_{(x,y_w,y_l)\in\mathcal{D}}\left[(1-\sigma(u))\nabla_\theta u\right]\\
 &= -\mathbb{E}_{(x,y_w,y_l)\in\mathcal{D}}\left[\sigma(-u)\nabla_\theta u\right]\\
-&= -\mathbb{E}_{(x,y_w,y_l)\in\mathcal{D}}\left[\beta\sigma\left[\beta\log\frac{\pi_\theta(y_l\mid x)}{\pi_{\mathrm{ref}}(y_l\mid x)}-\beta\log\frac{\pi_\theta(y_w\mid x)}{\pi_{\mathrm{ref}}(y_w\mid x)}\right]\left[\nabla_\theta\log\pi(y_w\mid x) - \nabla_\theta \log\pi(y_l\mid x)\right]\right]\\
+&= -\mathbb{E}_{(x,y_w,y_l)\in\mathcal{D}}\left[\beta\sigma\left[\beta\log\frac{\pi_\theta(y_l\mid x)}{\pi_{\mathrm{ref}}(y_l\mid x)}-\beta\log\frac{\pi_\theta(y_w\mid x)}{\pi_{\mathrm{ref}}(y_w\mid x)}\right]\left[\nabla_\theta\log\pi_\theta(y_w\mid x) - \nabla_\theta \log\pi_\theta(y_l\mid x)\right]\right]\\
 \end{aligned}
 $$
 
 </Wide>
 
-从梯度来看，当我们的 reward 估计错误时，即 $\sigma(-u)>0$ 时， DPO 会提高 $y_w$ 的生成可能性以及降低 $y_l$ 的生成可能性，从而提高模型对于偏好输出的可能性。
+从梯度来看，当我们的 reward 估计错误时（即 $u<0$，此时权重 $\sigma(-u)$ 较大），DPO 会提高 $y_w$ 的生成可能性以及降低 $y_l$ 的生成可能性，从而提高模型对于偏好输出的可能性。
 
 最终，DPO 的 pipeline 如下：
 
@@ -147,7 +149,7 @@ $$
 第一个引理说明同一个等价类里的 reward function 对应的偏好分布一致
 
 > Lemma 1
-> 在 Plack-Luce 框架下，如 Bradley-Terry model, 同一个等价类里的 reward function 得到的偏好分布是一致的
+> 在 Plackett-Luce 框架下，如 Bradley-Terry model, 同一个等价类里的 reward function 得到的偏好分布是一致的
 
 第二个引理说明了最优策略对应的 reward function 都在一个等价类里
 
@@ -156,24 +158,26 @@ $$
 
 Lemma 2 说明我们只要从最优的等价类里任意找到一个 reward function, 则最终的效果是一样的。
 
+{/* TODO: 统一使用 <Definition> / <Theorem> 组件并润色 Theorem 1 的严谨表述 */}
+
 <Theorem>
 
-假设我们有一个 reference model $\pi_{\mathrm{ref}}(\cdot\mid x)>0$ for all prompt-answer pairs $(x,y)$, 则对于某个模型 $\pi(y\mid x)$, 则与 $\pi_{\mathrm{ref}}$ 对应的等价类里的 reward function 都可以表示为如下形式 $r(x,y) = \beta\frac{\pi(y\mid x)}{\pi_{\mathrm{ref}}(y\mid x)},\ \beta>0$.
+假设我们有一个 reference model $\pi_{\mathrm{ref}}(\cdot\mid x)>0$ for all prompt-answer pairs $(x,y)$, 则任意 reward 等价类都可以表示为如下形式 $r(x,y) = \beta\log\frac{\pi(y\mid x)}{\pi_{\mathrm{ref}}(y\mid x)},\ \beta>0$，其中 $\pi(y\mid x)$ 为某个策略模型。
 
 </Theorem>
 
-我们也可以通过 Theorem 1 来显示推导出 DPO 选择的 reward function:
+我们也可以通过 Theorem 1 来显式推导出 DPO 选择的 reward function:
 
 $$
 \sum_{y}\underbrace{\pi_{\mathrm{ref}}(y\mid x)\exp\left(\frac1\beta r_\phi(x,y)\right)}_{\pi(y\mid x)}=1
 $$
 
-回顾前面 $\pi^*(y\mid x)$ 的定义，我们知道 $\pi(y\mid x)$ 实际上是针对 $r(x,y)$ 推导出来的最优策略的 partition function.
+回顾前面 $\pi^*(y\mid x)$ 的定义，我们知道 $\pi(y\mid x)$ 实际上是针对 $r(x,y)$ 推导出来的最优策略（此时其对应的 partition function 归一化为 $Z(x)=1$）。
 
 注意到我们的初始目标函数可以改写为如下形式
 
 $$
-\min_{\pi_\theta}\ \mathbb{E}_{x\sim \mathcal{D}}\left[\underbrace{r_{\phi}(x,y)-\beta\log Z(x)}_{f(r_\phi, \pi_{\mathrm{ref}},\beta)}-\beta\underbrace{ \frac{\pi_\theta(y\mid x)}{\pi_{\mathrm{ref}}(y\mid x)}}_{\text{KL}}\right]
+\max_{\pi_\theta}\ \mathbb{E}_{x\sim \mathcal{D},\, y\sim\pi_\theta(y\mid x)}\left[\underbrace{r_{\phi}(x,y)-\beta\log Z(x)}_{f(r_\phi, \pi_{\mathrm{ref}},\beta)}-\beta\underbrace{\log\frac{\pi_\theta(y\mid x)}{\pi_{\mathrm{ref}}(y\mid x)}}_{\text{KL}}\right]
 $$
 
 此时，我们可以将 $f(r_\phi, \pi_{\mathrm{ref}},\beta)$ 里的 normalization term 视作为 $\pi_{\mathrm{ref}}$ 的 soft value function, 这个 soft value function 不影响最终的结果，但是没有的话会导致训练时的 variance 很高。 DPO 通过 re-parameterization, 得到的奖励函数不需要 baseline, 因而解决了训练不稳定的问题。
@@ -191,7 +195,7 @@ import torch.nn.functional as F
 
 def get_batch_logps(logits, labels, average_log_prob=False):
     shift_logits = logits[..., :-1, :].contiguous()
-    shift_labels = labels[..., 1:].contiguous
+    shift_labels = labels[..., 1:].contiguous()
 
     loss_fct = nn.CrossEntropyLoss(reduction='none')
 
@@ -199,11 +203,11 @@ def get_batch_logps(logits, labels, average_log_prob=False):
     loss = loss.view(shift_labels.size())
 
     mask = (shift_labels != -100)
-    per_token_lops = -loss * mask
+    per_token_logps = -loss * mask
 
     if average_log_prob:
-        return per_token_lops.sum(dum=-1) / mask.sum(dim=-1)
-    return per_token_lops.sum(dum=-1)
+        return per_token_logps.sum(dim=-1) / mask.sum(dim=-1)
+    return per_token_logps.sum(dim=-1)
 
 def dpo_loss(
     policy_chosen_logps,
@@ -221,8 +225,12 @@ def dpo_loss(
     return losses.mean(), chosen_rewards.mean(), rejected_rewards.mean()
 ```
 
+{/* TODO: 补充 prompt token masking (-100) 说明及训练监控指标（rewards/margins、accuracies、logps/chosen & rejected） */}
+
 ### Experiments
 
 作者首先对比了不同偏好优化算法的表现，如下图所示
+
+{/* TODO: 补充 DPO 实验对比图 */}
 
 从实验结果可以看到，DPO 对于不同的 KL Values 和不同的采样温度其表现都非常好，并且更加 robust
