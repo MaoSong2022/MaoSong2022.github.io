@@ -8,24 +8,24 @@ const { parseArticleGlob, selectFeatured, sortByCompletion } = await import(`dat
 const entry = (slug, published = '2026-01-01') => [`../content/${slug}/article.mdx`, { frontmatter: { title: slug, published } }];
 
 test('types and completion are independent; scaffolding stays out of the public index', async () => {
-  const rows = await parseArticleGlob(Object.fromEntries(['RL4LLM', 'kimi', 'long-context', 'kl-divergence', 'RLVR', 'demo'].map(s => entry(s))));
+  const rows = await parseArticleGlob(Object.fromEntries(['rl4llm', 'kimi', 'long-context', 'kl-divergence', 'rlvr', 'demo'].map(s => entry(s))));
   assert.equal(rows.length, 5);
   const bySlug = Object.fromEntries(rows.map(r => [r.slug, r]));
-  assert.equal(bySlug.RL4LLM.contentType, 'learning');
-  assert.equal(bySlug.RL4LLM.completion, 'complete');
+  assert.equal(bySlug.rl4llm.contentType, 'learning');
+  assert.equal(bySlug.rl4llm.completion, 'complete');
   assert.equal(bySlug.kimi.contentType, 'reports');
   assert.equal(bySlug['long-context'].contentType, 'topics');
   assert.equal(bySlug['kl-divergence'].contentType, 'analysis');
   assert.equal(bySlug['kl-divergence'].completion, 'growing');
-  assert.equal(bySlug.RLVR.completion, 'outline');
+  assert.equal(bySlug.rlvr.completion, 'outline');
 });
 
 test('fresh drafts cannot displace curated tutorials and analyses', async () => {
   const rows = await parseArticleGlob(Object.fromEntries([
-    entry('deep_learning', '2099-01-01'), entry('kimi'), entry('tokenizer'),
-    entry('RL4LLM'), entry('llm-resource-computation'), entry('kl-divergence'), entry('train-inference-mismatch'),
+    entry('deep-learning', '2099-01-01'), entry('kimi'), entry('tokenizer'),
+    entry('rl4llm'), entry('llm-resource-computation'), entry('kl-divergence'), entry('train-inference-mismatch'),
   ]));
-  assert.deepEqual(selectFeatured(rows, 'learning').map(r => r.slug), ['RL4LLM', 'llm-resource-computation', 'tokenizer']);
+  assert.deepEqual(selectFeatured(rows, 'learning').map(r => r.slug), ['rl4llm', 'llm-resource-computation', 'tokenizer']);
   assert.deepEqual(selectFeatured(rows, 'analysis').map(r => r.slug), ['kl-divergence', 'train-inference-mismatch']);
 });
 
@@ -49,4 +49,13 @@ test('every existing article has an explicit classification; new content default
   assert.equal(fresh.completion, 'outline');
   assert.equal(fresh.classified, false);
   assert.deepEqual(selectFeatured([fresh], 'learning'), []);
+});
+
+test('all content folder names use lowercase kebab-case', async () => {
+  const dirs = await readdir('src/content', { withFileTypes: true });
+  const invalid = dirs
+    .filter((d) => d.isDirectory())
+    .map((d) => d.name)
+    .filter((name) => !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(name));
+  assert.deepEqual(invalid, [], `Non-kebab-case content folders: ${invalid.join(', ')}`);
 });

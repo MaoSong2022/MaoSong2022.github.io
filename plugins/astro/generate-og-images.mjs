@@ -9,7 +9,7 @@ import { promises as fs } from "node:fs";
 import { resolve } from "node:path";
 
 const OG_ENGLISH_TITLES = {
-  RL4LLM: "RL4LLM: Reinforcement Learning for LLMs (MDP, PPO & GRPO)",
+  rl4llm: "RL4LLM: Reinforcement Learning for LLMs (MDP, PPO & GRPO)",
   "llm-resource-computation": "LLM Resource Computation: Params, FLOPs & Memory",
   tokenizer: "Tokenizer: BPE, Unigram & Engineering Practice",
   "train-inference-mismatch": "Training-Inference Mismatch in LLM Reinforcement Learning",
@@ -18,12 +18,12 @@ const OG_ENGLISH_TITLES = {
   "policy-optimization": "LLM Policy Optimization: PPO, GRPO, DAPO & GSPO",
   inference: "LLM Inference Optimization: KV Cache, Batching & Speculative Decoding",
   "scaling-law": "Scaling Laws for Large Language Model Pre-training",
-  "deepseek-series": "DeepSeek Series: MoE, MLA & V3/V4 Technical Evolution",
-  "Qwen-series": "Qwen Series: Architecture, Pre-training & Post-training",
+  deepseek: "DeepSeek Series: MoE, MLA & V3/V4 Technical Evolution",
+  qwen: "Qwen Series: Architecture, Pre-training & Post-training",
   kimi: "Kimi Series: Long-CoT RL, MoE & Agentic Practice",
-  OPD: "On-Policy Distillation (OPD): Principles & Progress",
-  agenticRL: "Agentic RL: POMDP, Infrastructure & Algorithms",
-  "GPU-TPU": "GPU vs TPU Architecture for Large-Scale LLM Training",
+  "on-policy-distillation": "On-Policy Distillation (OPD): Principles & Progress",
+  "agentic-rl": "Agentic RL: POMDP, Infrastructure & Algorithms",
+  "gpu-tpu": "GPU vs TPU Architecture for Large-Scale LLM Training",
   "kat-coder": "KAT-Coder Series: Multi-Expert Agentic Coding Models",
   apertus: "Apertus Series: Open Multilingual & Multimodal LLMs",
   mai: "MAI Series: Large-Scale MoE Pre-training at Microsoft AI",

@@ -39,6 +39,13 @@ export default defineConfig({
     '/p/llm-memory-computation/': '/blog/llm-resource-computation/#训练显存计算',
     '/blog/train_inference_mistahch/': '/blog/train-inference-mismatch/',
     '/blog/tech_report/': '/blog/tech-reports-2026-q4/',
+    '/blog/OPD/': '/blog/on-policy-distillation/',
+    '/blog/FlashAttention/': '/blog/flash-attention/',
+    '/blog/agenticRL/': '/blog/agentic-rl/',
+    '/blog/LLaMA-series/': '/blog/llama/',
+    '/blog/Qwen-series/': '/blog/qwen/',
+    '/blog/deepseek-series/': '/blog/deepseek/',
+    '/blog/qwen-vl-series/': '/blog/qwen-vl/',
   },
 	site:"https://maosong.website",
   integrations: [
