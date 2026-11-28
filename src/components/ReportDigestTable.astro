@@ -1,0 +1,131 @@
+---
+import { getReportsByDigest } from "../data/tech-reports-index";
+
+interface Props {
+  digest: string;
+}
+
+const { digest } = Astro.props;
+const rows = getReportsByDigest(digest);
+---
+
+{
+  rows.length > 0 && (
+    <div class="report-digest-table-wrap">
+      <table class="report-digest-table">
+        <thead>
+          <tr>
+            <th>Model</th>
+            <th>Org</th>
+            <th>Release</th>
+            <th>Base / Arch</th>
+            <th>Tags</th>
+            <th>Highlights</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr>
+              <td class="report-digest-table__model">
+                <a href={`#${r.anchor}`}>{r.name}</a>
+                {r.kind === "brief" && (
+                  <span class="report-digest-table__brief">Brief</span>
+                )}
+              </td>
+              <td class="report-digest-table__nowrap">{r.org}</td>
+              <td class="report-digest-table__nowrap">{r.release}</td>
+              <td>{r.baseOrArch}</td>
+              <td>
+                <div class="report-digest-table__tags">
+                  {r.tags.map((t) => (
+                    <span class="report-digest-table__tag">{t}</span>
+                  ))}
+                </div>
+              </td>
+              <td>{r.summary}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+<style>
+  .report-digest-table-wrap {
+    margin: 1.25rem 0 2rem;
+    overflow-x: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+  }
+
+  .report-digest-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0;
+    font-size: 0.875rem;
+    line-height: 1.5;
+  }
+
+  .report-digest-table th,
+  .report-digest-table td {
+    padding: 0.65rem 0.75rem;
+    text-align: left;
+    vertical-align: top;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .report-digest-table thead th {
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted-color);
+    background: var(--surface-bg);
+    white-space: nowrap;
+  }
+
+  .report-digest-table tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  .report-digest-table__model {
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .report-digest-table__nowrap {
+    white-space: nowrap;
+  }
+
+  .report-digest-table__brief {
+    display: inline-block;
+    margin-left: 0.35rem;
+    padding: 1px 6px;
+    font-size: 0.7rem;
+    font-weight: 500;
+    border-radius: 999px;
+    border: 1px solid var(--border-color);
+    color: var(--muted-color);
+    background: var(--surface-bg);
+    vertical-align: middle;
+  }
+
+  .report-digest-table__tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    min-width: 120px;
+  }
+
+  .report-digest-table__tag {
+    display: inline-block;
+    padding: 1px 7px;
+    font-size: 0.72rem;
+    border-radius: 999px;
+    background: var(--surface-bg);
+    border: 1px solid var(--border-color);
+    color: var(--muted-color);
+    white-space: nowrap;
+  }
+</style>

@@ -1,0 +1,276 @@
+---
+import {
+  TECH_REPORTS_INDEX,
+  getAllReportQuarters,
+  getAllReportTags,
+  reportAnchorHref,
+} from "../data/tech-reports-index";
+
+const reports = TECH_REPORTS_INDEX;
+const tags = getAllReportTags();
+const quarters = getAllReportQuarters();
+
+const clientRows = reports.map((r, idx) => ({
+  idx,
+  name: r.name,
+  org: r.org,
+  release: r.release,
+  digest: r.digest,
+  quarter: r.quarter,
+  baseOrArch: r.baseOrArch,
+  tags: r.tags,
+  summary: r.summary,
+  kind: r.kind,
+}));
+---
+
+{
+  reports.length > 0 && (
+    <section
+      class="report-index-section"
+      id="single-report-index"
+      aria-labelledby="single-report-index-heading"
+    >
+      <h2 id="single-report-index-heading">
+        Single-Report Index{" "}
+        <span class="section-count">{reports.length}</span>
+      </h2>
+      <p class="section-intro">
+        跨季度单篇技术报告速查表：支持按关键词与多标签联合筛选，点击模型名直达对应季报章节。
+      </p>
+
+      <div class="browse-toolbar report-index-toolbar">
+        <div
+          class:list={[
+            "report-index-controls",
+            quarters.length > 1 && "report-index-controls--with-quarter",
+          ]}
+        >
+          <label class="browse-field">
+            <span class="browse-field-label">Search Models</span>
+            <input
+              type="search"
+              id="report-index-q"
+              class="browse-input"
+              placeholder="Model, org, base model, keyword…"
+              autocomplete="off"
+              enterkeyhint="search"
+            />
+          </label>
+          {quarters.length > 1 && (
+            <label class="browse-field">
+              <span class="browse-field-label">Quarter</span>
+              <select id="report-index-quarter" class="browse-input">
+                <option value="">All Quarters</option>
+                {quarters.map((q) => (
+                  <option value={q.digest}>{q.quarter}</option>
+                ))}
+              </select>
+            </label>
+          )}
+        </div>
+
+        <div class="browse-field browse-field--full">
+          <span class="browse-field-label" id="report-index-tags-label">
+            Technical Tags
+          </span>
+          <div
+            class="browse-tag-row"
+            id="report-index-tags"
+            role="group"
+            aria-labelledby="report-index-tags-label"
+          >
+            {tags.map((t) => (
+              <button
+                type="button"
+                class="browse-tag report-index-tag-btn"
+                data-report-tag={t.toLowerCase()}
+                aria-pressed="false"
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+          <p class="browse-tag-hint">
+            Multi-select tags (AND logic) to find models across quarters.
+          </p>
+        </div>
+
+        <div class="browse-toolbar-actions">
+          <button
+            type="button"
+            class="button button--ghost"
+            id="report-index-clear"
+          >
+            Clear Filters
+          </button>
+          <p
+            class="browse-count"
+            id="report-index-count"
+            aria-live="polite"
+          >
+            All {reports.length} reports
+          </p>
+        </div>
+      </div>
+
+      <p class="browse-empty" id="report-index-empty" hidden>
+        No matching reports. Try another keyword or clear the filters.
+      </p>
+
+      <ul class="report-index-list" id="report-index-list">
+        {reports.map((r, idx) => (
+          <li class="report-index-item" data-report-idx={idx}>
+            <div class="report-index-item__head">
+              <a class="report-index-item__title" href={reportAnchorHref(r)}>
+                {r.name}
+              </a>
+              <span class="report-index-item__org">{r.org}</span>
+              <span class="report-index-item__meta">
+                {r.release} · {r.baseOrArch}
+              </span>
+              <a
+                class="report-index-item__quarter"
+                href={`/blog/${r.digest}/`}
+                title={`View ${r.quarter} digest`}
+              >
+                {r.quarter}
+              </a>
+              {r.kind === "brief" && (
+                <span class="report-index-item__brief">Brief</span>
+              )}
+            </div>
+            <p class="report-index-item__summary">{r.summary}</p>
+            <div class="report-index-item__tags">
+              {r.tags.map((t) => (
+                <button
+                  type="button"
+                  class="report-index-chip"
+                  data-chip-tag={t.toLowerCase()}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      <script define:vars={{ clientRows }}>
+        (function () {
+          const qEl = document.getElementById("report-index-q");
+          const quarterEl = document.getElementById("report-index-quarter");
+          const tagsEl = document.getElementById("report-index-tags");
+          const clearEl = document.getElementById("report-index-clear");
+          const countEl = document.getElementById("report-index-count");
+          const emptyEl = document.getElementById("report-index-empty");
+          const listEl = document.getElementById("report-index-list");
+          if (!listEl) return;
+
+          function haystack(r) {
+            return [
+              r.name,
+              r.org,
+              r.release,
+              r.quarter,
+              r.baseOrArch,
+              r.summary,
+              ...r.tags,
+            ]
+              .join(" ")
+              .toLowerCase();
+          }
+
+          function applyReportFilters() {
+            const query = (
+              qEl instanceof HTMLInputElement ? qEl.value : ""
+            )
+              .trim()
+              .toLowerCase();
+            const quarter =
+              quarterEl instanceof HTMLSelectElement ? quarterEl.value : "";
+
+            const activeTags = [];
+            document
+              .querySelectorAll(".report-index-tag-btn[aria-pressed='true']")
+              .forEach((btn) => {
+                const t = btn.getAttribute("data-report-tag");
+                if (t) activeTags.push(t);
+              });
+
+            let visible = 0;
+            for (const li of listEl.querySelectorAll("[data-report-idx]")) {
+              const idx = Number(li.getAttribute("data-report-idx"));
+              const row = clientRows[idx];
+              if (!row) continue;
+
+              let ok = true;
+              if (quarter && row.digest !== quarter) ok = false;
+              if (query && !haystack(row).includes(query)) ok = false;
+              if (activeTags.length) {
+                const lowered = row.tags.map((t) => t.toLowerCase());
+                for (const need of activeTags) {
+                  if (!lowered.includes(need)) {
+                    ok = false;
+                    break;
+                  }
+                }
+              }
+
+              li.classList.toggle("browse-hidden", !ok);
+              if (ok) visible++;
+            }
+
+            if (countEl) {
+              const total = clientRows.length;
+              countEl.textContent =
+                visible === total
+                  ? `All ${total} reports`
+                  : `${visible} of ${total} reports`;
+            }
+            if (emptyEl) emptyEl.hidden = visible > 0;
+            listEl.hidden = visible === 0;
+          }
+
+          function toggleTag(tagNorm) {
+            const btn = document.querySelector(
+              `.report-index-tag-btn[data-report-tag="${CSS.escape(tagNorm)}"]`,
+            );
+            if (!btn) return;
+            const pressed = btn.getAttribute("aria-pressed") === "true";
+            btn.setAttribute("aria-pressed", pressed ? "false" : "true");
+            applyReportFilters();
+          }
+
+          qEl?.addEventListener("input", applyReportFilters);
+          quarterEl?.addEventListener("change", applyReportFilters);
+
+          tagsEl?.addEventListener("click", (e) => {
+            const btn = e.target?.closest?.(".report-index-tag-btn");
+            if (!btn) return;
+            const tagNorm = btn.getAttribute("data-report-tag");
+            if (tagNorm) toggleTag(tagNorm);
+          });
+
+          listEl.addEventListener("click", (e) => {
+            const chip = e.target?.closest?.(".report-index-chip");
+            if (!chip) return;
+            const tagNorm = chip.getAttribute("data-chip-tag");
+            if (tagNorm) toggleTag(tagNorm);
+          });
+
+          clearEl?.addEventListener("click", () => {
+            if (qEl instanceof HTMLInputElement) qEl.value = "";
+            if (quarterEl instanceof HTMLSelectElement) quarterEl.value = "";
+            document
+              .querySelectorAll(".report-index-tag-btn[aria-pressed='true']")
+              .forEach((btn) => btn.setAttribute("aria-pressed", "false"));
+            applyReportFilters();
+          });
+
+          applyReportFilters();
+        })();
+      </script>
+    </section>
+  )
+}
