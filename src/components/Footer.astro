@@ -33,34 +33,42 @@ const shareOnXUrl = articleUrl
       <section class="citation-block">
         <p class="footer-heading" role="heading" aria-level="2">Citation</p>
         <div class="citation-body">
-          <div class="citation-item">
-            <div class="citation-header">
-              <p>For attribution in academic contexts, please cite this work as</p>
-              <button
-                type="button"
-                class="citation-copy-btn"
-                data-copy-citation
-                aria-label="Copy plain-text citation"
-              >
-                Copy
-              </button>
-            </div>
+          <p>For attribution in academic contexts, please cite this work as</p>
+          <div class="citation-card">
             <pre class="citation short">{citationText}</pre>
+            <button
+              type="button"
+              class="citation-copy-btn"
+              data-copy-citation
+              aria-label="Copy plain-text citation"
+              title="Copy citation"
+            >
+              <svg class="icon-copy" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" />
+              </svg>
+              <svg class="icon-check" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M9 16.2l-3.5-3.5-1.4 1.4L9 19 20.3 7.7l-1.4-1.4z" />
+              </svg>
+            </button>
           </div>
 
-          <div class="citation-item">
-            <div class="citation-header">
-              <p>BibTeX citation</p>
-              <button
-                type="button"
-                class="citation-copy-btn"
-                data-copy-citation
-                aria-label="Copy BibTeX citation"
-              >
-                Copy
-              </button>
-            </div>
+          <p>BibTeX citation</p>
+          <div class="citation-card">
             <pre class="citation long">{bibtex}</pre>
+            <button
+              type="button"
+              class="citation-copy-btn"
+              data-copy-citation
+              aria-label="Copy BibTeX citation"
+              title="Copy BibTeX"
+            >
+              <svg class="icon-copy" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" />
+              </svg>
+              <svg class="icon-check" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M9 16.2l-3.5-3.5-1.4 1.4L9 19 20.3 7.7l-1.4-1.4z" />
+              </svg>
+            </button>
           </div>
         </div>
       </section>
@@ -184,24 +192,24 @@ const shareOnXUrl = articleUrl
     footer.querySelectorAll("[data-copy-citation]").forEach((btn) => {
       let timer;
       btn.addEventListener("click", async () => {
-        const pre = btn.closest(".citation-item")?.querySelector("pre.citation");
+        const pre = btn.closest(".citation-card")?.querySelector("pre.citation");
         const text = (pre?.textContent || "").trim();
         if (!text) return;
-        const original = btn.dataset.originalLabel || btn.textContent?.trim() || "Copy";
-        btn.dataset.originalLabel = original;
+        const originalTitle = btn.dataset.originalTitle || btn.getAttribute("title") || "Copy";
+        btn.dataset.originalTitle = originalTitle;
         if (timer) clearTimeout(timer);
         try {
           await copyTextToClipboard(text);
-          btn.textContent = "Copied!";
           btn.classList.add("is-copied");
+          btn.setAttribute("title", "Copied!");
           timer = setTimeout(() => {
-            btn.textContent = original;
             btn.classList.remove("is-copied");
+            btn.setAttribute("title", originalTitle);
           }, 1500);
         } catch {
-          btn.textContent = "Copy failed";
+          btn.setAttribute("title", "Copy failed");
           timer = setTimeout(() => {
-            btn.textContent = original;
+            btn.setAttribute("title", originalTitle);
           }, 1500);
         }
       });
@@ -711,43 +719,50 @@ const shareOnXUrl = articleUrl
   }
 
   /* Distill-like appendix citation styling */
-  .citation-item + .citation-item {
-    margin-top: 16px;
-  }
-
-  .citation-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
+  .citation-body p {
     margin: 0 0 8px;
   }
 
-  .citation-header p {
-    margin: 0;
+  .citation-card {
+    position: relative;
+  }
+
+  .citation-card + p {
+    margin-top: 16px;
   }
 
   .citation-copy-btn {
-    flex-shrink: 0;
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    z-index: 2;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 2px 9px;
+    width: 26px;
+    height: 26px;
+    padding: 0;
     border-radius: 5px;
-    border: 1px solid rgba(0, 0, 0, 0.14);
-    background: transparent;
-    color: rgba(0, 0, 0, 0.65);
-    font: inherit;
-    font-size: 11px;
-    line-height: 1.5;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    background: var(--page-bg, #fff);
+    color: rgba(0, 0, 0, 0.55);
     cursor: pointer;
+    opacity: 0.72;
     transition:
+      opacity 0.15s ease,
       border-color 0.15s ease,
       color 0.15s ease,
       background-color 0.15s ease;
   }
 
-  .citation-copy-btn:hover {
+  .citation-card:hover .citation-copy-btn,
+  .citation-copy-btn:focus-visible,
+  .citation-copy-btn.is-copied {
+    opacity: 1;
+  }
+
+  .citation-copy-btn:hover,
+  .citation-copy-btn:focus-visible {
     border-color: var(--primary-color);
     color: var(--primary-color);
   }
@@ -755,7 +770,25 @@ const shareOnXUrl = articleUrl
   .citation-copy-btn.is-copied {
     border-color: var(--primary-color);
     color: var(--primary-color);
-    background: rgba(0, 0, 0, 0.03);
+  }
+
+  .citation-copy-btn svg {
+    width: 14px;
+    height: 14px;
+    display: block;
+    fill: currentColor;
+  }
+
+  .citation-copy-btn .icon-check {
+    display: none;
+  }
+
+  .citation-copy-btn.is-copied .icon-copy {
+    display: none;
+  }
+
+  .citation-copy-btn.is-copied .icon-check {
+    display: block;
   }
 
   .citation {
@@ -765,7 +798,7 @@ const shareOnXUrl = articleUrl
     line-height: 16px;
     border: 1px solid rgba(0, 0, 0, 0.1);
     background: rgba(0, 0, 0, 0.02);
-    padding: 10px 16px;
+    padding: 10px 44px 10px 16px;
     border-radius: 4px;
     color: rgba(0, 0, 0, 0.72);
     overflow-x: auto;
@@ -818,16 +851,15 @@ const shareOnXUrl = articleUrl
     color: rgba(200, 200, 200, 0.8);
   }
   [data-theme="dark"] .citation-copy-btn {
-    border-color: rgba(255, 255, 255, 0.2);
-    color: rgba(215, 215, 215, 0.85);
+    border-color: rgba(255, 255, 255, 0.18);
+    background: var(--page-bg, #161b22);
+    color: rgba(215, 215, 215, 0.82);
   }
   [data-theme="dark"] .citation-copy-btn:hover,
+  [data-theme="dark"] .citation-copy-btn:focus-visible,
   [data-theme="dark"] .citation-copy-btn.is-copied {
     border-color: var(--primary-color);
     color: var(--primary-color);
-  }
-  [data-theme="dark"] .citation-copy-btn.is-copied {
-    background: rgba(255, 255, 255, 0.06);
   }
   [data-theme="dark"] .citation {
     background: rgba(255, 255, 255, 0.04);
