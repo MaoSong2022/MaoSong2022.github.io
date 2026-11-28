@@ -116,6 +116,24 @@ body.site-chrome .site-shell {
   margin-top: var(--spacing-6);
 }
 
+/* Avoid double horizontal rules when a bordered list immediately follows an h2 */
+.site-page h2:has(+ .site-news__list),
+.site-page h2:has(+ .article-index),
+.site-page h2:has(+ .site-pubs__list) {
+  margin-bottom: 0;
+}
+
+.site-page h2 + .site-news__list,
+.site-page h2 + .article-index,
+.site-page h2 + .site-pubs__list {
+  margin-top: 0;
+  border-top: none;
+}
+
+.site-page h2 + .article-index > .article-index__item:first-child {
+  border-top: none;
+}
+
 .site-page .site-lead {
   font-size: 1.125rem;
   line-height: 1.65;
