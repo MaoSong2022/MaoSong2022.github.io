@@ -260,10 +260,12 @@ const description =
       if (!activeChipsEl) return;
       activeChipsEl.textContent = "";
 
-      const addChip = (prefix, label, onRemove) => {
+      const addChip = (prefix, label, onRemove, extraClass = "") => {
         const chip = document.createElement("button");
         chip.type = "button";
-        chip.className = "browse-active-chip";
+        chip.className = extraClass
+          ? `browse-active-chip ${extraClass}`
+          : "browse-active-chip";
         chip.title = `Remove ${prefix}: ${label}`;
         chip.setAttribute("aria-label", `Remove ${prefix} ${label}`);
 
@@ -284,7 +286,7 @@ const description =
           const el = document.getElementById("browse-type");
           if (el) el.value = "";
           applyFilters();
-        });
+        }, "browse-active-chip--rect");
       }
       if (completionLabel) {
         addChip("Status", completionLabel, () => {
@@ -306,7 +308,7 @@ const description =
             btn.setAttribute("aria-pressed", "false"),
           );
           applyFilters();
-        });
+        }, "browse-active-chip--rect");
       }
       for (const tag of activeTags) {
         addChip("Tag", tag.label, () => {
@@ -639,6 +641,11 @@ const description =
 
     :global(button.browse-active-chip:active) {
       transform: none;
+    }
+
+    :global(button.browse-active-chip--rect) {
+      border-radius: var(--button-radius);
+      font-weight: 600;
     }
 
     :global(.browse-active-chip__x) {
