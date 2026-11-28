@@ -1,0 +1,29 @@
+## Beyond DPO: Preference Optimization Variants
+
+{/* Outline: 按“修复 DPO 具体痛点”组织演进脉络，并在文末给出统一对比总表 */}
+
+### IPO: Regularizing Bradley-Terry Overfitting
+
+- 针对确定性偏好下 BT 损失将 margin 推向无穷大、削弱 KL 约束的问题，使用均方误差目标替代 log-sigmoid。
+
+### KTO: Learning from Non-Paired Binary Feedback
+
+- 摆脱成对 $(y_w, y_l)$ 数据限制，基于前景理论（Kahneman-Tversky）直接从单条好/坏二元反馈中对齐。
+
+### ORPO & SimPO: Reference-Free & Length-Normalized Alignment
+
+- **ORPO**：将 SFT 与 Odds Ratio 偏好损失融合为单阶段训练，去掉独立 $\pi_{\mathrm{ref}}$。
+- **SimPO**：使用长度归一化平均对数概率作为隐式奖励并引入 target margin $\gamma$，同时去掉 $\pi_{\mathrm{ref}}$ 并对齐推理目标。
+
+### APO: Anchored Preference Optimization
+
+- 针对 DPO 的 Likelihood Displacement，显式锚定 chosen / rejected 绝对概率变化方向（APO-zero / APO-down）。
+
+### Iterative & Online DPO vs. Online RLHF
+
+- 从静态离线数据走向在线采样迭代（Iterative / Online DPO、XPO）；
+- 系统对比 Online RLHF（PPO/GRPO）与 Offline DPO 在探索能力、分布偏移与算力成本上的权衡。
+
+### Unified Comparison
+
+- 横向汇总表：PPO-RLHF / DPO / DPO+NLL / IPO / KTO / ORPO / SimPO / APO / Iterative DPO（数据形态、显式 RM、$\pi_{\mathrm{ref}}$、Online/Offline、长度归一化、Loss 形式与适用场景）。
