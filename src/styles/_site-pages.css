@@ -1165,3 +1165,134 @@ a.social-card:hover {
 .site-footer a:hover {
   color: var(--primary-color-hover);
 }
+
+/* Cross-quarter single-model technical report index */
+.report-index-section {
+  margin-top: var(--spacing-9);
+}
+
+.report-index-toolbar {
+  margin-top: var(--spacing-4);
+}
+
+.report-index-controls {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--spacing-3);
+}
+
+.report-index-controls--with-quarter {
+  grid-template-columns: minmax(0, 1fr) 180px;
+}
+
+@media (max-width: 560px) {
+  .report-index-controls--with-quarter {
+    grid-template-columns: 1fr;
+  }
+}
+
+.report-index-list {
+  list-style: none;
+  padding: 0 !important;
+  margin: var(--spacing-4) 0 0;
+}
+
+.report-index-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  padding: var(--spacing-4) 0;
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.report-index-item:first-child {
+  border-top: 1px solid var(--border-color);
+}
+
+.report-index-item__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--spacing-2);
+}
+
+.site-page a.report-index-item__title {
+  font-weight: 600;
+  font-size: 1.05rem;
+  color: var(--text-color);
+  background: none;
+  border-bottom: none;
+}
+
+.site-page a.report-index-item__title:hover {
+  color: var(--primary-color);
+}
+
+.report-index-item__org {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--muted-color);
+}
+
+.report-index-item__meta {
+  font-size: 0.8125rem;
+  color: var(--muted-color);
+}
+
+.site-page a.report-index-item__quarter {
+  margin-left: auto;
+  padding: 1px 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: var(--button-radius);
+  border: 1px solid color-mix(in srgb, var(--primary-color) 32%, var(--border-color));
+  background: color-mix(in srgb, var(--primary-color) 8%, var(--surface-bg));
+  color: var(--primary-color);
+  white-space: nowrap;
+}
+
+.site-page a.report-index-item__quarter:hover {
+  color: var(--primary-color-hover);
+  border-color: color-mix(in srgb, var(--primary-color-hover) 45%, var(--border-color));
+}
+
+.report-index-item__brief {
+  padding: 1px 7px;
+  font-size: 0.72rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: var(--surface-bg);
+  color: var(--muted-color);
+}
+
+.report-index-item__summary {
+  margin: 0 !important;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: var(--muted-color);
+}
+
+.report-index-item__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.report-index-chip {
+  appearance: none;
+  padding: 2px 9px;
+  font: inherit;
+  font-size: 0.78rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: var(--surface-bg);
+  color: var(--muted-color);
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.report-index-chip:hover {
+  color: var(--primary-color);
+  border-color: color-mix(in srgb, var(--primary-color) 35%, var(--border-color));
+}

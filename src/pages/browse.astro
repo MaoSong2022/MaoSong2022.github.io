@@ -3,6 +3,7 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 import ArticleList from "../components/ArticleList.astro";
 import CompletionLegend from "../components/CompletionLegend.astro";
 import { CONTENT_TYPES, COMPLETION, type ContentType, type Completion } from "../data/article-editorial";
+import { getDigestSearchText } from "../data/tech-reports-index";
 import { parseArticleGlob, sortByCompletion, type SiteArticleEntry } from "../utils/site-articles";
 import { getAllArticleBundleLastModifiedIso } from "../utils/article-modified";
 
@@ -33,6 +34,7 @@ type BrowseRow = {
   summary: string;
   categories: string;
   tags: string[];
+  extraSearch: string;
 };
 
 const browseArticles: BrowseRow[] = articles.map((a: SiteArticleEntry) => ({
@@ -46,6 +48,7 @@ const browseArticles: BrowseRow[] = articles.map((a: SiteArticleEntry) => ({
   summary: a.summary ?? "",
   categories: a.categories ?? "",
   tags: a.tags,
+  extraSearch: getDigestSearchText(a.slug),
 }));
 
 const pageTitle = "Browse Articles";
@@ -168,6 +171,7 @@ const description =
         row.summary,
         row.slug,
         row.categories,
+        row.extraSearch,
         ...row.tags,
       ]
         .join(" ")
