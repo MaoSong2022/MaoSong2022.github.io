@@ -19,7 +19,7 @@ body.site-chrome .site-shell {
   display: flex;
   align-items: flex-start;
   gap: var(--spacing-5);
-  margin-bottom: var(--spacing-6);
+  margin-bottom: var(--spacing-4);
 }
 
 .site-hero__avatar {
@@ -123,6 +123,10 @@ body.site-chrome .site-shell {
   margin: 0 0 var(--spacing-5);
 }
 
+.site-page .site-hero .site-lead {
+  margin-bottom: 0;
+}
+
 .site-page p {
   margin: 0 0 var(--spacing-3);
   line-height: 1.65;
@@ -166,7 +170,7 @@ body.site-chrome .site-shell {
   display: flex;
   flex-wrap: wrap;
   gap: var(--spacing-3);
-  margin: var(--spacing-5) 0 var(--spacing-7);
+  margin: 0 0 var(--spacing-6);
 }
 
 .site-news {
