@@ -1,0 +1,27 @@
+## Data
+
+{/* Outline: RLHF 偏好数据构造、采样策略、质量分析与代表性数据集 */}
+
+### Preference Data Construction
+
+- **Prompt 来源与分布设计**：覆盖指令遵循、推理、代码、创作、安全等任务的多样性与难度分层。
+- **Response 采样策略**：
+  - On-policy vs. Off-policy 采样；
+  - 同源模型多采样（Best-of-N / temperature sampling）与异构模型采样（如强弱模型搭配控制偏好 margin）。
+- **偏好标注范式**：
+  - 人工标注（Pairwise 对比 / Listwise 排序 / Likert 多维打分）；
+  - AI 反馈（RLAIF / LLM-as-a-Judge / Rubric-based 评分）与人机协同。
+
+### Preference Data Analysis
+
+- **长度偏置（Length / Verbosity Bias）**：chosen 与 rejected 长度分布差异对 RM 与 DPO 的隐式影响。
+- **偏好间距（Margin）与样本难度分布**：差距过大易学表面特征、差距过小易引入标注噪声。
+- **标注噪声与一致性（Inter-Annotator Agreement）**：主观偏好冲突与多目标权衡（Helpful vs. Harmless vs. Honest）。
+- **数据清洗与过滤**：去重、去模板化套利、一致性校验与难度筛选。
+
+### Representative Datasets
+
+- HelpSteer 2 / HelpSteer 3
+- Anthropic HH-RLHF
+- UltraFeedback
+- OpenAssistant / LMSYS Chatbot Arena
