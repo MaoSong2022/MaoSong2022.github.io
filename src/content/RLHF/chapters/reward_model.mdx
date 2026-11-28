@@ -1,4 +1,6 @@
-## reward model
+## Reward Modeling
+
+### Bradley-Terry & Plackett-Luce Modeling
 
 dataset: HelpSteer 2, HelpSteer 3
 
@@ -25,3 +27,11 @@ insights from [Nemotron-Cascade](/blog/nemotron/#nemotron-cascade) [@Nemotron-Ca
 - 更大的模型更好，小模型比较偏好回答的风格而不是整体的质量
 - RewardBench 是一个有用的 proxy, 但并不能反馈 RLHF 的质量
 - larger reward model 可以提高模型在下游任务比如 math 和 coding 上的表现
+
+### Reward Model Paradigms
+
+{/* Outline: Scalar/Discriminative RM -> Multi-Attribute/Steerable RM (HelpSteer/ArmoRM) -> Generative RM (GenRM) & Rubric-based Judge -> ORM vs PRM */}
+
+### Reward Hacking & Evaluation Limitations
+
+{/* Outline: Goodhart's Law 与 Scaling Laws for RM Overoptimization、Verbosity/Length Bias、Sycophancy、RewardBench 局限 */}

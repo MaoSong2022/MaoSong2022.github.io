@@ -137,7 +137,7 @@ $$
 \pi_{\mathrm{ref}} = \arg\max_{\pi}\mathbb{E}_{(x,y_w,y_l)\sim\mathcal{D}}\log \pi(y_w\mid x)
 $$
 
-## Theoretical Analysis of DPO
+### Theoretical Analysis of DPO
 
 > Definition
 > 两个 reward function $r(x,y)$ 和 $r'(x,y)$ 等价当且仅当存在函数 $f$ 满足 $r(x,y)-r'(x,y)=f(x)$。
@@ -177,6 +177,10 @@ $$
 $$
 
 此时，我们可以将 $f(r_\phi, \pi_{\mathrm{ref}},\beta)$ 里的 normalization term 视作为 $\pi_{\mathrm{ref}}$ 的 soft value function, 这个 soft value function 不影响最终的结果，但是没有的话会导致训练时的 variance 很高。 DPO 通过 re-parameterization, 得到的奖励函数不需要 baseline, 因而解决了训练不稳定的问题。
+
+### Failure Modes of DPO
+
+{/* Outline: Likelihood Displacement（似然坍缩与 +SFT/NLL 锚定）、Length Bias、离线分布偏移与确定性偏好过拟合 */}
 
 ### Implementation
 

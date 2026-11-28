@@ -1,5 +1,7 @@
 ## RLHF
 
+### Formulation & Early RLHF (Ziegler et al.)
+
 OpenAI 提出了 RLHF [@ziegler2020finetuninglanguagemodelshuman], 用于在 NLP 任务对齐 GPT-2 和人类的偏好
 
 首先我们有一个语言模型，本文使用的是 [GPT-2](GPT-2.md), 作为初始模型 $\rho$, 定义词表为 $V$, 则我们可以将一个 sequence $x=(x_1,\dots,x_{n-1})$ 建模为
@@ -40,3 +42,11 @@ $$
 2. 初始化 reward model 为 $r=\rho$, reward 通过一个 Linear layer 预测，基于收集到的数据训练 reward model.
 3. 基于 [PPO](/blog/RL4LLM/#ppo) 算法在数据集 $\mathcal{D}$ 上训练 Policy model $\pi$
 4. 持续收集数据来训练 reward model $r$. 在每一轮 PPO 算法开始之前，作者都保证收集到足够多的训练数据来更新 reward model, 进而避免 distribution shift
+
+### InstructGPT Three-Stage Pipeline & Four-Model Architecture
+
+{/* Outline: SFT -> RM -> PPO 三阶段流程、Actor/Critic/Reference/Reward 四模型显存与通信开销、per-token KL shaping */}
+
+### Training Stability & System Bottlenecks
+
+{/* Outline: Reward normalization/whitening、KL penalty、PPO-ptx 缓解 Alignment Tax、为何在线联合训练 RM 与 Policy 易崩溃 */}
