@@ -1,12 +1,11 @@
 ---
 import {
-  TECH_REPORTS_INDEX,
   getAllReportQuarters,
   getAllReportTags,
-  reportAnchorHref,
-} from "../data/tech-reports-index";
+  getAllTechReports,
+} from "../utils/tech-reports";
 
-const reports = TECH_REPORTS_INDEX;
+const reports = getAllTechReports();
 const tags = getAllReportTags();
 const quarters = getAllReportQuarters();
 
@@ -36,7 +35,7 @@ const clientRows = reports.map((r, idx) => ({
         <span class="section-count">{reports.length}</span>
       </h2>
       <p class="section-intro">
-        跨季度单篇技术报告速查表：支持按关键词与多标签联合筛选，点击模型名直达对应季报章节。
+        跨季度单篇技术报告阅读笔记索引：支持按关键词与多标签联合筛选，点击模型名进入独立阅读心得页。
       </p>
 
       <div class="browse-toolbar report-index-toolbar">
@@ -122,20 +121,22 @@ const clientRows = reports.map((r, idx) => ({
         {reports.map((r, idx) => (
           <li class="report-index-item" data-report-idx={idx}>
             <div class="report-index-item__head">
-              <a class="report-index-item__title" href={reportAnchorHref(r)}>
+              <a class="report-index-item__title" href={r.url}>
                 {r.name}
               </a>
               <span class="report-index-item__org">{r.org}</span>
               <span class="report-index-item__meta">
                 {r.release} · {r.baseOrArch}
               </span>
-              <a
-                class="report-index-item__quarter"
-                href={`/blog/${r.digest}/`}
-                title={`View ${r.quarter} digest`}
-              >
-                {r.quarter}
-              </a>
+              {r.digest && r.quarter && (
+                <a
+                  class="report-index-item__quarter"
+                  href={`/blog/${r.digest}/`}
+                  title={`View ${r.quarter} summary`}
+                >
+                  {r.quarter}
+                </a>
+              )}
               {r.kind === "brief" && (
                 <span class="report-index-item__brief">Brief</span>
               )}

@@ -3,7 +3,7 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 import ArticleList from "../components/ArticleList.astro";
 import CompletionLegend from "../components/CompletionLegend.astro";
 import { CONTENT_TYPES, COMPLETION, type ContentType, type Completion } from "../data/article-editorial";
-import { getDigestSearchText } from "../data/tech-reports-index";
+import { getDigestSearchText } from "../utils/tech-reports";
 import { parseArticleGlob, sortByCompletion, type SiteArticleEntry } from "../utils/site-articles";
 import { getAllArticleBundleLastModifiedIso } from "../utils/article-modified";
 

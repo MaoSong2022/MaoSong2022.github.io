@@ -1,12 +1,12 @@
 ---
-import { getReportsByDigest } from "../data/tech-reports-index";
+import { getTechReportsByDigest } from "../utils/tech-reports";
 
 interface Props {
   digest: string;
 }
 
 const { digest } = Astro.props;
-const rows = getReportsByDigest(digest);
+const rows = getTechReportsByDigest(digest);
 ---
 
 {
@@ -27,7 +27,7 @@ const rows = getReportsByDigest(digest);
           {rows.map((r) => (
             <tr>
               <td class="report-digest-table__model">
-                <a href={`#${r.anchor}`}>{r.name}</a>
+                <a href={r.url}>{r.name}</a>
                 {r.kind === "brief" && (
                   <span class="report-digest-table__brief">Brief</span>
                 )}
