@@ -33,11 +33,35 @@ const shareOnXUrl = articleUrl
       <section class="citation-block">
         <p class="footer-heading" role="heading" aria-level="2">Citation</p>
         <div class="citation-body">
-          <p>For attribution in academic contexts, please cite this work as</p>
-          <pre class="citation short">{citationText}</pre>
+          <div class="citation-item">
+            <div class="citation-header">
+              <p>For attribution in academic contexts, please cite this work as</p>
+              <button
+                type="button"
+                class="citation-copy-btn"
+                data-copy-citation
+                aria-label="Copy plain-text citation"
+              >
+                Copy
+              </button>
+            </div>
+            <pre class="citation short">{citationText}</pre>
+          </div>
 
-          <p>BibTeX citation</p>
-          <pre class="citation long">{bibtex}</pre>
+          <div class="citation-item">
+            <div class="citation-header">
+              <p>BibTeX citation</p>
+              <button
+                type="button"
+                class="citation-copy-btn"
+                data-copy-citation
+                aria-label="Copy BibTeX citation"
+              >
+                Copy
+              </button>
+            </div>
+            <pre class="citation long">{bibtex}</pre>
+          </div>
         </div>
       </section>
     )}
@@ -139,13 +163,57 @@ const shareOnXUrl = articleUrl
       document.querySelector("footer.footer");
     const footer = getFooter();
     if (!footer) return;
+    const copyTextToClipboard = async (text) => {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+        return;
+      }
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.setAttribute("readonly", "");
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      const ok = document.execCommand("copy");
+      textarea.remove();
+      if (!ok) throw new Error("Copy failed");
+    };
+
+    // Copy citation block handler
+    footer.querySelectorAll("[data-copy-citation]").forEach((btn) => {
+      let timer;
+      btn.addEventListener("click", async () => {
+        const pre = btn.closest(".citation-item")?.querySelector("pre.citation");
+        const text = (pre?.textContent || "").trim();
+        if (!text) return;
+        const original = btn.dataset.originalLabel || btn.textContent?.trim() || "Copy";
+        btn.dataset.originalLabel = original;
+        if (timer) clearTimeout(timer);
+        try {
+          await copyTextToClipboard(text);
+          btn.textContent = "Copied!";
+          btn.classList.add("is-copied");
+          timer = setTimeout(() => {
+            btn.textContent = original;
+            btn.classList.remove("is-copied");
+          }, 1500);
+        } catch {
+          btn.textContent = "Copy failed";
+          timer = setTimeout(() => {
+            btn.textContent = original;
+          }, 1500);
+        }
+      });
+    });
+
     // Copy article link handler
     footer.querySelectorAll("[data-copy-article-link]").forEach((btn) => {
       btn.addEventListener("click", async () => {
         const url = btn.getAttribute("data-copy-article-link") || window.location.href;
         const original = btn.textContent || "Copy link";
         try {
-          await navigator.clipboard.writeText(url);
+          await copyTextToClipboard(url);
           btn.textContent = "Copied!";
           setTimeout(() => {
             btn.textContent = original;
@@ -643,21 +711,64 @@ const shareOnXUrl = articleUrl
   }
 
   /* Distill-like appendix citation styling */
-  .citation-body p {
+  .citation-item + .citation-item {
+    margin-top: 16px;
+  }
+
+  .citation-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
     margin: 0 0 8px;
+  }
+
+  .citation-header p {
+    margin: 0;
+  }
+
+  .citation-copy-btn {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 9px;
+    border-radius: 5px;
+    border: 1px solid rgba(0, 0, 0, 0.14);
+    background: transparent;
+    color: rgba(0, 0, 0, 0.65);
+    font: inherit;
+    font-size: 11px;
+    line-height: 1.5;
+    cursor: pointer;
+    transition:
+      border-color 0.15s ease,
+      color 0.15s ease,
+      background-color 0.15s ease;
+  }
+
+  .citation-copy-btn:hover {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+  }
+
+  .citation-copy-btn.is-copied {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    background: rgba(0, 0, 0, 0.03);
   }
 
   .citation {
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
       "Liberation Mono", "Courier New", monospace;
     font-size: 11px;
-    line-height: 15px;
+    line-height: 16px;
     border: 1px solid rgba(0, 0, 0, 0.1);
     background: rgba(0, 0, 0, 0.02);
-    padding: 10px 18px;
-    border-radius: 3px;
-    color: rgba(150, 150, 150, 1);
-    overflow: hidden;
+    padding: 10px 16px;
+    border-radius: 4px;
+    color: rgba(0, 0, 0, 0.72);
+    overflow-x: auto;
     margin: 0;
     white-space: pre-wrap;
     word-wrap: break-word;
@@ -669,7 +780,13 @@ const shareOnXUrl = articleUrl
   }
 
   .citation.short {
-    margin-bottom: 16px;
+    margin-bottom: 0;
+  }
+
+  @media print {
+    .citation-copy-btn {
+      display: none !important;
+    }
   }
 
   .references-block .footer-heading {
@@ -700,10 +817,22 @@ const shareOnXUrl = articleUrl
     border-top-color: rgba(255, 255, 255, 0.15);
     color: rgba(200, 200, 200, 0.8);
   }
+  [data-theme="dark"] .citation-copy-btn {
+    border-color: rgba(255, 255, 255, 0.2);
+    color: rgba(215, 215, 215, 0.85);
+  }
+  [data-theme="dark"] .citation-copy-btn:hover,
+  [data-theme="dark"] .citation-copy-btn.is-copied {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+  }
+  [data-theme="dark"] .citation-copy-btn.is-copied {
+    background: rgba(255, 255, 255, 0.06);
+  }
   [data-theme="dark"] .citation {
     background: rgba(255, 255, 255, 0.04);
     border-color: rgba(255, 255, 255, 0.15);
-    color: rgba(200, 200, 200, 1);
+    color: rgba(220, 224, 230, 0.92);
   }
   [data-theme="dark"] .citation a {
     color: rgba(255, 255, 255, 0.75);
