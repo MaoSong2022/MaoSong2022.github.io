@@ -7,7 +7,7 @@
  * - YAML frontmatter uses a double-quoted block list (`- "Tag"`).
  * - Model-series report articles use canonical model series names (e.g. "Qwen", "DeepSeek",
  *   "Gemini", "Gemma", "GLM", "GPT", "Kimi", "LLaMA", "Mistral", "Nemotron", "OLMo").
- * - High-level subjects ("LLM", "MLLM", "RL", "Infra", "Math") belong in `categories`,
+ * - Primary categories ("LLM", "MLLM", "RL", "Infra", "Math") belong in `categories`,
  *   and content types belong in `ARTICLE_EDITORIAL` — avoid meta or overly narrow tags.
  */
 

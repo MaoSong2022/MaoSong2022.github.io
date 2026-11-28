@@ -51,9 +51,9 @@ const browseArticles: BrowseRow[] = articles.map((a: SiteArticleEntry) => ({
 }));
 
 const pageTitle = "Browse Articles";
-const seoTitle = "Browse LLM Articles by Topic, Status, and Tags";
+const seoTitle = "Browse LLM Articles by Type, Status, Category, and Tags";
 const description =
-  "Search and filter LLM technical articles on Mao Song's blog by content type, reading readiness, subject category, and tags across RL, MLLM, and systems.";
+  "Search and filter LLM technical articles on Mao Song's blog by content type, reading readiness, category, and tags across RL, MLLM, and systems.";
 ---
 
 <BaseLayout
@@ -64,7 +64,7 @@ const description =
   lang="en"
 >
   <p class="site-lead">
-      Choose a content type and reading status, then narrow the results by keyword, subject, or tags.
+      Choose a content type and reading status, then narrow the results by keyword, category, or tags.
     </p>
 
     <CompletionLegend />
@@ -116,11 +116,33 @@ const description =
 
       <div class="browse-toolbar-body" id="browse-toolbar-body">
         <div class="editorial-filters">
-          <label class="browse-field"><span class="browse-field-label">Content Type</span>
-            <select id="browse-type" class="browse-input"><option value="">All Types</option>{Object.entries(CONTENT_TYPES).map(([key, value]) => <option value={key}>{value.label}</option>)}</select>
+          <label class="browse-field">
+            <span class="browse-field-label">Content Type</span>
+            <span class="browse-select-wrap">
+              <select id="browse-type" class="browse-select">
+                <option value="">All Types</option>
+                {Object.entries(CONTENT_TYPES).map(([key, value]) => (
+                  <option value={key}>{value.label}</option>
+                ))}
+              </select>
+              <svg class="browse-select-wrap__chevron" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                <path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </span>
           </label>
-          <label class="browse-field"><span class="browse-field-label">Status</span>
-            <select id="browse-completion" class="browse-input"><option value="">All Statuses</option>{Object.entries(COMPLETION).map(([key, value]) => <option value={key}>{value.label}</option>)}</select>
+          <label class="browse-field">
+            <span class="browse-field-label">Status</span>
+            <span class="browse-select-wrap">
+              <select id="browse-completion" class="browse-select">
+                <option value="">All Statuses</option>
+                {Object.entries(COMPLETION).map(([key, value]) => (
+                  <option value={key}>{value.label}</option>
+                ))}
+              </select>
+              <svg class="browse-select-wrap__chevron" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                <path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </span>
           </label>
         </div>
         <label class="browse-field browse-field--grow">
@@ -139,7 +161,7 @@ const description =
           categories.length > 0 ? (
             <div class="browse-field browse-field--full">
               <span class="browse-field-label" id="browse-categories-label">
-                Subjects
+                Category
               </span>
               <div
                 class="browse-tag-row"
@@ -158,9 +180,6 @@ const description =
                   </button>
                 ))}
               </div>
-              <p class="browse-tag-hint">
-                Select one subject. Click again to clear.
-              </p>
             </div>
           ) : null
         }
@@ -189,9 +208,6 @@ const description =
                   </button>
                 ))}
               </div>
-              <p class="browse-tag-hint">
-                Articles must include every selected tag.
-              </p>
             </div>
           ) : null
         }
@@ -285,7 +301,7 @@ const description =
         });
       }
       if (category) {
-        addChip("Subject", category, () => {
+        addChip("Category", category, () => {
           document.querySelectorAll(".browse-category[aria-pressed='true']").forEach((btn) =>
             btn.setAttribute("aria-pressed", "false"),
           );
@@ -309,6 +325,8 @@ const description =
       const completionSelect = document.getElementById("browse-completion");
       const type = typeSelect?.value ?? "";
       const completion = completionSelect?.value ?? "";
+      typeSelect?.setAttribute("data-selected", type ? "true" : "false");
+      completionSelect?.setAttribute("data-selected", completion ? "true" : "false");
       const typeLabel = type && typeSelect ? typeSelect.options[typeSelect.selectedIndex]?.text ?? "" : "";
       const completionLabel = completion && completionSelect ? completionSelect.options[completionSelect.selectedIndex]?.text ?? "" : "";
 
@@ -416,15 +434,17 @@ const description =
       try {
         params = new URLSearchParams(window.location.search);
       } catch {
-        return { hasSubjectOrTag: false };
+        return { hasAutoCollapseFilter: false };
       }
 
-      let hasSubjectOrTag = false;
+      let hasAutoCollapseFilter = false;
 
       for (const key of ["type", "completion"]) {
         const select = document.getElementById(`browse-${key}`);
         const value = params.get(key) ?? "";
-        select.value = [...select.options].some(option => option.value === value) ? value : "";
+        const matched = value !== "" && [...select.options].some(option => option.value === value);
+        select.value = matched ? value : "";
+        if (matched) hasAutoCollapseFilter = true;
       }
       const qRaw = params.get("q") ?? params.get("search");
       const qEl = document.getElementById("browse-q");
@@ -436,7 +456,7 @@ const description =
           const v = btn.getAttribute("data-category");
           const matched = v === cat;
           btn.setAttribute("aria-pressed", matched ? "true" : "false");
-          if (matched) hasSubjectOrTag = true;
+          if (matched) hasAutoCollapseFilter = true;
         });
       }
 
@@ -449,12 +469,12 @@ const description =
           const n = btn.getAttribute("data-tag-norm");
           if (n && norms.has(n)) {
             btn.setAttribute("aria-pressed", "true");
-            hasSubjectOrTag = true;
+            hasAutoCollapseFilter = true;
           }
         });
       }
 
-      return { hasSubjectOrTag };
+      return { hasAutoCollapseFilter };
     }
 
     toggleBtnEl?.addEventListener("click", () => {
@@ -488,12 +508,17 @@ const description =
     clearBtnEl?.addEventListener("click", clearFilters);
 
     for (const id of ["browse-type", "browse-completion"]) {
-      document.getElementById(id)?.addEventListener("change", applyFilters);
+      document.getElementById(id)?.addEventListener("change", (e) => {
+        applyFilters();
+        if (e.target instanceof HTMLSelectElement && e.target.value !== "") {
+          setToolbarCollapsed(true);
+        }
+      });
     }
 
-    const { hasSubjectOrTag } = applyFiltersFromUrl();
+    const { hasAutoCollapseFilter } = applyFiltersFromUrl();
     applyFilters();
-    if (hasSubjectOrTag) {
+    if (hasAutoCollapseFilter) {
       setToolbarCollapsed(true);
     }
   </script>

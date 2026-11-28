@@ -90,7 +90,7 @@ test('all article and tech-report frontmatter tags follow unified format without
   }
 
   const BANNED_META_TAGS = new Set(['tutorial', 'technical report', 'rl', 'math']);
-  const ALLOWED_PUBLIC_SUBJECTS = new Set(['LLM', 'MLLM', 'RL', 'Infra', 'Math']);
+  const ALLOWED_PUBLIC_CATEGORIES = new Set(['LLM', 'MLLM', 'RL', 'Infra', 'Math']);
   const seenCanonical = new Map();
   const issues = [];
 
@@ -113,8 +113,8 @@ test('all article and tech-report frontmatter tags follow unified format without
             .map((l) => l.replace(/^[ \t]*-\s*/, '').replace(/^["']|["']$/g, '').trim())
             .find(Boolean)
         : undefined;
-      if (!firstCat || !ALLOWED_PUBLIC_SUBJECTS.has(firstCat)) {
-        issues.push(`${file}: primary subject must be one of ${[...ALLOWED_PUBLIC_SUBJECTS].join(', ')}, got ${JSON.stringify(firstCat)}`);
+      if (!firstCat || !ALLOWED_PUBLIC_CATEGORIES.has(firstCat)) {
+        issues.push(`${file}: primary category must be one of ${[...ALLOWED_PUBLIC_CATEGORIES].join(', ')}, got ${JSON.stringify(firstCat)}`);
       }
     }
     const tagMatch = fm.match(/^tags:([^\r\n]*)((?:\r?\n[ \t]+-[^\r\n]*)*)/m);

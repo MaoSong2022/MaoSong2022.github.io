@@ -29,9 +29,9 @@
 
 列表每类先按完成度排序，同完成度保留更新时间倒序。搜索支持 `type`、`completion`、`q`、`category` 和多个 `tag` 参数，可分享筛选结果，例如 `/browse?type=learning&completion=complete`。
 
-## Subjects 与 Tags 统一格式规范
+## Category 与 Tags 统一格式规范
 
-1. **Subjects（`categories`）**：主学科统一归入 5 个公开主题：`LLM`、`MLLM`、`RL`、`Infra`、`Math`（草稿可暂用 `Deep Learning`）。`RL` 与 `Math` 作为 Subject 管理，不再重复挂入 `tags`。
+1. **Category（`categories`）**：主分类统一归入 5 个公开主题：`LLM`、`MLLM`、`RL`、`Infra`、`Math`（草稿可暂用 `Deep Learning`）。`RL` 与 `Math` 作为 Category 管理，不再重复挂入 `tags`。
 2. **YAML 格式**：`tags` 统一使用双引号多行列表格式，不混用无引号或行内数组：
    ```yaml
    tags:
