@@ -1,10 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readdir } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import { build } from 'esbuild';
 
 const bundled = await build({ entryPoints: ['src/utils/site-articles.ts'], bundle: true, write: false, format: 'esm', platform: 'node' });
 const { parseArticleGlob, selectFeatured, sortByCompletion } = await import(`data:text/javascript;base64,${Buffer.from(bundled.outputFiles[0].text).toString('base64')}`);
+const bundledTags = await build({ entryPoints: ['src/utils/tags.ts'], bundle: true, write: false, format: 'esm', platform: 'node' });
+const { normalizeTagList, collectUniqueTags } = await import(`data:text/javascript;base64,${Buffer.from(bundledTags.outputFiles[0].text).toString('base64')}`);
 const entry = (slug, published = '2026-01-01') => [`../content/${slug}/article.mdx`, { frontmatter: { title: slug, published } }];
 
 test('types and completion are independent; scaffolding stays out of the public index', async () => {
@@ -58,4 +60,96 @@ test('all content folder names use lowercase kebab-case', async () => {
     .map((d) => d.name)
     .filter((name) => !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(name));
   assert.deepEqual(invalid, [], `Non-kebab-case content folders: ${invalid.join(', ')}`);
+});
+
+test('tag normalization deduplicates case-insensitively and collapses whitespace', () => {
+  assert.deepEqual(
+    normalizeTagList(['  Attention ', 'attention', 'Long  Context', 'MoE', 'moe', '']),
+    ['Attention', 'Long Context', 'MoE'],
+  );
+  assert.deepEqual(
+    collectUniqueTags([['RL', 'Attention'], ['attention', 'MoE'], ['rl', 'Agentic RL']]),
+    ['Agentic RL', 'Attention', 'MoE', 'RL'],
+  );
+});
+
+test('all article and tech-report frontmatter tags follow unified format without duplicates', async () => {
+  const dirs = await readdir('src/content', { withFileTypes: true });
+  const targetFiles = [];
+  for (const dir of dirs.filter((d) => d.isDirectory())) {
+    if (dir.name === 'tech-reports') {
+      const reports = await readdir('src/content/tech-reports');
+      for (const f of reports) {
+        if (/\.mdx?$/.test(f)) targetFiles.push(`src/content/tech-reports/${f}`);
+      }
+      continue;
+    }
+    const files = await readdir(`src/content/${dir.name}`);
+    const article = files.find((f) => /^article\.mdx?$/.test(f));
+    if (article) targetFiles.push(`src/content/${dir.name}/${article}`);
+  }
+
+  const BANNED_META_TAGS = new Set(['tutorial', 'technical report']);
+  const seenCanonical = new Map();
+  const issues = [];
+
+  for (const file of targetFiles.sort()) {
+    const raw = await readFile(file, 'utf8');
+    const fmMatch = raw.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+    if (!fmMatch) {
+      issues.push(`${file}: missing frontmatter`);
+      continue;
+    }
+    const fm = fmMatch[1];
+    const isDraft = /^draft:\s*true$/m.test(fm);
+    const tagMatch = fm.match(/^tags:([^\r\n]*)((?:\r?\n[ \t]+-[^\r\n]*)*)/m);
+    if (!tagMatch) {
+      if (!isDraft) issues.push(`${file}: missing tags`);
+      continue;
+    }
+    if (tagMatch[1].trim() !== '') {
+      issues.push(`${file}: tags must use block list syntax (not inline "${tagMatch[1].trim()}")`);
+      continue;
+    }
+    const itemLines = tagMatch[2]
+      .split(/\r?\n/)
+      .filter((line) => line.length > 0);
+    if (itemLines.length === 0 && !isDraft) {
+      issues.push(`${file}: empty tags list`);
+      continue;
+    }
+
+    const fileSeen = new Set();
+    for (const line of itemLines) {
+      const m = line.match(/^  - "([^"]+)"$/);
+      if (!m) {
+        issues.push(`${file}: tag item must use two-space double-quoted format, got ${JSON.stringify(line)}`);
+        continue;
+      }
+      const tag = m[1];
+      const lower = tag.toLowerCase();
+      if (tag !== tag.trim() || /\s{2,}/.test(tag)) {
+        issues.push(`${file}: tag "${tag}" has irregular whitespace`);
+      }
+      if (!/^[A-Z0-9]/.test(tag)) {
+        issues.push(`${file}: tag "${tag}" must start with an uppercase letter or digit`);
+      }
+      if (BANNED_META_TAGS.has(lower)) {
+        issues.push(`${file}: banned meta tag "${tag}"`);
+      }
+      if (fileSeen.has(lower)) {
+        issues.push(`${file}: duplicate tag "${tag}" within file`);
+      }
+      fileSeen.add(lower);
+
+      const prev = seenCanonical.get(lower);
+      if (prev && prev.tag !== tag) {
+        issues.push(`${file}: inconsistent tag casing "${tag}" vs "${prev.tag}" in ${prev.file}`);
+      } else if (!prev) {
+        seenCanonical.set(lower, { tag, file });
+      }
+    }
+  }
+
+  assert.deepEqual(issues, [], `Tag validation issues:\n${issues.join('\n')}`);
 });
