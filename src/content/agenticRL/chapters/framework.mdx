@@ -88,3 +88,24 @@ LEGO-RL [@LEGO-RL] 提出了 harness-native RL 的概念，主要有三个特征
 1. faithful optimization
 2. reliable execution
 3. observable training
+
+
+
+### Rocket
+
+Rocket [@MAI-RL-Infra] 是 Microsoft AI 用于 MAI 系列大模型 (MAI-base-1, MAI-base 2) 的 async RL 训练框架。
+
+Rocket 通过每 4 次 training steps 更新一次 inference engine 的权重来将 sampler lag 控制在 $[0,3]$ 以内
+
+对于 training-inference tradeoff, Rocket 选择 inference-bound, 也就是将更多的 GPU 分配给 trainer. 这样做的好处是一旦训练所需数据准备完毕，就可以立马被 trainer 消费，缺点是 trainer 可能会有 idle time.
+
+训练时，作者使用 MXFP8 来量化 MoE weights 以及 KV cache. 作者发现，使用 MXFP8 来计算 MoE 会产生比较高的 trainer-generator log-prob discrepancy, 因此作者存储使用 MXFP8, 但是计算使用 dequantize 的 BF16, 为了提升训练稳定性，作者在 trainer 中重现了 generator 的 quantize-dequantize 操作。KV cache 也使用了类似的操作，local attention 使用了 BF16精度，global attention 除了最后三层都使用 MXFP8 精度。
+
+对于 kernel 方面，作者发现使用 bitwise parity 之后，模型表现能够稳固提升，并且最终的 evaluation performance 更高。因此，作者主要做了几点改动：
+
+1. attention output projection, 将 output-projection weight 复制到不同的 GPU 上来减少 cross-GPU reduction 带来的误差
+2. MoE expert combination,  all-to-all combine 之后，使用 FP32 来进行加权求和
+3. attention kernels, 在 trainer forward, generator perfilling, generator decode 过程中使用共享的 FlashAttention 4 kernel. 
+
+
+
