@@ -10,10 +10,8 @@ import {
 } from "../consts";
 import avatarSrc from "../../public/avatar.jpg";
 import { SITE_NEWS } from "../data/site-news";
-import { SITE_PUBLICATIONS } from "../data/site-publications";
 import ArticleList from "../components/ArticleList.astro";
 import ContentCollections from "../components/ContentCollections.astro";
-import CompletionLegend from "../components/CompletionLegend.astro";
 import { parseArticleGlob, selectFeatured } from "../utils/site-articles";
 import { getAllArticleBundleLastModifiedIso } from "../utils/article-modified";
 
@@ -24,15 +22,19 @@ const articleGlob = import.meta.glob<{ frontmatter: Record<string, unknown> }>(
 
 const modifiedBySlug = await getAllArticleBundleLastModifiedIso();
 const articles = await parseArticleGlob(articleGlob, modifiedBySlug);
-const tutorials = selectFeatured(articles, "learning");
-const analyses = selectFeatured(articles, "analysis");
+const selectedArticles = [
+  ...selectFeatured(articles, "learning"),
+  ...selectFeatured(articles, "analysis"),
+];
 
-const newsItems = [...SITE_NEWS].sort((a, b) => {
-  const ta = Date.parse(a.date);
-  const tb = Date.parse(b.date);
-  if (!Number.isNaN(ta) && !Number.isNaN(tb) && tb !== ta) return tb - ta;
-  return String(b.date).localeCompare(String(a.date));
-});
+const newsItems = [...SITE_NEWS]
+  .sort((a, b) => {
+    const ta = Date.parse(a.date);
+    const tb = Date.parse(b.date);
+    if (!Number.isNaN(ta) && !Number.isNaN(tb) && tb !== ta) return tb - ta;
+    return String(b.date).localeCompare(String(a.date));
+  })
+  .slice(0, 4);
 
 function newsDateLabel(raw: string): string {
   const t = Date.parse(raw);
@@ -40,7 +42,6 @@ function newsDateLabel(raw: string): string {
     return new Date(t).toLocaleDateString("en-US", {
       year: "numeric",
       month: "short",
-      day: "numeric",
     });
   }
   return raw;
@@ -82,72 +83,9 @@ function newsDateIso(raw: string): string | undefined {
     <a class="button button--ghost" href={`https://scholar.google.com/citations?user=${GOOGLE_SCHOLAR_ID}`}>Google Scholar</a>
   </div>
 
-  <section aria-labelledby="tutorials-heading">
-    <p class="section-eyebrow">START HERE</p>
-    <h2 id="tutorials-heading">Featured Tutorials</h2>
-    <p class="section-intro">基础教程，覆盖 LLM 与强化学习的核心概念。</p>
-    <ArticleList articles={tutorials} compact />
-  </section>
-
-  <section aria-labelledby="analysis-heading">
-    <h2 id="analysis-heading">Deep Dives</h2>
-    <p class="section-intro">具体问题的深入推导与分析。</p>
-    <ArticleList articles={analyses} compact />
-    <p class="section-more"><a href="/blog/collections/analysis/">All Deep Dives →</a></p>
-  </section>
-
-  <section aria-labelledby="collections-heading">
-    <h2 id="collections-heading">Explore by Content Type</h2>
-    <p class="section-intro">按内容类型浏览全站文章。</p>
-    <ContentCollections articles={articles} />
-    <CompletionLegend />
-  </section>
-
-  {
-    SITE_PUBLICATIONS.length > 0 ? (
-      <section class="site-pubs" aria-labelledby="publications-heading">
-        <h2 id="publications-heading">Selected Publications</h2>
-        <p class="section-intro">代表性研究论文；完整发表列表请见 Google Scholar。</p>
-        <ul class="site-pubs__list">
-          {SITE_PUBLICATIONS.map((pub) => (
-            <li class="site-pubs__item">
-              <span class="site-pubs__venue">{pub.venue}</span>
-              <div class="site-pubs__body">
-                <span class="site-pubs__title">{pub.title}</span>
-                <p class="site-pubs__summary">{pub.summary}</p>
-                {pub.links.length > 0 && (
-                  <div class="site-pubs__links">
-                    {pub.links.map((link) => (
-                      <a
-                        href={link.href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        {link.label} →
-                      </a>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </li>
-          ))}
-        </ul>
-        <p class="section-more">
-          <a
-            href={`https://scholar.google.com/citations?user=${GOOGLE_SCHOLAR_ID}`}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Full list on Google Scholar →
-          </a>
-        </p>
-      </section>
-    ) : null
-  }
-
   {
     newsItems.length > 0 ? (
-      <section class="site-news" aria-labelledby="news-heading">
+      <section class="site-news site-news--compact" aria-labelledby="news-heading">
         <h2 id="news-heading">News</h2>
         <ul class="site-news__list">
           {newsItems.map((item) => {
@@ -169,6 +107,7 @@ function newsDateIso(raw: string): string | undefined {
                     <a
                       class="site-news__title-link"
                       href={item.href}
+                      title={item.summary}
                       {...(isExternal
                         ? {
                             target: "_blank",
@@ -179,11 +118,10 @@ function newsDateIso(raw: string): string | undefined {
                       {item.title}
                     </a>
                   ) : (
-                    <span class="site-news__title">{item.title}</span>
+                    <span class="site-news__title" title={item.summary}>
+                      {item.title}
+                    </span>
                   )}
-                  {item.summary ? (
-                    <p class="site-news__summary">{item.summary}</p>
-                  ) : null}
                 </div>
               </li>
             );
@@ -193,4 +131,17 @@ function newsDateIso(raw: string): string | undefined {
     ) : null
   }
 
+  <section aria-labelledby="selected-writing-heading">
+    <h2 id="selected-writing-heading">Selected Writing</h2>
+    <p class="section-intro">精选基础教程与深度推导剖析；论文发表与个人经历请见 <a href="/about">About</a>。</p>
+    <ArticleList articles={selectedArticles} compact />
+    <p class="section-more">
+      <a href="/blog">Browse all {articles.length} posts →</a>
+    </p>
+  </section>
+
+  <section aria-labelledby="collections-heading">
+    <h2 id="collections-heading">Explore by Content Type</h2>
+    <ContentCollections articles={articles} compact />
+  </section>
 </BaseLayout>
