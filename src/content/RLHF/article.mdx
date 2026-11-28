@@ -1,15 +1,34 @@
 ---
-title: "RLHF 与偏好对齐综述：奖励建模与 DPO 理论推导详解"
-description: "梳理大语言模型人类反馈强化学习（RLHF）与离线偏好对齐方法，重点推导 Direct Preference Optimization（DPO）的理论等价性、隐式奖励建模、代码实现与实验对比。"
+title: "RLHF 与偏好对齐综述：数据构造、奖励建模与 DPO 族谱详解"
+subtitle: "从经典 RLHF 与偏好数据工程出发，系统梳理奖励建模、DPO 理论推导及偏好优化算法演进。"
+description: "系统梳理大语言模型人类反馈强化学习（RLHF）与直接偏好对齐方法：涵盖经典三阶段范式、偏好数据构造与分析、奖励建模、DPO 理论推导及 IPO/KTO/ORPO/SimPO/APO 等演进。"
 authors:
   - name: "Mao Song"
     url: "https://maosong.website/"
 published: "May. 09, 2026"
 tags:
-  - tutorial
+  - "RL"
+  - "RLHF"
+  - "DPO"
+  - "Alignment"
+categories:
+  - "LLM"
+  - "Tutorial"
 tableOfContentsAutoCollapse: true
 ---
 
+import Introduction from "./chapters/introduction.mdx";
+import RLHF from "./chapters/rlhf.mdx";
+import Data from "./chapters/data.mdx";
+import RewardModel from "./chapters/reward_model.mdx";
 import DPO from "./chapters/DPO.mdx";
+import PreferenceVariants from "./chapters/preference_variants.mdx";
+import RecentProgress from "./chapters/recent_progress.mdx";
 
+<Introduction />
+<RLHF />
+<Data />
+<RewardModel />
 <DPO />
+<PreferenceVariants />
+<RecentProgress />
