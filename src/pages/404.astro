@@ -11,40 +11,81 @@ const knownArticleSlugs = Array.from(
   new Set(
     articleEntryPaths
       .map((path) => path.match(/content\/([^/]+)\/article\.(?:md|mdx)$/)?.[1])
-      .filter((slug): slug is string => Boolean(slug)),
+      .filter((slug): slug is string => Boolean(slug) && slug !== "demo"),
   ),
 );
+
+const legacySlugAliases: Record<string, string> = {
+  opd: "on-policy-distillation",
+  flashattention: "flash-attention",
+  agenticrl: "agentic-rl",
+  "llama-series": "llama",
+  "qwen-series": "qwen",
+  "deepseek-series": "deepseek",
+  "qwen-vl-series": "qwen-vl",
+  train_inference_mistahch: "train-inference-mismatch",
+  tech_report: "tech-reports-2026-q4",
+};
 ---
 
 <BaseLayout pageTitle={pageTitle} description={description} noindex={true}>
-  <script is:inline define:vars={{ knownArticleSlugs }}>
+  <script is:inline define:vars={{ knownArticleSlugs, legacySlugAliases }}>
     (() => {
       const knownSlugs = new Set(knownArticleSlugs);
+      const knownSlugsByLower = new Map(
+        knownArticleSlugs.map((slug) => [slug.toLowerCase(), slug]),
+      );
+
+      const resolveSlug = (raw) => {
+        let decoded = raw;
+        try {
+          decoded = decodeURIComponent(raw);
+        } catch {
+          return null;
+        }
+        const lower = decoded.toLowerCase();
+        const aliased = legacySlugAliases[lower];
+        if (aliased && knownSlugs.has(aliased)) return aliased;
+        return knownSlugsByLower.get(lower) ?? null;
+      };
+
       const rawPath = window.location.pathname.replace(/\/{2,}/g, "/");
-      const path = rawPath.endsWith("/") ? rawPath : `${rawPath}/`;
-      const segments = path.split("/").filter(Boolean);
+      const segments = rawPath.split("/").filter(Boolean);
+      const suffix = `${window.location.search}${window.location.hash}`;
 
       let redirectTarget = "/";
-      // Legacy scheme: /p/<slug>/ => /blog/<slug>/ when <slug> exists.
-      if (segments[0] === "p" && segments[1]) {
-        const candidate = decodeURIComponent(segments[1]);
-        if (knownSlugs.has(candidate)) {
-          redirectTarget = `/blog/${encodeURIComponent(candidate)}/`;
+
+      if ((segments[0] === "blog" || segments[0] === "p") && segments[1]) {
+        const resolved = resolveSlug(segments[1]);
+        if (resolved) {
+          if (
+            segments[0] === "blog" &&
+            segments.length === 3 &&
+            segments[2].toLowerCase() === "llms.txt"
+          ) {
+            redirectTarget = `/blog/${encodeURIComponent(resolved)}/llms.txt${suffix}`;
+          } else if (segments.length === 2) {
+            redirectTarget = `/blog/${encodeURIComponent(resolved)}/${suffix}`;
+          }
         }
       }
 
-      if (window.location.pathname !== redirectTarget) {
+      const currentUrl = `${window.location.pathname}${suffix}`;
+      if (currentUrl !== redirectTarget) {
         window.location.replace(redirectTarget);
       }
     })();
   </script>
-  <meta http-equiv="refresh" content="0;url=/" />
+  <noscript>
+    <meta http-equiv="refresh" content="0;url=/" />
+  </noscript>
 
   <p>
     This page does not exist. You are being redirected.
   </p>
   <p>
-    Old paths like <code>/p/&lt;slug&gt;</code> are redirected to valid
+    Old paths like <code>/p/&lt;slug&gt;</code> or legacy uppercase
+    <code>/blog/&lt;Slug&gt;</code> URLs are redirected to valid
     <code>/blog/&lt;slug&gt;</code> pages when available. Otherwise, we redirect
     to the homepage.
   </p>
