@@ -17,7 +17,7 @@ $$
 实际训练时，我们会在一个LLM上外接一个 linear layer, 然后使用MLE来进行训练
 
 $$
-\mathcal{L}(\theta) = \mathbb{E}_{(x,y^+,y^-)\in\mathcal{D}}\left[\log p(y^+>y^-\mid x)\right]
+\mathcal{L}(\theta) = -\mathbb{E}_{(x,y^+,y^-)\in\mathcal{D}}\left[\log p(y^+>y^-\mid x)\right]
 $$
 
 benchmark: rewardbench
