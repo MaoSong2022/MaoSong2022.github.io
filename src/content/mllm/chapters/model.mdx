@@ -261,7 +261,7 @@ $$
 
 一个基于 Ovis 改进的多模态大模型系列，包括 2B 和 9B 两个 size，Ovis2.5 主要强调了支持不同分辨率图片输入以及深度思考这两个 feature
 
-作者首先回顾了 [Ovis](/blog/MLLM/#ovis), Ovis 主要是解决 text embedding 以及 visual embedding 对齐程度比较低的问题。
+作者首先回顾了 [Ovis](/blog/mllm/#ovis), Ovis 主要是解决 text embedding 以及 visual embedding 对齐程度比较低的问题。
 
 接下来，作者介绍了以下 Ovis 的两个问题：
 
@@ -289,8 +289,8 @@ Ovis2.5 的架构如下所示
 Ovis 包括三个模块：
 
 1. visual tokenizer： ViT 架构，
-2. visual embedding table: 类似 LLM 中的 text embedding table, 见 [Ovis](/blog/MLLM/#ovis)
-3. LLM: 基于 [Qwen3](/blog/Qwen-series/#qwen3)
+2. visual embedding table: 类似 LLM 中的 text embedding table, 见 [Ovis](/blog/mllm/#ovis)
+3. LLM: 基于 [Qwen3](/blog/qwen/#qwen3)
 
 作者在架构上进行了如下改进：
 
@@ -315,7 +315,7 @@ pre-training 阶段的数据包括 COYO, Laion, Wukong, DataComp, SAM 等。作�
 2. Multimodal pretraining: 这阶段全量微调所有参数，主要目的是使用对话格式的数据。图片精度为 448-1792
 3. multimodal instruction tuning: 这阶段训练所有参数，主要提高模型跟随多模态指令的能力
 
-post-training 包括 [DPO](/blog/RLHF/#dpo) 和 GRPO 两个阶段。
+post-training 包括 [DPO](/blog/rlhf/#dpo) 和 GRPO 两个阶段。
 
 1. DPO: 训练所有参数，使用 pre-training checkpoint 来多次采样
 2. GRPO: 使用 RLVR 数据集进行训练

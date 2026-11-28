@@ -173,7 +173,7 @@ dispatch(F, block1) -> MLP(F, block1) -> combine(F, block1) -> attention(F, bloc
 
 <Image src={gpu_communication_pattern} alt="Communication of GPU" />
 
-对于 H800 来说,NVLink 的带宽为 160GB/s, IB 的带宽为 50GB/s, 因此 NVLInk 的通信效率是 IB 的 3.2 倍，即节点内部通信效率高于节点之间的通信效率。为了提高通信效率，作者限制每个 token 只能被分发到至多 4 个节点上（[DeepSeek-V2](/blog/deepseek-series/#deepseek-v2) 里提到的 device limited routing）。其具体通信方式为想传输到目标 node index 相同的 rank 上，然后再通过节点内部通信传输到目标的 rank 上。通过这种方式，我们可以让节点间通信与节点内部通信进行重叠，从而每个 token 可以从一个节点上选取 3.2 个专家，这样 DeepSeek-V3 可以在不损失效率的情况下最高选取 $13$ 个专家。
+对于 H800 来说,NVLink 的带宽为 160GB/s, IB 的带宽为 50GB/s, 因此 NVLInk 的通信效率是 IB 的 3.2 倍，即节点内部通信效率高于节点之间的通信效率。为了提高通信效率，作者限制每个 token 只能被分发到至多 4 个节点上（[DeepSeek-V2](/blog/deepseek/#deepseek-v2) 里提到的 device limited routing）。其具体通信方式为想传输到目标 node index 相同的 rank 上，然后再通过节点内部通信传输到目标的 rank 上。通过这种方式，我们可以让节点间通信与节点内部通信进行重叠，从而每个 token 可以从一个节点上选取 3.2 个专家，这样 DeepSeek-V3 可以在不损失效率的情况下最高选取 $13$ 个专家。
 
 作者进一步采用了 warp specialization 技巧来将 20 个 SM 划分为 10 个通信 channel. 作者分别针对 dispatching 和 combing 阶段使用了不同数量的 warps.
 
@@ -297,7 +297,7 @@ prefilling 阶段在 4 节点 32 GPU 上进行，并行策略如下
 
 #### Data
 
-相比于 [DeepSeek-V2](/blog/deepseek-series/#deepseek-v2), DeepSeek-V3 提升了数学和代码数据的比例，以及增加了多语种数据。最终训练数据一共包括 **14.8T**
+相比于 [DeepSeek-V2](/blog/deepseek/#deepseek-v2), DeepSeek-V3 提升了数学和代码数据的比例，以及增加了多语种数据。最终训练数据一共包括 **14.8T**
 
 作者还使用了 DeepSeekCoder-V2 里应用的 Fill in the middle 策略来让模型基于上下文越策中间的文本，对应的数据格式如下
 
@@ -336,7 +336,7 @@ Tokenizer 基于 BBPE, 大小为 128K tokens. 在训练时，作者将随机一�
 
 作者使用了 [YARN](/blog/long-context/#yarn) 来扩展模型的上下文长度，模型上下文长度经过两个额外的训练阶段从 4K 扩展到 32K 再扩展到 128K, 均训练了 1000 步。
 
-YARN 配置与 [DeepSeek-V2](/blog/deepseek-series/#deepseek-v2) 基本一致，在额外的 decoupled query and key 上作者没有应用这一点。参数配置如下表
+YARN 配置与 [DeepSeek-V2](/blog/deepseek/#deepseek-v2) 基本一致，在额外的 decoupled query and key 上作者没有应用这一点。参数配置如下表
 
 | parameter | $s$ | $\alpha$ | $\beta$ | $\sqrt{t}$   |
 | --------- | --- | -------- | ------- | ------------ |
@@ -346,7 +346,7 @@ YARN 配置与 [DeepSeek-V2](/blog/deepseek-series/#deepseek-v2) 基本一致，
 
 #### Performance
 
-DeepSeek-V3 base 的表现下图所示，作者对比了 DeepSeek-V2 [@DeepSeek-V2], [Qwen2.5](/blog/Qwen-series/#qwen25), LLaMA 3.1 [@LLaMA3]
+DeepSeek-V3 base 的表现下图所示，作者对比了 DeepSeek-V2 [@DeepSeek-V2], [Qwen2.5](/blog/qwen/#qwen25), LLaMA 3.1 [@LLaMA3]
 
 <Image
   src={deepseek_v3_base_performance}

@@ -36,13 +36,13 @@ Qwen3-Next 包含三个模型：
 2. 对于 softmax attention:
    1. 使用了 [Gated Attention](/blog/attention/#gated-attention) 提出的 gating 机制来解决 massive activation 和 attention sink 问题
    2. 将 attention head 的 dimension 从 128 提高到 256
-   3. 使用了和 [DeepSeek-V3](/blog/deepseek-series/#deepseek-v3) 类似的 partial RoPE 机制，仅对前 $25\%$ 的元素进行旋转
+   3. 使用了和 [DeepSeek-V3](/blog/deepseek/#deepseek-v3) 类似的 partial RoPE 机制，仅对前 $25\%$ 的元素进行旋转
 
 ### MoE
 
 - 1 个共享专家，512 个路由专家，其中激活专家个数为 10 个。
 - 对于 MoE router 的参数，作者还进行了 normalization 来保证每个专家被选择的概率相同。
-- 与 [Qwen3](/blog/Qwen-series/#qwen3) 一致，Qwen3-Next 也是用了 [Global-batch load balancing](/blog/moe/#global-batch-load-balancing-loss-strategy) 策略，在保持激活专家数不变的情况下，通过提高总专家个数来降低训练损失。
+- 与 [Qwen3](/blog/qwen/#qwen3) 一致，Qwen3-Next 也是用了 [Global-batch load balancing](/blog/moe/#global-batch-load-balancing-loss-strategy) 策略，在保持激活专家数不变的情况下，通过提高总专家个数来降低训练损失。
 
 ### Normalization and Training
 

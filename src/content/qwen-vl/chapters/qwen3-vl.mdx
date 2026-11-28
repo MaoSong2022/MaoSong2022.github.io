@@ -29,7 +29,7 @@ Qwen3-VL 的架构如下所示
 
 其中，
 
-- LLM: LLM 使用了 [Qwen3](/blog/Qwen-series/#qwen3) 系列大语言模型，包括 2B, 4B, 8B, 32B 四个 dense model 以及 30B-A3B, 235B-A22B 两个 moe 模型
+- LLM: LLM 使用了 [Qwen3](/blog/qwen/#qwen3) 系列大语言模型，包括 2B, 4B, 8B, 32B 四个 dense model 以及 30B-A3B, 235B-A22B 两个 moe 模型
 - Vision Encoder: encoder 基于 [SigLIP2](/blog/visual-foundation-model/#siglip2) 初始化，然后使用了 dynamic input resolutions 进行 continue training, 作者使用了 [CoMP](https://slimm-x.github.io/comp/) 提出的 2D-RoPE 以及 interpolate absolute position embedding, 最终包括 SigLip2-SO-400M 和 SigLip-Large (300M) 两个 size, 后者用于 2B 和 4B 两个 size
 - Patch Merger: 一个 2 层的 MLP, 将四个 visual token 压缩为 1 个
 
@@ -45,7 +45,7 @@ Qwen3-VL 的架构如下所示
 
 #### Video Timestamp
 
-作者发现，[Qwen2.5-VL](/blog/qwen-vl-series/#qwen25-vl) 中使用的 MRoPE 存在如下问题：
+作者发现，[Qwen2.5-VL](/blog/qwen-vl/#qwen25-vl) 中使用的 MRoPE 存在如下问题：
 
 1. 将 temporal position 与绝对时间绑定之后，对于长视频会产生非常大且稀疏的 temporal position ids
 2. 需要使用不同的 FPS 进行采样来提高模型的泛化性
@@ -101,7 +101,7 @@ Code-start Data 分为 SFT 数据和 Long CoT SFT 数据，前者用于训练 in
 Post-training 包含三个阶段：
 
 1. SFT: 提高模型的指令跟随能力，SFT 又分为了两个小阶段，上下文长度分别为 32K 和 256K, 对于 instruct 和 reasoning 版本，作者设计了不同的数据格式，后者包含 CoT reasoning trace
-2. Strong-to-Weak Distillation: 提高小模型的能力，这里应该是和 [Qwen3](/blog/Qwen-series/#qwen3) 一样，将大模型的能力蒸馏到小模型里
+2. Strong-to-Weak Distillation: 提高小模型的能力，这里应该是和 [Qwen3](/blog/qwen/#qwen3) 一样，将大模型的能力蒸馏到小模型里
 3. RL: 提高模型的 reasoning 能力以及人类偏好对齐。这里包含了 Reasoning RL 以及 General RL 两个阶段，覆盖了 math, OCR, grounding, instruction following 等 domain
 
 整体的训练 pipeline 我猜测应该是这样：

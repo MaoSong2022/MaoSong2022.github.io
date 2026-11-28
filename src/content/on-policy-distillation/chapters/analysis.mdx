@@ -33,7 +33,7 @@ $$
 \nabla_{\theta} \mathcal{L}_{OPD}(\theta) = \mathbb{E}_{x\sim\mathcal{D},y\sim\pi_{\theta}}\left[\sum_{t=1}^{|y|}\frac{\pi_\theta(y_t\mid y_{<t}, x)}{\pi_T(y_t\mid y_{<t}, x)}\nabla_{\theta} \log\pi_\theta(y_t\mid y_{<t}, x)\right]
 $$
 
-基于 [policy gradient theorem](https://maosong.website/blog/RL4LLM/#policy-gradient-theorem), 我们可以将 OPD 的 reward 表示为
+基于 [policy gradient theorem](https://maosong.website/blog/rl4llm/#policy-gradient-theorem), 我们可以将 OPD 的 reward 表示为
 
 $$
 \htmlId{opd_reward}{\begin{equation}

@@ -491,7 +491,7 @@ RL 训练包括 offline stage 以及 online stage.
 这个阶段的目的是进一步提高模型在真实场景下模型的避险。作者构建了高质量的多模态数据，包括 **44.8B** 的多模态 token, 这个阶段模型训练了一个 epoch.
 
 **Stage 4: Enhancement of Preference**
-这个阶段的目的是对齐，作者使用 [DPO](/blog/RLHF/#dpo) 来训练模型，数据集包括 **40,000** 条数据。数据构建过程如下：
+这个阶段的目的是对齐，作者使用 [DPO](/blog/rlhf/#dpo) 来训练模型，数据集包括 **40,000** 条数据。数据构建过程如下：
 
 1. prompt selection: 作者基于真实用户交互数据构建了高质量的 prompt
 2. Response generation: 作者通过多次采样，然后使用 MiniMax-Text-01 来生成多样化的数据

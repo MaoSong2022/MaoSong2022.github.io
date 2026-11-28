@@ -17,7 +17,7 @@ import olmoe_router_saturation from "../../../assets/image/olmoe-router-saturati
 
 ## olmoe
 
-已有的模型如 [DeepSeekMoE](/blog/deepseek-series/#deepseek-moe) [@DeepSeek-MoE], [Mixtral MoE](https://arxiv.org/abs/2401.04088), [Qwen1.5](/browse?q=qwen1.5) 等 MoE 模型基本只开源权重。也有一些开源的模型，比如 OpenMoE 等，但是开源信息不全。基于这个目的，作者提出了 olmoe 模型系列，包括 olmoe-7B-A1B 和 olmoe-7B-A1B-instruct 两个版本。
+已有的模型如 [DeepSeekMoE](/blog/deepseek/#deepseek-moe) [@DeepSeek-MoE], [Mixtral MoE](https://arxiv.org/abs/2401.04088), [Qwen1.5](/browse?q=qwen1.5) 等 MoE 模型基本只开源权重。也有一些开源的模型，比如 OpenMoE 等，但是开源信息不全。基于这个目的，作者提出了 olmoe 模型系列，包括 olmoe-7B-A1B 和 olmoe-7B-A1B-instruct 两个版本。
 
 ## Method
 
@@ -93,7 +93,7 @@ DeepSeekMoE [@DeepSeek-MoE] 提出使用共享专家来学习 common knowledge, 
 
 #### Sparse Upcycling
 
-作者还对比了从零开始训练 MoE 与基于 dense model upcycling 的方式训练 MoE，sparse upcycling 的相关工作有 MiniCPM, [Qwen2](/blog/Qwen-series/#qwen2) 以及 [Mixtral MoE](https://arxiv.org/abs/2401.04088).结果如下图所示
+作者还对比了从零开始训练 MoE 与基于 dense model upcycling 的方式训练 MoE，sparse upcycling 的相关工作有 MiniCPM, [Qwen2](/blog/qwen/#qwen2) 以及 [Mixtral MoE](https://arxiv.org/abs/2401.04088).结果如下图所示
 
 <Image src={olmoe_sparse_upcycling} alt="Sparse upcycling" />
 

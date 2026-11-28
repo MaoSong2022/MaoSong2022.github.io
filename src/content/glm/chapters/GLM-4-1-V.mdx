@@ -32,7 +32,7 @@ GLM-4.1V-Thinking 是一个标准的 ViT-MLP-LLM 架构，其中：
   alt="Architecture of GLM4.1V-Thinking"
 />
 
-与 [Qwen2.5-VL](/blog/qwen-vl-series/#qwen25-vl) 一样，作者将 encoder 的 2D convolution 替换为了 3D convolution，用于处理视频输入，然后对于 single-image inputs，GLM-4.1V-Thinking 会将输入复制，变成一个含有两帧相同图片的 video 输入
+与 [Qwen2.5-VL](/blog/qwen-vl/#qwen25-vl) 一样，作者将 encoder 的 2D convolution 替换为了 3D convolution，用于处理视频输入，然后对于 single-image inputs，GLM-4.1V-Thinking 会将输入复制，变成一个含有两帧相同图片的 video 输入
 
 为了支持不同分辨率图片输入，作者进行了两点改进：
 
@@ -50,7 +50,7 @@ $$
 P_{adapted} = \mathcal{I}_{bicubic}(P_{orig}, g_{norm})
 $$
 
-对于视频输入，作者在每一帧之后插入了一个 time index token, 用每一帧的 timestamp string 来表示。这个做法与 [Qwen2.5-VL](/blog/qwen-vl-series/#qwen25-vl) 一样。
+对于视频输入，作者在每一帧之后插入了一个 time index token, 用每一帧的 timestamp string 来表示。这个做法与 [Qwen2.5-VL](/blog/qwen-vl/#qwen25-vl) 一样。
 
 ### Data
 
@@ -182,7 +182,7 @@ Pre-training 由两个 stage 组成：
 
 1. Larger batch size: 使用更大的 batch size 效果更好
 2. Dynamic sampling expansion via ratio EMA: 作者定义了 naive 样本和高质量样本的比例，然后根据这个比例进行采样，来提升整体的采样效率。
-3. Force answering: 与 [Qwen3](/blog/Qwen-series/#qwen3) 一样，对于比较难的问题，当输出的 token 数过长时，作者对模型输出进行截断，然后让模型基于已有思考过程直接输出结果。
+3. Force answering: 与 [Qwen3](/blog/qwen/#qwen3) 一样，对于比较难的问题，当输出的 token 数过长时，作者对模型输出进行截断，然后让模型基于已有思考过程直接输出结果。
 4. Discard KL loss: 与 DAPO 一样，作者也移除了 KL divergence loss
 5. Clip-higher: 与 DAPO 一样，作者通过修改超参数来提高模型的探索能力
 
@@ -195,7 +195,7 @@ Pre-training 由两个 stage 组成：
 
 1. 提高 cold-start SFT 阶段数据的质量
 2. 移除 KL divergence loss
-3. 使用 top-p 为 1，而不是 0.9 (如 [Qwen-LLM](/blog/Qwen-series/#qwen-llm) 中的设置)，top-p 为 1 可以 cover 整个 vocabulary，避免某些 token 没有参与训练
+3. 使用 top-p 为 1，而不是 0.9 (如 [Qwen-LLM](/blog/qwen/#qwen-llm) 中的设置)，top-p 为 1 可以 cover 整个 vocabulary，避免某些 token 没有参与训练
 4. per-sample loss 和 per-token loss 没有显著区别，但是 per-sample loss 稳定性更高
 5. 在 cold-start SFT 阶段让模型学会格式要求，而不是在 RL 阶段加入 format reward
 

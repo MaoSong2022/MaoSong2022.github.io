@@ -21,7 +21,7 @@ import olmoe_sparse_upcycling from "../../../assets/image/olmoe-sparse-upcycling
 一般来说，专家个数越多，模型越稀疏，模型表现越好。扩展专家个数有两个方式：
 
 1. 直接增加专家个数，这会导致模型参数量上升，如 Switch Transformer [@SwitchTransformer]
-2. 对已有的专家进行切分，将大专家切分为小专家，如 [DeepSeekMoE](/blog/deepseek-series/#deepseek-moe) [@DeepSeek-MoE]
+2. 对已有的专家进行切分，将大专家切分为小专家，如 [DeepSeekMoE](/blog/deepseek/#deepseek-moe) [@DeepSeek-MoE]
 
 Switch Transformer [@SwitchTransformer] 也通过实验发现，增加专家个数可以显著提高模型的训练效率和表现，结果如下图所示
 
@@ -48,7 +48,7 @@ DeepSeekMoE [@DeepSeek-MoE] 提出了 fine-granularity expert 的概念，其做
 结果显示，当专家粒度从 8E-1A 扩展到 32E-4A 时，模型在 HellaSwag 上的表现提升了 $10\%$, 但是进一步扩展到 64E-8A 时，模型的表现提升不到 $2\%$, 这说明了无限制提升专家粒度对模型的提升越来越有限。
 
 Kimi K2[@Kimi-K2] 探究了针对 MoE 模型 sparsity 的 scaling law, 结果也说明，提升 sparsity 可以提高模型的表现。
-因此，其相对于 [DeepSeek-V3](/blog/deepseek-series/#deepseek-v3) [@DeepSeek-V3] 使用了 $50\%$ 额外的的专家数。
+因此，其相对于 [DeepSeek-V3](/blog/deepseek/#deepseek-v3) [@DeepSeek-V3] 使用了 $50\%$ 额外的的专家数。
 Ling-mini-beta [@EL] 和 MiniMax-M2 [@MiniMax-M2] 也验证了细粒度专家可以提高模型表现的结论。
 
 Mistral Large 4 [@Mistral-Large-4] 发现尽管提高 granularity 可以提高 sample efficiency, 但是训练效率会随之降低。
@@ -150,7 +150,7 @@ $$
 \text{expert capacity} = \left(\frac{\text{tokens per batch}}{\text{number of experts}}\right) * \text{capacity factor}
 $$
 
-设置 capacity factor 之后，当某个专家处理的 token 个数超过 capacity 之后，概专家的计算就会直接跳过，退化为 residual connection. 后续 [DeepSeek-V2](/blog/deepseek-series/#deepseek-v2) [@DeepSeek-V2] 也采用了这种策略，但是 DeepSeek-V3 [@DeepSeek-V3] 弃用
+设置 capacity factor 之后，当某个专家处理的 token 个数超过 capacity 之后，概专家的计算就会直接跳过，退化为 residual connection. 后续 [DeepSeek-V2](/blog/deepseek/#deepseek-v2) [@DeepSeek-V2] 也采用了这种策略，但是 DeepSeek-V3 [@DeepSeek-V3] 弃用
 
 **Load balancing Loss**
 在训练目标中加入负载均衡损失，要求每个专家处理的 token 个数的分布尽可能均匀。

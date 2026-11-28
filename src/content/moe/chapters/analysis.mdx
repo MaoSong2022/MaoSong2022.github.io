@@ -25,5 +25,5 @@ OpenMoE [@OpenMoE] 分析了 MoE 模型的特化程度，其结论如下
 作者认为，这是专家特化的结果，初始的 routing 如果改变的话会带来表现下降，因此模型倾向于使用固定的专家处理特定的 token
 
 作者还发现，later layers 比 early layers 饱和更快，early layer, 特别是 layer 0, 饱和的非常慢。
-作者认为，这是 [DeepSeekMoE](/blog/deepseek-series/#deepseek-moe) [@DeepSeek-MoE] 放弃在第一层使用 MoE layer 的原因，因为 load balancing loss 收敛更慢。后
-续 [DeepSeek-V2](/blog/deepseek-series/#deepseek-v2) [@DeepSeek-V2] 和 [DeepSeek-V3](/blog/deepseek-series/#deepseek-v3) [@DeepSeek-V3] 均在 early layer 上使用 dense layer 替换掉了 MoE layer
+作者认为，这是 [DeepSeekMoE](/blog/deepseek/#deepseek-moe) [@DeepSeek-MoE] 放弃在第一层使用 MoE layer 的原因，因为 load balancing loss 收敛更慢。后
+续 [DeepSeek-V2](/blog/deepseek/#deepseek-v2) [@DeepSeek-V2] 和 [DeepSeek-V3](/blog/deepseek/#deepseek-v3) [@DeepSeek-V3] 均在 early layer 上使用 dense layer 替换掉了 MoE layer

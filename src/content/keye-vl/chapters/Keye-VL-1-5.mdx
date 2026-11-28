@@ -13,7 +13,7 @@ import keye_vl_1_5_video_encoding from "../../../assets/image/Keye-VL-1-5-video-
 
 Keye-VL 1.5 的架构与 [Keye-VL](#keye-vl) 一致， Keye-VL 1.5 主要做出的改进点为针对视频的 encoding 方式。
 
-之前的工作如 [Qwen2.5-VL](https://maosong.website/blog/qwen-vl-series/#qwen25-vl) 使用 3D convolution 来 merge 相邻的两帧，Seed1.5-VL [@Seed1.5-VL] 采用了 Dynamic Frame-Resolution Sampling 技巧，来根据 budget 和处理的任务来动态调整采样率 (frame) 和每一帧的图片精度 (resolution).
+之前的工作如 [Qwen2.5-VL](https://maosong.website/blog/qwen-vl/#qwen25-vl) 使用 3D convolution 来 merge 相邻的两帧，Seed1.5-VL [@Seed1.5-VL] 采用了 Dynamic Frame-Resolution Sampling 技巧，来根据 budget 和处理的任务来动态调整采样率 (frame) 和每一帧的图片精度 (resolution).
 
 作者认为这些方法比较难进行泛化，因而提出了 **SlowFast video encoding strategy**:
 

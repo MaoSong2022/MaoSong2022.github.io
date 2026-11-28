@@ -5,14 +5,14 @@
 
 ### Architecture
 
-对于 dense 模型，Qwen2 在 [Qwen-LLM](/blog/Qwen-series/#qwen-llm) 的基础上做了如下改动：
+对于 dense 模型，Qwen2 在 [Qwen-LLM](/blog/qwen/#qwen-llm) 的基础上做了如下改动：
 
 1. 使用 [Group Query Attention (GQA)](/blog/attention/#grouped-query-attention-gqa) 替换 MHA，来优化 KV cache，提高 throughput
 2. 使用 [Dual Chunk Attention](/blog/attention/#dual-chunk-attention-dca) 和 [YARN](/blog/long-context/#yarn) 来提高模型上下文长度和训练效率
 
 其余与 Qwen 一致，包括 SwiGLU，RoPE，RMSNorm 和 pre-normalization
 
-对于 MoE 模型，Qwen2-MoE 基于 [Qwen1.5](/blog/Qwen-series/#qwen15-moe) 进行了改进，主要是 3 点：
+对于 MoE 模型，Qwen2-MoE 基于 [Qwen1.5](/blog/qwen/#qwen15-moe) 进行了改进，主要是 3 点：
 
 1. 作者使用了更细粒度的专家个数，作者认为细粒度的专家可以提供更丰富的 combination，这一点与 [olmoe](/blog/olmo/#olmoe) 的结论相同
 2. 与 DeepSeek-MoE 一样，作者使用了共享专家和路由专家
